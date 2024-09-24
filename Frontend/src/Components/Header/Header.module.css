@@ -1,0 +1,18 @@
+.container {
+    /* background-color: transparent; */
+    height: initial;
+    background-color: rgb(255, 255, 255, 0.5);
+}
+
+.linkHover:hover {
+    background-color: lightblue;
+}
+
+.linkHover {
+    padding: 10px;
+    height: fit-content;
+    color: black;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+}
