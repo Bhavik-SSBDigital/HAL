@@ -1,7 +1,7 @@
 .container {
     /* background-color: transparent; */
     height: initial;
-    background-color: rgb(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.5);
 }
 
 .linkHover:hover {

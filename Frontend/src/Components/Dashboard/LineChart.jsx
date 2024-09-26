@@ -29,7 +29,7 @@ const LineChart = () => {
         };
     }, [options]);
 
-    return <div className='border rounded-lg p-2' ref={chartRef} style={{ width: '100%', height: '400px' }} />;
+    return <div className='cardDesign' ref={chartRef} style={{ width: '100%', height: '400px' }} />;
 };
 
 export default LineChart;
