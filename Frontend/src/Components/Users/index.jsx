@@ -194,6 +194,7 @@ const Users = () => {
                     <Button
                         variant="contained"
                         color="secondary"
+                        sx={{ marginLeft: "10px" }}
                         onClick={() => handleDeleteConfirmation(params.row._id)}
                     >
                         Delete
