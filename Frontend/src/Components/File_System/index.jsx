@@ -324,7 +324,7 @@ export default function FileSystem() {
                         <DataGrid
                             rows={files}
                             columns={columns}
-                            pageSize={5}
+                            pageSize={10}
                             rowsPerPageOptions={[5, 10, 20]}
                             getRowId={(row) => row.id} // Define the unique id for each row
                             disableSelectionOnClick

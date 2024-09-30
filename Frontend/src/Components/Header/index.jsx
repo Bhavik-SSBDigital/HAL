@@ -85,9 +85,9 @@ export default function Header() {
                         </div>
                     ))}
                 </div>
-                <Button variant="contained" onClick={() => sessionStorage.clear()}>
+                {/* <Button variant="contained" onClick={() => sessionStorage.clear()}>
                     Clear
-                </Button>
+                </Button> */}
                 <UserCircleIcon height={40} color="black" fontSize={10} />
             </div>
         </header>

@@ -6,6 +6,8 @@ import Blogs from "./Components/Blogs";
 import FileSystem from "./Components/File_System/index";
 import Users from './Components/Users'
 import Branches from './Components/Branches'
+import ProcessList from "./Components/Processes/ProcessList";
+import LogsList from "./Components/Logs/LogsList";
 
 const router = createBrowserRouter([
     {
@@ -35,6 +37,14 @@ const router = createBrowserRouter([
             {
                 path: '/users',
                 element: <Users />,
+            },
+            {
+                path: '/processes',
+                element: <ProcessList />,
+            },
+            {
+                path: '/logs',
+                element: <LogsList />,
             },
         ],
     },

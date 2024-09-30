@@ -205,7 +205,7 @@ const Users = () => {
     ];
 
     return (
-        <div className="cardDesign" style={{ marginTop: "5px", margin: "5px" }}>
+        <div className="cardDesign" style={{ margin: "5px" }}>
             <Stack alignItems="flex-end" my={1}>
                 <Button
                     variant="contained"
@@ -220,7 +220,7 @@ const Users = () => {
                 <DataGrid
                     rows={users}
                     columns={columns}
-                    pageSize={5}
+                    pageSize={10}
                     getRowId={(row) => row._id}
                 />
             </div>
