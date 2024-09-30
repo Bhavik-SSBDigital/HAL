@@ -1,18 +1,35 @@
-.container {
-    /* background-color: transparent; */
-    height: initial;
-    background-color: rgba(255, 255, 255, 0.5);
+.linkHover {
+    text-decoration: none;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 400;
+    padding: 10px;
+    display: block;
+    width: fit-content;
+    transition: background-color 0.3s;
+    box-sizing: border-box;
 }
 
 .linkHover:hover {
-    background-color: lightblue;
+    background-color: #FFFFFF11;
+    color: white;
+    border-bottom: 4px solid #6C63FF;
+    border-radius: 5px 5px 0 0;
+    font-weight: 600;
 }
 
-.linkHover {
-    padding: 10px;
-    height: fit-content;
-    color: black;
-    border-radius: 10px;
-    font-size: 17px;
-    font-weight: 700;
+.selected {
+    color: white;
+    border-radius: 5px 5px 0 0;
+    font-weight: 600;
+    border-bottom: 4px solid #6C63FF;
+    background-color: #FFFFFF11;
+}
+
+.headerContainer {
+    background-image: url(/src/assets/BG-IMAGES/headerGoldBlackBG.jpg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
 }
