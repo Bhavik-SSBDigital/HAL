@@ -113,7 +113,7 @@ const LogsList = () => {
         <div className="cardDesign" style={{ margin: "5px" }}>
             {viewId ? <ViewLog setViewId={setViewId} id={viewId} /> : <>
                 <Typography variant="h6" ml={1} my={1}>
-                    Process List
+                    Logs List
                 </Typography>
                 <DataGrid
                     rows={logsData}

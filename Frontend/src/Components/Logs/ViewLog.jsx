@@ -262,9 +262,7 @@ export default function ViewLog({ id, setViewId }) {
                                                         borderRadius: "15px",
                                                         flex: "1 1 auto",
                                                         margin: "10px",
-                                                        backgroundColor: "white",
-                                                        boxShadow:
-                                                            "2px 2px 6px -1px rgba(0,0,0,0.2), 0px 0px 8px 0px rgba(0,0,0,-0.86), 0px 0px 6px 3px rgba(1,1,2,0.12)",
+                                                        border: "1px solid lightgray"
                                                     }}
                                                 >
                                                     <div className={styles.filePartOne}>
@@ -336,9 +334,7 @@ export default function ViewLog({ id, setViewId }) {
                                                         borderRadius: "15px",
                                                         flex: "1 1 auto",
                                                         margin: "10px",
-                                                        backgroundColor: "white",
-                                                        boxShadow:
-                                                            "2px 2px 6px -1px rgba(0,0,0,0.2), 0px 0px 8px 0px rgba(0,0,0,-0.86), 0px 0px 6px 3px rgba(1,1,2,0.12)",
+                                                        border: "1px solid lightgray"
                                                     }}
                                                 >
                                                     <div className={styles.filePartOne}>
@@ -425,9 +421,7 @@ export default function ViewLog({ id, setViewId }) {
                                                         borderRadius: "15px",
                                                         flex: "1 1 auto",
                                                         margin: "10px",
-                                                        backgroundColor: "white",
-                                                        boxShadow:
-                                                            "2px 2px 6px -1px rgba(0,0,0,0.2), 0px 0px 8px 0px rgba(0,0,0,-0.86), 0px 0px 6px 3px rgba(1,1,2,0.12)",
+                                                        border: "1px solid lightgray"
                                                     }}
                                                 >
                                                     <div className={styles.filePartOne}>
