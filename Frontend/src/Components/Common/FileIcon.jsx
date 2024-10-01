@@ -8,11 +8,12 @@ const getFileExtension = (fileName) => {
     return fileName.split('.').pop().toLowerCase();  // Extracts file extension
 };
 
-const getFileIcon = (fileType) => {
+const getFileIcon = (fileType, size) => {
+    console.log(size + "Seisddas");
     switch (fileType) {
         // Document types
         case 'pdf':
-            return <img src={pdfIcon} width={25} style={{ marginRight: "3px" }} />;
+            return <img src={pdfIcon} width={24} style={{ marginRight: "3px" }} />;
         case 'doc':
         case 'docx':
         case 'odt':
@@ -74,9 +75,10 @@ const getFileIcon = (fileType) => {
     }
 };
 
-const FileIcon = ({ name }) => {
+const FileIcon = ({ size2, name }) => {
+    console.log(size2, name);
     const fileType = getFileExtension(name);
-    return getFileIcon(fileType);
+    return getFileIcon(fileType, size2);
 };
 
 export default FileIcon;

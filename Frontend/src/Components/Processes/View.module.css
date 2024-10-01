@@ -1,0 +1,180 @@
+.filePartOne {
+    height: 40%;
+    position: relative;
+}
+
+.filePartTwo {
+    height: 60%;
+    padding: 5px;
+}
+
+.modalDesign {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.fileHeading {
+    width: 100%;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.fileNameContainer {
+    /* height: 80%; */
+    margin: 0 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.fileTimeContainer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.iconContainer {
+    border-radius: 9px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.fileElements {
+    padding: 7px 7px 7px 10px;
+    margin: 9px 15px;
+    display: flex;
+    border-left: 4px solid #6C22A6;
+    border-radius: 5px;
+    background-color: #eeeeee;
+}
+
+.key {
+    display: inline-block;
+    width: 150px;
+    text-align: right;
+    margin-right: 10px;
+}
+
+.tableContainer {
+    margin: 0 auto;
+    max-height: 450px !important;
+    overflow: auto;
+}
+
+.tableHeaderCell {
+    font-weight: bold;
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    font-weight: 900;
+    z-index: 1;
+}
+
+.tableRow:hover {
+    background-color: #f5f5f5;
+}
+
+.tableContainer {
+    width: 100%;
+}
+
+.table {
+    width: 100%;
+}
+
+.tableHeader {
+    font-weight: bold;
+    background-color: #dadada;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+/* Add hover effect for table rows */
+.tableRow:hover {
+    background-color: #f0f0f0;
+}
+
+
+/* iframe for view files */
+
+.pdfIframe {
+    position: fixed !important;
+    top: 0;
+    right: -500px;
+    /* Start hidden off-screen */
+    height: 100vh;
+    width: 900px;
+    z-index: 100;
+    background: white;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    animation: slideIn 0.5s ease-in forwards;
+    /* The 'forwards' ensures the final state of animation is kept */
+}
+
+.closeBtn {
+    display: none !important;
+}
+
+.backDrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 99;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+@keyframes slideIn {
+    from {
+        right: -500px;
+        /* Hidden off-screen */
+    }
+
+    to {
+        right: 0;
+        /* Fully visible */
+    }
+}
+
+/* Small devices (sm) - Mobile phones (width up to 600px) */
+@media (max-width: 600px) {
+    .pdfIframe {
+        width: 100%;
+    }
+
+    .closeBtn {
+        display: block !important;
+    }
+}
+
+/* Medium devices (md) - Tablets (width 601px to 1024px) */
+@media (min-width: 601px) and (max-width: 1024px) {
+    .pdfIframe {
+        width: 550px;
+    }
+}
+
+
+/* work name tag */
+.workName {
+    border: 1px solid lightgray;
+    padding: 3px 12px;
+    border-radius: 6px;
+}

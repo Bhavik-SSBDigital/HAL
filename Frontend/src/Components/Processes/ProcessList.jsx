@@ -2,12 +2,19 @@ import React, { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import axios from "axios";
 import { Button, Chip, Typography } from "@mui/material";
+import ViewProcess from "./ViewProcess";
+import { IconEye } from "@tabler/icons-react";
 
 const ProcessList = () => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const [processData, setProcessData] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    const initialViewDetails = {
+        id: "",
+        workFlowToBeFollowed: "",
+        work: "",
+    }
+    const [viewDetails, setViewDetails] = useState(initialViewDetails)
     const url = backendUrl + '/getProcessesForUser';
 
     const fetchProcesses = async () => {
@@ -34,6 +41,30 @@ const ProcessList = () => {
     useEffect(() => {
         fetchProcesses();
     }, []);
+    // const handleRemoveNotification = async (id) => {
+    //     try {
+    //         const url = backendUrl + `/removeProcessNotification/${id}`;
+    //         await axios.post(url, null, {
+    //             headers: {
+    //                 Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+    //             },
+    //         });
+    //         const updatedNotifications = notifications?.filter(
+    //             (item) => item.processId !== id,
+    //         );
+    //         setNotifications(updatedNotifications);
+    //     } catch (error) {
+    //         console.error('error', error);
+    //     }
+    // };
+
+    const handleView = (row) => {
+        const { _id, workFlowToBeFollowed, work } = row
+        console.log(_id);
+        // setWork(work);
+        setViewDetails({ id: _id, workFlowToBeFollowed, work })
+        // handleRemoveNotification(id);
+    }
     const getWorkName = (filenames) => {
         // Step 1: Extract the word after the first underscore
         const extractedWords = filenames.map(filename => {
@@ -85,9 +116,10 @@ const ProcessList = () => {
             renderCell: (params) => (
                 <div>
                     <Button
-                        variant="contained"
+                        // variant="contained"
                         color="primary"
-                        onClick={() => handleEdit(params.row)}
+                        onClick={() => handleView(params.row)}
+                        startIcon={<IconEye />}
                     >
                         View
                     </Button>
@@ -98,16 +130,18 @@ const ProcessList = () => {
 
     return (
         <div className="cardDesign" style={{ margin: '5px' }}>
-            <Typography variant="h6" ml={1} my={1}>Process List</Typography>
-            <DataGrid
-                rows={processData}
-                columns={columns}
-                pageSize={10}
-                loading={loading}
-                getRowId={(row) => row._id}
-                disableSelectionOnClick
-            // checkboxSelection
-            />
+            {viewDetails?.id ? <ViewProcess setViewDetails={setViewDetails} viewId={viewDetails?.id} workflowFollow={viewDetails?.workFlowToBeFollowed} /> : <>
+                <Typography variant="h6" ml={1} my={1}>Process List</Typography>
+                <DataGrid
+                    rows={processData}
+                    columns={columns}
+                    pageSize={10}
+                    loading={loading}
+                    getRowId={(row) => row._id}
+                    disableSelectionOnClick
+                // checkboxSelection
+                />
+            </>}
         </div>
     );
 };
