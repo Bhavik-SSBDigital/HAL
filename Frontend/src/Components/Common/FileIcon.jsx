@@ -13,7 +13,7 @@ const getFileIcon = (fileType, size) => {
     switch (fileType) {
         // Document types
         case 'pdf':
-            return <img src={pdfIcon} width={24} style={{ marginRight: "3px" }} />;
+            return <img src={pdfIcon} width={size || 24} style={{ marginRight: "3px" }} />;
         case 'doc':
         case 'docx':
         case 'odt':
@@ -76,7 +76,6 @@ const getFileIcon = (fileType, size) => {
 };
 
 const FileIcon = ({ size2, name }) => {
-    console.log(size2, name);
     const fileType = getFileExtension(name);
     return getFileIcon(fileType, size2);
 };

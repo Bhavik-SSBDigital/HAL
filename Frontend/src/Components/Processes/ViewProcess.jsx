@@ -1417,7 +1417,8 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                                                                 flex: "1 1 auto",
                                                                 margin: "10px",
                                                                 backgroundColor: "white",
-                                                                boxShadow: "rgba(0, 0, 0, 0.16) 0px 1px 4px",
+                                                                border: '1px solid lightgray'
+                                                                // boxShadow: "rgba(0, 0, 0, 0.16) 0px 1px 4px",
                                                             }}
                                                         >
                                                             <div className={styles.filePartOne}>
