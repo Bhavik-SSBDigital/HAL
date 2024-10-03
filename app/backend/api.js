@@ -47,7 +47,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/", router);
 
-const userSockets = new Map();
+export const userSockets = new Map();
 
 // Start the HTTP/2 server with spdy
 // const options = {
@@ -60,6 +60,34 @@ server.listen(8000, () => console.log(`Listening on port ${8000}`));
 io.on("connection", (socket) => {
   socket.on("login", (username) => {
     userSockets.set(username, socket);
+  });
+
+  socket.on("joinMeetingRoom", ({ meetingId, username }) => {
+    socket.join(meetingId);
+    console.log(`${username} joined room ${meetingId}`);
+    io.to(meetingId).emit("userJoined", { username });
+  });
+
+  socket.on("leaveMeetingRoom", ({ meetingId, username }) => {
+    socket.leave(meetingId);
+    console.log(`${username} left room ${meetingId}`);
+    io.to(meetingId).emit("userLeft", { username });
+  });
+
+  socket.on("sendMessageToRoom", ({ meetingId, message }) => {
+    io.to(meetingId).emit("newMessage", message);
+  });
+
+  socket.on("offer", (roomId, offer) => {
+    socket.to(roomId).emit("receiveOffer", offer);
+  });
+
+  socket.on("answer", (roomId, answer) => {
+    socket.to(roomId).emit("receiveAnswer", answer);
+  });
+
+  socket.on("iceCandidate", (roomId, candidate) => {
+    socket.to(roomId).emit("receiveIceCandidate", candidate);
   });
 
   socket.on("disconnect", () => {
