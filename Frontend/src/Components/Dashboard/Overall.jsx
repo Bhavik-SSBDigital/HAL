@@ -432,7 +432,7 @@ const Overall = () => {
           title: {
             text: 'Documents Counts Category Wise',
             left: 'center',
-            top: 5,
+            top: 20,
             textStyle: {
               fontSize: 14,
               fontWeight: 'bold',

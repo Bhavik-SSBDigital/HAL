@@ -250,7 +250,7 @@ export default function FileSystem() {
                             Folders
                         </Typography>
                     </Box>
-                    <Grid2 container spacing={2} mb={4}>
+                    <Grid2 container mb={4}>
                         {directories.map((folder, index) => (
                             <Grid2 item size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={index}>
                                 <Card
