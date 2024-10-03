@@ -79,7 +79,7 @@ const ProcessList = () => {
     };
     // Columns for the DataGrid
     const columns = [
-        { field: "name", headerName: "Process Name", width: 200 },
+        { field: "name", headerName: "Process Name", width: 200, flex: 1 },
         {
             field: "completed",
             headerName: "Completed",
@@ -89,6 +89,7 @@ const ProcessList = () => {
                     <Chip label={params.value ? 'Yes' : 'No'} sx={{ width: "80px" }} color={params.value ? "success" : "error"} />
                 );
             },
+            flex: 1
         }
         ,
         {
@@ -96,6 +97,7 @@ const ProcessList = () => {
             headerName: "Created At",
             width: 200,
             valueGetter: (value) => new Date(value).toLocaleString(), // Format date
+            flex: 1
         },
         {
             field: "files",
@@ -108,6 +110,7 @@ const ProcessList = () => {
                     </span>
                 );
             },
+            flex: 1
         },
         {
             field: "actions",
@@ -125,6 +128,7 @@ const ProcessList = () => {
                     </Button>
                 </div>
             ),
+            flex: 1
         },
     ];
 

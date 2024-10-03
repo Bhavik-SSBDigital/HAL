@@ -167,16 +167,17 @@ const Users = () => {
         setConfirmOpen(true);
     };
     const columns = [
-        { field: "username", headerName: "Username", width: 180 },
-        { field: "email", headerName: "Email", width: 180 },
-        { field: "role", headerName: "Role", width: 180 },
-        { field: "status", headerName: "Status", width: 180 },
-        { field: "branch", headerName: "Branch", width: 180 },
+        { field: "username", headerName: "Username", width: 180, flex: 1 },
+        { field: "email", headerName: "Email", width: 180, flex: 1 },
+        { field: "role", headerName: "Role", width: 180, flex: 1 },
+        { field: "status", headerName: "Status", width: 180, flex: 1 },
+        { field: "branch", headerName: "Branch", width: 180, flex: 1 },
         {
             field: "createdAt",
             headerName: "Created Date",
             valueGetter: (value) => moment(value).format("DD-MM-YYYY hh:mm"),
             width: 180,
+            flex: 1
         },
         {
             field: "actions",
@@ -201,6 +202,7 @@ const Users = () => {
                     </Button>
                 </div>
             ),
+            flex: 1
         },
     ];
 

@@ -47,11 +47,13 @@ const LogsList = () => {
             field: "processName",
             headerName: "Process Name",
             width: 200,
+            flex: 1
         },
         {
             field: "reverted",
             headerName: "Reverted",
             width: 170,
+            flex: 1,
             renderCell: (params) => {
                 return (
                     <Chip
@@ -66,12 +68,14 @@ const LogsList = () => {
             field: "time",
             headerName: "Date",
             width: 200,
+            flex: 1,
             valueGetter: (value) => new Date(value).toLocaleString(), // Format date to a readable string
         },
         {
             field: "currentStep.work",
             headerName: "Work",
             width: 100,
+            flex: 1,
             renderCell: (params) => {
                 return (
                     <span>
@@ -84,6 +88,7 @@ const LogsList = () => {
             field: "currentStep.role",
             headerName: "Role",
             width: 150,
+            flex: 1,
             renderCell: (params) => {
                 return (
                     <span>{params.row.currentStep?.role ? params.row.currentStep.role : ""}</span>
@@ -94,6 +99,7 @@ const LogsList = () => {
             field: "actions",
             headerName: "Actions",
             width: 180,
+            flex: 1,
             renderCell: (params) => (
                 <div>
                     <Button

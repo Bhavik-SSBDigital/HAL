@@ -8,6 +8,8 @@ import Users from './Components/Users'
 import Branches from './Components/Branches'
 import ProcessList from "./Components/Processes/ProcessList";
 import LogsList from "./Components/Logs/LogsList";
+import MeetingManager from "./Components/Meeting";
+import InitiateForm from "./Components/Processes/InitiateForm";
 
 const router = createBrowserRouter([
     {
@@ -45,6 +47,14 @@ const router = createBrowserRouter([
             {
                 path: '/logs',
                 element: <LogsList />,
+            },
+            {
+                path: '/meeting',
+                element: <MeetingManager />,
+            },
+            {
+                path: '/initiate',
+                element: <InitiateForm />,
             },
         ],
     },

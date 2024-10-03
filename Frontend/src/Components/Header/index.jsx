@@ -25,6 +25,7 @@ export default function Header() {
         { path: "/users", name: "Users" },
         { path: "/processes", name: "Processes" },
         { path: "/logs", name: "Logs" },
+        { path: "/meeting", name: "Meeting" },
         { path: "/initiate", name: "Initiate Processes" },
     ];
 

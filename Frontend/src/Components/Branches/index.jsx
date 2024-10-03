@@ -73,14 +73,15 @@ const Branches = () => {
     };
 
     const columns = [
-        { field: "code", headerName: "Code", width: 180 },
-        { field: "name", headerName: "Name", width: 180 },
-        { field: "status", headerName: "Status", width: 180 },
+        { field: "code", headerName: "Code", width: 180, flex: 1 },
+        { field: "name", headerName: "Name", width: 180, flex: 1 },
+        { field: "status", headerName: "Status", width: 180, flex: 1 },
         {
             field: "createdAt",
             headerName: "Created Date",
             valueGetter: (value) => moment(value).format("DD-MM-YYYY hh:mm"),
             width: 180,
+            flex: 1
         },
         {
             field: "actions",
@@ -105,6 +106,7 @@ const Branches = () => {
                     </Button>
                 </>
             ),
+            flex: 1
         },
     ];
 
