@@ -1,7 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import Layout from "./Layout";
 import Contact from "./Components/Contact";
-import Dashboard from "./Components/Dashboard";
 import Blogs from "./Components/Blogs";
 import FileSystem from "./Components/File_System/index";
 import Users from './Components/Users'
@@ -10,6 +9,7 @@ import ProcessList from "./Components/Processes/ProcessList";
 import LogsList from "./Components/Logs/LogsList";
 import MeetingManager from "./Components/Meeting";
 import InitiateForm from "./Components/Processes/InitiateForm";
+import Overall from "./Components/Dashboard/Overall";
 
 const router = createBrowserRouter([
     {
@@ -18,7 +18,7 @@ const router = createBrowserRouter([
         children: [
             {
                 path: '/',
-                element: <Dashboard />,
+                element: <Overall />,
             },
             {
                 path: '/files',
