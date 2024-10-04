@@ -103,7 +103,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "build", "index.html"));
 });
 
-export { userSockets };
+// export { userSockets };
 app.listen(PORT, () => {
   // connection(password);
   db();
