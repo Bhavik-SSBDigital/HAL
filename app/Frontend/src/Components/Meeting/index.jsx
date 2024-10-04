@@ -3,6 +3,7 @@ import { Box, IconButton, Button, Typography, Paper, Drawer, List, ListItem, Lis
 import { IconLogout2, IconMessages, IconMicrophone, IconMicrophoneOff, IconPhone, IconShareplay, IconUsersGroup, IconVideo, IconVideoOff, IconSend2 } from '@tabler/icons-react';
 import { io } from 'socket.io-client'; // Import the socket.io client
 import { useForm } from 'react-hook-form'
+import { toast } from 'react-toastify';
 
 const MeetingManager = () => {
     const [isMuted, setIsMuted] = useState(true);
@@ -60,12 +61,12 @@ const MeetingManager = () => {
 
         socket.current.on('userJoined', ({ username }) => {
             setParticipants((prev) => [...prev, username]);
-            console.log(`${username} joined the meeting`);
+            toast.info(`${username} joined the meeting`);
         });
 
         socket.current.on('userLeft', ({ username }) => {
             setParticipants((prev) => prev.filter((member) => member !== username));
-            console.log(`${username} left the meeting`);
+            toast.info(`${username} left the meeting`);
         });
 
         socket.current.on('newMessage', (message) => {
@@ -87,6 +88,8 @@ const MeetingManager = () => {
     const leaveMeetingRoom = (username) => {
         socket.current.emit('leaveMeetingRoom', { meetingId, username });
         setMeetingId('')
+        setChatMessages([])
+        setParticipants([])
     };
 
     // Send a message to the room
@@ -118,7 +121,6 @@ const MeetingManager = () => {
     const sendMessage = () => {
         if (message.trim() !== '') {
             const newMessage = { sender: 'You', text: message };
-            setChatMessages((prev) => [...prev, newMessage]);
             sendMessageToRoom(meetingId, newMessage); // Emit message to socket
             setMessage('');
         }
@@ -383,7 +385,6 @@ const MeetingManager = () => {
                         sx={{ ml: 2, height: 34 }}
                         onClick={() => {
                             leaveMeetingRoom(username);
-                            alert('You have left the meeting.');
                         }}
                     >
                         Leave
