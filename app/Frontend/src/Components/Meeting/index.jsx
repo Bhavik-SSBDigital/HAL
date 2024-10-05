@@ -124,7 +124,7 @@ const MeetingManager = () => {
             }
             socket.current.disconnect(); // Disconnect the socket
         };
-    }, []);
+    }, [meetingId]);
 
     // Join a meeting room
 
@@ -303,6 +303,7 @@ const MeetingManager = () => {
                                 backgroundColor: 'black',
                             }}
                         />
+                        <video id="remoteVideo" autoPlay style={{ display: 'none' }} />
                         {/* Optional Loading/Error Messages */}
                         {!isCameraOff && !localStream && (
                             <Typography variant="h6" align="center" sx={{ p: 2, position: 'absolute', color: 'white' }}>

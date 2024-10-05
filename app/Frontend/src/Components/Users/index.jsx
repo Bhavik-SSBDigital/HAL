@@ -27,6 +27,7 @@ const Users = () => {
         formState: { errors, isSubmitting },
     } = useForm();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const token = sessionStorage.getItem('accessToken');
     const [open, setOpen] = useState(false);
     const [deleteId, setDeleteId] = useState("");
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -57,7 +58,7 @@ const Users = () => {
         if (isEdit) {
             await axios.post(`${backendUrl}/editUser/${editId}`, formData, {
                 headers: {
-                    Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc0tlZXBlck9mUGh5c2ljYWxEb2NzIjpmYWxzZSwiX2lkIjoiNjYwNjYxNGYyMjdiZWU2ZjRkZDVhNjg0IiwidXNlcm5hbWUiOiJhZG1pbiIsImVtYWlsIjoiZWRwbWlzLmhvQGtkY2NiYW5rLmluIiwicGFzc3dvcmQiOiIkMmIkMTAkY3d0UFlzRVlNMG9JcmR3UEUzWHRkLkl5VzNEcU5vNjhMZUs3cy5ueVpkM3Y1WlZBdUxxQ20iLCJzcGVjaWFsVXNlciI6ZmFsc2UsImlhdCI6MTcyNzM0NDcwOCwiZXhwIjoxNzU4ODgwNzA4fQ.R3QEM3pzBdG8Y1zrG48EKjy3k14aKEmmw479xSJXScI`,
+                    Authorization: `Bearer ${token}`,
                 },
             });
 
@@ -329,7 +330,7 @@ const Users = () => {
                             )}
                         />
                         <Button disabled={isSubmitting} fullWidth type="submit" variant="contained" color="primary">
-                            {isSubmitting ? <CircularProgress size={24}/> : isEdit ? "Save Changes" : "Submit"}
+                            {isSubmitting ? <CircularProgress size={24} /> : isEdit ? "Save Changes" : "Submit"}
                         </Button>
                     </form>
                 </div>

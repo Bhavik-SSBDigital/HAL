@@ -7,6 +7,7 @@ import { IconEye } from "@tabler/icons-react";
 
 const LogsList = () => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const token = sessionStorage.getItem('accessToken')
     const [logsData, setLogsData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewId, setViewId] = useState(null)
@@ -24,7 +25,7 @@ const LogsList = () => {
                 },
                 {
                     headers: {
-                        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NmY1MzZkY2MzOTBlNmUyYTg5M2Q4YjEiLCJ1c2VybmFtZSI6IlRlc3QiLCJicmFuY2giOiI2NmRmZjYwNzEyMjE4NTc0ZDhkZDAzY2MiLCJyb2xlIjoiNjZkZmY2NDExMjIxODU3NGQ4ZGQwM2U3IiwiZW1haWwiOiJ2aXJhamthbGFyaWEwNUBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCR0RWd5ZGxVREhHWVZwZDA0ZWwzQVNPYjBJZURPQ3Q1UTFRb24vUTR1bHVDNHlTTGIxWjRMLiIsInNwZWNpYWxVc2VyIjpmYWxzZSwiaXNLZWVwZXJPZlBoeXNpY2FsRG9jcyI6ZmFsc2UsImlhdCI6MTcyNzY5MDgxNCwiZXhwIjoxNzU5MjI2ODE0fQ.zl4N99v8an9er7FdOSztZ_chnvLNgcsQrdorYehUw84`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );

@@ -73,6 +73,7 @@ import { useQueryClient } from "react-query";
 import sessionData from "../../store";
 import FileIcon from "../Common/FileIcon";
 export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) {
+    const token = sessionStorage.getItem('accessToken')
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const style = {
         position: "absolute",
@@ -191,7 +192,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                     },
                     {
                         headers: {
-                            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                            Authorization: `Bearer ${token}`,
                         },
                     }
                 );
@@ -241,7 +242,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -460,7 +461,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                     },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -496,7 +497,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -534,7 +535,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -644,7 +645,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -701,7 +702,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -847,7 +848,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -875,7 +876,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 { workFlowToBeFollowed, currentStep: processData.currentStepNumber },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -900,7 +901,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 { workFlowToBeFollowed },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -935,7 +936,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
             try {
                 const res = await axios.post(url, null, {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 });
                 setRoleList(res.data.roles);
@@ -999,7 +1000,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 { work },
                 {
                     headers: {
-                        Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -1066,7 +1067,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
                 { workFlowToBeFollowed },
                 {
                     headers: {
-                        Authorization: `bearer ${sessionStorage.getItem("accessToken")}`,
+                        Authorization: `bearer ${token}`,
                     },
                 }
             );

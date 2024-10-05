@@ -7,6 +7,7 @@ import { IconEye } from "@tabler/icons-react";
 
 const ProcessList = () => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const token = sessionStorage.getItem('accessToken')
     const [processData, setProcessData] = useState([]);
     const [loading, setLoading] = useState(true);
     const initialViewDetails = {
@@ -28,7 +29,7 @@ const ProcessList = () => {
                 },
                 {
                     headers: {
-                        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NmY1Mzc0NmMzOTBlNmUyYTg5M2Q4Y2YiLCJ1c2VybmFtZSI6ImNoZWNraW5nIiwiYnJhbmNoIjoiNjZkZmY2MDcxMjIxODU3NGQ4ZGQwM2NjIiwicm9sZSI6IjY2ZGZmNmNiMTIyMTg1NzRkOGRkMDQyYiIsImVtYWlsIjoidmlyYWprYWxhcmlhMDVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkV1dpNkJST0ZFL2dzeXpsVDlVdXdaT09Ha0MwUnJjTkIyQmFjNS9CYld5WGxQNllWOEhpelMiLCJzcGVjaWFsVXNlciI6ZmFsc2UsImlzS2VlcGVyT2ZQaHlzaWNhbERvY3MiOmZhbHNlLCJpYXQiOjE3Mjc2ODcwNDcsImV4cCI6MTc1OTIyMzA0N30.ADdFRmhUAW8VvWRNqbqVCIqU1JVGp_MQhMsf_4UYye4`,
+                        Authorization: `Bearer ${token}`,
                     },
                 },
             );
