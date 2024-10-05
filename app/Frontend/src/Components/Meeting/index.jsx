@@ -19,6 +19,7 @@ const MeetingManager = () => {
     const [localStream, setLocalStream] = useState(null);
     const [meetingId, setMeetingId] = useState("")
     const socket = useRef(null); // Use ref to hold the socket instance
+    const peerConnection = useRef(null);
 
     const joinMeetingRoom = (meetingId, username) => {
         socket.current.emit('joinMeetingRoom', { meetingId, username });
@@ -31,6 +32,27 @@ const MeetingManager = () => {
     const onSubmit = (data) => {
         joinMeetingRoom(data.meetingId, data.username); // Call the provided function to handle meeting joining logic
     };
+    const createPeerConnection = () => {
+        peerConnection.current = new RTCPeerConnection(configuration);
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => peerConnection.current.addTrack(track, localStream));
+        }
+
+        peerConnection.current.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.current.emit('iceCandidate', meetingId, event.candidate);
+            }
+        };
+
+        peerConnection.current.ontrack = (event) => {
+            const remoteVideoElement = document.getElementById('remoteVideo');
+            if (remoteVideoElement) {
+                remoteVideoElement.srcObject = event.streams[0];
+            }
+        };
+    };
+
     // Request access to camera and microphone
     useEffect(() => {
         const getMedia = async () => {
@@ -55,6 +77,28 @@ const MeetingManager = () => {
         socket.current = io(socketUrl);
 
         // Handle socket events
+        socket.current.on('offer', async (offer) => {
+            if (!peerConnection.current) {
+                createPeerConnection();
+            }
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.current.createAnswer();
+            await peerConnection.current.setLocalDescription(answer);
+            socket.current.emit('answer', meetingId, answer);
+        });
+
+        socket.current.on('answer', async (answer) => {
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.current.on('iceCandidate', async (candidate) => {
+            try {
+                await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+                console.error('Error adding received ice candidate', e);
+            }
+        });
+
         socket.current.on('connect', () => {
             console.log('Connected to socket server');
         });
@@ -86,11 +130,48 @@ const MeetingManager = () => {
 
     // Leave a meeting room
     const leaveMeetingRoom = (username) => {
+        // Emit the leave event to the server
         socket.current.emit('leaveMeetingRoom', { meetingId, username });
-        setMeetingId('')
-        setChatMessages([])
-        setParticipants([])
+
+        // Clear room state
+        setMeetingId('');
+        setChatMessages([]);
+        setParticipants([]);
+
+        // Clear video and audio streams
+        if (localStream.current) {
+            // Stop all tracks (audio and video)
+            localStream.current.getTracks().forEach(track => track.stop());
+
+            // Optionally, clear the local video element if you're rendering video
+            const localVideoElement = document.getElementById('localVideo');
+            if (localVideoElement) {
+                localVideoElement.srcObject = null;
+            }
+
+            // Set the localStream to null
+            localStream.current = null;
+        }
+
+        // If you're using WebRTC, close all peer connections
+        if (peerConnection.current) {
+            peerConnection.current.close();
+            peerConnection.current = null;
+        }
+
+        // Clean up remote streams (if applicable)
+        if (remoteStream.current) {
+            remoteStream.current.getTracks().forEach(track => track.stop());
+            remoteStream.current = null;
+        }
+
+        // If you're using any media stream API like MediaRecorder, stop that as well
+        if (mediaRecorder.current) {
+            mediaRecorder.current.stop();
+            mediaRecorder.current = null;
+        }
     };
+
 
     // Send a message to the room
     const sendMessageToRoom = (meetingId, message) => {
