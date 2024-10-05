@@ -96,6 +96,10 @@ const Overall = () => {
     xAxis: {
       type: 'category',
       data: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'], // Default categories for the initial state
+      axisLabel: {
+        interval: 0, // Show all labels
+        rotate: 45, // Rotate labels for better visibility
+      },
     },
     yAxis: {
       type: 'value',
@@ -150,6 +154,10 @@ const Overall = () => {
     xAxis: {
       type: 'category',
       data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+      axisLabel: {
+        interval: 0, // Show all labels
+        rotate: 45, // Rotate labels for better visibility
+      },
     },
     yAxis: {
       type: 'value',
@@ -399,6 +407,10 @@ const Overall = () => {
                 ? moment(item.time).format('DD-MM-YYYY')
                 : item.time;
             }) || [],
+            axisLabel: {
+              interval: 0, // Show all labels
+              rotate: 45, // Rotate labels for better visibility
+            },
           },
           yAxis: {
             type: 'value',
@@ -461,6 +473,10 @@ const Overall = () => {
                   ? moment(item.time).format('DD-MM-YYYY')
                   : item.time;
               }) || [],
+            axisLabel: {
+              interval: 0, // Show all labels
+              rotate: 45, // Rotate labels for better visibility
+            },
           },
           yAxis: {
             type: 'value',
