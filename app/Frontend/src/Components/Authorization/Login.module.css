@@ -40,7 +40,8 @@
     border-radius: 5px;
     box-sizing: border-box;
 }
-.errorInput{
+
+.errorInput {
     border: 1px solid red !important;
 }
 
@@ -80,4 +81,15 @@
 
 .extraLinks a:hover {
     text-decoration: underline;
+}
+
+.pass {
+    position: relative;
+}
+
+.eyeIcon {
+    position: absolute;
+    right: 0px;
+    padding: 12px;
+    /* top: 50%; */
 }

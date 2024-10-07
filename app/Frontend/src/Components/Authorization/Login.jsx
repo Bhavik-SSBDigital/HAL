@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import styles from "./Login.module.css"; // Importing CSS module
 import { toast } from "react-toastify";
 import axios from "axios";
 import { CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { IconEye, IconEyeOff } from "@tabler/icons-react";
 
 const Login = () => {
+    const [showPass, setShowPass] = useState(false); // State to toggle password visibility
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const {
         register,
@@ -56,12 +58,20 @@ const Login = () => {
                         )}
                     </div>
                     <div className={styles.formGroup}>
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            {...register("password", { required: true })}
-                            className={`${styles.textfields} ${errors.password && styles.errorInput}`}
-                        />
+                        <div className={styles.pass}>
+                            <input
+                                type={showPass ? "text" : "password"}
+                                placeholder="Password"
+                                {...register("password", { required: true })}
+                                className={`${styles.textfields} ${errors.password && styles.errorInput}`}
+                            />
+                            <span
+                                className={styles.eyeIcon}
+                                onClick={() => setShowPass(!showPass)}
+                            >
+                                {showPass ? <IconEyeOff /> : <IconEye />}
+                            </span>
+                        </div>
                         {errors.password && (
                             <p className={styles.errorMessage}>Password is required</p>
                         )}
