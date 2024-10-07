@@ -77,7 +77,11 @@ const MeetingManager = () => {
         socket.current = io(socketUrl);
 
         // Handle socket events
+        socket.current.on('login', (data) => {
+            console.log(data + "data");
+        })
         socket.current.on('offer', async (offer) => {
+            console.log(answer + "offer");
             if (!peerConnection.current) {
                 createPeerConnection();
             }
@@ -86,12 +90,20 @@ const MeetingManager = () => {
             await peerConnection.current.setLocalDescription(answer);
             socket.current.emit('answer', meetingId, answer);
         });
+        socket.current.on('receiveOffer', (offer) => {
+            console.log(offer + "receiveOffer");
+        })
 
         socket.current.on('answer', async (answer) => {
+            console.log(answer + "asnwer");
             await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+        socket.current.on('receiveAnswer', async (answer) => {
+            console.log(answer + "receiveAnswer");
         });
 
         socket.current.on('iceCandidate', async (candidate) => {
+            console.log(candidate + "candidate");
             try {
                 await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
             } catch (e) {
@@ -114,6 +126,7 @@ const MeetingManager = () => {
         });
 
         socket.current.on('newMessage', (message) => {
+            console.log(JSON.stringify(message) + "message");
             setChatMessages((prev) => [...prev, message]);
         });
 
@@ -124,7 +137,7 @@ const MeetingManager = () => {
             }
             socket.current.disconnect(); // Disconnect the socket
         };
-    }, [meetingId]);
+    }, []);
 
     // Join a meeting room
 
@@ -157,18 +170,6 @@ const MeetingManager = () => {
         if (peerConnection.current) {
             peerConnection.current.close();
             peerConnection.current = null;
-        }
-
-        // Clean up remote streams (if applicable)
-        if (remoteStream.current) {
-            remoteStream.current.getTracks().forEach(track => track.stop());
-            remoteStream.current = null;
-        }
-
-        // If you're using any media stream API like MediaRecorder, stop that as well
-        if (mediaRecorder.current) {
-            mediaRecorder.current.stop();
-            mediaRecorder.current = null;
         }
     };
 
@@ -303,7 +304,6 @@ const MeetingManager = () => {
                                 backgroundColor: 'black',
                             }}
                         />
-                        <video id="remoteVideo" autoPlay style={{ display: 'none' }} />
                         {/* Optional Loading/Error Messages */}
                         {!isCameraOff && !localStream && (
                             <Typography variant="h6" align="center" sx={{ p: 2, position: 'absolute', color: 'white' }}>
@@ -331,9 +331,10 @@ const MeetingManager = () => {
                                             height="100%"
                                             maxHeight={"300px"}
                                             bgcolor="#000"
+                                            minWidth={300}
                                             color="#fff"
                                         >
-                                            <Typography variant="subtitle1">{participant}'s Video</Typography>
+                                            <Typography variant="subtitle1">{participant}</Typography>
                                         </Box>
                                     </Paper>
                                 </Grid2>

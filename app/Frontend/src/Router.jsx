@@ -11,6 +11,7 @@ import MeetingManager from "./Components/Meeting";
 import InitiateForm from "./Components/Processes/InitiateForm";
 import Overall from "./Components/Dashboard/Overall";
 import Login from "./Components/Authorization/Login";
+import Timeline from "./Components/Dashboard/Timeline";
 
 
 // ProtectedRoute component
@@ -75,6 +76,10 @@ const router = createBrowserRouter([
             {
                 path: '/initiate',
                 element: <InitiateForm />,
+            },
+            {
+                path: '/timeline',
+                element: <Timeline />,
             },
         ],
     },

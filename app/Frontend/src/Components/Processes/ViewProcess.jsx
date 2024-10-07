@@ -1091,7 +1091,7 @@ export default function ViewProcess({ viewId, workflowFollow, setViewDetails }) 
         }
     }, [pickedProcesses]);
     const redirectToTimeline = (processName) => {
-        const url = `/dashboard/timeLine?data=${processName}`;
+        const url = `/timeLine?data=${processName}`;
         console.log("first");
         navigate(url);
     };
