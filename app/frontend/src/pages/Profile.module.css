@@ -1,0 +1,11 @@
+@media screen and (max-width: 640px) {
+    .noProfileImage {
+        width: 110px !important;
+        height: 110px !important;
+    }
+
+    .profileImage {
+        width: 120px !important;
+        height: 110px !important;
+    }
+}

@@ -1,0 +1,116 @@
+.filePartOne {
+    height: 40%;
+    position: relative;
+}
+
+.filePartTwo {
+    height: 60%;
+    padding: 5px;
+}
+
+.modalDesign {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.fileHeading {
+    width: 100%;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.fileNameContainer {
+    /* height: 80%; */
+    margin: 0 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.fileTimeContainer {
+    /* height: 80%; */
+    /* padding: 10px; */
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.iconContainer {
+    /* position: absolute; */
+    /* left: 10px;
+    top: 10px; */
+    /* border: 1px solid white; */
+    border-radius: 9px;
+    /* background-color: rgb(149, 149, 194); */
+    /* background-color: black; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.fileElements {
+    padding: 7px 7px 7px 10px;
+    margin: 9px 15px;
+    display: flex;
+    border-left: 4px solid #6C22A6;
+    border-radius: 5px;
+    background-color: #eeeeee;
+}
+
+.key {
+    display: inline-block;
+    width: 150px;
+    text-align: right;
+    margin-right: 10px;
+    /* Adjust the margin as needed for spacing */
+}
+
+.tableContainer {
+    margin: 0 auto;
+    max-height: 450px !important;
+    overflow: auto;
+}
+
+.tableHeaderCell {
+    font-weight: bold;
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    font-weight: 900;
+    z-index: 1;
+}
+
+.tableRow:hover {
+    background-color: #f5f5f5;
+}
+
+.tableContainer {
+    width: 100%;
+}
+
+.table {
+    width: 100%;
+}
+
+.tableHeader {
+    font-weight: bold;
+    background-color: #dadada;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+/* Add hover effect for table rows */
+.tableRow:hover {
+    background-color: #f0f0f0;
+    /* Change to your desired hover color */
+}

@@ -1,0 +1,23 @@
+
+.padding {
+    width: 100%;
+    position: relative;
+    overflow: auto;
+}
+
+/* .cell{
+} */
+@media screen and (max-width: 600px) {
+
+    .padding {
+        padding: 7px !important;
+    }
+}
+
+/* Media query for medium screens (md) */
+@media screen and (min-width: 601px) and (max-width: 960px) {
+
+    .padding {
+        padding: 10px !important;
+    }
+}

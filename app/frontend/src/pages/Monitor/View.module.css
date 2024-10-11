@@ -1,0 +1,74 @@
+.filePartOne {
+    height: 40%;
+    position: relative;
+}
+
+.filePartTwo {
+    height: 60%;
+    padding: 5px;
+    margin: 10px 0;
+}
+
+.modalDesign {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.fileHeading {
+    width: 100%;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.fileNameContainer {
+    margin: 0 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.fileTimeContainer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.iconContainer {
+    border-radius: 9px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.fileElements {
+    padding: 7px 7px 7px 10px;
+    margin: 9px 15px;
+    display: flex;
+    border-left: 4px solid #6C22A6;
+    border-radius: 5px;
+    background-color: #eeeeee;
+}
+
+@media screen and (max-width: 600px) {
+
+    .padding {
+        padding: 7px !important;
+    }
+}
+
+/* Media query for medium screens (md) */
+@media screen and (min-width: 601px) and (max-width: 960px) {
+
+    .padding {
+        padding: 10px !important;
+    }
+}

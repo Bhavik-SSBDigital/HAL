@@ -1,0 +1,61 @@
+.departmentList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 200px;
+    /* max-width: 0px; */
+    margin-left: auto;
+    margin-right: auto;
+    overflow: auto;
+    margin: 10px;
+}
+
+.processType {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-height: 200px;
+    /* max-width: 0px; */
+    margin-left: auto;
+    margin-right: auto;
+    overflow: auto;
+    margin: 10px;
+}
+
+.headOfficeInclude {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-height: 200px;
+    /* max-width: 0px; */
+    margin-left: auto;
+    margin-right: auto;
+    overflow: auto;
+    margin: 10px;
+}
+
+.receiverBranches {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* max-height: 230px; */
+    /* max-width: 0px; */
+    margin-left: auto;
+    margin-right: auto;
+    overflow: auto;
+    margin: 10px;
+}
+
+.managerDep {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 200px;
+    /* max-width: 0px; */
+    margin-left: auto;
+    margin-right: auto;
+    overflow: auto;
+    margin: 10px;
+}

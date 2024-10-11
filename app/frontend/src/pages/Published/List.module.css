@@ -1,0 +1,42 @@
+.tableContainer {
+    margin: 0 auto;
+    /* max-height: 400px !important; */
+    overflow: auto;
+}
+
+.tableHeaderCell {
+    font-weight: bold;
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.tableRow:hover {
+    background-color: #f5f5f5;
+}
+
+.tableContainer {
+    width: 100%;
+}
+
+.table {
+    width: 100%;
+}
+
+.tableHeader {
+    font-weight: bold;
+    background-color: #dadada;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+/* Add hover effect for table rows */
+.tableRow:hover {
+    background-color: #f0f0f0;
+    /* Change to your desired hover color */
+}
+
+/* .cell{
+} */

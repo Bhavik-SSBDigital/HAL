@@ -1,0 +1,38 @@
+.small_scrollbar {
+    scrollbar-width: thin;
+    /* For Firefox */
+    scrollbar-color: lightgray transparent;
+    /* For Firefox */
+}
+
+/* For WebKit browsers (Chrome, Safari, etc.) */
+.small_scrollbar::-webkit-scrollbar {
+    width: 8px;
+    /* Adjust the width as needed */
+}
+
+.small_scrollbar::-webkit-scrollbar-thumb {
+    background-color: lightgray;
+    /* Scrollbar color */
+    border-radius: 10px;
+    /* Optional: Rounds the scrollbar edges */
+}
+
+.small_scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    /* Scrollbar track color */
+}
+
+
+.noFolders {
+    height: 50px;
+    border-radius: 10px;
+    font-weight: 600;
+    color: gray;
+    font-size: 18px;
+    background: white !important;
+    display: flex;
+    align-items: center;
+    height: 400px;
+    justify-content: center;
+}

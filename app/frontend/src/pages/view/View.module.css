@@ -1,0 +1,21 @@
+.table {
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 5px;
+    font-size: 11px;
+    height: 30px;
+    width: 100px;
+    border: 1px solid #e0e0e0;
+}
+.head{
+    background-color: rgb(162, 162, 162);
+}
+
+.table tr {
+    height: 30px;
+}

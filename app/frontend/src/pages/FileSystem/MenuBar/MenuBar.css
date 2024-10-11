@@ -1,0 +1,62 @@
+.main-menu{
+    margin-top: 0;
+    background-color: white;
+}
+.create-folder-modal-content{
+    background-color: rgb(255, 255, 255);
+    width: fit-content;
+    height: fit-content;
+    max-width: 90%;
+    max-height: 50%;
+    position: relative;
+    z-index: 1200;
+    width: 100%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.create-folder-modal-content-container{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(255, 255, 255);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+
+.create-folder-modal-content > * {
+    margin-bottom: 20px;
+}
+.createFolderButtonsContainer{
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+.create-folder-modal{
+    top: 0%;
+    left: 0%;
+    background-color: rgba(203, 193, 193, 0.2);
+    z-index: 1100;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.icon:hover {
+    color: rgb(211, 186, 186); /* Change to the desired color */
+  }
+  @media (max-width: 991px) {
+    .sidebarSize{
+        width: 200px !important;
+    }
+  }
