@@ -101,9 +101,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          stroke-linecap="round"
+          strokeLinecap="round"
           color="white"
-          stroke-linejoin="round"
+          strokeLinejoin="round"
         >
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2  0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
@@ -358,12 +358,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   className="duration-300 ease-in-out transform group-hover:scale-105"
                 >
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                  <path d="M12 21h-5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v4.5" />
-                  <path d="M16.5 17.5m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" />
-                  <path d="M18.5 19.5l2.5 2.5" />
+                  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+                  <path d="M18 18m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+                  <path d="M15 3v4" />
+                  <path d="M7 3v4" />
+                  <path d="M3 11h16" />
+                  <path d="M18 16.496v1.504l1 1" />
                 </svg>
-
                 <span className="duration-300 ease-in-out transform group-hover:scale-105">
                   Meeting Manager
                 </span>

@@ -55,46 +55,237 @@ export const userSockets = new Map();
 //   cert: await fs.readFile('./certificate.pem')
 // };
 
-server.listen(8000, () => console.log(`Listening on port ${8000}`));
+server.listen(5000, () => console.log(`Listening on port ${5000}`));
+
+// 1st backend
+// io.on("connection", (socket) => {
+//   socket.on("login", (username) => {
+//     userSockets.set(username, socket);
+//   });
+
+//   socket.on("joinMeetingRoom", ({ meetingId, username }) => {
+//     socket.join(meetingId);
+//     console.log(`${username} joined room ${meetingId}`);
+//     io.to(meetingId).emit("userJoined", { username });
+//   });
+
+//   socket.on("leaveMeetingRoom", ({ meetingId, username }) => {
+//     socket.leave(meetingId);
+//     console.log(`${username} left room ${meetingId}`);
+//     io.to(meetingId).emit("userLeft", { username });
+//   });
+
+//   socket.on("sendMessageToRoom", ({ meetingId, message }) => {
+//     io.to(meetingId).emit("newMessage", message);
+//   });
+
+//   socket.on("offer", (roomId, offer) => {
+//     socket.to(roomId).emit("receiveOffer", offer);
+//   });
+
+//   socket.on("answer", (roomId, answer) => {
+//     socket.to(roomId).emit("receiveAnswer", answer);
+//   });
+
+//   socket.on("iceCandidate", (roomId, candidate) => {
+//     socket.to(roomId).emit("receiveIceCandidate", candidate);
+//   });
+
+//   socket.on("disconnect", () => {
+//     userSockets.forEach((value, key) => {
+//       if (value === socket) {
+//         userSockets.delete(key);
+//       }
+//     });
+//   });
+// });
+const rooms = {};
+
+// 2nd backend
+// io.on("connection", (socket) => {
+//   console.log(`User connected: ${socket.id}`);
+
+//   // Handle user login (optional, based on frontend)
+//   socket.on("login", ({ username }) => {
+//     socket.username = username || "Anonymous";
+//     console.log(`User logged in: ${socket.username} (${socket.id})`);
+//   });
+
+//   // Handle joining a meeting room
+//   socket.on("joinMeetingRoom", ({ meetingId, username }) => {
+//     socket.join(meetingId);
+//     socket.username = username || "Anonymous";
+
+//     if (!rooms[meetingId]) {
+//       rooms[meetingId] = {};
+//     }
+//     rooms[meetingId][socket.id] = socket.username;
+
+//     // Notify existing users in the room about the new user
+//     socket.to(meetingId).emit("userJoined", {
+//       username: socket.username,
+//       socketId: socket.id,
+//     });
+
+//     // Send existing users to the newly joined user
+//     const existingUsers = Object.keys(rooms[meetingId])
+//       .filter((id) => id !== socket.id)
+//       .map((id) => ({ socketId: id, username: rooms[meetingId][id] }));
+
+//     socket.emit("existingUsers", existingUsers);
+
+//     console.log(`${socket.username} joined room: ${meetingId}`);
+//   });
+
+//   // Handle leaving a meeting room
+//   socket.on("leaveMeetingRoom", ({ meetingId, username }) => {
+//     socket.leave(meetingId);
+
+//     if (rooms[meetingId]) {
+//       delete rooms[meetingId][socket.id];
+//       // Notify remaining users in the room
+//       socket.to(meetingId).emit("userLeft", {
+//         username: socket.username,
+//         socketId: socket.id,
+//       });
+
+//       console.log(`${socket.username} left room: ${meetingId}`);
+
+//       // If the room is empty, delete it
+//       if (Object.keys(rooms[meetingId]).length === 0) {
+//         delete rooms[meetingId];
+//         console.log(`Room deleted: ${meetingId}`);
+//       }
+//     }
+//   });
+
+//   // Handle sending an offer
+//   socket.on("offer", ({ meetingId, to, offer }) => {
+//     io.to(to).emit("offer", {
+//       from: socket.id,
+//       offer,
+//     });
+//     console.log(`Offer from ${socket.id} to ${to} in room ${meetingId}`);
+//   });
+
+//   // Handle sending an answer
+//   socket.on("answer", ({ meetingId, to, answer }) => {
+//     io.to(to).emit("answer", {
+//       from: socket.id,
+//       answer,
+//     });
+//     console.log(`Answer from ${socket.id} to ${to} in room ${meetingId}`);
+//   });
+
+//   // Handle sending ICE candidates
+//   socket.on("ice-candidate", ({ meetingId, to, candidate }) => {
+//     io.to(to).emit("ice-candidate", {
+//       from: socket.id,
+//       candidate,
+//     });
+//     // console.log(`ICE candidate from ${socket.id} to ${to} in room ${meetingId}`);
+//   });
+
+//   // Handle sending chat messages
+//   socket.on("sendMessageToRoom", ({ meetingId, message }) => {
+//     io.to(meetingId).emit("newMessage", message);
+//     console.log(
+//       `Message from ${socket.username} in room ${meetingId}: ${message.text}`
+//     );
+//   });
+
+//   // Handle user disconnect
+//   socket.on("disconnect", () => {
+//     console.log(`User disconnected: ${socket.id}`);
+
+//     // Iterate through all rooms to find where the user was
+//     for (const [meetingId, participants] of Object.entries(rooms)) {
+//       if (participants[socket.id]) {
+//         const username = participants[socket.id];
+//         socket.to(meetingId).emit("userLeft", {
+//           username,
+//           socketId: socket.id,
+//         });
+//         delete rooms[meetingId][socket.id];
+//         console.log(`${username} disconnected and left room: ${meetingId}`);
+
+//         // If the room is empty, delete it
+//         if (Object.keys(rooms[meetingId]).length === 0) {
+//           delete rooms[meetingId];
+//           console.log(`Room deleted: ${meetingId}`);
+//         }
+//         break; // Assuming a user is only in one room
+//       }
+//     }
+//   });
+// });
+
+// 3rd backend
 
 io.on("connection", (socket) => {
-  socket.on("login", (username) => {
-    userSockets.set(username, socket);
-  });
+  console.log(`New client connected: ${socket.id}`);
 
-  socket.on("joinMeetingRoom", ({ meetingId, username }) => {
-    socket.join(meetingId);
-    console.log(`${username} joined room ${meetingId}`);
-    io.to(meetingId).emit("userJoined", { username });
-  });
+  // Handle joining a room
+  socket.on("join-room", ({ roomId, username }) => {
+    socket.join(roomId);
+    console.log(
+      `Socket ${socket.id} (Username: ${username}) joined room ${roomId}`
+    );
 
-  socket.on("leaveMeetingRoom", ({ meetingId, username }) => {
-    socket.leave(meetingId);
-    console.log(`${username} left room ${meetingId}`);
-    io.to(meetingId).emit("userLeft", { username });
-  });
+    // Notify existing users in the room about the new user, including username
+    socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
-  socket.on("sendMessageToRoom", ({ meetingId, message }) => {
-    io.to(meetingId).emit("newMessage", message);
-  });
+    // Handle sending offers
+    socket.on("offer", (data) => {
+      const { target, offer } = data;
+      io.to(target).emit("offer", {
+        from: socket.id,
+        offer,
+        // name: socket.username
+      });
+    });
 
-  socket.on("offer", (roomId, offer) => {
-    socket.to(roomId).emit("receiveOffer", offer);
-  });
+    // Handle sending answers
+    socket.on("answer", (data) => {
+      const { target, answer } = data;
+      io.to(target).emit("answer", {
+        from: socket.id,
+        answer,
+        // name: socket.username
+      });
+    });
 
-  socket.on("answer", (roomId, answer) => {
-    socket.to(roomId).emit("receiveAnswer", answer);
-  });
+    // Handle sending ICE candidates
+    socket.on("ice-candidate", (data) => {
+      const { target, candidate } = data;
+      io.to(target).emit("ice-candidate", {
+        from: socket.id,
+        candidate,
+      });
+    });
 
-  socket.on("iceCandidate", (roomId, candidate) => {
-    socket.to(roomId).emit("receiveIceCandidate", candidate);
-  });
+    // Handle leaving the room
+    socket.on("leave-room", ({ roomId, username }) => {
+      socket.leave(roomId);
+      console.log(
+        `Socket ${socket.id} (Username: ${username}) left room ${roomId}`
+      );
 
-  socket.on("disconnect", () => {
-    userSockets.forEach((value, key) => {
-      if (value === socket) {
-        userSockets.delete(key);
-      }
+      // Notify other users in the room that this user has left
+      socket.to(roomId).emit("user-left", { socketId: socket.id, username });
+    });
+
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      console.log(`User disconnected: ${socket.id}`);
+      // Optionally: you can notify others of this disconnection, if the user was in a room
+      const rooms = Array.from(socket.rooms); // Get the rooms the socket was in
+      rooms.forEach((roomId) => {
+        socket.to(roomId).emit("user-left", {
+          socketId: socket.id,
+          username: socket.username,
+        }); // You can pass the username if it was saved somewhere
+      });
     });
   });
 });

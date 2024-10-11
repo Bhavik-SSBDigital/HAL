@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+// import { io } from 'socket.io-client';
 import axios from 'axios';
 import sessionData from '../../Store';
 const DropdownNotification = () => {
@@ -8,8 +8,8 @@ const DropdownNotification = () => {
     setWork,
     notifications,
     setNotifications,
-    setPickedProcesses,
-    pickedProcesses,
+    // setPickedProcesses,
+    // pickedProcesses,
   } = sessionData();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -42,7 +42,7 @@ const DropdownNotification = () => {
   });
   // -------------------------------------------------------//
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const socketUrl = import.meta.env.VITE_SOCKET_URL;
+  // const socketUrl = import.meta.env.VITE_SOCKET_URL;
   const navigate = useNavigate();
   const handleViewProcess = (
     id: any,
@@ -90,33 +90,33 @@ const DropdownNotification = () => {
       console.error('error', error);
     }
   };
-  useEffect(() => {
-    // const socket = io("http://localhost:8000");
-    const socket = io(`${socketUrl}`);
-    socket.on('connect', () => {
-      console.log('Connected to server');
-      // Perform any actions upon successful connection
-    });
+  // useEffect(() => {
+  //   // const socket = io("http://localhost:8000");
+  //   const socket = io(`${socketUrl}`);
+  //   socket.on('connect', () => {
+  //     console.log('Connected to server');
+  //     // Perform any actions upon successful connection
+  //   });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      // Perform any actions upon disconnection
-    });
+  //   socket.on('disconnect', () => {
+  //     console.log('Disconnected from server');
+  //     // Perform any actions upon disconnection
+  //   });
 
-    socket.on('processesUpdated', (data) => {
-      const updatedNotifications = [...notifications, data.newProcess];
-      console.log(updatedNotifications);
-      setNotifications(updatedNotifications);
-    });
-    socket.on('pickedProcess', (data) => {
-      console.log('Received picked process:', data);
-      handleRemoveNotification(data?.processId);
-      const updatePickedProcesses = [...pickedProcesses, data?.processId];
-      setPickedProcesses(updatePickedProcesses);
-    });
-    const username = sessionStorage.getItem('username');
-    socket.emit('login', username);
-  }, []);
+  //   socket.on('processesUpdated', (data) => {
+  //     const updatedNotifications = [...notifications, data.newProcess];
+  //     console.log(updatedNotifications);
+  //     setNotifications(updatedNotifications);
+  //   });
+  //   socket.on('pickedProcess', (data) => {
+  //     console.log('Received picked process:', data);
+  //     handleRemoveNotification(data?.processId);
+  //     const updatePickedProcesses = [...pickedProcesses, data?.processId];
+  //     setPickedProcesses(updatePickedProcesses);
+  //   });
+  //   const username = sessionStorage.getItem('username');
+  //   socket.emit('login', username);
+  // }, []);
   return (
     <li className="relative">
       {/* <Link

@@ -48,7 +48,6 @@ const MeetingManager = () => {
     const [peers, setPeers] = useState({});
     console.log(peers);
     const [meetingId, setMeetingId] = useState('');
-    console.log(peers);
 
     // Refs
     const localVideoRef = useRef(null);
@@ -84,7 +83,14 @@ const MeetingManager = () => {
     }, []);
     const onSubmit = async (data) => {
         if (data.meetingId.trim() === '') return;
+        if (!socketRef.current) {
+            socketRef.current = io.connect(socketUrl); // Replace with your server URL
 
+            // Handle joining a room after connecting
+            socketRef.current.on('connect', () => {
+                console.log('Connected to socket:', socketRef.current.id);
+            });
+        }
         setInRoom(true);
         setMeetingId(data.meetingId);
         try {
@@ -107,7 +113,8 @@ const MeetingManager = () => {
             // Listen for other users joining
             socketRef.current.on('user-joined', async ({ socketId, username }) => {
                 console.log(`${username} joined: ${socketId}`);
-                await createOffer(socketId);
+                await createOffer(socketId, username);
+                console.log(username);
             });
 
             // Listen for offers
@@ -142,13 +149,14 @@ const MeetingManager = () => {
                     });
                 }
             });
+
         } catch (err) {
             console.error('Failed to get user media', err);
         }
     };
 
     // Function to create an offer to a new user
-    const createOffer = async (socketId) => {
+    const createOffer = async (socketId, username) => {
         const peerConnection = new RTCPeerConnection({
             iceServers: [
                 {
@@ -196,7 +204,7 @@ const MeetingManager = () => {
 
         setPeers((prevPeers) => ({
             ...prevPeers,
-            [socketId]: remoteStream,
+            [socketId]: { name: username, stream: remoteStream },
         }));
     };
 
@@ -313,6 +321,7 @@ const MeetingManager = () => {
 
         // Disconnect from the socket
         if (socketRef.current) {
+            console.log('leave inside condition');
             socketRef.current.emit('leave-room', {
                 roomId: meetingId,
                 username: username,
@@ -364,44 +373,62 @@ const MeetingManager = () => {
     };
 
     // Share Screen Functionality (Optional)
+    // Share Screen Functionality (Enhanced)
     const shareScreen = async () => {
         try {
+            // Request to capture the screen
             const screenStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
             });
             const screenTrack = screenStream.getVideoTracks()[0];
 
-            // Replace the current video track with the screen stream
-            Object.values(peerConnections.current).forEach((pc) => {
-                const sender = pc.getSenders().find((s) => s.track.kind === 'video');
-                if (sender) {
-                    sender.replaceTrack(screenTrack);
+            // Replace the current video track with the screen track in all peer connections
+            Object.values(peersRef.current).forEach(({ peer }) => {
+                const videoSender = peer.getSenders().find((sender) => sender.track.kind === 'video');
+                if (videoSender) {
+                    videoSender.replaceTrack(screenTrack);
                 }
             });
 
-            // Update local video stream
-            localVideoRef.current.srcObject = screenStream;
+            // Update the local video element to display the screen stream
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = screenStream;
+            }
             console.log('Started screen sharing');
 
-            // Handle when the user stops sharing
+            // Listen for when the user stops sharing the screen
             screenTrack.onended = async () => {
-                const videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                });
-                const videoTrack = videoStream.getVideoTracks()[0];
-                Object.values(peerConnections.current).forEach((pc) => {
-                    const sender = pc.getSenders().find((s) => s.track.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(videoTrack);
+                try {
+                    // Re-acquire the camera stream
+                    const cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                    });
+                    const cameraTrack = cameraStream.getVideoTracks()[0];
+
+                    // Replace the screen track with the camera track in all peer connections
+                    Object.values(peersRef.current).forEach(({ peer }) => {
+                        const videoSender = peer.getSenders().find((sender) => sender.track.kind === 'video');
+                        if (videoSender) {
+                            videoSender.replaceTrack(cameraTrack);
+                        }
+                    });
+
+                    // Update the local video element to display the camera stream
+                    if (localVideoRef.current) {
+                        localVideoRef.current.srcObject = cameraStream;
                     }
-                });
-                localVideoRef.current.srcObject = videoStream;
-                console.log('Stopped screen sharing and resumed camera');
+                    console.log('Stopped screen sharing and resumed camera');
+                } catch (error) {
+                    console.error('Error resuming camera stream:', error);
+                    alert('Failed to resume camera after screen sharing.');
+                }
             };
         } catch (err) {
-            console.error('Error sharing screen:', err);
+            console.error('Error during screen sharing:', err);
+            alert('Failed to share screen. Please check permissions and try again.');
         }
     };
+
 
     return (
         <div className={styles.container}>
@@ -516,7 +543,7 @@ const MeetingManager = () => {
                                         backgroundColor: '#000',
                                     }}
                                 >
-                                    <RemoteVideo stream={peers[participant]} />
+                                    <RemoteVideo stream={participant?.stream} />
 
                                     <Box
                                         position="absolute"
@@ -527,7 +554,7 @@ const MeetingManager = () => {
                                         color="#fff"
                                         p={0.5}
                                     >
-                                        <Typography variant="subtitle2">{participant}</Typography>
+                                        <Typography variant="subtitle2">{participant?.name}</Typography>
                                     </Box>
                                 </Paper>
                             ))}
@@ -604,7 +631,7 @@ const MeetingManager = () => {
                                     <List>
                                         {Object.keys(peers)?.map((member, idx) => (
                                             <ListItem key={idx} sx={{ padding: 0 }}>
-                                                <ListItemText primary={member} />
+                                                <ListItemText primary={member?.name} />
                                             </ListItem>
                                         ))}
                                     </List>

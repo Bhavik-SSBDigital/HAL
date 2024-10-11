@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import DropdownMessage from './DropdownMessage';
 import DropdownNotification from './DropdownNotification';
 import DropdownUser from './DropdownUser';
-import LogoIcon from '../../assets/images/khedaBank.png';
-import smallLogo from '../../assets/images/kdccLogo2.jpg';
+import LogoIcon from '../../assets/images/ssbi-Logo.png';
+import smallLogo from '../../assets/images/ssbi-Logo.png';
 import sessionData from '../../Store';
 import { useEffect } from 'react';
 import axios from 'axios';
@@ -100,10 +100,10 @@ const Header = (props: {
           {/* <!-- Hamburger Toggle BTN --> */}
 
           <Link className="hidden md:block flex-shrink-0" to="/">
-            <img style={{ height: '60px' }} src={LogoIcon} alt="Logo" />
+            <img style={{ height: '40px' }} src={LogoIcon} alt="Logo" />
           </Link>
           <Link className="md:hidden flex-shrink-0" to="/">
-            <img style={{ height: '50px' }} src={smallLogo} alt="Logo" />
+            <img style={{ height: '40px' }} src={smallLogo} alt="Logo" />
           </Link>
         </div>
 
