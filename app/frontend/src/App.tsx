@@ -347,7 +347,7 @@ function App() {
           path="/Meeting"
           element={
             <DefaultLayout>
-              <PageTitle title="Profile" />
+              <PageTitle title="Meeting" />
               <MeetingManager />
             </DefaultLayout>
           }

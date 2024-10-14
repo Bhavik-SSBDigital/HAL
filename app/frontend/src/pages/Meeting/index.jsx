@@ -46,7 +46,6 @@ const MeetingManager = () => {
     const username = sessionStorage.getItem('username') || 'Anonymous';
     const [inRoom, setInRoom] = useState(false);
     const [peers, setPeers] = useState({});
-    console.log(peers);
     const [meetingId, setMeetingId] = useState('');
 
     // Refs
@@ -65,13 +64,12 @@ const MeetingManager = () => {
     useEffect(() => {
         // Only connect if there's no existing connection
         if (!socketRef.current) {
-            socketRef.current = io.connect(socketUrl); // Replace with your server URL
+            // socketRef.current = io.connect(socketUrl); // Replace with your server URL
 
             // Handle joining a room after connecting
-            socketRef.current.on('connect', () => {
-                console.log('Connected to socket:', socketRef.current.id);
-            });
-
+            // socketRef.current.on('connect', () => {
+            //     console.log('Connected to socket:', socketRef.current.id);
+            // });
             // Clean up and disconnect on unmount
             return () => {
                 if (socketRef.current) {
@@ -81,12 +79,33 @@ const MeetingManager = () => {
             };
         }
     }, []);
+
+    // useEffect(() => {
+    //     if (Object.keys(peers).length) {
+    //         console.log('inside condition');
+    //         socketRef.current.on("room-users", (users) => {
+    //             // Update your UI with the list of users
+    //             console.log("Users in the room:", users);
+    //             users?.map((user) => {
+    //                 setPeers((prev) => {
+    //                     console.log(prev);
+    //                     console.log(user.socketId);
+    //                     return {
+    //                         ...prev,
+    //                         [prev[user.socketId]]: { ...prev[user.socketId], name: user.username }
+    //                     }
+    //                 })
+    //             })
+    //         });
+    //     }
+
+    // }, [Object.keys(peers).length])
+
     const onSubmit = async (data) => {
         if (data.meetingId.trim() === '') return;
         if (!socketRef.current) {
             socketRef.current = io.connect(socketUrl); // Replace with your server URL
 
-            // Handle joining a room after connecting
             socketRef.current.on('connect', () => {
                 console.log('Connected to socket:', socketRef.current.id);
             });
@@ -119,13 +138,13 @@ const MeetingManager = () => {
 
             // Listen for offers
             socketRef.current.on('offer', async (data) => {
-                const { from, offer } = data;
-                await handleReceiveOffer(from, offer);
+                const { from, offer, name } = data;
+                await handleReceiveOffer(from, offer, name);
             });
 
             // Listen for answers
             socketRef.current.on('answer', async (data) => {
-                const { from, answer } = data;
+                const { from, answer, user } = data;
                 await handleReceiveAnswer(from, answer);
             });
 
@@ -156,7 +175,7 @@ const MeetingManager = () => {
     };
 
     // Function to create an offer to a new user
-    const createOffer = async (socketId, username) => {
+    const createOffer = async (socketId, user) => {
         const peerConnection = new RTCPeerConnection({
             iceServers: [
                 {
@@ -194,6 +213,7 @@ const MeetingManager = () => {
         socketRef.current.emit('offer', {
             target: socketId,
             offer: peerConnection.localDescription,
+            user: username
         });
 
         // Save the peer connection
@@ -201,15 +221,16 @@ const MeetingManager = () => {
             peer: peerConnection,
             stream: remoteStream,
         };
-
+        console.log(user);
         setPeers((prevPeers) => ({
             ...prevPeers,
-            [socketId]: { name: username, stream: remoteStream },
+            [socketId]: { name: user, stream: remoteStream },
         }));
     };
 
     // Function to handle receiving an offer
-    const handleReceiveOffer = async (socketId, offer) => {
+    const handleReceiveOffer = async (socketId, offer, name) => {
+        console.log('receive offer');
         const peerConnection = new RTCPeerConnection({
             iceServers: [
                 {
@@ -257,10 +278,10 @@ const MeetingManager = () => {
             peer: peerConnection,
             stream: remoteStream,
         };
-
+        console.log(name);
         setPeers((prevPeers) => ({
             ...prevPeers,
-            [socketId]: remoteStream,
+            [socketId]: { name, stream: remoteStream },
         }));
     };
 
@@ -327,6 +348,7 @@ const MeetingManager = () => {
                 username: username,
             });
             socketRef.current.disconnect(); // Close the socket connection
+            socketRef.current = null;
         }
 
         console.log(
@@ -543,7 +565,7 @@ const MeetingManager = () => {
                                         backgroundColor: '#000',
                                     }}
                                 >
-                                    <RemoteVideo stream={participant?.stream} />
+                                    <RemoteVideo stream={peers[participant]?.stream} />
 
                                     <Box
                                         position="absolute"
@@ -554,7 +576,7 @@ const MeetingManager = () => {
                                         color="#fff"
                                         p={0.5}
                                     >
-                                        <Typography variant="subtitle2">{participant?.name}</Typography>
+                                        <Typography variant="subtitle2">{peers[participant]?.name}</Typography>
                                     </Box>
                                 </Paper>
                             ))}
