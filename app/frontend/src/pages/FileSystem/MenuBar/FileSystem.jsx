@@ -197,15 +197,15 @@ const FileSystem = () => {
                                                 border: '1px solid lightgray',
                                                 flex: 1,
                                                 borderRadius: '15px',
-                                                height: { xs: '90px', md: '130px' },
+                                                height: { xs: '90px', md: '110px' },
                                                 maxWidth: { xs: '100px', md: '150px' },
-                                                minWidth: { xs: '90px', md: '130px' },
+                                                minWidth: { xs: '90px', md: '110px' },
                                                 textTransform: 'none',
                                                 '&:hover': { border: '1px solid blue', background: 'white' },
                                             }}
                                         >
                                             <Tooltip title={item.name.length >= 10 ? item.name : ''}>
-                                                <Box sx={{ height: 60, width: 60, mb: 1 }}>
+                                                <Box sx={{ height: { xs: 45, md: 60 }, width: { xs: 45, md: 60 } }}>
                                                     <img src={imageSrc} alt="Folder" width="100%" height="100%" />
                                                 </Box>
                                             </Tooltip>
