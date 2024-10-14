@@ -11,6 +11,8 @@ import {
     ListItem,
     ListItemText,
     TextField,
+    ListItemAvatar,
+    Avatar,
 } from '@mui/material';
 import {
     IconMessages,
@@ -168,7 +170,6 @@ const MeetingManager = () => {
                     });
                 }
             });
-
         } catch (err) {
             console.error('Failed to get user media', err);
         }
@@ -213,7 +214,7 @@ const MeetingManager = () => {
         socketRef.current.emit('offer', {
             target: socketId,
             offer: peerConnection.localDescription,
-            user: username
+            user: username,
         });
 
         // Save the peer connection
@@ -406,7 +407,9 @@ const MeetingManager = () => {
 
             // Replace the current video track with the screen track in all peer connections
             Object.values(peersRef.current).forEach(({ peer }) => {
-                const videoSender = peer.getSenders().find((sender) => sender.track.kind === 'video');
+                const videoSender = peer
+                    .getSenders()
+                    .find((sender) => sender.track.kind === 'video');
                 if (videoSender) {
                     videoSender.replaceTrack(screenTrack);
                 }
@@ -429,7 +432,9 @@ const MeetingManager = () => {
 
                     // Replace the screen track with the camera track in all peer connections
                     Object.values(peersRef.current).forEach(({ peer }) => {
-                        const videoSender = peer.getSenders().find((sender) => sender.track.kind === 'video');
+                        const videoSender = peer
+                            .getSenders()
+                            .find((sender) => sender.track.kind === 'video');
                         if (videoSender) {
                             videoSender.replaceTrack(cameraTrack);
                         }
@@ -450,6 +455,26 @@ const MeetingManager = () => {
             alert('Failed to share screen. Please check permissions and try again.');
         }
     };
+
+    function getColor(string) {
+        let hash = 0;
+        let i;
+
+        /* eslint-disable no-bitwise */
+        for (i = 0; i < string.length; i += 1) {
+            hash = string.charCodeAt(i) + ((hash << 5) - hash);
+        }
+
+        let color = '#';
+
+        for (i = 0; i < 3; i += 1) {
+            const value = (hash >> (i * 8)) & 0xff;
+            color += `00${value.toString(16)}`.slice(-2);
+        }
+        /* eslint-enable no-bitwise */
+        console.log(color);
+        return color;
+    }
 
 
     return (
@@ -499,7 +524,9 @@ const MeetingManager = () => {
                 </Box>
             ) : (
                 <>
-                    <Typography variant='h6' textAlign="center">Meeting ID : {meetingId}</Typography>
+                    <Typography variant="h6" textAlign="center">
+                        Meeting ID : {meetingId}
+                    </Typography>
                     <Box display="flex">
                         {/* Main Meeting Screen */}
                         <Box
@@ -576,7 +603,9 @@ const MeetingManager = () => {
                                         color="#fff"
                                         p={0.5}
                                     >
-                                        <Typography variant="subtitle2">{peers[participant]?.name}</Typography>
+                                        <Typography variant="subtitle2">
+                                            {peers[participant]?.name}
+                                        </Typography>
                                     </Box>
                                 </Paper>
                             ))}
@@ -652,8 +681,13 @@ const MeetingManager = () => {
                                     </Typography>
                                     <List>
                                         {Object.keys(peers)?.map((member, idx) => (
-                                            <ListItem key={idx} sx={{ padding: 0 }}>
-                                                <ListItemText primary={member?.name} />
+                                            <ListItem key={idx} sx={{ my: 1 }}>
+                                                <ListItemAvatar>
+                                                    <Avatar sx={{ background: `${getColor(peers[member]?.name)}` }}>
+                                                        {peers[member]?.name?.charAt(0).toUpperCase()}
+                                                    </Avatar>
+                                                </ListItemAvatar>{' '}
+                                                <ListItemText primary={peers[member]?.name} />
                                             </ListItem>
                                         ))}
                                     </List>
