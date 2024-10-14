@@ -59,17 +59,17 @@ const FileSystem = () => {
         return data;
     };
 
-    const { data: filesData, isLoading, isFetching } = useQuery(
-        'Projects',
-        fetchProjects,
-        {
-            onSuccess: (data) => setFileFolders(data.children),
-            onError: () => setError('Something went wrong'),
-            refetchOnMount: false,
-            refetchOnReconnect: false,
-            refetchOnWindowFocus: false,
-        }
-    );
+    const {
+        data: filesData,
+        isLoading,
+        isFetching,
+    } = useQuery('Projects', fetchProjects, {
+        onSuccess: (data) => setFileFolders(data.children),
+        onError: () => setError('Something went wrong'),
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false,
+    });
 
     useEffect(() => {
         const cachedData = queryClient.getQueryData('Projects');
@@ -102,9 +102,13 @@ const FileSystem = () => {
                 path: `${pathValue}/${data.folderName}`, // Data from React Hook Form
                 isProject: pathValue === '..',
             };
-            const { status } = await axios.post(`${backendUrl}/createFolder`, payload, {
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
+            const { status } = await axios.post(
+                `${backendUrl}/createFolder`,
+                payload,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                },
+            );
             if (status === 200) {
                 const currentDate = new Date().toString();
                 setFileFolders((prev) => [
@@ -134,11 +138,21 @@ const FileSystem = () => {
         if (modalContentFor === 'createFolder') {
             return (
                 <Box sx={{ textAlign: 'center' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2, background: "#402969" }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            mb: 2,
+                            background: '#402969',
+                            p: 1,
+                            borderRadius: '5px',
+                        }}
+                    >
                         <IconFolderPlus color="white" style={{ marginRight: '3px' }} />
-                        <Typography variant="h6" color="white">
-                            Create Folder
-                        </Typography>
+                        <h2 style={{ color: 'white' }}>
+                            CREATE FOLDER
+                        </h2>
                     </Box>
                     <form onSubmit={handleSubmit(createFolder)}>
                         <TextField
@@ -149,7 +163,8 @@ const FileSystem = () => {
                                 required: 'Folder name is required',
                                 pattern: {
                                     value: /^[a-zA-Z0-9_\-()\[\]\s]*$/,
-                                    message: 'Field must contain only letters, numbers, and spaces.',
+                                    message:
+                                        'Field must contain only letters, numbers, and spaces.',
                                 },
                             })}
                             error={!!errors.folderName}
@@ -159,7 +174,12 @@ const FileSystem = () => {
                             <Button type="submit" variant="contained" color="success">
                                 Create
                             </Button>
-                            <Button variant="contained" color="error" onClick={closeModal} sx={{ ml: 1 }}>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                onClick={closeModal}
+                                sx={{ ml: 1 }}
+                            >
                                 Cancel
                             </Button>
                         </Box>
@@ -177,7 +197,12 @@ const FileSystem = () => {
             ) : (
                 <>
                     <Path />
-                    <Stack mt={2} spacing={2} className={styles.small_scrollbar} sx={{ maxHeight: 'calc(100vh - 210px)', overflow: 'auto' }}>
+                    <Stack
+                        mt={2}
+                        spacing={2}
+                        className={styles.small_scrollbar}
+                        sx={{ maxHeight: 'calc(100vh - 210px)', overflow: 'auto' }}
+                    >
                         <Box sx={{ textAlign: 'center', mb: 2 }}>
                             {isFetching ? (
                                 <CircularProgress color="inherit" size={30} />
@@ -201,12 +226,25 @@ const FileSystem = () => {
                                                 maxWidth: { xs: '100px', md: '150px' },
                                                 minWidth: { xs: '90px', md: '110px' },
                                                 textTransform: 'none',
-                                                '&:hover': { border: '1px solid blue', background: 'white' },
+                                                '&:hover': {
+                                                    border: '1px solid blue',
+                                                    background: 'white',
+                                                },
                                             }}
                                         >
                                             <Tooltip title={item.name.length >= 10 ? item.name : ''}>
-                                                <Box sx={{ height: { xs: 45, md: 60 }, width: { xs: 45, md: 60 } }}>
-                                                    <img src={imageSrc} alt="Folder" width="100%" height="100%" />
+                                                <Box
+                                                    sx={{
+                                                        height: { xs: 45, md: 60 },
+                                                        width: { xs: 45, md: 60 },
+                                                    }}
+                                                >
+                                                    <img
+                                                        src={imageSrc}
+                                                        alt="Folder"
+                                                        width="100%"
+                                                        height="100%"
+                                                    />
                                                 </Box>
                                             </Tooltip>
                                             <Typography variant="body2">

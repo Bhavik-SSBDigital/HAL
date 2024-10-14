@@ -655,6 +655,7 @@ export default function ShowFolder(props) {
                         display: 'flex',
                         gap: '3px',
                         alignItems: 'center',
+                        padding: '10px',
                         justifyContent: 'center',
                         borderRadius: '5px',
                         background: '#4E327E',
