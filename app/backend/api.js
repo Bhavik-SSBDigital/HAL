@@ -99,7 +99,6 @@ server.listen(5000, () => console.log(`Listening on port ${5000}`));
 //     });
 //   });
 // });
-const rooms = {};
 
 // 2nd backend
 // io.on("connection", (socket) => {
@@ -221,6 +220,7 @@ const rooms = {};
 // });
 
 // 3rd backend
+const usernames = {}; // Object to store socket.id to username mapping
 
 io.on("connection", (socket) => {
   console.log(`New client connected: ${socket.id}`);
@@ -228,6 +228,8 @@ io.on("connection", (socket) => {
   // Handle joining a room
   socket.on("join-room", ({ roomId, username }) => {
     socket.join(roomId);
+    usernames[socket.id] = username; // Store the username
+
     console.log(
       `Socket ${socket.id} (Username: ${username}) joined room ${roomId}`
     );
@@ -235,13 +237,20 @@ io.on("connection", (socket) => {
     // Notify existing users in the room about the new user, including username
     socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
+    // Send the list of all users (including their usernames) in the room to the newly joined user
+    const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+      .map((id) => ({ socketId: id, username: usernames[id] }))
+      .filter((user) => user.socketId !== socket.id); // Exclude the new user itself
+
+    socket.emit("room-users", usersInRoom);
+
     // Handle sending offers
     socket.on("offer", (data) => {
       const { target, offer } = data;
       io.to(target).emit("offer", {
         from: socket.id,
         offer,
-        // name: socket.username
+        name: username,
       });
     });
 
@@ -251,7 +260,7 @@ io.on("connection", (socket) => {
       io.to(target).emit("answer", {
         from: socket.id,
         answer,
-        // name: socket.username
+        name: username,
       });
     });
 
@@ -267,6 +276,8 @@ io.on("connection", (socket) => {
     // Handle leaving the room
     socket.on("leave-room", ({ roomId, username }) => {
       socket.leave(roomId);
+      delete usernames[socket.id]; // Remove the user from the mapping
+
       console.log(
         `Socket ${socket.id} (Username: ${username}) left room ${roomId}`
       );
@@ -278,13 +289,16 @@ io.on("connection", (socket) => {
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
-      // Optionally: you can notify others of this disconnection, if the user was in a room
-      const rooms = Array.from(socket.rooms); // Get the rooms the socket was in
+      const username = usernames[socket.id];
+      delete usernames[socket.id]; // Remove the user from the mapping
+
+      // Optionally: notify others of this disconnection, if the user was in a room
+      const rooms = Array.from(socket.rooms);
       rooms.forEach((roomId) => {
         socket.to(roomId).emit("user-left", {
           socketId: socket.id,
-          username: socket.username,
-        }); // You can pass the username if it was saved somewhere
+          username,
+        });
       });
     });
   });
