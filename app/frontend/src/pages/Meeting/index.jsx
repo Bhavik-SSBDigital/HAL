@@ -38,7 +38,7 @@ const configuration = {
 };
 const MeetingManager = () => {
     // State Management
-    const socketUrl = import.meta.env.VITE_SOCKET_URL_MEETING;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL;
     const [isMuted, setIsMuted] = useState(true);
     const [isCameraOff, setIsCameraOff] = useState(true);
     const [showChat, setShowChat] = useState(false);
@@ -66,7 +66,7 @@ const MeetingManager = () => {
     useEffect(() => {
         // Only connect if there's no existing connection
         if (!socketRef.current) {
-            // socketRef.current = io.connect(socketUrl); // Replace with your server URL
+            socketRef.current = io(socketUrl); // Replace with your server URL
 
             // Handle joining a room after connecting
             // socketRef.current.on('connect', () => {
@@ -82,35 +82,14 @@ const MeetingManager = () => {
         }
     }, []);
 
-    // useEffect(() => {
-    //     if (Object.keys(peers).length) {
-    //         console.log('inside condition');
-    //         socketRef.current.on("room-users", (users) => {
-    //             // Update your UI with the list of users
-    //             console.log("Users in the room:", users);
-    //             users?.map((user) => {
-    //                 setPeers((prev) => {
-    //                     console.log(prev);
-    //                     console.log(user.socketId);
-    //                     return {
-    //                         ...prev,
-    //                         [prev[user.socketId]]: { ...prev[user.socketId], name: user.username }
-    //                     }
-    //                 })
-    //             })
-    //         });
-    //     }
-
-    // }, [Object.keys(peers).length])
-
     const onSubmit = async (data) => {
         if (data.meetingId.trim() === '') return;
         if (!socketRef.current) {
-            socketRef.current = io.connect(socketUrl); // Replace with your server URL
+            // socketRef.current = io.connect(socketUrl); // Replace with your server URL
 
-            socketRef.current.on('connect', () => {
-                console.log('Connected to socket:', socketRef.current.id);
-            });
+            // socketRef.current.on('connect', () => {
+            //     console.log('Connected to socket:', socketRef.current.id);
+            // });
         }
         setInRoom(true);
         setMeetingId(data.meetingId);
