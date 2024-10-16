@@ -229,7 +229,7 @@ server.listen(5000, () => console.log(`Listening on port ${5000}`));
 // 3rd backend
 const usernames = {}; // Object to store socket.id to username mapping
 
-io.on("connection", (socket) => {
+io.of("/socket").on("connection", (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
   // Handle joining a room
