@@ -32,7 +32,6 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  path: "/socket/",
   cors: {
     origin: "*",
     methods: ["GET", "POST"], // You can specify other allowed methods as needed
