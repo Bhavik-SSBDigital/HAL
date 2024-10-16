@@ -227,6 +227,7 @@ io.on("connection", (socket) => {
 
   // Handle joining a room
   socket.on("join-room", ({ roomId, username }) => {
+    // console.log("username", username);
     socket.join(roomId);
     usernames[socket.id] = username; // Store the username
 
@@ -271,6 +272,14 @@ io.on("connection", (socket) => {
         from: socket.id,
         candidate,
       });
+    });
+
+    socket.on("sendMessage", ({ meetingId, message, username }) => {
+      // Emit the message to the specific room
+      console.log(`message from ${username} for ${meetingId} : ${message}`);
+      io.to(meetingId).emit("message", { user: username, text: message });
+
+      console.log("users in room", usersInRoom);
     });
 
     // Handle leaving the room
