@@ -31,12 +31,7 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-};
-
-const server = https.createServer(options, app);
+const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
@@ -229,7 +224,7 @@ server.listen(5000, () => console.log(`Listening on port ${5000}`));
 // 3rd backend
 const usernames = {}; // Object to store socket.id to username mapping
 
-io.of("/socket").on("connection", (socket) => {
+io.on("connection", (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
   // Handle joining a room
