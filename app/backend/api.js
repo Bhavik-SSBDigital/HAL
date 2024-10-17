@@ -50,13 +50,6 @@ const io = new Server(server, {
 
 const socketNamespace = io.of("/socket/");
 
-app.use(express.static(path.join(__dirname, "build")));
-app.use(cors());
-app.use(bodyParser.json());
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use("/", router);
-
 export const userSockets = new Map();
 
 // Start the HTTP/2 server with spdy
@@ -184,6 +177,13 @@ socketNamespace.on("connection", (socket) => {
     });
   });
 });
+
+app.use(express.static(path.join(__dirname, "build")));
+app.use(cors());
+app.use(bodyParser.json());
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use("/", router);
 
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "build", "index.html"));
