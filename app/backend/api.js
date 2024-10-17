@@ -186,6 +186,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/", router);
 
 app.get("*", (req, res) => {
+  console.log("hit general url");
   res.sendFile(path.resolve(__dirname, "build", "index.html"));
 });
 
