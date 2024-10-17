@@ -180,6 +180,7 @@ socketNamespace.on("connection", (socket) => {
 
 app.use((req, res, next) => {
   if (req.url.startsWith("/socket")) {
+    console.log("req url", req.url);
     console.log("socket url hit");
     // If the URL is for WebSocket, skip static file middleware
     return next(); // Let the WebSocket handle it
