@@ -41,7 +41,7 @@ const server = https.createServer(options, app);
 const io = new Server(server, {
   path: "/socket/",
   cors: {
-    origin: "https://dms.ssbd.in",
+    origin: "*",
     methods: ["GET", "POST"], // You can specify other allowed methods as needed
     allowedHeaders: ["my-custom-header"],
     credentials: true,
