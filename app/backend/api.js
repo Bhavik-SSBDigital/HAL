@@ -178,6 +178,13 @@ socketNamespace.on("connection", (socket) => {
   });
 });
 
+app.use((req, res, next) => {
+  if (req.url.startsWith("/socket")) {
+    // If the URL is for WebSocket, skip static file middleware
+    return next(); // Let the WebSocket handle it
+  }
+  next(); // Proceed to the static file middleware
+});
 app.use(express.static(path.join(__dirname, "build")));
 app.use(cors());
 app.use(bodyParser.json());
