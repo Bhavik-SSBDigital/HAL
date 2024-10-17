@@ -31,7 +31,12 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const server = http.createServer(app);
+const options = {
+  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+};
+
+const server = https.createServer(options, app);
 
 const io = new Server(server, {
   cors: {
