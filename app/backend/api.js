@@ -48,7 +48,7 @@ const io = new Server(server, {
   },
 });
 
-const socketNamespace = io.of("/socket/");
+// const io = io.of("/socket/");
 
 export const userSockets = new Map();
 
@@ -75,7 +75,7 @@ server.on("error", (error) => {
 // 3rd backend
 const usernames = {}; // Object to store socket.id to username mapping
 
-socketNamespace.on("connection", (socket) => {
+io.on("connection", (socket) => {
   console.log(`New client connected in namespace '/socket': ${socket.id}`);
 
   // Handle joining a room
@@ -91,9 +91,7 @@ socketNamespace.on("connection", (socket) => {
     socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
     // Send the list of all users (including their usernames) in the room to the newly joined user
-    const usersInRoom = Array.from(
-      socketNamespace.adapter.rooms.get(roomId) || []
-    )
+    const usersInRoom = Array.from(io.adapter.rooms.get(roomId) || [])
       .map((id) => ({ socketId: id, username: usernames[id] }))
       .filter((user) => user.socketId !== socket.id); // Exclude the new user itself
 
@@ -102,7 +100,7 @@ socketNamespace.on("connection", (socket) => {
     // Handle sending offers
     socket.on("offer", (data) => {
       const { target, offer } = data;
-      socketNamespace.to(target).emit("offer", {
+      io.to(target).emit("offer", {
         from: socket.id,
         offer,
         name: username,
@@ -112,7 +110,7 @@ socketNamespace.on("connection", (socket) => {
     // Handle sending answers
     socket.on("answer", (data) => {
       const { target, answer } = data;
-      socketNamespace.to(target).emit("answer", {
+      io.to(target).emit("answer", {
         from: socket.id,
         answer,
         name: username,
@@ -122,7 +120,7 @@ socketNamespace.on("connection", (socket) => {
     // Handle sending ICE candidates
     socket.on("ice-candidate", (data) => {
       const { target, candidate } = data;
-      socketNamespace.to(target).emit("ice-candidate", {
+      io.to(target).emit("ice-candidate", {
         from: socket.id,
         candidate,
       });
@@ -131,13 +129,9 @@ socketNamespace.on("connection", (socket) => {
     // Handle sending messages to the room
     socket.on("sendMessage", ({ meetingId, message, username }) => {
       console.log(`message from ${username} for ${meetingId}: ${message}`);
-      socketNamespace
-        .to(meetingId)
-        .emit("message", { user: username, text: message });
+      io.to(meetingId).emit("message", { user: username, text: message });
 
-      const usersInRoom = Array.from(
-        socketNamespace.adapter.rooms.get(meetingId) || []
-      )
+      const usersInRoom = Array.from(io.adapter.rooms.get(meetingId) || [])
         .map((id) => ({ socketId: id, username: usernames[id] }))
         .filter((user) => user.socketId !== socket.id); // Update the room users
       console.log("users in room", usersInRoom);
@@ -181,7 +175,11 @@ socketNamespace.on("connection", (socket) => {
 app.use((req, res, next) => {
   if (req.url.startsWith("/socket")) {
     console.log("req url", req.url);
+    console.log("protocol", req.protocol);
+    console.log("host", req.get("host"));
+    console.log("full url", req.originalUrl);
     console.log("socket url hit");
+
     // If the URL is for WebSocket, skip static file middleware
     return next(); // Let the WebSocket handle it
   }
