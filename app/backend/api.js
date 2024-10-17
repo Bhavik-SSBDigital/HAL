@@ -151,6 +151,10 @@ socketNamespace.on("connection", (socket) => {
       socket.to(roomId).emit("user-left", { socketId: socket.id, username });
     });
 
+    socket.on("error", (error) => {
+      console.error(`Socket error on ${socket.id}:`, error);
+    });
+
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
