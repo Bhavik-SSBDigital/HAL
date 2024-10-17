@@ -67,6 +67,18 @@ export const userSockets = new Map();
 
 server.listen(5000, () => console.log(`Listening on port ${5000}`));
 
+server.on("error", (error) => {
+  console.error("Server error:", error);
+  // You can also add logic to handle different types of errors
+  // For example, if it's a port already in use error:
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `Port ${5000} is already in use. Please choose another port.`
+    );
+    process.exit(1); // Exit the process
+  }
+});
+
 // 3rd backend
 const usernames = {}; // Object to store socket.id to username mapping
 
