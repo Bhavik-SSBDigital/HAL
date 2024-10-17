@@ -47,7 +47,7 @@ const io = new Server(server, {
   },
 });
 
-const socketNamespace = io.of("/socket");
+const socketNamespace = io.of("/socket/");
 
 app.use(express.static(path.join(__dirname, "build")));
 app.use(cors());
