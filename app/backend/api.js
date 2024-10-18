@@ -172,6 +172,31 @@ io.on("connection", (socket) => {
   });
 });
 
+app.use((req, res, next) => {
+  const parsedUrl = new URL(
+    req.protocol + "://" + req.get("host") + req.originalUrl
+  );
+
+  if (parsedUrl.protocol === "wss:" || parsedUrl.protocol === "ws:") {
+    // Handle WebSocket requests
+    console.log("WebSocket request:", parsedUrl.href);
+
+    // Forward the WebSocket connection to Socket.IO server
+    io.attach(server, {
+      cors: {
+        origin: "*", // Adjust CORS settings based on your environment
+      },
+    });
+
+    // Handle WebSocket connections here if needed
+    // (Socket.IO server handles them in its `connection` event above)
+  } else {
+    // Handle normal HTTP/HTTPS requests
+    console.log("HTTP/HTTPS request:", parsedUrl.href);
+    next(); // Continue to the next middleware (e.g., route handlers)
+  }
+});
+
 // app.use((req, res, next) => {
 //   if (req.url.startsWith("/socket")) {
 //     console.log("req url", req.url);
