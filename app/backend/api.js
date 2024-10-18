@@ -41,6 +41,7 @@ const server = https.createServer(options, app);
 const io = new Server(server, {
   // path: "/socket/",
   transports: ["websocket"],
+  path: "/socket.io/",
   cors: {
     origin: "*",
     methods: ["GET", "POST"], // You can specify other allowed methods as needed
@@ -178,6 +179,8 @@ app.use((req, res, next) => {
     req.protocol + "://" + req.get("host") + req.originalUrl
   );
 
+  console.log("req url", req.url);
+  console.log("parsed url", parsedUrl);
   if (req.url.startsWith("/socket")) {
     // Handle WebSocket requests
     console.log("WebSocket request:", parsedUrl.href);
