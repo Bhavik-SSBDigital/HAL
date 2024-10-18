@@ -177,7 +177,7 @@ app.use((req, res, next) => {
     req.protocol + "://" + req.get("host") + req.originalUrl
   );
 
-  if (parsedUrl.protocol === "wss:" || parsedUrl.protocol === "ws:") {
+  if (req.url.startsWith("/socket")) {
     // Handle WebSocket requests
     console.log("WebSocket request:", parsedUrl.href);
 
