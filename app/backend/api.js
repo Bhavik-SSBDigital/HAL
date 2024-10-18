@@ -31,15 +31,15 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-};
+// const options = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+// };
 
-const server = https.createServer(options, app);
+const server = http.createServer(app);
 
 const io = new Server(server, {
-  path: "/socket/",
+  // path: "/socket/",
   cors: {
     origin: "*",
     methods: ["GET", "POST"], // You can specify other allowed methods as needed
@@ -91,7 +91,7 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
     // Send the list of all users (including their usernames) in the room to the newly joined user
-    const usersInRoom = Array.from(io.adapter.rooms.get(roomId) || [])
+    const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
       .map((id) => ({ socketId: id, username: usernames[id] }))
       .filter((user) => user.socketId !== socket.id); // Exclude the new user itself
 
@@ -172,19 +172,19 @@ io.on("connection", (socket) => {
   });
 });
 
-app.use((req, res, next) => {
-  if (req.url.startsWith("/socket")) {
-    console.log("req url", req.url);
-    console.log("protocol", req.protocol);
-    console.log("host", req.get("host"));
-    console.log("full url", req.originalUrl);
-    console.log("socket url hit");
+// app.use((req, res, next) => {
+//   if (req.url.startsWith("/socket")) {
+//     console.log("req url", req.url);
+//     console.log("protocol", req.protocol);
+//     console.log("host", req.get("host"));
+//     console.log("full url", req.originalUrl);
+//     console.log("socket url hit");
 
-    // If the URL is for WebSocket, skip static file middleware
-    return next(); // Let the WebSocket handle it
-  }
-  next(); // Proceed to the static file middleware
-});
+//     // If the URL is for WebSocket, skip static file middleware
+//     return next(); // Let the WebSocket handle it
+//   }
+//   next(); // Proceed to the static file middleware
+// });
 app.use(express.static(path.join(__dirname, "build")));
 app.use(cors());
 app.use(bodyParser.json());

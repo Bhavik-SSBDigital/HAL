@@ -29,6 +29,8 @@ import io from 'socket.io-client';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import styles from './MeetingManager.module.css';
+import userSocket from '../Socket_Connection';
+import { socketData } from '../../Store';
 // Define the ICE server configuration
 const configuration = {
     iceServers: [
@@ -37,15 +39,16 @@ const configuration = {
     ],
 };
 const MeetingManager = () => {
+    const { socketConnection } = socketData();
     // State Management
-    const socketUrl = import.meta.env.VITE_SOCKET_URL;
+    // const socketUrl = import.meta.env.VITE_SOCKET_URL;
     const [isMuted, setIsMuted] = useState(true);
     const [isCameraOff, setIsCameraOff] = useState(true);
     const [showChat, setShowChat] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [chatMessages, setChatMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const username = sessionStorage.getItem('username') || 'Anonymous';
+    const username = sessionStorage.getItem('username') || null;
     const [inRoom, setInRoom] = useState(false);
     const [peers, setPeers] = useState({});
     const [meetingId, setMeetingId] = useState('');
@@ -66,19 +69,20 @@ const MeetingManager = () => {
     useEffect(() => {
         // Only connect if there's no existing connection
         if (!socketRef.current) {
-            socketRef.current = io(socketUrl); // Replace with your server URL
+            socketRef.current = socketConnection; // Replace with your server URL
+            console.log(socketRef.current);
 
             // Handle joining a room after connecting
             // socketRef.current.on('connect', () => {
             //     console.log('Connected to socket:', socketRef.current.id);
             // });
             // Clean up and disconnect on unmount
-            return () => {
-                if (socketRef.current) {
-                    socketRef.current.disconnect();
-                    socketRef.current = null; // Ensure no reconnection happens
-                }
-            };
+            // return () => {
+            //     if (socketRef.current) {
+            //         socketRef.current.disconnect();
+            //         socketRef.current = null; // Ensure no reconnection happens
+            //     }
+            // };
         }
     }, []);
 
@@ -322,13 +326,13 @@ const MeetingManager = () => {
 
         // Disconnect from the socket
         if (socketRef.current) {
-            console.log('leave inside condition');
             socketRef.current.emit('leave-room', {
                 roomId: meetingId,
                 username: username,
             });
-            socketRef.current.disconnect(); // Close the socket connection
-            socketRef.current = null;
+            console.log('leaving room');
+            // socketRef.current.disconnect(); // Close the socket connection
+            // socketRef.current = null;
         }
 
         console.log(

@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+// import { io } from 'socket.io-client';
 import axios from 'axios';
-import sessionData from '../../Store';
+import sessionData, { socketData } from '../../Store';
+// import userSocket from '../../pages/Socket_Connection';
+
 const DropdownNotification = () => {
+  // const { socketConnection, get_connection } = userSocket();
+  const { socketConnection } = socketData();
+  console.log(socketConnection);
   const {
     setWork,
     notifications,
@@ -42,7 +47,7 @@ const DropdownNotification = () => {
   });
   // -------------------------------------------------------//
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const socketUrl = import.meta.env.VITE_SOCKET_URL;
+  // const socketUrl = import.meta.env.VITE_SOCKET_URL;
   const navigate = useNavigate();
   const handleViewProcess = (
     id: any,
@@ -92,7 +97,8 @@ const DropdownNotification = () => {
   };
   useEffect(() => {
     // const socket = io("http://localhost:8000");
-    const socket = io(`${socketUrl}`);
+    const socket = socketConnection;
+    console.log(socket);
     socket.on('connect', () => {
       console.log('Connected to server');
       // Perform any actions upon successful connection

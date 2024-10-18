@@ -5,14 +5,19 @@ const sessionData = create(
   persist(
     (set) => ({
       work: '',
-      profileImage: "",
+      profileImage: '',
       notifications: [],
       alerts: [],
-      dashDepartment: "",
-      dashBranch: "",
-      dashId: "",
-      pickedProcesses: "",
+      dashDepartment: '',
+      dashBranch: '',
+      dashId: '',
+      pickedProcesses: '',
       show: false,
+      socketConnection: null,
+      setSocketConnection: (connection) => {
+        console.log(connection);
+        set({ socketConnection: connection });
+      },
       setShow: (show) => set({ show }),
       setDashDepartment: (dashDepartment) => set({ dashDepartment }),
       setDashId: (dashId) => set({ dashId }),
@@ -22,17 +27,18 @@ const sessionData = create(
       setNotifications: (notifications) => set({ notifications }),
       setProfileImage: (profileImage) => set({ profileImage }),
       setAlerts: (alerts) => set({ alerts }),
-      reset: () => set({
-        work: '',
-        profileImage: "",
-        notifications: [],
-        alerts: [],
-        dashDepartment: "",
-        dashBranch: "",
-        dashId: "",
-        pickedProcesses: "",
-        show: false
-      })
+      reset: () =>
+        set({
+          work: '',
+          profileImage: '',
+          notifications: [],
+          alerts: [],
+          dashDepartment: '',
+          dashBranch: '',
+          dashId: '',
+          pickedProcesses: '',
+          show: false,
+        }),
     }),
     {
       name: 'store-data',
@@ -40,5 +46,9 @@ const sessionData = create(
     },
   ),
 );
+export const socketData = create((set) => ({
+  socketConnection: null,
+  setSocketConnection: (connection) => set({ socketConnection: connection }),
+}));
 
 export default sessionData;

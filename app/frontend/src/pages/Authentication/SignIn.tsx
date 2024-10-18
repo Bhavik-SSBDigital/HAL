@@ -15,9 +15,11 @@ import { IconEye } from '@tabler/icons-react';
 import { IconEyeOff } from '@tabler/icons-react';
 import axios from 'axios';
 import sessionData from '../../Store';
+import userSocket from '../Socket_Connection';
 
 const SignIn: React.FC = () => {
   const { setShow } = sessionData();
+  const { connect_socket } = userSocket();
   // states
   const navigate = useNavigate();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -52,14 +54,20 @@ const SignIn: React.FC = () => {
         }
         sessionStorage.setItem('email', res.data['email']);
         sessionStorage.setItem('username', res.data['userName']);
-        sessionStorage.setItem('isKeeperOfPhysicalDocs', res.data['isKeeperOfPhysicalDocs']);
+        sessionStorage.setItem(
+          'isKeeperOfPhysicalDocs',
+          res.data['isKeeperOfPhysicalDocs'],
+        );
         sessionStorage.setItem('initiator', res.data['isInitiator']);
         sessionStorage.setItem('accessToken', res.data['accessToken']);
         sessionStorage.setItem('refreshToken', res.data['refreshToken']);
         sessionStorage.setItem('specialUser', res.data['specialUser']);
+        const checking = await connect_socket();
+        console.log(checking);
         navigate('/');
       }
     } catch (error) {
+      console.log(error);
       setError(error?.response?.data?.message || error.message);
     } finally {
       setLoading(false);
