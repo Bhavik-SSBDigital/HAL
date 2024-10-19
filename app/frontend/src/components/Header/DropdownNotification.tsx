@@ -8,7 +8,6 @@ import sessionData, { socketData } from '../../Store';
 const DropdownNotification = () => {
   // const { socketConnection, get_connection } = userSocket();
   const { socketConnection } = socketData();
-  console.log(socketConnection);
   const {
     setWork,
     notifications,
