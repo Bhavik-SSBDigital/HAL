@@ -42,8 +42,8 @@ const MeetingManager = () => {
     const { socketConnection } = socketData();
     // State Management
     // const socketUrl = import.meta.env.VITE_SOCKET_URL;
-    const [isMuted, setIsMuted] = useState(true);
-    const [isCameraOff, setIsCameraOff] = useState(true);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOff, setIsCameraOff] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [chatMessages, setChatMessages] = useState([]);
@@ -69,32 +69,13 @@ const MeetingManager = () => {
     useEffect(() => {
         // Only connect if there's no existing connection
         if (!socketRef.current) {
-            socketRef.current = socketConnection; // Replace with your server URL
+            socketRef.current = socketConnection;
             console.log(socketRef.current);
-
-            // Handle joining a room after connecting
-            // socketRef.current.on('connect', () => {
-            //     console.log('Connected to socket:', socketRef.current.id);
-            // });
-            // Clean up and disconnect on unmount
-            // return () => {
-            //     if (socketRef.current) {
-            //         socketRef.current.disconnect();
-            //         socketRef.current = null; // Ensure no reconnection happens
-            //     }
-            // };
         }
     }, []);
 
     const onSubmit = async (data) => {
         if (data.meetingId.trim() === '') return;
-        if (!socketRef.current) {
-            // socketRef.current = io.connect(socketUrl); // Replace with your server URL
-
-            // socketRef.current.on('connect', () => {
-            //     console.log('Connected to socket:', socketRef.current.id);
-            // });
-        }
         setInRoom(true);
         setMeetingId(data.meetingId);
         try {
@@ -125,6 +106,10 @@ const MeetingManager = () => {
             socketRef.current.on('offer', async (data) => {
                 const { from, offer, name } = data;
                 await handleReceiveOffer(from, offer, name);
+            });
+            socketRef.current.on('message', async (data) => {
+                const { user, text } = data;
+                setChatMessages((prev) => [...prev, text])
             });
 
             // Listen for answers
@@ -342,7 +327,7 @@ const MeetingManager = () => {
 
     // Function to send a message to the room
     const sendMessageToRoom = (meetingId, message) => {
-        socketRef.current.emit('sendMessageToRoom', { meetingId, message });
+        socketRef.current.emit('sendMessage', { meetingId, message, username });
     };
 
     // Toggle microphone
@@ -371,8 +356,7 @@ const MeetingManager = () => {
     const sendMessage = () => {
         if (message.trim() !== '') {
             const newMessage = { sender: username, text: message };
-            // sendMessageToRoom(meetingId, newMessage); // Emit message to socket
-            setChatMessages((prev) => [...prev, newMessage]); // Update local chat
+            sendMessageToRoom(meetingId, newMessage); // Emit message to socket
             setMessage('');
             console.log(`Sent message: ${message}`);
         }
