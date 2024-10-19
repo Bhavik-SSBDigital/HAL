@@ -180,7 +180,7 @@ const SearchDocument = () => {
         <Container className={styles.container}>
             <Typography
                 textAlign="center"
-                sx={{ fontWeight: 600, fontSize: 28 }}
+                sx={{ fontWeight: 500, fontSize: 22 }}
                 gutterBottom
             >
                 Search Documents
