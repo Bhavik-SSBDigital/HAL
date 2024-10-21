@@ -6,11 +6,14 @@ import {
   Chip,
   CircularProgress,
   FormControlLabel,
+  IconButton,
   ListItemText,
   MenuItem,
+  Paper,
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import Stepper from "@mui/material/Stepper";
@@ -21,7 +24,7 @@ import styles from "./InitiateForm.module.css";
 import axios from "axios";
 import CheckboxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckboxIcon from "@mui/icons-material/CheckBox";
-import { IconCircle, IconGradienter } from "@tabler/icons-react";
+import { IconCircle, IconGradienter, IconX } from "@tabler/icons-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import InitiatProcess from "./InitiateProcess";
@@ -250,6 +253,17 @@ export default function InitiateForm() {
     fetchBranches();
     getDepartments();
   }, []);
+
+
+  function formatUserNames(users) {
+    if (!users || users.length === 0) {
+      return "No users";
+    } else if (users.length === 1) {
+      return users[0].user;
+    } else {
+      return users[0].user + ", ...";
+    }
+  }
   return (
     <>
       {loading ? <ComponentLoader /> : <Stack flexDirection="row">
@@ -270,6 +284,9 @@ export default function InitiateForm() {
                   </Button>
                 </Stack>
               ) : null}
+            </Step>
+            <Step>
+              <StepLabel>Workflow</StepLabel>
             </Step>
             <Step>
               <StepLabel>Initiate Process</StepLabel>
@@ -793,7 +810,60 @@ export default function InitiateForm() {
               )}
             </>
           ) : null}
-          {activeStep === 1 ? (
+          {activeStep === 1 ? <Stack
+            flexDirection="row"
+            flexWrap="wrap"
+            rowGap={3}
+            columnGap={1}
+            justifyContent="center"
+            sx={{ marginBottom: '40px', marginTop: '10px' }}
+          >
+            {selectedDepartment?.workFlow?.map((item, index) => (
+              <>
+                <Paper
+                  key={index + 1}
+                  elevation={3}
+                  sx={{
+                    position: 'relative',
+                    width: { xs: 230, sm: 250, md: 280 },
+                    borderRadius: '15px',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <IconButton
+                    sx={{ position: 'absolute', right: '0px', top: '0px' }}
+                  // onClick={() => handleDelete(index)}
+                  >
+                    <IconX />
+                  </IconButton>
+                  <h3 className={styles.workflowIndex}>{index + 1}</h3>
+                  <div className={styles.workflowContent}>
+                    <div className={styles.workFlowElements}>
+                      <p style={{ width: '60px' }}>
+                        <strong>Work :</strong>
+                      </p>
+                      <p>{item?.work}</p>
+                    </div>
+                    <div className={styles.workFlowElements}>
+                      <p style={{ width: '60px' }}>
+                        <strong>Users :</strong>
+                      </p>
+                      <Tooltip
+                        title={
+                          item?.users?.length > 1
+                            ? item.users.map((user) => user.user).join(", ")
+                            : null
+                        }
+                      >
+                        <p>{formatUserNames(item?.users)}</p>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </Paper>
+              </>
+            ))}
+          </Stack> : null}
+          {activeStep === 2 ? (
             <InitiatProcess
               workFlow={workFlow}
               setWorkFlow={setWorkFlow}
