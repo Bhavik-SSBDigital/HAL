@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 // import { io } from 'socket.io-client';
 import axios from 'axios';
 import sessionData, { socketData } from '../../Store';
+import userSocket from '../../pages/Socket_Connection';
 // import userSocket from '../../pages/Socket_Connection';
 
 const DropdownNotification = () => {
   // const { socketConnection, get_connection } = userSocket();
   const { socketConnection } = socketData();
+  const { connect_socket } = userSocket();
+
   const {
     setWork,
     notifications,
@@ -94,34 +97,45 @@ const DropdownNotification = () => {
       console.error('error', error);
     }
   };
+
   useEffect(() => {
+    const EnstablishConnection = async () => {
+      let socket = null;
+      if (!socketConnection) {
+        socket = await connect_socket();
+      } else {
+        socket = socketConnection;
+      }
+      console.log(socket);
+      socket.on('connect', () => {
+        console.log('Connected to server');
+        // Perform any actions upon successful connection
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+        // Perform any actions upon disconnection
+      });
+
+      socket.on('processesUpdated', (data) => {
+        const updatedNotifications = [...notifications, data.newProcess];
+        console.log(updatedNotifications);
+        setNotifications(updatedNotifications);
+      });
+
+      socket.on('pickedProcess', (data) => {
+        console.log('Received picked process:', data);
+        handleRemoveNotification(data?.processId);
+        const updatePickedProcesses = [...pickedProcesses, data?.processId];
+        setPickedProcesses(updatePickedProcesses);
+      });
+      const username = sessionStorage.getItem('username');
+      socket.emit('login', username);
+    };
     // const socket = io("http://localhost:8000");
-    const socket = socketConnection;
-    console.log(socket);
-    socket.on('connect', () => {
-      console.log('Connected to server');
-      // Perform any actions upon successful connection
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      // Perform any actions upon disconnection
-    });
-
-    socket.on('processesUpdated', (data) => {
-      const updatedNotifications = [...notifications, data.newProcess];
-      console.log(updatedNotifications);
-      setNotifications(updatedNotifications);
-    });
-    socket.on('pickedProcess', (data) => {
-      console.log('Received picked process:', data);
-      handleRemoveNotification(data?.processId);
-      const updatePickedProcesses = [...pickedProcesses, data?.processId];
-      setPickedProcesses(updatePickedProcesses);
-    });
-    const username = sessionStorage.getItem('username');
-    socket.emit('login', username);
+    EnstablishConnection();
   }, []);
+
   return (
     <li className="relative">
       {/* <Link
