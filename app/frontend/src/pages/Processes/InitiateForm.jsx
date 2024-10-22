@@ -5,13 +5,21 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  FormControl,
   FormControlLabel,
+  Grid,
   IconButton,
   ListItemText,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -29,11 +37,13 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import InitiatProcess from "./InitiateProcess";
 import ComponentLoader from "../../common/Loader/ComponentLoader";
+import { FaRegTrashAlt } from "react-icons/fa";
 
 export default function InitiateForm() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
+  console.log(selectedDepartment);
   const [workFlow, setWorkFlow] = useState("");
   const [connectors, setConnectors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -249,12 +259,52 @@ export default function InitiateForm() {
   const handlePreviousClick = () => {
     setActiveStep(0);
   };
-  useEffect(() => {
-    fetchBranches();
-    getDepartments();
-  }, []);
+  const handleNextClick = () => {
+    setActiveStep((prev) => prev + 1);
+  };
 
 
+
+  // workflow handling
+  const [works, setWorks] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
+  const [flow, setFlow] = useState({ work: '', step: '' });
+  const [userBranch, setUserBranch] = useState('');
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [userSelection, setUserSelection] = useState({ user: '', role: '' });
+  const [users, setUsers] = useState([]);
+  const [usersOnStep, setUsersOnStep] = useState([]);
+
+  const getBranches = async () => {
+    try {
+      const url = backendUrl + '/getAllBranches';
+      const accessToken = sessionStorage.getItem('accessToken');
+      const { data } = await axios.post(url, null, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      setAllBranches(data.branches);
+      return data.branches;
+    } catch (error) {
+      console.error('unable to fetch branches');
+    }
+  };
+  const getWorks = async () => {
+    try {
+      const url = backendUrl + '/getWorks';
+      const accessToken = sessionStorage.getItem('accessToken');
+      const { data } = await axios.post(url, null, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      setWorks(data.works);
+    } catch (error) {
+      console.log(error);
+    }
+  };
   function formatUserNames(users) {
     if (!users || users.length === 0) {
       return "No users";
@@ -264,6 +314,152 @@ export default function InitiateForm() {
       return users[0].user + ", ...";
     }
   }
+  const handleFlowChange = (event) => {
+    const { name, value } = event.target;
+    setFlow((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+  const getRoles = async (id) => {
+    setFieldsLoading(true)
+    const urlRole = backendUrl + '/getRolesInBranch/';
+    try {
+
+      const accessToken = sessionStorage.getItem('accessToken');
+      const { data } = await axios.post(urlRole + `${id}`, null, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      setRoles(data.roles);
+    } catch {
+      console.error("Error getting roles for selected branch");
+    } finally {
+      setFieldsLoading(false);
+    }
+  };
+  const getUsers = async (role) => {
+    // const branchValue = value ? headInfo.branch : userBranch;
+    // const roleValue = value ? headInfo.role : flow.role;
+    setFieldsLoading(true);
+    try {
+      const url = backendUrl + '/getUsersByRoleInBranch';
+      const accessToken = sessionStorage.getItem('accessToken');
+      const { _id } = branches.find((item) => item.name === userBranch);
+      const id = roles.find((item) => item.role === role ? role : userSelection.role);
+      const { data } = await axios.post(
+        url,
+        {
+          branchId: _id,
+          roleId: id._id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+      setUsers(data.users);
+    } catch (error) {
+      alert(error);
+    } finally {
+      setFieldsLoading(false);
+    }
+  };
+  const handleUserSelection = (event) => {
+    const { name, value } = event.target;
+    if (name === 'role') {
+      setUserSelection((prev) => ({ ...prev, user: '' }));
+      getUsers(value)
+      setUsers([]);
+    }
+    setUserSelection((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    if (name === 'branch') {
+      if (!userBranch) {
+        setUserBranch(value);
+        if (value) {
+          const { _id } = branches.find((data) => data.name === value);
+          getRoles(_id);
+        }
+      }
+    }
+    if (name === 'userBranch') {
+      if (value) {
+        const { _id } = branches.find((data) => data.name === value);
+        setRoles([]);
+        getRoles(_id);
+      }
+      setUserSelection({ user: '', role: '' });
+      setUserBranch(value);
+    }
+  };
+  const handleUserAdd = () => {
+    if (!userSelection.user || !userSelection.role) {
+      toast.info('Please select user & role');
+      return;
+    }
+    const newUser = {
+      user: userSelection.user,
+      role: userSelection.role,
+    };
+    // Update the state with the new user object
+    setUsersOnStep((prevData) => [...prevData, newUser]);
+    setUserSelection({ user: '', role: '' });
+  };
+  const handleWorkFlow = () => {
+    if (selectedDepartment?.workFlow?.length === 0 && flow.work !== 'upload') {
+      toast.info('First step should be upload');
+      return;
+    }
+    if (usersOnStep.length > 0 && flow.work) {
+      setSelectedDepartment((prev) => {
+        const updatedWorkFlow = [...prev.workFlow];
+
+        if (flow.step > prev.workFlow.length) {
+          // If step is greater than the length, insert at the end
+          updatedWorkFlow.push({ ...flow, users: usersOnStep });
+        } else {
+          updatedWorkFlow.splice(flow.step - 1, 0, {
+            ...flow,
+            users: usersOnStep,
+          });
+
+          // Update step numbers for all items after the insertion point
+          for (let i = flow.step; i < updatedWorkFlow.length; i++) {
+            updatedWorkFlow[i].step++;
+          }
+        }
+
+        return {
+          ...prev,
+          workFlow: updatedWorkFlow,
+        };
+      });
+      setFlow({ work: '', step: '' });
+      // setUserBranch('');
+      setUsersOnStep([]);
+    } else {
+      toast.info('Please provide all inputs!');
+    }
+  };
+  // working here
+  useEffect(() => {
+    fetchBranches();
+    getDepartments();
+    getBranches();
+    getWorks();
+    setFlow((prevFlow) => ({
+      ...prevFlow,
+      step: selectedDepartment?.workFlow?.length + 1,
+    }));
+  }, []);
   return (
     <>
       {loading ? <ComponentLoader /> : <Stack flexDirection="row">
@@ -277,7 +473,7 @@ export default function InitiateForm() {
           <Stepper activeStep={activeStep} alternativeLabel>
             <Step>
               <StepLabel>Provide Process Details</StepLabel>
-              {activeStep === 1 ? (
+              {activeStep != 0 ? (
                 <Stack alignItems="center">
                   <Button size="small" onClick={handlePreviousClick}>
                     Previous
@@ -290,6 +486,13 @@ export default function InitiateForm() {
             </Step>
             <Step>
               <StepLabel>Initiate Process</StepLabel>
+              {activeStep == 1 ? (
+                <Stack alignItems="center">
+                  <Button size="small" onClick={handleNextClick}>
+                    Next
+                  </Button>
+                </Stack>
+              ) : null}
             </Step>
           </Stepper>
           {activeStep === 0 ? (
@@ -810,59 +1013,263 @@ export default function InitiateForm() {
               )}
             </>
           ) : null}
-          {activeStep === 1 ? <Stack
-            flexDirection="row"
-            flexWrap="wrap"
-            rowGap={3}
-            columnGap={1}
-            justifyContent="center"
-            sx={{ marginBottom: '40px', marginTop: '10px' }}
-          >
-            {selectedDepartment?.workFlow?.map((item, index) => (
-              <>
-                <Paper
-                  key={index + 1}
-                  elevation={3}
-                  sx={{
-                    position: 'relative',
-                    width: { xs: 230, sm: 250, md: 280 },
-                    borderRadius: '15px',
-                    backgroundColor: 'white',
-                  }}
-                >
-                  <IconButton
-                    sx={{ position: 'absolute', right: '0px', top: '0px' }}
-                  // onClick={() => handleDelete(index)}
-                  >
-                    <IconX />
-                  </IconButton>
-                  <h3 className={styles.workflowIndex}>{index + 1}</h3>
-                  <div className={styles.workflowContent}>
-                    <div className={styles.workFlowElements}>
-                      <p style={{ width: '60px' }}>
-                        <strong>Work :</strong>
-                      </p>
-                      <p>{item?.work}</p>
-                    </div>
-                    <div className={styles.workFlowElements}>
-                      <p style={{ width: '60px' }}>
-                        <strong>Users :</strong>
-                      </p>
-                      <Tooltip
-                        title={
-                          item?.users?.length > 1
-                            ? item.users.map((user) => user.user).join(", ")
-                            : null
-                        }
+          {activeStep === 1 ?
+            <>
+              <Grid container spacing={3} p={2}>
+                <Grid item xs={12}>
+                  <Typography variant="body1">
+                    {/* {newWork ? "name of work" : "Work"}: */}
+                    Work
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: '3px' }}>
+
+                    <FormControl fullWidth variant="outlined">
+                      <Select
+                        name="work"
+                        size='small'
+                        sx={{ backgroundColor: "whitesmoke" }}
+                        fullWidth
+                        value={flow && flow.work}
+                        onChange={handleFlowChange}
                       >
-                        <p>{formatUserNames(item?.users)}</p>
-                      </Tooltip>
-                    </div>
-                  </div>
-                </Paper>
-              </>
-            ))}
-          </Stack> : null}
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {works?.map((data) => (
+                          <MenuItem key={data.name} value={data.name}>
+                            {data.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="body1">Step No:</Typography>
+                  <FormControl fullWidth variant="outlined">
+                    <Select
+                      name="step"
+                      size='small'
+                      sx={{ backgroundColor: "whitesmoke" }}
+                      onChange={handleFlowChange}
+                      value={+flow.step ? +flow.step : selectedDepartment.workFlow.length + 1}
+                    >
+                      {Array.from(
+                        { length: selectedDepartment?.workFlow?.length + 1 },
+                        (_, index) => (
+                          <MenuItem key={index} value={index + 1}>
+                            {index + 1}
+                          </MenuItem>
+                        ),
+                      )}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <Paper elevation={0} sx={{ width: '100%', padding: '20px', display: 'flex', gap: "10px", flexDirection: "column", border: '1px solid lightgray' }}>
+                    {/* <Grid item xs={12}> */}
+                    <Typography variant="body1">User Branch:</Typography>
+                    <FormControl fullWidth variant="outlined">
+                      <Select
+                        name="userBranch"
+                        size='small'
+                        sx={{ backgroundColor: "whitesmoke" }}
+                        value={userBranch}
+                        onChange={handleInputChange}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>None</em>
+                        </MenuItem>
+                        {allBranches?.map((data) => (
+                          <MenuItem key={data.name} value={data.name}>
+                            {data.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {/* </Grid> */}
+                    {/* <Grid item xs={12}> */}
+                    <Typography variant="body1">Actor Role:</Typography>
+                    <FormControl fullWidth variant="outlined">
+                      <Select
+                        name="role"
+                        size='small'
+                        disabled={fieldsLoading}
+                        sx={{ backgroundColor: "whitesmoke" }}
+                        value={userSelection.role}
+                        onChange={handleUserSelection}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>None</em>
+                        </MenuItem>
+                        {roles?.map((data) => (
+                          <MenuItem key={data.role} value={data.role}>
+                            {data.role}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {/* </Grid> */}
+                    {/* <Grid item xs={12}> */}
+                    <Typography variant="body1">User:</Typography>
+                    <FormControl fullWidth variant="outlined">
+                      <Select
+                        name="user"
+                        size='small'
+                        sx={{ backgroundColor: "whitesmoke" }}
+                        value={userSelection.user}
+                        disabled={fieldsLoading}
+                        onChange={handleUserSelection}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>None</em>
+                        </MenuItem>
+                        {users?.map((data) => (
+                          <MenuItem key={data.username} value={data.username}>
+                            {data.username}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant='outlined'
+                      sx={{ mt: 1, width: '150px', mx: 'auto' }}
+                      onClick={handleUserAdd}
+                    >
+                      Add User
+                    </Button>
+                    {/* </Grid> */}
+                    {usersOnStep.length ? (
+                      <div style={{ margin: '30px auto', width: '100%' }}>
+                        <Typography variant="h6" textAlign="center">
+                          This step users :
+                        </Typography>
+                        {/* {usersOnStep.map((obj, index) => (
+                <p key={index} style={{ display: "inline" }}>
+                  {obj.user}/{obj.role}
+                  {index !== usersOnStep.length - 1 ? ", " : ""}
+                </p>
+              ))} */}
+                        <TableContainer
+                          sx={{ maxHeight: '200px', overflow: 'auto', width: '100%', border: '1px solid lightgray' }}
+                        >
+                          <Table
+                            size="small"
+                            aria-label="a dense table"
+                          >
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Sr No</TableCell>
+                                <TableCell>Username</TableCell>
+                                <TableCell>User Role</TableCell>
+                                <TableCell>Delete</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {usersOnStep.map((row, index) => (
+                                <TableRow
+                                  key={index}
+                                // sx={{
+                                //   "&:last-child td, &:last-child th": { border: 0 },
+                                // }}
+                                >
+                                  <TableCell component="th" scope="row">
+                                    {index + 1}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    {row.user}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    {row.role}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    <Button onClick={() => deleteStepUser(index)}><FaRegTrashAlt /> </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </div>
+                    ) : null}
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {usersOnStep.length && flow.work && flow.step ? (
+                <Stack
+                  sx={{ marginTop: '10px' }}
+                  gap={1}
+                  flexDirection="row"
+                  justifyContent="center"
+                >
+                  <Box>
+                    <Button
+                      variant="contained"
+                      onClick={handleWorkFlow}
+                      sx={{ backgroundColor: '#40A2E3' }}
+                    >
+                      Add Step
+                    </Button>
+                  </Box>
+                </Stack>
+              ) : null}
+              <Stack
+                flexDirection="row"
+                flexWrap="wrap"
+                rowGap={3}
+                columnGap={1}
+                mt={4}
+                justifyContent="center"
+                sx={{ marginBottom: '40px', marginTop: '10px' }}
+              >
+                {selectedDepartment?.workFlow?.map((item, index) => (
+                  <>
+                    <Paper
+                      key={index + 1}
+                      elevation={3}
+                      sx={{
+                        position: 'relative',
+                        width: { xs: 230, sm: 250, md: 280 },
+                        borderRadius: '15px',
+                        backgroundColor: 'white',
+                      }}
+                    >
+                      <IconButton
+                        sx={{ position: 'absolute', right: '0px', top: '0px' }}
+                      // onClick={() => handleDelete(index)}
+                      >
+                        <IconX />
+                      </IconButton>
+                      <h3 className={styles.workflowIndex}>{index + 1}</h3>
+                      <div className={styles.workflowContent}>
+                        <div className={styles.workFlowElements}>
+                          <p style={{ width: '60px' }}>
+                            <strong>Work :</strong>
+                          </p>
+                          <p>{item?.work}</p>
+                        </div>
+                        <div className={styles.workFlowElements}>
+                          <p style={{ width: '60px' }}>
+                            <strong>Users :</strong>
+                          </p>
+                          <Tooltip
+                            title={
+                              item?.users?.length > 1
+                                ? item.users.map((user) => user.user).join(", ")
+                                : null
+                            }
+                          >
+                            <p>{formatUserNames(item?.users)}</p>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </Paper>
+                  </>
+                ))}
+              </Stack>
+            </>
+            : null}
           {activeStep === 2 ? (
             <InitiatProcess
               workFlow={workFlow}
