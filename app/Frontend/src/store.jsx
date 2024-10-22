@@ -15,7 +15,6 @@ const sessionData = create(
       show: false,
       socketConnection: null,
       setSocketConnection: (connection) => {
-        console.log(connection);
         set({ socketConnection: connection });
       },
       setShow: (show) => set({ show }),

@@ -6,7 +6,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 const Socket = () => {
     const { socketConnection, setSocketConnection } = socketData();
 
-    console.log(socketConnection);
+    // console.log(socketConnection);
     // const [socketConnection, setSocketConnection] = useState(null);
 
     const connect_socket = () => {
