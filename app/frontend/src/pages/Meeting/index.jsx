@@ -71,31 +71,12 @@ const MeetingManager = () => {
         if (!socketRef.current) {
             socketRef.current = socketConnection;
             console.log(socketRef.current);
-        }
-    }, []);
 
-    const onSubmit = async (data) => {
-        if (data.meetingId.trim() === '') return;
-        setInRoom(true);
-        setMeetingId(data.meetingId);
-        try {
-            // Get user media
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true,
+        } else {
+            socketRef.current.on('message', async (data) => {
+                const { user, text } = data;
+                setChatMessages((prev) => [...prev, text])
             });
-            localStreamRef.current = stream;
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-
-            // Join the specified room with the username
-            socketRef.current.emit('join-room', {
-                roomId: data.meetingId,
-                username: data.username,
-            });
-
-            // Listen for other users joining
             socketRef.current.on('user-joined', async ({ socketId, username }) => {
                 console.log(`${username} joined: ${socketId}`);
                 await createOffer(socketId, username);
@@ -106,10 +87,6 @@ const MeetingManager = () => {
             socketRef.current.on('offer', async (data) => {
                 const { from, offer, name } = data;
                 await handleReceiveOffer(from, offer, name);
-            });
-            socketRef.current.on('message', async (data) => {
-                const { user, text } = data;
-                setChatMessages((prev) => [...prev, text])
             });
 
             // Listen for answers
@@ -138,6 +115,32 @@ const MeetingManager = () => {
                     });
                 }
             });
+        }
+    }, []);
+
+    const onSubmit = async (data) => {
+        if (data.meetingId.trim() === '') return;
+        setInRoom(true);
+        setMeetingId(data.meetingId);
+        try {
+            // Get user media
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true,
+            });
+            localStreamRef.current = stream;
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            // Join the specified room with the username
+            socketRef.current.emit('join-room', {
+                roomId: data.meetingId,
+                username: data.username,
+            });
+
+            // Listen for other users joining
+
         } catch (err) {
             console.error('Failed to get user media', err);
         }
@@ -442,7 +445,6 @@ const MeetingManager = () => {
         console.log(color);
         return color;
     }
-
 
     return (
         <div className={styles.container}>
