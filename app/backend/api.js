@@ -17,6 +17,7 @@ import dotenv from "dotenv";
 import { ObjectId } from "mongodb";
 import https from "https";
 import fs from "fs";
+import { initializeSocket } from "./socketHandler.js";
 // database connection
 // dbConnection();
 
@@ -31,24 +32,26 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-};
+// const options = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+// };
 
-const server = https.createServer(options, app);
+const server = http.createServer(app);
 
-const io = new Server(server, {
-  // path: "/socket/",
-  transports: ["websocket"],
-  path: "/socket.io/",
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"], // You can specify other allowed methods as needed
-    allowedHeaders: ["my-custom-header"],
-    credentials: true,
-  },
-});
+initializeSocket(server);
+
+// const io = new Server(server, {
+//   // path: "/socket/",
+//   transports: ["websocket"],
+//   path: "/socket.io/",
+//   cors: {
+//     origin: "*",
+//     methods: ["GET", "POST"], // You can specify other allowed methods as needed
+//     allowedHeaders: ["my-custom-header"],
+//     credentials: true,
+//   },
+// });
 
 // const io = io.of("/socket/");
 
@@ -60,7 +63,7 @@ export const userSockets = new Map();
 //   cert: await fs.readFile('./certificate.pem')
 // };
 
-server.listen(5000, () => console.log(`Listening on port ${5000}`));
+server.listen(8000, () => console.log(`Listening on port ${8000}`));
 
 server.on("error", (error) => {
   console.error("Server error:", error);
@@ -77,102 +80,102 @@ server.on("error", (error) => {
 // 3rd backend
 const usernames = {}; // Object to store socket.id to username mapping
 
-io.on("connection", (socket) => {
-  console.log(`New client connected in namespace '/socket': ${socket.id}`);
+// io.on("connection", (socket) => {
+//   console.log(`New client connected in namespace '/socket': ${socket.id}`);
 
-  // Handle joining a room
-  socket.on("join-room", ({ roomId, username }) => {
-    socket.join(roomId);
-    usernames[socket.id] = username; // Store the username
+//   // Handle joining a room
+//   socket.on("join-room", ({ roomId, username }) => {
+//     socket.join(roomId);
+//     usernames[socket.id] = username; // Store the username
 
-    console.log(
-      `Socket ${socket.id} (Username: ${username}) joined room ${roomId}`
-    );
+//     console.log(
+//       `Socket ${socket.id} (Username: ${username}) joined room ${roomId}`
+//     );
 
-    // Notify existing users in the room about the new user, including username
-    socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
+//     // Notify existing users in the room about the new user, including username
+//     socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
-    // Send the list of all users (including their usernames) in the room to the newly joined user
-    const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
-      .map((id) => ({ socketId: id, username: usernames[id] }))
-      .filter((user) => user.socketId !== socket.id); // Exclude the new user itself
+//     // Send the list of all users (including their usernames) in the room to the newly joined user
+//     const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+//       .map((id) => ({ socketId: id, username: usernames[id] }))
+//       .filter((user) => user.socketId !== socket.id); // Exclude the new user itself
 
-    socket.emit("room-users", usersInRoom);
+//     socket.emit("room-users", usersInRoom);
 
-    // Handle sending offers
-    socket.on("offer", (data) => {
-      const { target, offer } = data;
-      io.to(target).emit("offer", {
-        from: socket.id,
-        offer,
-        name: username,
-      });
-    });
+//     // Handle sending offers
+//     socket.on("offer", (data) => {
+//       const { target, offer } = data;
+//       io.to(target).emit("offer", {
+//         from: socket.id,
+//         offer,
+//         name: username,
+//       });
+//     });
 
-    // Handle sending answers
-    socket.on("answer", (data) => {
-      const { target, answer } = data;
-      io.to(target).emit("answer", {
-        from: socket.id,
-        answer,
-        name: username,
-      });
-    });
+//     // Handle sending answers
+//     socket.on("answer", (data) => {
+//       const { target, answer } = data;
+//       io.to(target).emit("answer", {
+//         from: socket.id,
+//         answer,
+//         name: username,
+//       });
+//     });
 
-    // Handle sending ICE candidates
-    socket.on("ice-candidate", (data) => {
-      const { target, candidate } = data;
-      io.to(target).emit("ice-candidate", {
-        from: socket.id,
-        candidate,
-      });
-    });
+//     // Handle sending ICE candidates
+//     socket.on("ice-candidate", (data) => {
+//       const { target, candidate } = data;
+//       io.to(target).emit("ice-candidate", {
+//         from: socket.id,
+//         candidate,
+//       });
+//     });
 
-    // Handle sending messages to the room
-    socket.on("sendMessage", ({ meetingId, message, username }) => {
-      console.log(`message from ${username} for ${meetingId}: ${message}`);
-      io.to(meetingId).emit("message", { user: username, text: message });
+//     // Handle sending messages to the room
+//     socket.on("sendMessage", ({ meetingId, message, username }) => {
+//       console.log(`message from ${username} for ${meetingId}: ${message}`);
+//       io.to(meetingId).emit("message", { user: username, text: message });
 
-      const usersInRoom = Array.from(io.adapter.rooms.get(meetingId) || [])
-        .map((id) => ({ socketId: id, username: usernames[id] }))
-        .filter((user) => user.socketId !== socket.id); // Update the room users
-      console.log("users in room", usersInRoom);
-    });
+//       const usersInRoom = Array.from(io.adapter.rooms.get(meetingId) || [])
+//         .map((id) => ({ socketId: id, username: usernames[id] }))
+//         .filter((user) => user.socketId !== socket.id); // Update the room users
+//       console.log("users in room", usersInRoom);
+//     });
 
-    // Handle leaving the room
-    socket.on("leave-room", ({ roomId, username }) => {
-      socket.leave(roomId);
-      delete usernames[socket.id]; // Remove the user from the mapping
+//     // Handle leaving the room
+//     socket.on("leave-room", ({ roomId, username }) => {
+//       socket.leave(roomId);
+//       delete usernames[socket.id]; // Remove the user from the mapping
 
-      console.log(
-        `Socket ${socket.id} (Username: ${username}) left room ${roomId}`
-      );
+//       console.log(
+//         `Socket ${socket.id} (Username: ${username}) left room ${roomId}`
+//       );
 
-      // Notify other users in the room that this user has left
-      socket.to(roomId).emit("user-left", { socketId: socket.id, username });
-    });
+//       // Notify other users in the room that this user has left
+//       socket.to(roomId).emit("user-left", { socketId: socket.id, username });
+//     });
 
-    socket.on("error", (error) => {
-      console.error(`Socket error on ${socket.id}:`, error);
-    });
+//     socket.on("error", (error) => {
+//       console.error(`Socket error on ${socket.id}:`, error);
+//     });
 
-    // Handle disconnection
-    socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.id}`);
-      const username = usernames[socket.id];
-      delete usernames[socket.id]; // Remove the user from the mapping
+//     // Handle disconnection
+//     socket.on("disconnect", () => {
+//       console.log(`User disconnected: ${socket.id}`);
+//       const username = usernames[socket.id];
+//       delete usernames[socket.id]; // Remove the user from the mapping
 
-      // Notify others of this disconnection, if the user was in a room
-      const rooms = Array.from(socket.rooms);
-      rooms.forEach((roomId) => {
-        socket.to(roomId).emit("user-left", {
-          socketId: socket.id,
-          username,
-        });
-      });
-    });
-  });
-});
+//       // Notify others of this disconnection, if the user was in a room
+//       const rooms = Array.from(socket.rooms);
+//       rooms.forEach((roomId) => {
+//         socket.to(roomId).emit("user-left", {
+//           socketId: socket.id,
+//           username,
+//         });
+//       });
+//     });
+//   });
+// });
 
 app.use((req, res, next) => {
   const parsedUrl = new URL(

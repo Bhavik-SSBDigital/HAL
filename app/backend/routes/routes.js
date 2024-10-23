@@ -118,6 +118,7 @@ import multer from "multer";
 const uploadDummy = multer();
 
 import upload from "../config/multer-config.js";
+import { create_meeting } from "../controller/meeting-controller.js";
 // const upload = multer();
 
 const router = express.Router();
@@ -265,5 +266,7 @@ router.get("/getBorrowedDocuments", get_borrowed_document_list);
 router.post("/searchDocument", search_document);
 
 router.get("/getProcessNames", get_process_names_for_specific_user);
+
+router.post("/createMeet", create_meeting);
 
 export default router;

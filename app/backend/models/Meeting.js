@@ -1,9 +1,16 @@
 import mongoose from "mongoose";
 
 const meetingSchema = new mongoose.Schema({
-  meetingLink: {
+  meetingId: {
     type: String,
     required: true,
+  },
+  createdBy: {
+    type: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   participants: {
     type: [
