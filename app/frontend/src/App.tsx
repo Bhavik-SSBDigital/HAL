@@ -34,6 +34,7 @@ import ForgotPass from './pages/Authentication/ForgotPass';
 import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
+import Schedule from './pages/Meeting/Schedule';
 
 function App() {
   const dispatch = useDispatch();
@@ -349,6 +350,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Meeting" />
               <MeetingManager />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/schedule"
+          element={
+            <DefaultLayout>
+              <PageTitle title="schedule" />
+              <Schedule />
             </DefaultLayout>
           }
         />
