@@ -13,6 +13,7 @@ import {
     TextField,
     ListItemAvatar,
     Avatar,
+    Stack,
 } from '@mui/material';
 import {
     IconMessages,
@@ -31,6 +32,7 @@ import { toast } from 'react-toastify';
 import styles from './MeetingManager.module.css';
 import userSocket from '../Socket_Connection';
 import { socketData } from '../../Store';
+import axios from 'axios';
 // Define the ICE server configuration
 const configuration = {
     iceServers: [
@@ -43,6 +45,7 @@ const MeetingManager = () => {
     // State Management
     // const socketUrl = import.meta.env.VITE_SOCKET_URL;
     const [isMuted, setIsMuted] = useState(false);
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const [isCameraOff, setIsCameraOff] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
@@ -52,6 +55,7 @@ const MeetingManager = () => {
     const [inRoom, setInRoom] = useState(false);
     const [peers, setPeers] = useState({});
     const [meetingId, setMeetingId] = useState('');
+    const token = sessionStorage.getItem('accessToken');
 
     // Refs
     const localVideoRef = useRef(null);
@@ -71,11 +75,10 @@ const MeetingManager = () => {
         if (!socketRef.current) {
             socketRef.current = socketConnection;
             console.log(socketRef.current);
-
         } else {
             socketRef.current.on('message', async (data) => {
                 const { user, text } = data;
-                setChatMessages((prev) => [...prev, text])
+                setChatMessages((prev) => [...prev, text]);
             });
             socketRef.current.on('user-joined', async ({ socketId, username }) => {
                 console.log(`${username} joined: ${socketId}`);
@@ -140,7 +143,6 @@ const MeetingManager = () => {
             });
 
             // Listen for other users joining
-
         } catch (err) {
             console.error('Failed to get user media', err);
         }
@@ -446,6 +448,17 @@ const MeetingManager = () => {
         return color;
     }
 
+    const generateMeeting = () => {
+        const url = backendUrl + '/createMeet';
+        try {
+            const res = axios.post(url, null, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        } catch (error) {
+            toast.error(error?.response?.data?.message || error?.message)
+        }
+
+    };
     return (
         <div className={styles.container}>
             {!inRoom ? (
@@ -486,9 +499,24 @@ const MeetingManager = () => {
                             error={!!errors.meetingId}
                             helperText={errors.meetingId?.message}
                         />
-                        <Button type="submit" variant="contained" color="primary" fullWidth>
-                            Join
-                        </Button>
+                        <Stack flexDirection="row" gap={1}>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                color="primary"
+                                fullWidth
+                            >
+                                Join
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                fullWidth
+                                onClick={generateMeeting}
+                            >
+                                Generate
+                            </Button>
+                        </Stack>
                     </form>
                 </Box>
             ) : (
@@ -652,7 +680,11 @@ const MeetingManager = () => {
                                         {Object.keys(peers)?.map((member, idx) => (
                                             <ListItem key={idx} sx={{ my: 1 }}>
                                                 <ListItemAvatar>
-                                                    <Avatar sx={{ background: `${getColor(peers[member]?.name)}` }}>
+                                                    <Avatar
+                                                        sx={{
+                                                            background: `${getColor(peers[member]?.name)}`,
+                                                        }}
+                                                    >
                                                         {peers[member]?.name?.charAt(0).toUpperCase()}
                                                     </Avatar>
                                                 </ListItemAvatar>{' '}
