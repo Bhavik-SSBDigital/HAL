@@ -30,9 +30,24 @@ export const create_meeting = async (req, res, next) => {
         duplicatedMeetId = false;
       }
     }
+
+    let attendees = Promise.all(
+      req.body.attendees.map(async (item) => {
+        const user = await User.findOne({ username: item }).select("_id");
+
+        return user._id;
+      })
+    );
+
     const newMeeting = new Meeting({
       meetingId: meetingId,
       createdBy: new ObjectId(userData._id),
+      attendees: attendees,
+      title: req.body.title,
+      agenda: req.body.agenda,
+      startTime: req.body.startTime,
+      endTime: req.body.endTime,
+      flexibleWithAttendees: req.body.flexibleWithAttendees,
     });
     await newMeeting.save();
 
@@ -48,15 +63,11 @@ export const create_meeting = async (req, res, next) => {
 
 export const add_comment_in_meeting = async (meetingId, commentor, comment) => {
   try {
-    const meet = await Meeting.findOne({ _id: meetingId });
+    const meet = await Meeting.findOne({ meetingId: String(meetingId) });
 
     if (meet) {
-      let commentor_ = await User.findOne({ username: commentor }).select(
-        "_id"
-      );
-
-      meet.comments.push(comment, {
-        commentor: commentor_._id,
+      meet.comments.push({
+        commentor: commentor,
         comment: comment,
       });
 
@@ -72,17 +83,11 @@ export const add_comment_in_meeting = async (meetingId, commentor, comment) => {
 
 export const add_participant_in_meeting = async (meetingId, participant) => {
   try {
-    const meet = await Meeting.findOne({ _id: meetingId }).select(
+    const meet = await Meeting.findOne({ meetingId: String(meetingId) }).select(
       "participants"
     );
 
     if (meet) {
-      let participant_ = await User.findOne({ username: participant }).select(
-        "_id"
-      );
-
-      participant_ = participant_._id;
-
       const participants = meet.participants;
 
       let hasUserJoinedBeforeInMeet = false;
@@ -90,14 +95,14 @@ export const add_participant_in_meeting = async (meetingId, participant) => {
       for (let i = 0; i < participants.length; i++) {
         const user = participants[i];
 
-        if (user.equals(participant_)) {
+        if (user.equals(participant)) {
           hasUserJoinedBeforeInMeet = true;
           break;
         }
       }
 
       if (!hasUserJoinedBeforeInMeet) {
-        meet.participants.push(participant_);
+        meet.participants.push(participant);
       }
 
       await meet.save();

@@ -1,5 +1,10 @@
 import { Server } from "socket.io";
-import { add_comment_in_meeting } from "./controller/meeting-controller.js";
+import {
+  add_comment_in_meeting,
+  add_participant_in_meeting,
+} from "./controller/meeting-controller.js";
+import User from "./models/user.js";
+import { ObjectId } from "mongodb";
 
 let io;
 let usernames = [];
@@ -16,17 +21,17 @@ export const initializeSocket = (server) => {
     },
   });
 
-  io.on("connection", (socket) => {
-    console.log(`New client connected: ${socket.id}`);
-
-    socket.on("join-room", ({ roomId, username }) => {
+  io.on("connection", async (socket) => {
+    socket.on("join-room", async ({ roomId, username }) => {
       socket.join(roomId);
 
-      usernames.push({ socketId: socket.id, username }); // Add user
-
-      console.log(
-        `Socket ${socket.id} (Username: ${username}) joined room ${roomId}`
+      const participant = await User.findOne({ username: username }).select(
+        "_id"
       );
+
+      await add_participant_in_meeting(roomId, participant._id);
+
+      usernames.push({ socketId: socket.id, username }); // Add user
 
       // Notify other users in the room about the new user
       socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
@@ -43,11 +48,13 @@ export const initializeSocket = (server) => {
 
       // Handle sending messages to the room
       socket.on("sendMessage", async ({ meetingId, message, username }) => {
-        console.log("messsss", JSON.stringify(message));
-        console.log(`Message from ${username} for ${meetingId}: ${message}`);
         io.to(meetingId).emit("message", { user: username, text: message });
 
-        // await add_comment_in_meeting(meetingId, username, message);
+        const commentor = await User.findOne({ username: username }).select(
+          "_id"
+        );
+
+        await add_comment_in_meeting(meetingId, commentor._id, message.text);
 
         const room = io.sockets.adapter.rooms.get(meetingId);
         if (!room) {
@@ -61,8 +68,6 @@ export const initializeSocket = (server) => {
             username: usernames.find((item) => item.socketId === id).username,
           }))
           .filter((user) => user.socketId !== socket.id);
-
-        console.log("Users in room:", usersInRoom);
       });
 
       // Handle offers, answers, and ICE candidates
@@ -103,15 +108,11 @@ export const initializeSocket = (server) => {
 
         usernames = usernames.filter((u) => u.socketId !== socket.id);
 
-        console.log(
-          `Socket ${socket.id} (Username: ${username}) left room ${roomId}`
-        );
         socket.to(roomId).emit("user-left", { socketId: socket.id, username });
       });
 
       // Handle disconnection
       socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
         usernames = usernames.filter((u) => u.socketId !== socket.id);
 
         const rooms = Array.from(socket.rooms);

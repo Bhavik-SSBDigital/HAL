@@ -4,34 +4,48 @@ const meetingSchema = new mongoose.Schema({
   meetingId: {
     type: String,
     required: true,
+    unique: true,
+  },
+  startTime: {
+    type: Date,
+    required: true,
+  },
+  endTime: {
+    type: Date,
+    required: true,
+  },
+  flexibleWithAttendees: {
+    type: Boolean,
+  },
+  title: {
+    type: String,
+  },
+  agenda: {
+    type: String,
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },
-  participants: {
-    type: [
-      {
+  participants: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      // required: true,
+    },
+  ],
+  comments: [
+    {
+      commentor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
       },
-    ],
-  },
-  comments: {
-    type: [
-      {
-        commentor: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        comment: { type: String },
-        timestamp: { type: Date, default: Date.now },
-      },
-    ],
-  },
+      comment: { type: String },
+      timestamp: { type: Date, default: Date.now },
+    },
+  ],
   isActive: {
     type: Boolean,
   },
