@@ -14,6 +14,7 @@ import {
     ListItemAvatar,
     Avatar,
     Stack,
+    CircularProgress,
 } from '@mui/material';
 import {
     IconMessages,
@@ -449,7 +450,9 @@ const MeetingManager = () => {
         return color;
     }
 
+    const [generateMeetingLoading, setGenerateMeetingLoading] = useState(false);
     const generateMeeting = async () => {
+        setGenerateMeetingLoading(true);
         const url = backendUrl + '/createMeet';
         try {
             const res = await axios.post(url, null, {
@@ -459,6 +462,8 @@ const MeetingManager = () => {
             toast.success(res?.data?.message)
         } catch (error) {
             toast.error(error?.response?.data?.message || error?.message)
+        } finally {
+            setGenerateMeetingLoading(false);
         }
 
     };
@@ -510,6 +515,7 @@ const MeetingManager = () => {
                                 variant="contained"
                                 color="primary"
                                 fullWidth
+                                disabled={generateMeetingLoading}
                             >
                                 Join
                             </Button>
@@ -518,8 +524,9 @@ const MeetingManager = () => {
                                 color="primary"
                                 fullWidth
                                 onClick={generateMeeting}
+                                disabled={generateMeetingLoading}
                             >
-                                Generate
+                                {generateMeetingLoading ? <CircularProgress size={24} /> : "Generate"}
                             </Button>
                         </Stack>
                     </form>
