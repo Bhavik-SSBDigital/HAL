@@ -66,9 +66,10 @@ const MeetingManager = () => {
     // Form Handling
     const {
         register,
+        reset,
         handleSubmit,
         formState: { errors },
-    } = useForm();
+    } = useForm({ defaultValues: { meetingId: "", username: username } });
 
     useEffect(() => {
         // Only connect if there's no existing connection
@@ -448,12 +449,14 @@ const MeetingManager = () => {
         return color;
     }
 
-    const generateMeeting = () => {
+    const generateMeeting = async () => {
         const url = backendUrl + '/createMeet';
         try {
-            const res = axios.post(url, null, {
+            const res = await axios.post(url, null, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            reset({ meetingId: res?.data?.meetingId || "", username: username })
+            toast.success(res?.data?.message)
         } catch (error) {
             toast.error(error?.response?.data?.message || error?.message)
         }
@@ -495,6 +498,8 @@ const MeetingManager = () => {
                             label="Meeting ID"
                             variant="outlined"
                             fullWidth
+                            placeholder='Enter Meeting ID'
+                            InputLabelProps={{ shrink: true }}
                             margin="normal"
                             error={!!errors.meetingId}
                             helperText={errors.meetingId?.message}
