@@ -2,10 +2,12 @@ import { v4 as uuidv4 } from "uuid";
 import User from "../models/user.js";
 import Meeting from "../models/Meeting.js";
 import { userSockets } from "../api.js";
+import { verifyUser } from "../utility/verifyUser.js";
+import { ObjectId } from "mongodb";
 
 export const create_meeting = async (req, res, next) => {
   try {
-    const accessToken = req.headers["x-authorization"].substring(7);
+    const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
     if (userData === "Unauthorized") {
       return res.status(401).json({
@@ -30,7 +32,7 @@ export const create_meeting = async (req, res, next) => {
     }
     const newMeeting = new Meeting({
       meetingId: meetingId,
-      createdBy: userData._id,
+      createdBy: new ObjectId(userData._id),
     });
     await newMeeting.save();
 
