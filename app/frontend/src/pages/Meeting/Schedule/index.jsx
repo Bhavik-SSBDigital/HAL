@@ -56,8 +56,12 @@ export default function Schedule() {
         for (let i = 0; i < name.length; i++) {
             hash += name.charCodeAt(i);
         }
-        const color = '#' + ((1 << 24) + (hash % (1 << 24))).toString(16).slice(1);
-        return color;
+
+        const hue = hash % 360;
+        const saturation = 70;
+        const lightness = 50;
+
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     };
 
     return (
