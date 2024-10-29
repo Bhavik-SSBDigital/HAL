@@ -31,7 +31,7 @@ export const create_meeting = async (req, res, next) => {
       }
     }
 
-    let attendees = Promise.all(
+    let attendees = await Promise.all(
       req.body.attendees.map(async (item) => {
         const user = await User.findOne({ username: item }).select("_id");
 
@@ -39,6 +39,9 @@ export const create_meeting = async (req, res, next) => {
       })
     );
 
+    console.log("attendees", attendees);
+    console.log("start time", req.body.startTime);
+    console.log("end time", req.body.endTime);
     attendees.push(userData._id);
 
     const newMeeting = new Meeting({
