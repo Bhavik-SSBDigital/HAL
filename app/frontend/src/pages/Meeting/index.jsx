@@ -34,6 +34,7 @@ import styles from './MeetingManager.module.css';
 import userSocket from '../Socket_Connection';
 import { socketData } from '../../Store';
 import axios from 'axios';
+import History from './History';
 // Define the ICE server configuration
 const configuration = {
     iceServers: [
@@ -123,10 +124,10 @@ const MeetingManager = () => {
         }
     }, []);
 
-    const onSubmit = async (data) => {
-        if (data.meetingId.trim() === '') return;
+    const onSubmit = async (meetingId) => {
+        if (meetingId.trim() === '') return;
         setInRoom(true);
-        setMeetingId(data.meetingId);
+        setMeetingId(meetingId);
         try {
             // Get user media
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -140,7 +141,7 @@ const MeetingManager = () => {
 
             // Join the specified room with the username
             socketRef.current.emit('join-room', {
-                roomId: data.meetingId,
+                roomId: meetingId,
                 username: data.username,
             });
 
@@ -284,7 +285,6 @@ const MeetingManager = () => {
     };
 
     // Function to leave the meeting room
-    // Function to leave the meeting room
     const leaveMeetingRoom = () => {
         // Stop and clear chat messages and set the room state
         setChatMessages([]);
@@ -369,7 +369,6 @@ const MeetingManager = () => {
         }
     };
 
-    // Share Screen Functionality (Optional)
     // Share Screen Functionality (Enhanced)
     const shareScreen = async () => {
         try {
@@ -450,87 +449,11 @@ const MeetingManager = () => {
         return color;
     }
 
-    const [generateMeetingLoading, setGenerateMeetingLoading] = useState(false);
-    const generateMeeting = async () => {
-        setGenerateMeetingLoading(true);
-        const url = backendUrl + '/createMeet';
-        try {
-            const res = await axios.post(url, null, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            reset({ meetingId: res?.data?.meetingId || "", username: username })
-            toast.success(res?.data?.message)
-        } catch (error) {
-            toast.error(error?.response?.data?.message || error?.message)
-        } finally {
-            setGenerateMeetingLoading(false);
-        }
 
-    };
     return (
-        <div className={styles.container}>
+        <div >
             {!inRoom ? (
-                // Join Meeting Form
-                <Box
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    justifyContent="center"
-                    sx={{
-                        width: '100%',
-                        maxWidth: 400,
-                        mx: 'auto',
-                        p: '20px !important',
-                    }}
-                    className="cardDesign"
-                >
-                    <Typography variant="h5" gutterBottom>
-                        Join Meeting
-                    </Typography>
-                    <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
-                        <TextField
-                            {...register('username', { required: 'Username is required' })}
-                            label="Username"
-                            variant="outlined"
-                            defaultValue={username}
-                            fullWidth
-                            margin="normal"
-                            error={!!errors.username}
-                            helperText={errors.username?.message}
-                        />
-                        <TextField
-                            {...register('meetingId', { required: 'Meeting ID is required' })}
-                            label="Meeting ID"
-                            variant="outlined"
-                            fullWidth
-                            placeholder='Enter Meeting ID'
-                            InputLabelProps={{ shrink: true }}
-                            margin="normal"
-                            error={!!errors.meetingId}
-                            helperText={errors.meetingId?.message}
-                        />
-                        <Stack flexDirection="row" gap={1}>
-                            <Button
-                                type="submit"
-                                variant="contained"
-                                color="primary"
-                                fullWidth
-                                disabled={generateMeetingLoading}
-                            >
-                                Join
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                fullWidth
-                                onClick={generateMeeting}
-                                disabled={generateMeetingLoading}
-                            >
-                                {generateMeetingLoading ? <CircularProgress size={24} /> : "Generate"}
-                            </Button>
-                        </Stack>
-                    </form>
-                </Box>
+                <History joinMeet={(id) => onSubmit(id)} />
             ) : (
                 <>
                     <Typography variant="h6" textAlign="center">

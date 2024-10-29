@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import Schedule from '../Schedule';
 
-export default function History() {
+export default function History({ joinMeet }) {
     const meetings = [
         {
             date: 'Dec 24',
