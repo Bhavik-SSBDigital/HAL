@@ -34,7 +34,7 @@ import ForgotPass from './pages/Authentication/ForgotPass';
 import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
-import Schedule from './pages/Meeting/Schedule';
+import Schedule from './pages/Meeting/History';
 
 function App() {
   const dispatch = useDispatch();
