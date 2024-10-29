@@ -64,7 +64,7 @@ function Schedule({ handleClose }) {
                         {...field}
                         required
                         label="Start Time"
-                        type="time"
+                        type="datetime-local"
                         fullWidth
                         sx={{ width: { xs: "100%", sm: "49%" }, mr: '5px' }}
                         margin="dense"
@@ -81,7 +81,7 @@ function Schedule({ handleClose }) {
                         {...field}
                         required
                         label="End Time"
-                        type="time"
+                        type="datetime-local"
                         fullWidth
                         margin="dense"
                         sx={{ width: { xs: "100%", sm: "49%" } }}
@@ -151,7 +151,6 @@ function Schedule({ handleClose }) {
                 defaultValue={false}
                 render={({ field }) => (
                     <FormControlLabel
-                        required
                         control={<Checkbox {...field} checked={field.value} />}
                         label="Flexible with Attendees"
                     />
