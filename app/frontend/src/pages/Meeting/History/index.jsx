@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import Schedule from '../Schedule';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 export default function History({ joinMeet }) {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -52,6 +53,26 @@ export default function History({ joinMeet }) {
             setMeetings(res.data.meetings || []);
         } catch (error) {
             console.log(error?.response?.data?.message || error?.message);
+        }
+    };
+
+    const joinMeeting = async (meetingId) => {
+        const url = backendUrl + `/isUserAnAttendee/${meetingId}`;
+        try {
+            const res = await axios({
+                method: 'get',
+                url: url,
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            console.log(res.data);
+            if (res.data.isUserAnAttendee) {
+                joinMeet(meetingId);
+            }
+            else {
+                toast.info("You are not an attendee")
+            }
+        } catch (error) {
+            toast.error(error?.response?.data?.message || error?.message);
         }
     };
     useEffect(() => {
@@ -122,7 +143,7 @@ export default function History({ joinMeet }) {
                                                 </Typography>
                                             </div>
                                             <div>
-                                                <Button onClick={() => joinMeet(item.meetingId)}>
+                                                <Button onClick={() => joinMeeting(item.meetingId)}>
                                                     JOIN
                                                 </Button>
                                             </div>
