@@ -46,9 +46,9 @@ const MeetingManager = () => {
     const { socketConnection } = socketData();
     // State Management
     // const socketUrl = import.meta.env.VITE_SOCKET_URL;
-    const [isMuted, setIsMuted] = useState(false);
+    const [isAudioEnabled, setIsAudioEnabled] = useState(false);
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    const [isCameraOff, setIsCameraOff] = useState(false);
+    const [isVideoEnabled, setIsVideoEnabled] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [chatMessages, setChatMessages] = useState([]);
@@ -134,6 +134,8 @@ const MeetingManager = () => {
                 video: true,
                 audio: true,
             });
+            stream.getAudioTracks().forEach(track => (track.enabled = false));
+            stream.getVideoTracks().forEach(track => (track.enabled = false));
             localStreamRef.current = stream;
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
@@ -340,23 +342,38 @@ const MeetingManager = () => {
     // Toggle microphone
     const toggleMute = () => {
         if (localStreamRef.current) {
-            localStreamRef.current.getAudioTracks().forEach((track) => {
-                track.enabled = isMuted;
-            });
-            setIsMuted(!isMuted);
-            console.log(`Microphone ${!isMuted ? 'muted' : 'unmuted'}`);
+            console.log('toggle mute');
+            const audioTrack = localStreamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsAudioEnabled(audioTrack.enabled);
+            }
         }
+        // if (localStreamRef.current) {
+        //     localStreamRef.current.getAudioTracks().forEach((track) => {
+        //         track.enabled = isAudioEnabled;
+        //     });
+        //     setIsAudioEnabled(!isAudioEnabled);
+        //     console.log(`Microphone ${!isAudioEnabled ? 'muted' : 'unmuted'}`);
+        // }
     };
 
     // Toggle camera
     const toggleCamera = () => {
         if (localStreamRef.current) {
-            localStreamRef.current.getVideoTracks().forEach((track) => {
-                track.enabled = isCameraOff;
-            });
-            setIsCameraOff(!isCameraOff);
-            console.log(`Camera ${!isCameraOff ? 'off' : 'on'}`);
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoEnabled(videoTrack.enabled);
+            }
         }
+        // if (localStreamRef.current) {
+        //     localStreamRef.current.getVideoTracks().forEach((track) => {
+        //         track.enabled = isVideoEnabled;
+        //     });
+        //     setIsVideoEnabled(!isVideoEnabled);
+        //     console.log(`Camera ${!isVideoEnabled ? 'off' : 'on'}`);
+        // }
     };
 
     // Handle sending chat messages
@@ -492,7 +509,7 @@ const MeetingManager = () => {
                                     }}
                                 />
                                 {/* Camera Off Overlay */}
-                                {isCameraOff && (
+                                {!isVideoEnabled && (
                                     <Box
                                         position="absolute"
                                         top={0}
@@ -651,18 +668,18 @@ const MeetingManager = () => {
                         >
                             {/* Mute Button */}
                             <IconButton
-                                color={isMuted ? 'secondary' : 'primary'}
+                                color={!isAudioEnabled ? 'secondary' : 'primary'}
                                 onClick={toggleMute}
                             >
-                                {isMuted ? <IconMicrophoneOff /> : <IconMicrophone />}
+                                {!isAudioEnabled ? <IconMicrophoneOff /> : <IconMicrophone />}
                             </IconButton>
 
                             {/* Camera Button */}
                             <IconButton
-                                color={isCameraOff ? 'secondary' : 'primary'}
+                                color={!isVideoEnabled ? 'secondary' : 'primary'}
                                 onClick={toggleCamera}
                             >
-                                {isCameraOff ? <IconVideoOff /> : <IconVideo />}
+                                {!isVideoEnabled ? <IconVideoOff /> : <IconVideo />}
                             </IconButton>
 
                             {/* Share Screen Button */}
