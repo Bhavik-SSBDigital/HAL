@@ -39,6 +39,8 @@ export const create_meeting = async (req, res, next) => {
       })
     );
 
+    attendees.push(userData._id);
+
     const newMeeting = new Meeting({
       meetingId: meetingId,
       createdBy: new ObjectId(userData._id),
@@ -84,11 +86,11 @@ export const add_comment_in_meeting = async (meetingId, commentor, comment) => {
 export const add_participant_in_meeting = async (meetingId, participant) => {
   try {
     const meet = await Meeting.findOne({ meetingId: String(meetingId) }).select(
-      "participants"
+      "attendees"
     );
 
     if (meet) {
-      const participants = meet.participants;
+      const participants = meet.attendees;
 
       let hasUserJoinedBeforeInMeet = false;
 
@@ -102,7 +104,7 @@ export const add_participant_in_meeting = async (meetingId, participant) => {
       }
 
       if (!hasUserJoinedBeforeInMeet) {
-        meet.participants.push(participant);
+        meet.attendees.push(participant);
       }
 
       await meet.save();
@@ -112,5 +114,68 @@ export const add_participant_in_meeting = async (meetingId, participant) => {
   } catch (error) {
     console.log("Error adding participant in meeting", error);
     throw new Error(error);
+  }
+};
+
+export const get_meetings_for_user = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const meetings = await Meeting.find({
+      // endTime: { $gt: Date.now() },
+      attendees: { $in: [new ObjectId(userData._id)] },
+    })
+      .select("meetingId startTime endTime title agenda")
+      .populate("attendees", "username") // Populate participant info, e.g., name
+      .populate("createdBy", "username") // Populate creator info if needed
+      .exec();
+
+    console.log("meetings", meetings);
+
+    return res.status(200).json({
+      meetings: meetings,
+    });
+  } catch (error) {
+    console.log("Error fetching meetings for user", error);
+    return res.status(500).json({
+      message: "Error fetching meetings for user",
+    });
+  }
+};
+
+export const is_user_an_attendee = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const meetingId = new ObjectId(req.params.meetingId);
+
+    const meeting = await Meeting.findOne({
+      _id: meetingId,
+      attendees: { $in: [new ObjectId(userData._id)] },
+    }).select("_id");
+
+    return res.status(200).json({
+      isUserAnAttendee: !!meeting,
+    });
+  } catch (error) {
+    console.log(
+      "Error checking if user is an attendee in a meet or not",
+      error
+    );
+    return res.status(500).json({
+      message: "Error checking if user is an attendee in a meet or not",
+    });
   }
 };
