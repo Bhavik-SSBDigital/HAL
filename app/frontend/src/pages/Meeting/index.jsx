@@ -328,7 +328,8 @@ const MeetingManager = () => {
             // socketRef.current.disconnect(); // Close the socket connection
             // socketRef.current = null;
         }
-
+        setIsAudioEnabled(false);
+        setIsVideoEnabled(false);
         console.log(
             'Left meeting room, stopped all tracks, and closed connections.',
         );
