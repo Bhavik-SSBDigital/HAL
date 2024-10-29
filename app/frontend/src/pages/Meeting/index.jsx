@@ -142,7 +142,7 @@ const MeetingManager = () => {
             // Join the specified room with the username
             socketRef.current.emit('join-room', {
                 roomId: meetingId,
-                username: data.username,
+                username: username,
             });
 
             // Listen for other users joining
@@ -455,7 +455,7 @@ const MeetingManager = () => {
             {!inRoom ? (
                 <History joinMeet={(id) => onSubmit(id)} />
             ) : (
-                <>
+                <div className={styles.container}>
                     <Typography variant="h6" textAlign="center">
                         Meeting ID : {meetingId}
                     </Typography>
@@ -705,7 +705,7 @@ const MeetingManager = () => {
                             </Button>
                         </Box>
                     </Box>
-                </>
+                </div>
             )}
         </div>
     );

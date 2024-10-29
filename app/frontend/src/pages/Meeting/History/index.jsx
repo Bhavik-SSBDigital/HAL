@@ -134,17 +134,29 @@ export default function History({ joinMeet }) {
                                             style={{ backgroundColor: randomColor(item.name) }}
                                         ></div>
                                         <div className={styles.detailsContainer}>
-                                            <Typography variant="h6">{item.name}</Typography>
+                                            <Typography variant="h5">{item.name}</Typography>
                                             <div className={styles.details}>
                                                 <Typography variant="subtitle1" className={styles.info}>
-                                                    <IconUserCircle size={21} />
+                                                    {/* <IconUserCircle size={21} /> */}
+                                                    <strong>Host :</strong>
                                                     {item.host}
                                                 </Typography>
                                                 <Typography variant="subtitle1" className={styles.info}>
-                                                    <IconClockHour5 size={21} />
+                                                    {/* <IconClockHour5 size={21} />
+                                                     */}
+                                                    <strong>Time :</strong>
                                                     {item.time}
                                                 </Typography>
+                                                <Typography variant="subtitle1" className={styles.info}>
+                                                    {/* <IconClockHour5 size={21} /> */}
+                                                    <strong>Duration :</strong>
+                                                    {item.duration}
+                                                </Typography>
                                             </div>
+                                            <Typography className={styles.info}><strong>Description :</strong>{item.agenda}</Typography>
+                                        </div>
+                                        <div>
+                                            <Button onClick={() => joinMeet(item.meetingId)}>JOIN</Button>
                                         </div>
                                     </div>
                                 ))}
