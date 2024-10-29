@@ -189,8 +189,10 @@ export const get_meetings_for_user = async (req, res, next) => {
 
       // Add the meeting to the date's scheduledMeetings
       dateEntry.scheduledMeetings.push({
-        name: meeting.title,
+        meetingId: meeting.meetingId,
+        name: meeting.title || "",
         host: meeting.createdBy,
+        agenda: meeting.agenda || "",
         time: timeStr,
         duration: durationStr,
       });
