@@ -56,9 +56,48 @@ export const create_meeting = async (req, res, next) => {
     });
     await newMeeting.save();
 
+    const host = await User.findOne({ _id: newMeeting.createdBy }).select(
+      "username"
+    );
+
+    // Format the meeting response based on `get_meetings_for_user` structure
+    const meetingDate = new Date(newMeeting.startTime);
+    const dateStr = meetingDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const dayStr = meetingDate.toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+    const timeStr = meetingDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    const durationMs =
+      new Date(newMeeting.endTime) - new Date(newMeeting.startTime);
+    const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+    const durationMinutes = Math.floor(
+      (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+    );
+    const durationStr = `${
+      durationHours > 0 ? durationHours + " hr " : ""
+    }${durationMinutes} min`;
+
+    const formattedMeeting = {
+      meetingId: newMeeting.meetingId,
+      name: newMeeting.title || "",
+      host: host.username,
+      agenda: newMeeting.agenda || "",
+      time: timeStr,
+      duration: durationStr,
+      date: dateStr,
+      day: dayStr,
+    };
+
     return res.status(200).json({
       message: "Meeting created successfully.",
-      meetingId: meetingId,
+      meeting: formattedMeeting,
     });
   } catch (error) {
     console.log("Error creating meeting", error);
