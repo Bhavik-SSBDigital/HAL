@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -10,35 +10,98 @@ import {
     FormControlLabel,
     Checkbox,
     Stack,
-    Autocomplete
+    Autocomplete,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-function Schedule({ handleClose }) {
-    const { control, handleSubmit, formState: { errors } } = useForm();
+function Schedule({ handleClose, setMeetings, meetings }) {
+    const {
+        control,
+        handleSubmit,
+        formState: { errors },
+    } = useForm();
     const token = sessionStorage.getItem('accessToken');
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const [selectedUsers, setSelectedUsers] = useState([]);
+    const [users, setUsers] = useState([]);
 
     const onSubmit = async (data) => {
         try {
-            const url = backendUrl + "/createMeet"
-            const res = await axios.post(url, data, { headers: { Authorization: `Bearer ${token}` } })
+            const url = backendUrl + '/createMeet';
+            const res = await axios.post(url, data, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             toast.success(res.data.message);
+            setMeetings((prev) => {
+                const foundIdx = prev.findIndex((item) => item.date == res.data.meeting.date);
+
+                if (foundIdx >= 0) { // Correct condition to check if date exists
+                    return prev.map((item, idx) => {
+                        if (idx === foundIdx) {
+                            return {
+                                ...item,
+                                scheduledMeetings: [
+                                    ...item.scheduledMeetings,
+                                    {
+                                        meetingId: res.data.meeting.meetingId,
+                                        name: res.data.meeting.name,
+                                        host: res.data.meeting.host,
+                                        agenda: res.data.meeting.agenda,
+                                        time: res.data.meeting.time,
+                                        duration: res.data.meeting.duration,
+                                    },
+                                ],
+                            };
+                        } else {
+                            return item;
+                        }
+                    });
+                } else {
+                    return [
+                        ...prev,
+                        {
+                            date: res.data.meeting.date,
+                            day: res.data.meeting.day,
+                            scheduledMeetings: [
+                                {
+                                    meetingId: res.data.meeting.meetingId,
+                                    name: res.data.meeting.name,
+                                    host: res.data.meeting.host,
+                                    agenda: res.data.meeting.agenda,
+                                    time: res.data.meeting.time,
+                                    duration: res.data.meeting.duration,
+                                },
+                            ],
+                        },
+                    ];
+                }
+            });
+
         } catch (error) {
-            toast.error(error?.response?.data?.message || error?.message)
+            toast.error(error?.response?.data?.message || error?.message);
         } finally {
             handleClose();
         }
     };
 
-    const usersList = [
-        { label: 'admin', id: 1 },
-        { label: 'UNI_CLERK', id: 2 },
-    ];
-
+    const getUsers = async () => {
+        try {
+            const url = backendUrl + '/getUsers';
+            const res = await axios({
+                method: 'post',
+                url: url,
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setUsers(res.data.users || []);
+        } catch (error) {
+            console.log(error?.response?.data?.message || error?.message);
+        }
+    };
+    useEffect(() => {
+        getUsers();
+    }, []);
     return (
         <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 400 }}>
             <Controller
@@ -66,7 +129,7 @@ function Schedule({ handleClose }) {
                         label="Start Time"
                         type="datetime-local"
                         fullWidth
-                        sx={{ width: { xs: "100%", sm: "49%" }, mr: '5px' }}
+                        sx={{ width: { xs: '100%', sm: '49%' }, mr: '5px' }}
                         margin="dense"
                         InputLabelProps={{ shrink: true }}
                     />
@@ -84,7 +147,7 @@ function Schedule({ handleClose }) {
                         type="datetime-local"
                         fullWidth
                         margin="dense"
-                        sx={{ width: { xs: "100%", sm: "49%" } }}
+                        sx={{ width: { xs: '100%', sm: '49%' } }}
                         InputLabelProps={{ shrink: true }}
                     />
                 )}
@@ -96,22 +159,19 @@ function Schedule({ handleClose }) {
                 render={({ field }) => (
                     <Autocomplete
                         multiple
-                        options={usersList}
+                        options={users}
                         disableCloseOnSelect
-                        getOptionLabel={(option) => option.label}
+                        getOptionLabel={(option) => option.username}
                         value={selectedUsers}
                         onChange={(e, value) => {
                             setSelectedUsers(value); // Update local state for display
-                            field.onChange(value.map((user) => user.label)); // Update form value to only labels
+                            field.onChange(value.map((user) => user.username)); // Update form value to only labels
                         }}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        isOptionEqualToValue={(option, value) => option._id === value._id}
                         renderOption={(props, option, { selected }) => (
-                            <li {...props} key={option.id}>
-                                <Checkbox
-                                    checked={selected}
-                                    style={{ marginRight: 8 }}
-                                />
-                                {option.label}
+                            <li {...props} key={option._id}>
+                                <Checkbox checked={selected} style={{ marginRight: 8 }} />
+                                {option.username}
                             </li>
                         )}
                         renderInput={(params) => (
