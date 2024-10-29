@@ -130,19 +130,76 @@ export const get_meetings_for_user = async (req, res, next) => {
       });
     }
 
-    const meetings = await Meeting.find({
-      // endTime: { $gt: Date.now() },
+    let meetings = await Meeting.find({
+      endTime: { $gt: Date.now() },
       attendees: { $in: [new ObjectId(userData._id)] },
     })
-      .select("meetingId startTime endTime title agenda")
-      .populate("attendees", "username") // Populate participant info, e.g., name
-      .populate("createdBy", "username") // Populate creator info if needed
+      .select("meetingId startTime endTime title agenda createdBy")
+      .lean()
+      // .populate("attendees", "username") // Populate participant info, e.g., name
+      // .populate("createdBy", "username") // Populate creator info if needed
       .exec();
 
     console.log("meetings", meetings);
 
+    meetings = await Promise.all(
+      meetings.map(async (meeting) => {
+        let meet_ = meeting;
+        const host = await User.findOne({ _id: meeting.createdBy }).select(
+          "username"
+        );
+        return {
+          ...meet_,
+          createdBy: host.username,
+        };
+      })
+    );
+
+    const formattedMeetings = meetings.reduce((acc, meeting) => {
+      const meetingDate = new Date(meeting.startTime);
+      const dateStr = meetingDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      const dayStr = meetingDate.toLocaleDateString("en-US", {
+        weekday: "long",
+      });
+      const timeStr = meetingDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      // Calculate duration in hours and minutes
+      const durationMs =
+        new Date(meeting.endTime) - new Date(meeting.startTime);
+      const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+      const durationMinutes = Math.floor(
+        (durationMs % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      const durationStr = `${
+        durationHours > 0 ? durationHours + " hr " : ""
+      }${durationMinutes} min`;
+
+      // Find or create the date entry
+      let dateEntry = acc.find((entry) => entry.date === dateStr);
+      if (!dateEntry) {
+        dateEntry = { date: dateStr, day: dayStr, scheduledMeetings: [] };
+        acc.push(dateEntry);
+      }
+
+      // Add the meeting to the date's scheduledMeetings
+      dateEntry.scheduledMeetings.push({
+        name: meeting.title,
+        host: meeting.createdBy,
+        time: timeStr,
+        duration: durationStr,
+      });
+
+      return acc;
+    }, []);
+
     return res.status(200).json({
-      meetings: meetings,
+      meetings: formattedMeetings,
     });
   } catch (error) {
     console.log("Error fetching meetings for user", error);
