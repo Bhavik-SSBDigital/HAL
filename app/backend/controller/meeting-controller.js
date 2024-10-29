@@ -260,7 +260,11 @@ export const is_user_an_attendee = async (req, res, next) => {
       });
     }
 
-    const meetingId = new ObjectId(req.params.meetingId);
+    const meet = await Meeting.findOne({
+      meetingId: req.params.meetingId,
+    }).select("_id");
+
+    const meetingId = meet._id;
 
     const meeting = await Meeting.findOne({
       _id: meetingId,
