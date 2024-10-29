@@ -65,3 +65,14 @@
     align-items: center;
     gap: 4px;
 }
+
+.noHistory {
+    height: 400px;
+    border-radius: 8px;
+    width: 100%;
+    border: 2px dotted lightgray;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}

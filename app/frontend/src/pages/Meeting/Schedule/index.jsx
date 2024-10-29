@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -9,16 +9,18 @@ import {
     Typography,
     FormControlLabel,
     Checkbox,
-    Stack
+    Stack,
+    Autocomplete
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
 function Schedule({ handleClose }) {
-    const { control, handleSubmit } = useForm();
+    const { control, handleSubmit, formState: { errors } } = useForm();
     const token = sessionStorage.getItem('accessToken');
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const [selectedUsers, setSelectedUsers] = useState([]);
 
     const onSubmit = async (data) => {
         try {
@@ -26,11 +28,16 @@ function Schedule({ handleClose }) {
             const res = await axios.post(url, data, { headers: { Authorization: `Bearer ${token}` } })
             toast.success(res.data.message);
         } catch (error) {
-
+            toast.error(error?.response?.data?.message || error?.message)
         } finally {
             handleClose();
         }
     };
+
+    const usersList = [
+        { label: 'admin', id: 1 },
+        { label: 'UNI_CLERK', id: 2 },
+    ];
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 400 }}>
@@ -85,17 +92,43 @@ function Schedule({ handleClose }) {
             <Controller
                 name="attendees"
                 control={control}
-                defaultValue=""
+                defaultValue={[]}
                 render={({ field }) => (
-                    <TextField
-                        required
-                        {...field}
-                        label="Add Attendees"
-                        fullWidth
-                        margin="dense"
+                    <Autocomplete
+                        multiple
+                        options={usersList}
+                        disableCloseOnSelect
+                        getOptionLabel={(option) => option.label}
+                        value={selectedUsers}
+                        onChange={(e, value) => {
+                            setSelectedUsers(value); // Update local state for display
+                            field.onChange(value.map((user) => user.label)); // Update form value to only labels
+                        }}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderOption={(props, option, { selected }) => (
+                            <li {...props} key={option.id}>
+                                <Checkbox
+                                    checked={selected}
+                                    style={{ marginRight: 8 }}
+                                />
+                                {option.label}
+                            </li>
+                        )}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Add Attendees"
+                                placeholder="Select attendees"
+                                margin="dense"
+                                fullWidth
+                                error={!!errors.attendees}
+                                helperText={errors.attendees ? errors.attendees.message : ''}
+                            />
+                        )}
                     />
                 )}
             />
+
             <Controller
                 name="agenda"
                 control={control}
