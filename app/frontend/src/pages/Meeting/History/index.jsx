@@ -12,6 +12,7 @@ import {
 import {
     IconCalendarPlus,
     IconClockHour5,
+    IconPhoneCall,
     IconSquareRoundedX,
     IconUser,
     IconUserCircle,
@@ -142,8 +143,8 @@ export default function History({ joinMeet }) {
                                                     {item.agenda}
                                                 </Typography>
                                             </div>
-                                            <div>
-                                                <Button onClick={() => joinMeeting(item.meetingId)}>
+                                            <div style={{ marginLeft: "auto" }}>
+                                                <Button startIcon={<IconPhoneCall />} variant='contained' onClick={() => joinMeeting(item.meetingId)}>
                                                     JOIN
                                                 </Button>
                                             </div>

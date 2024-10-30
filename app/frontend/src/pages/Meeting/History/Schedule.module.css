@@ -79,3 +79,15 @@
     align-items: center;
     margin-top: 10px;
 }
+
+
+@media only screen and (max-width: 800px) {
+    .dateContainer {
+        width: 100%;
+
+    }
+
+    .meetingCardContainer {
+        width: 100%;
+    }
+}
