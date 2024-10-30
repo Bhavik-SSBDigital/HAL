@@ -5,6 +5,7 @@ import {
 } from "./controller/meeting-controller.js";
 import User from "./models/user.js";
 import { ObjectId } from "mongodb";
+import Meeting from "./models/Meeting.js";
 
 let io;
 let usernames = [];
@@ -30,6 +31,15 @@ export const initializeSocket = (server) => {
       );
 
       await add_participant_in_meeting(roomId, participant._id);
+
+      const meet = await Meeting.findOne({ meetingId: roomId }).select("logs");
+
+      meet.logs.push({
+        attendee: participant._id,
+        joinedAt: Date.now(),
+      });
+
+      await meet.save();
 
       usernames.push({ socketId: socket.id, username }); // Add user
 
@@ -98,8 +108,27 @@ export const initializeSocket = (server) => {
       });
 
       // Handle leaving the room
-      socket.on("leave-room", ({ roomId, username }) => {
+      socket.on("leave-room", async ({ roomId, username }) => {
         socket.leave(roomId);
+
+        const meet = await Meeting.findOne({ meetingId: roomId }).select(
+          "logs"
+        );
+
+        let logIndexWhereAttendeeYetToLeave = meet.logs.findIndex(
+          (item) => !item.leftAt
+        );
+
+        let logWhereAttendeeYetToLeave =
+          meet.logs[logIndexWhereAttendeeYetToLeave];
+
+        meet.logs[logIndexWhereAttendeeYetToLeave] = {
+          attendee: logWhereAttendeeYetToLeave.attendee,
+          joinedAt: logWhereAttendeeYetToLeave.joinedAt,
+          leftAt: Date.now(),
+        };
+
+        await meet.save();
 
         socket.removeAllListeners("sendMessage");
         socket.removeAllListeners("offer");

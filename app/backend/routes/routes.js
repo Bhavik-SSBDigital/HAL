@@ -120,6 +120,7 @@ const uploadDummy = multer();
 import upload from "../config/multer-config.js";
 import {
   create_meeting,
+  get_meeting_details,
   get_meetings_for_user,
   is_user_an_attendee,
 } from "../controller/meeting-controller.js";
@@ -276,5 +277,7 @@ router.post("/createMeet", create_meeting);
 router.get("/getMeetingsForUser", get_meetings_for_user);
 
 router.get("/isUserAnAttendee/:meetingId", is_user_an_attendee);
+
+router.get("/getMeetingDetails/:meetingId", get_meeting_details);
 
 export default router;

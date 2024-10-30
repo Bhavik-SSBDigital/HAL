@@ -284,3 +284,69 @@ export const is_user_an_attendee = async (req, res, next) => {
     });
   }
 };
+
+export const get_meeting_details = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const meetingId = req.params.meetingId;
+    let meet = await Meeting.findOne({ meetingId: meetingId }).lean();
+
+    // Retrieve host username
+    const host = await User.findOne({ _id: meet.createdBy }).select("username");
+    meet.createdBy = host.username;
+
+    // Process attendees
+    meet.attendees = await Promise.all(
+      (meet.attendees || []).map(async (attendeeId) => {
+        const attendee = await User.findOne({ _id: attendeeId }).select(
+          "username"
+        );
+        return attendee ? attendee.username : null;
+      })
+    );
+
+    // Process logs
+    meet.logs = await Promise.all(
+      (meet.logs || []).map(async (log) => {
+        const actorAttendee = await User.findOne({ _id: log.attendee }).select(
+          "username"
+        );
+        return {
+          attendee: actorAttendee ? actorAttendee.username : null,
+          joinedAt: log.joinedAt,
+          leftAt: log.leftAt,
+        };
+      })
+    );
+
+    // Process comments
+    meet.comments = await Promise.all(
+      (meet.comments || []).map(async (item) => {
+        const commentorUser = await User.findOne({
+          _id: item.commentor,
+        }).select("username");
+        return {
+          commentor: commentorUser ? commentorUser.username : null,
+          comment: item.comment,
+          timestamp: item.timestamp,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      meetingDetails: meet,
+    });
+  } catch (error) {
+    console.log("Error getting meeting details", error);
+    return res.status(500).json({
+      message: "Error getting meeting details",
+    });
+  }
+};

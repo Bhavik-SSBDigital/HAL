@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { mongo } from "mongoose";
 
 const meetingSchema = new mongoose.Schema({
   meetingId: {
@@ -54,6 +54,20 @@ const meetingSchema = new mongoose.Schema({
   },
   videoEnabled: { type: Boolean, default: true },
   audioEnabled: { type: Boolean, default: true },
+  logs: [
+    {
+      attendee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      joinedAt: {
+        type: Date,
+      },
+      leftAt: {
+        type: Date,
+      },
+    },
+  ],
 });
 
 const Meeting = mongoose.model("Meeting", meetingSchema);
