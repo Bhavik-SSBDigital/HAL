@@ -125,6 +125,46 @@ export const add_comment_in_meeting = async (meetingId, commentor, comment) => {
   }
 };
 
+export const add_comment_in_meeting_after_meeting_time = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const { meetingId, commentor, comment } = req.body;
+    const meet = await Meeting.findOne({ meetingId: String(meetingId) });
+
+    if (meet) {
+      meet.comments.push({
+        commentor: commentor,
+        comment: comment,
+      });
+
+      await meet.save();
+
+      return res.status(200).json({
+        message: "added comment successfully",
+      });
+    } else {
+      console.log("Error finding meet");
+      return res.status(500).json({
+        message: "Error finding meet",
+      });
+    }
+  } catch (error) {
+    console.log("Error updating meeting details", error);
+    throw new Error(error);
+  }
+};
+
 export const add_participant_in_meeting = async (meetingId, participant) => {
   try {
     const meet = await Meeting.findOne({ meetingId: String(meetingId) }).select(

@@ -119,6 +119,7 @@ const uploadDummy = multer();
 
 import upload from "../config/multer-config.js";
 import {
+  add_comment_in_meeting_after_meeting_time,
   create_meeting,
   get_meeting_details,
   get_meetings_for_user,
@@ -279,5 +280,7 @@ router.get("/getMeetingsForUser", get_meetings_for_user);
 router.get("/isUserAnAttendee/:meetingId", is_user_an_attendee);
 
 router.get("/getMeetingDetails/:meetingId", get_meeting_details);
+
+router.post("/addCommentInMeeting", add_comment_in_meeting_after_meeting_time);
 
 export default router;
