@@ -12,6 +12,7 @@ import {
 import {
     IconCalendarPlus,
     IconClockHour5,
+    IconListDetails,
     IconPhoneCall,
     IconSquareRoundedX,
     IconUser,
@@ -20,6 +21,7 @@ import {
 import Schedule from '../Schedule';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import MeetingDetailsDialog from '../MeetingDetails';
 
 export default function History({ joinMeet }) {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -29,6 +31,18 @@ export default function History({ joinMeet }) {
     const [open, setOpen] = useState(false);
     const handleOpen = () => setOpen(true);
     const handleClose = () => setOpen(false);
+
+    // meeting details dialog
+    const [meetingId, setMeetingId] = useState(null);
+    const [openMeetingDetails, setOpenMeetingDetails] = useState(false);
+    const handleOpenMeetingDetails = (id) => {
+        setOpenMeetingDetails(true);
+        setMeetingId(id)
+    }
+    const handleCloseMeetingDetails = () => {
+        setOpenMeetingDetails(false);
+        setMeetingId(null)
+    }
 
     const randomColor = (name) => {
         let hash = 0;
@@ -68,9 +82,8 @@ export default function History({ joinMeet }) {
             console.log(res.data);
             if (res.data.isUserAnAttendee) {
                 joinMeet(meetingId);
-            }
-            else {
-                toast.info("You are not an attendee")
+            } else {
+                toast.info('You are not an attendee');
             }
         } catch (error) {
             toast.error(error?.response?.data?.message || error?.message);
@@ -143,11 +156,34 @@ export default function History({ joinMeet }) {
                                                     {item.agenda}
                                                 </Typography>
                                             </div>
-                                            <div style={{ marginLeft: "auto" }}>
-                                                <Button startIcon={<IconPhoneCall />} variant='contained' onClick={() => joinMeeting(item.meetingId)}>
+                                            <Stack
+                                                sx={{
+                                                    marginLeft: 'auto',
+                                                    gap: 1,
+                                                    flexDirection: 'row',
+                                                    flexWrap: 'wrap',
+                                                }}
+                                            >
+                                                <Button
+                                                    sx={{ width: 'fit-content' }}
+                                                    startIcon={<IconPhoneCall />}
+                                                    // variant="contained"
+                                                    color='secondary'
+                                                    onClick={() => joinMeeting(item.meetingId)}
+                                                >
                                                     JOIN
                                                 </Button>
-                                            </div>
+
+                                                <Button
+                                                    // variant="contained"
+                                                    startIcon={<IconListDetails />}
+                                                    sx={{ width: 'fit-content' }}
+                                                    color="info"
+                                                    onClick={() => handleOpenMeetingDetails(item.meetingId)}
+                                                >
+                                                    Meeting Details
+                                                </Button>
+                                            </Stack>
                                         </div>
                                     ))}
                                 </div>
@@ -179,6 +215,14 @@ export default function History({ joinMeet }) {
                     />
                 </DialogContent>
             </Dialog>
+
+            {/* meeting details dialog */}
+            <MeetingDetailsDialog
+                open={openMeetingDetails}
+                meetingId={meetingId}
+                onClose={handleCloseMeetingDetails}
+                id={meetingId}
+            />
         </>
     );
 }
