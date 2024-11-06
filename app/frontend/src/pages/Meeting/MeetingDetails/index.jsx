@@ -14,7 +14,8 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    IconButton
+    IconButton,
+    Divider
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -79,6 +80,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
         }
     }
     useEffect(() => {
+        setMeetingDetails({})
         if (id) {
             getDetails();
         }
@@ -102,27 +104,36 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
             </DialogTitle>
             <DialogContent dividers>
                 <Box sx={{ p: 1 }}>
-                    <Typography variant="subtitle1" color="textSecondary" gutterBottom>Agenda</Typography>
-                    <Typography variant="body1" sx={{ mb: 2 }}>{meetingDetails?.agenda}</Typography>
+                    <Stack flexDirection={"row"} flexWrap={"wrap"} gap={1} justifyContent="space-between" mb={3}>
 
-                    <Typography variant="subtitle1" color="textSecondary">Meeting Time</Typography>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        <AccessTimeIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                        {formatDateTime(meetingDetails?.startTime)} - {formatDateTime(meetingDetails?.endTime)}
-                    </Typography>
+                        <Box>
+                            <Typography variant="subtitle1" color="textSecondary" gutterBottom>Agenda</Typography>
+                            <Typography variant="body1" sx={{ mb: 4 }}>{meetingDetails?.agenda}</Typography>
+                        </Box>
+                        <Box>
 
-                    <Typography variant="subtitle1" color="textSecondary">Created By</Typography>
-                    <Typography variant="body2" sx={{ mb: 2 }}>{meetingDetails?.createdBy}</Typography>
+                            <Typography variant="subtitle1" color="textSecondary">Meeting Time</Typography>
+                            <Typography variant="body2" sx={{ mb: 4 }}>
+                                <AccessTimeIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                                {formatDateTime(meetingDetails?.startTime)} - {formatDateTime(meetingDetails?.endTime)}
+                            </Typography>
+                        </Box>
 
-                    <Typography variant="subtitle1" color="textSecondary">Attendees</Typography>
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2 }}>
+                        <Box>
+                            <Typography variant="subtitle1" color="textSecondary">Created By</Typography>
+                            <Typography variant="body2" sx={{ mb: 4 }}>{meetingDetails?.createdBy}</Typography>
+                        </Box>
+                    </Stack>
+
+                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Attendees :</Typography>
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2, p: 2, bgcolor: '#EEEEEE' }}>
                         {meetingDetails?.attendees?.map((attendee) => (
                             <Chip key={attendee} label={attendee} color="primary" />
                         ))}
                     </Stack>
 
-                    <Typography variant="h6" gutterBottom>Logs</Typography>
-                    <List dense sx={{ bgcolor: 'background.paper', mb: 2 }}>
+                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Logs :</Typography>
+                    <List dense sx={{ bgcolor: '#EEEEEE', mb: 2, p: '2px' }}>
                         {meetingDetails?.logs?.length > 0 ? (
                             meetingDetails?.logs.map((log, index) => (
                                 <ListItem key={index}>
@@ -137,8 +148,8 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                         )}
                     </List>
 
-                    <Typography variant="h6" gutterBottom>Comments</Typography>
-                    <List dense sx={{ bgcolor: 'background.paper' }}>
+                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Comments :</Typography>
+                    <List dense sx={{ bgcolor: '#EEEEEE', p: '3px' }}>
                         {meetingDetails?.comments?.length > 0 ? (
                             meetingDetails?.comments.map((comment, index) => (
                                 <ListItem key={index} alignItems="flex-start">
