@@ -275,7 +275,7 @@ export const get_meetings_for_user = async (req, res, next) => {
         agenda: meeting.agenda || "",
         time: timeStr,
         duration: durationStr,
-        meetingEndedAsPerTime: meeting.endTime < Date.now(),
+        meetingEnded: meeting.endTime < Date.now(),
       });
 
       return acc;
