@@ -139,12 +139,13 @@ export const add_comment_in_meeting_after_meeting_time = async (
       });
     }
 
-    const { meetingId, commentor, comment } = req.body;
+    const { meetingId, comment } = req.body;
+
     const meet = await Meeting.findOne({ meetingId: String(meetingId) });
 
     if (meet) {
       meet.comments.push({
-        commentor: commentor,
+        commentor: userData._id,
         comment: comment,
       });
 
@@ -274,6 +275,7 @@ export const get_meetings_for_user = async (req, res, next) => {
         agenda: meeting.agenda || "",
         time: timeStr,
         duration: durationStr,
+        meetingEndedAsPerTime: meeting.endTime < Date.now(),
       });
 
       return acc;
