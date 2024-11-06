@@ -34,15 +34,18 @@ export default function History({ joinMeet }) {
 
     // meeting details dialog
     const [meetingId, setMeetingId] = useState(null);
+    const [openIndex, setOpenIndex] = useState(null);
     const [openMeetingDetails, setOpenMeetingDetails] = useState(false);
+
     const handleOpenMeetingDetails = (id) => {
         setOpenMeetingDetails(true);
-        setMeetingId(id)
-    }
+        setMeetingId(id);
+    };
+
     const handleCloseMeetingDetails = () => {
         setOpenMeetingDetails(false);
-        setMeetingId(null)
-    }
+        setMeetingId(null);
+    };
 
     const randomColor = (name) => {
         let hash = 0;
@@ -70,7 +73,6 @@ export default function History({ joinMeet }) {
             console.log(error?.response?.data?.message || error?.message);
         }
     };
-
     const joinMeeting = async (meetingId) => {
         const url = backendUrl + `/isUserAnAttendee/${meetingId}`;
         try {
@@ -106,7 +108,7 @@ export default function History({ joinMeet }) {
                     </Button>
                 </Stack>
                 {meetings.length ? (
-                    meetings.map((meeting) => {
+                    meetings.map((meeting, index) => {
                         return (
                             <div className={styles.meetingContainer}>
                                 <div className={styles.dateContainer}>
@@ -129,7 +131,6 @@ export default function History({ joinMeet }) {
                                                         variant="subtitle1"
                                                         className={styles.info}
                                                     >
-                                                        {/* <IconUserCircle size={21} /> */}
                                                         <strong>Host :</strong>
                                                         {item.host}
                                                     </Typography>
@@ -137,8 +138,6 @@ export default function History({ joinMeet }) {
                                                         variant="subtitle1"
                                                         className={styles.info}
                                                     >
-                                                        {/* <IconClockHour5 size={21} />
-                             */}
                                                         <strong>Time :</strong>
                                                         {item.time}
                                                     </Typography>
@@ -146,7 +145,6 @@ export default function History({ joinMeet }) {
                                                         variant="subtitle1"
                                                         className={styles.info}
                                                     >
-                                                        {/* <IconClockHour5 size={21} /> */}
                                                         <strong>Duration :</strong>
                                                         {item.duration}
                                                     </Typography>
@@ -168,7 +166,7 @@ export default function History({ joinMeet }) {
                                                     sx={{ width: 'fit-content' }}
                                                     startIcon={<IconPhoneCall />}
                                                     // variant="contained"
-                                                    color='secondary'
+                                                    color="secondary"
                                                     onClick={() => joinMeeting(item.meetingId)}
                                                 >
                                                     JOIN
@@ -179,7 +177,9 @@ export default function History({ joinMeet }) {
                                                     startIcon={<IconListDetails />}
                                                     sx={{ width: 'fit-content' }}
                                                     color="info"
-                                                    onClick={() => handleOpenMeetingDetails(item.meetingId)}
+                                                    onClick={() =>
+                                                        handleOpenMeetingDetails(item.meetingId)
+                                                    }
                                                 >
                                                     Meeting Details
                                                 </Button>
