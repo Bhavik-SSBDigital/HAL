@@ -107,8 +107,8 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                     <Stack flexDirection={"row"} flexWrap={"wrap"} gap={1} justifyContent="space-between" mb={3}>
 
                         <Box>
-                            <Typography variant="subtitle1" color="textSecondary" gutterBottom>Agenda</Typography>
-                            <Typography variant="body1" sx={{ mb: 4 }}>{meetingDetails?.agenda}</Typography>
+                            <Typography variant="subtitle1" color="textSecondary">Agenda</Typography>
+                            <Typography variant="body2" sx={{ mb: 4 }}>{meetingDetails?.agenda}</Typography>
                         </Box>
                         <Box>
 
@@ -125,14 +125,14 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                         </Box>
                     </Stack>
 
-                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Attendees :</Typography>
+                    <Typography variant="h6" gutterBottom>Attendees :</Typography>
                     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2, p: 2, bgcolor: '#EEEEEE' }}>
                         {meetingDetails?.attendees?.map((attendee) => (
                             <Chip key={attendee} label={attendee} color="primary" />
                         ))}
                     </Stack>
 
-                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Logs :</Typography>
+                    <Typography variant="h6" gutterBottom>Logs :</Typography>
                     <List dense sx={{ bgcolor: '#EEEEEE', mb: 2, p: '2px' }}>
                         {meetingDetails?.logs?.length > 0 ? (
                             meetingDetails?.logs.map((log, index) => (
@@ -148,7 +148,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                         )}
                     </List>
 
-                    <Typography variant="h6" sx={{ boxShadow: "rgba(0, 0, 0, 0.04) 0px 3px 5px" }} gutterBottom>Comments :</Typography>
+                    <Typography variant="h6" gutterBottom>Comments :</Typography>
                     <List dense sx={{ bgcolor: '#EEEEEE', p: '3px' }}>
                         {meetingDetails?.comments?.length > 0 ? (
                             meetingDetails?.comments.map((comment, index) => (
