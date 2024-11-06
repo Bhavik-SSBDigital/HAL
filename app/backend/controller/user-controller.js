@@ -145,7 +145,7 @@ export const login_POST = async (req, res) => {
     }
     // Find a user with the provided username
     let user = await User.findOne({ username: req.body.username }).select(
-      "username email branch role password specialUser _id isKeeperOfPhysicalDocs"
+      "username email branch role password specialUser _id isKeeperOfPhysicalDocs _id"
     );
 
     // If no user is found with the provided username
@@ -200,6 +200,7 @@ export const login_POST = async (req, res) => {
         specialUser: user.specialUser,
         isInitiator: count > 0 ? true : false,
         isKeeperOfPhysicalDocs: user.isKeeperOfPhysicalDocs,
+        userId: user._id,
       });
     } else {
       // If the passwords don't match
