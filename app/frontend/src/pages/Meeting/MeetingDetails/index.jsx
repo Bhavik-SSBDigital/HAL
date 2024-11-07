@@ -155,7 +155,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                     <Stack
                         direction="row"
                         spacing={1}
-                        sx={{ flexWrap: 'wrap', mb: 2, p: 2, bgcolor: '#EEEEEE' }}
+                        sx={{ flexWrap: 'wrap', mb: 2, p: 2, bgcolor: '#EEEEEE', borderRadius: "8px" }}
                     >
                         {meetingDetails?.attendees?.map((attendee, index) => (
                             <Chip key={index} label={attendee} color="primary" />
@@ -165,7 +165,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                     <Typography variant="h6" gutterBottom>
                         Logs :
                     </Typography>
-                    <List dense sx={{ bgcolor: '#EEEEEE', mb: 2, p: '2px' }}>
+                    <List dense sx={{ bgcolor: '#EEEEEE', mb: 2, p: '10px', borderRadius: "8px" }}>
                         {meetingDetails?.logs?.length > 0 ? (
                             meetingDetails?.logs.map((log, index) => (
                                 <ListItem key={index}>
@@ -191,7 +191,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                     <Typography variant="h6" gutterBottom>
                         Comments :
                     </Typography>
-                    <List dense sx={{ bgcolor: '#EEEEEE', p: '3px' }}>
+                    <List dense sx={{ bgcolor: '#EEEEEE', p: '10px', borderRadius: '8px' }}>
                         {meetingDetails?.comments?.length > 0 ? (
                             meetingDetails?.comments.map((comment, index) => (
                                 <ListItem key={index} alignItems="flex-start">
