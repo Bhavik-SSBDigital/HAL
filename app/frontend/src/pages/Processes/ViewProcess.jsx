@@ -1256,10 +1256,8 @@ export default function ViewProcess(props) {
       item
       size={{ xs: 12, sm: 4, md: 3 }}
       minWidth={'fit-content'}
-      // flexGrow={'500px'}
       sx={{
         padding: '15px',
-        // flex: 1,
         backgroundColor: '#f9f9f9', // Subtle background
         borderRadius: '8px',
         border: '1px solid lightgray',
