@@ -80,6 +80,16 @@
     margin-top: 10px;
 }
 
+.tab {
+    padding: 5px;
+    width: 100px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.selectedTab {
+    background-color: white;
+}
 
 @media only screen and (max-width: 800px) {
     .dateContainer {
