@@ -27,7 +27,7 @@ export default function History({ joinMeet }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
   const [meetings, setMeetings] = useState([]);
-  const [selectedTab, setSelectedTab] = useState('past');
+  const [selectedTab, setSelectedTab] = useState('upcoming');
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
