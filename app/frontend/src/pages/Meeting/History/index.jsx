@@ -113,7 +113,9 @@ export default function History({ joinMeet }) {
                 selectedTab == 'past' && styles.selectedTab
               }`}
             >
-              Past
+              <Typography variant="body1" color="initial" textAlign={'center'}>
+                Past
+              </Typography>
             </div>
             <div
               onClick={() => setSelectedTab('upcoming')}
@@ -121,7 +123,9 @@ export default function History({ joinMeet }) {
                 selectedTab == 'upcoming' && styles.selectedTab
               }`}
             >
-              Upcoming
+              <Typography variant="body1" color="initial" textAlign={'center'}>
+                Upcoming
+              </Typography>
             </div>
           </Stack>
           <Button
