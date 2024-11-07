@@ -29,6 +29,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useForm } from 'react-hook-form';
 import Loader from '../../../common/Loader';
+import FormSkeleton from '../../../common/Skeletons/FormSkeleton';
 
 const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const {
@@ -112,18 +113,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
       </DialogTitle>
       <DialogContent dividers>
         {loading ? (
-          <>
-            <Skeleton variant="text" width={100} height={30} />
-            <Skeleton variant="text" width="60%" height={20} />
-            <Skeleton
-              variant="rectangular"
-              width="100%"
-              height={60}
-              sx={{ mb: 2 }}
-            />
-            <Skeleton variant="text" width={100} height={30} />
-            <Skeleton variant="text" width="80%" height={20} />
-          </>
+          <FormSkeleton />
         ) : (
           <Box sx={{ p: 1 }}>
             <Stack
