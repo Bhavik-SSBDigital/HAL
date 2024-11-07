@@ -963,11 +963,11 @@ export default function ShowFolder(props) {
                         <Stack
                           flexWrap="wrap"
                           position="relative"
-                          minWidth="150px"
-                          height="130px"
+                          minWidth="130px"
                           mr={'10px'}
-                          maxWidth="200px"
+                          maxWidth="160px"
                           flex={1}
+                          height="120px"
                           key={index}
                         >
                           {/* <Tooltip title={item.name} enterDelay={2000} disableInteractive> */}
@@ -997,21 +997,17 @@ export default function ShowFolder(props) {
                                   item.name.length >= 10 ? item.name : null
                                 }
                               >
-                                <Box
-                                  sx={{
-                                    height: '60px',
-                                    width: '60px',
-                                  }}
-                                >
+                                <div>
                                   <img
-                                    style={{
-                                      height: '100%',
-                                      width: '100%',
-                                    }}
+                                    className={styles.responsive}
                                     src={imageSrc}
+                                    style={{
+                                      marginLeft: 'auto',
+                                      marginRight: 'auto',
+                                    }}
                                     alt="im"
                                   />
-                                </Box>
+                                </div>
                                 <p
                                   style={{
                                     color: 'black',
