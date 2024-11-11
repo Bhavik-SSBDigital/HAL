@@ -125,6 +125,7 @@ import {
   get_meetings_for_user,
   is_user_an_attendee,
 } from "../controller/meeting-controller.js";
+import { compare_documents } from "../controller/compare-documents.js";
 // const upload = multer();
 
 const router = express.Router();
@@ -282,5 +283,7 @@ router.get("/isUserAnAttendee/:meetingId", is_user_an_attendee);
 router.get("/getMeetingDetails/:meetingId", get_meeting_details);
 
 router.post("/addCommentInMeeting", add_comment_in_meeting_after_meeting_time);
+
+router.post("/compareDocuments", compare_documents);
 
 export default router;
