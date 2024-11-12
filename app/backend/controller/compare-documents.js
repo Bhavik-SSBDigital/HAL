@@ -12,17 +12,12 @@ const execPromise = promisify(exec);
 
 export const compare_documents = async (req, res, next) => {
   try {
-    console.log("body", req.body);
-
     let document1 = await Document.findOne({
       _id: new ObjectId(req.body.document1),
     });
     let document2 = await Document.findOne({
       _id: new ObjectId(req.body.document2),
     });
-
-    console.log("document 1 path", document1.path);
-    console.log("document 2 path", document2.path);
 
     document1 = path.join(__dirname, document1.path);
     document2 = path.join(__dirname, document2.path);
@@ -52,7 +47,6 @@ export const compare_documents = async (req, res, next) => {
       throw new Error(stderr);
     }
 
-    console.log("stdout", stdout);
     // Process the script output
     const observations = JSON.parse(stdout);
 

@@ -1,46 +1,112 @@
 import fitz  # PyMuPDF for handling PDFs
-import difflib
 import json
-import sys
 from datetime import datetime
+from PIL import Image, ImageChops
+import difflib
+import sys
+import io
+import pdfplumber
 
-def compare_text_blocks(doc1, doc2):
-    # Detects text additions and deletions, returns list with discrepancies and coordinates.
-    text_diffs = []
-    for page_num in range(min(len(doc1), len(doc2))):
-        page1 = doc1[page_num]
-        page2 = doc2[page_num]
-        
-        blocks1 = page1.get_text("blocks")
-        blocks2 = page2.get_text("blocks")
+def compare_text_blocks(pdf_path_1, pdf_path_2):
+    discrepancies = []
 
-        # Find differences in text blocks
-        diff_blocks = {"page": page_num + 1, "changes": []}
+    try:
+        # Open PDFs with fitz (make sure the paths are correct)
+        pdf1 = fitz.open(pdf_path_1)  # Open the first file
+        pdf2 = fitz.open(pdf_path_2)  # Open the second file
 
-        for block in blocks2:
-            if block not in blocks1:  # Added text
-                diff_blocks["changes"].append({
-                    "text": block[4],
-                    "coordinates": block[:4],  # Coordinates of added text block
-                    "added": True
-                })
+        # Ensure both PDFs have the same number of pages
+        min_pages = min(pdf1.page_count, pdf2.page_count)
 
-        for block in blocks1:
-            if block not in blocks2:  # Removed text
-                diff_blocks["changes"].append({
-                    "text": block[4],
-                    "coordinates": block[:4],  # Coordinates of removed text block
-                    "added": False
-                })
+        # Loop through all pages
+        for page_number in range(min_pages):
+            page1 = pdf1.load_page(page_number)  # Load page from the first file
+            page2 = pdf2.load_page(page_number)  # Load page from the second file
 
-        if diff_blocks["changes"]:
-            text_diffs.append(diff_blocks)
+            # Extract words as a list of (x0, y0, x1, y1, word, block_no, line_no, word_no)
+            words1 = page1.get_text("words")  # Extract words from page 1
+            words2 = page2.get_text("words")  # Extract words from page 2
 
-    return {"detection_type": "text_difference", "observations": text_diffs}
+            # Compare words on the same page from both files
+            for word1, word2 in zip(words1, words2):
+                text1 = word1[4]  # Text from the first file
+                text2 = word2[4]  # Text from the second file
+
+             
+                # If there's a discrepancy between the words, we capture the difference
+                if text1 != text2:
+                    missing_text = ''.join(set(text1) - set(text2))  # Text in file 1 but not in file 2
+                    added_text = ''.join(set(text2) - set(text1))    # Text in file 2 but not in file 1
+
+                    # Check if the second file is missing text, treat it as removal (added: false)
+                    if missing_text:
+                        discrepancies.append({
+                            "page": page_number + 1,
+                            "changes": [
+                                {
+                                    "text": missing_text,
+                                    "coordinates": [word1[0], word1[1], word1[2], word1[3]],
+                                    "added": False  # This text is missing (removed) in the second file
+                                }
+                            ]
+                        })
+
+                    # Check if the second file has extra text, treat it as added (added: true)
+                    if added_text:
+                        discrepancies.append({
+                            "page": page_number + 1,
+                            "changes": [
+                                {
+                                    "text": added_text,
+                                    "coordinates": [word2[0], word2[1], word2[2], word2[3]],
+                                    "added": True  # This text is added in the second file
+                                }
+                            ]
+                        })
+
+    except Exception as e:
+        # Return error message if there's any issue with file opening or processing
+        return {"observations": [{"error": f"Error: {str(e)}"}]}
+
+    # Return the discrepancies found between the two PDFs
+    return {"observations": discrepancies}
+
+
+def compare_images_advanced(img_data1, img_data2):
+    img1 = Image.open(io.BytesIO(img_data1)).convert("RGB")
+    img2 = Image.open(io.BytesIO(img_data2)).convert("RGB")
+
+    # Convert images to grayscale for SSIM
+    img1_gray = np.array(img1.convert('L'))
+    img2_gray = np.array(img2.convert('L'))
+
+    # Calculate SSIM
+    ssim_index, diff = ssim(img1_gray, img2_gray, full=True)
+    
+    
+    # If SSIM is low, there are differences
+    if ssim_index < 0.95:
+        return diff  # Return the difference image
+    return None
+
+def compare_images_with_coordinates(img_data1, img_data2):
+    img1 = Image.open(io.BytesIO(img_data1)).convert("RGB")
+    img2 = Image.open(io.BytesIO(img_data2)).convert("RGB")
+
+    # Use ImageChops.difference to detect discrepancies
+    diff = ImageChops.difference(img1, img2)
+
+    # Get bounding box of the difference
+    bbox = diff.getbbox()
+    if bbox:
+        return bbox  # Return coordinates of the discrepancy (bounding box)
+    return None
 
 
 def compare_metadata(doc1, doc2):
-    # Compares metadata of two PDF documents, capturing changes in creation date, author, etc.
+    """
+    Compares metadata of two PDF documents, capturing changes in creation date, author, etc.
+    """
     metadata_diffs = []
     metadata1 = doc1.metadata
     metadata2 = doc2.metadata
@@ -56,43 +122,10 @@ def compare_metadata(doc1, doc2):
     return {"detection_type": "metadata_manipulation", "observations": metadata_diffs}
 
 
-def compare_images(doc1, doc2):
-    # Detects image manipulations including additions, removals, and pixel differences.
-    image_diffs = []
-    for page_num in range(min(len(doc1), len(doc2))):
-        page1 = doc1[page_num]
-        page2 = doc2[page_num]
-
-        images1 = page1.get_images(full=True)
-        images2 = page2.get_images(full=True)
-
-        # Collect coordinates of discrepancies in images
-        page_diffs = {"page": page_num + 1, "changes": []}
-        added_images = [img for img in images2 if img not in images1]
-        removed_images = [img for img in images1 if img not in images2]
-
-        for img in added_images:
-            page_diffs["changes"].append({
-                "coordinates": page2.get_image_rect(img[0]),  # Rectangular coordinates
-                "added": True,
-                "type": "image"
-            })
-        
-        for img in removed_images:
-            page_diffs["changes"].append({
-                "coordinates": page1.get_image_rect(img[0]),  # Rectangular coordinates
-                "added": False,
-                "type": "image"
-            })
-
-        if page_diffs["changes"]:
-            image_diffs.append(page_diffs)
-
-    return {"detection_type": "image_manipulation", "observations": image_diffs}
-
-
 def compare_formatting(doc1, doc2):
-    # Detects formatting differences, such as font size or color.
+    """
+    Detects formatting differences, such as font size or color.
+    """
     formatting_diffs = []
     for page_num in range(min(len(doc1), len(doc2))):
         page1 = doc1[page_num]
@@ -124,54 +157,59 @@ def compare_formatting(doc1, doc2):
     return {"detection_type": "formatting_changes", "observations": formatting_diffs}
 
 
-def miscellaneous_discrepancies(doc1, doc2):
-    # Miscellaneous checks for discrepancies when certain types (e.g., images as text) are missed.
-    misc_diffs = []
+def compare_documents(doc1_path, doc2_path):
+    image_diffs = []
+
+    # Open the documents using fitz
+    doc1 = fitz.open(doc1_path)
+    doc2 = fitz.open(doc2_path)
+
+    # Iterate over pages and compare images
     for page_num in range(min(len(doc1), len(doc2))):
-        page1 = doc1[page_num]
-        page2 = doc2[page_num]
+        page1 = doc1.load_page(page_num)
+        page2 = doc2.load_page(page_num)
 
-        # Scan for potential hidden layers or discrepancies
-        misc_changes = {"page": page_num + 1, "changes": []}
+        images1 = page1.get_images(full=True)
+        images2 = page2.get_images(full=True)
 
-        # Example: Add dummy coordinates or specific details found as needed
-        # Actual miscellaneous checks can be added here
-        # misc_changes["changes"].append({"coordinates": [x1, y1, x2, y2], "details": "Suspicious region"})
+        page_diffs = {"page": page_num + 1, "changes": []}
 
-        if misc_changes["changes"]:
-            misc_diffs.append(misc_changes)
+        for img1, img2 in zip(images1, images2):
+            if img1[7] != img2[7]:  # Checksum-based initial check
+                xref1, xref2 = img1[0], img2[0]
+                img_data1 = doc1.extract_image(xref1)["image"]
+                img_data2 = doc2.extract_image(xref2)["image"]
 
-    return {"detection_type": "miscellaneous", "observations": misc_diffs}
+                # Compare images and get bounding box of discrepancies
+                diff_bbox = compare_images_with_coordinates(img_data1, img_data2)
+                if diff_bbox:
+                    page_diffs["changes"].append({
+                        "coordinates": diff_bbox,
+                        "added": True,
+                        "type": "image_discrepancy"
+                    })
 
+                # Advanced SSIM comparison
+                ssim_diff = compare_images_advanced(img_data1, img_data2)
+                if ssim_diff is not None:
+                    # Further process SSIM differences if needed
+                    page_diffs["changes"].append({
+                        "coordinates": "SSIM difference detected",
+                        "added": True,
+                        "type": "image_discrepancy"
+                    })
 
-def compare_documents(file1_path, file2_path):
-    # Compares two PDF documents by their absolute paths across all specified detection types.
-    # Returns a structured JSON result with detected discrepancies.
+        if page_diffs["changes"]:
+            image_diffs.append(page_diffs)
 
-    # Load PDF documents
-    doc1 = fitz.open(file1_path)
-    doc2 = fitz.open(file2_path)
-
-    # Run comparisons for all specified detection types
-    results = []
-    results.append(compare_text_blocks(doc1, doc2))
-    results.append(compare_metadata(doc1, doc2))
-    results.append(compare_images(doc1, doc2))
-    # results.append(compare_formatting(doc1, doc2))
-    results.append(miscellaneous_discrepancies(doc1, doc2))
-
-    # Close documents
-    doc1.close()
-    doc2.close()
-
-    # Print the results as JSON for Node.js to capture
-    print(json.dumps(results, indent=4))
+    return {"detection_type": "image_manipulation", "observations": image_diffs}
 
 
 if __name__ == "__main__":
-    # Get the file paths from command-line arguments
-    file1_path = sys.argv[1]
-    file2_path = sys.argv[2]
-
-    # Call the compare function and print results
-    compare_documents(file1_path, file2_path)
+    try:
+        file1_path = sys.argv[1]
+        file2_path = sys.argv[2]
+        result = compare_documents(file1_path, file2_path)
+        print(result)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))

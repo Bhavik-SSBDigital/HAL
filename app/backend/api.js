@@ -182,11 +182,8 @@ app.use((req, res, next) => {
     req.protocol + "://" + req.get("host") + req.originalUrl
   );
 
-  console.log("req url", req.url);
-  console.log("parsed url", parsedUrl);
   if (req.url.startsWith("/socket")) {
     // Handle WebSocket requests
-    console.log("WebSocket request:", parsedUrl.href);
 
     // Forward the WebSocket connection to Socket.IO server
     io.attach(server, {
@@ -199,7 +196,7 @@ app.use((req, res, next) => {
     // (Socket.IO server handles them in its `connection` event above)
   } else {
     // Handle normal HTTP/HTTPS requests
-    console.log("HTTP/HTTPS request:", parsedUrl.href);
+
     next(); // Continue to the next middleware (e.g., route handlers)
   }
 });
@@ -225,7 +222,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/", router);
 
 app.get("*", (req, res) => {
-  console.log("hit general url");
   res.sendFile(path.resolve(__dirname, "build", "index.html"));
 });
 
