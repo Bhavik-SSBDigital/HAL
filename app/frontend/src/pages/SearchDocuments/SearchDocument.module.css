@@ -1,31 +1,45 @@
 /* SearchDocument.module.css */
 .container {
-    background-color: white;
-    border: 1px solid lightgray;
-    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
-    padding: 20px;
-    border-radius: 8px;
-    color: #000000;
-    /* Changed text color to black for better contrast */
+  background-color: white;
+  border: 1px solid lightgray;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  padding: 20px;
+  position: relative;
+  border-radius: 8px;
+  color: #000000;
+  /* Changed text color to black for better contrast */
 }
 
 .textField {
-    background-color: #F0F0F0;
-    /* Light background for text fields */
+  background-color: #f0f0f0;
+  /* Light background for text fields */
 }
 
 .select {
-    background-color: #F0F0F0;
-    /* Light background for select fields */
+  background-color: #f0f0f0;
+  /* Light background for select fields */
 }
 
 .button {
-    color: #FFFFFF;
+  color: #ffffff;
 }
 
 /* SearchDocument.module.css */
 .resultCard {
-    margin: 10px 0;
-    border: 2px solid lightgray;
-    border-radius: 10px;
+  margin: 10px 0;
+  border: 2px solid lightgray;
+  border-radius: 10px;
+}
+.documentsCompareContainer {
+  /* border: 1px solid lightgray; */
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.document {
+  border: 1px solid lightgray;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
 }

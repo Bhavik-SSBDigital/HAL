@@ -4,9 +4,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import styles from './DocumentVersioning.module.css'; // Import the CSS module
 
-const DocumentVersioning = () => {
-  const [file1, setFile1] = useState(null);
-  const [file2, setFile2] = useState(null);
+const DocumentVersioning = ({ file1, file2 }) => {
   const [numPages1, setNumPages1] = useState(null);
   const [numPages2, setNumPages2] = useState(null);
 
@@ -22,41 +20,8 @@ const DocumentVersioning = () => {
     setNumPages2(numPages);
   };
 
-  const handleFileChange1 = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setFile1(URL.createObjectURL(file));
-      setError1(null);
-    } else {
-      setError1('Please upload a valid PDF file.');
-    }
-  };
-
-  const handleFileChange2 = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setFile2(URL.createObjectURL(file));
-      setError2(null);
-    } else {
-      setError2('Please upload a valid PDF file.');
-    }
-  };
-
   return (
     <div className={styles.documentVersioning}>
-      <div className={styles.fileInputs}>
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={handleFileChange1}
-        />
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={handleFileChange2}
-        />
-      </div>
-
       <div className={styles.documentContainer}>
         {file1 && (
           <div className={styles.document}>
