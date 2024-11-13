@@ -42,6 +42,8 @@ export const compare_documents = async (req, res, next) => {
 
     const { stdout, stderr } = await execPromise(command);
 
+    console.log("Python script output:", stdout);
+
     if (stderr) {
       console.error(`Error output: ${stderr}`);
       throw new Error(stderr);
