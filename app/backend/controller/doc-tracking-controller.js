@@ -339,15 +339,16 @@ export const search_document = async (req, res) => {
               name: docDetail.name,
               path: path,
               type: docDetail.type,
-              documentId: docDetail._id,
+              documentId: docDetail.documentId,
               signedBy: item.signedBy,
               rejectedBy: rejectedBy,
+              documentId: docDetail._id,
             }
           : {
               name: item.name,
               path: path,
               type: item.type,
-              documentId: item._id,
+              documentId: item.documentId,
             };
       })
     );
@@ -362,8 +363,9 @@ export const search_document = async (req, res) => {
             ? {
                 name: docDetail.name,
                 path: docDetail.path,
+                documentId: docDetail.documentId,
                 type: docDetail.type,
-                documentId: docDetail._id,
+                documentId: documentId,
                 signedBy: docDetail.signedBy,
                 rejectedBy: docDetail.rejectedBy,
               }
@@ -371,7 +373,7 @@ export const search_document = async (req, res) => {
                 name: docDetail.name,
                 path: docDetail.path,
                 type: docDetail.type,
-                documentId: docDetail._id,
+                documentId: documentId,
               };
         } else {
           // If documentId is not in any permission arrays, exclude it (i.e., return null)
