@@ -339,16 +339,15 @@ export const search_document = async (req, res) => {
               name: docDetail.name,
               path: path,
               type: docDetail.type,
-              documentId: docDetail.documentId,
+              documentId: docDetail._id,
               signedBy: item.signedBy,
               rejectedBy: rejectedBy,
-              documentId: docDetail._id,
             }
           : {
               name: item.name,
               path: path,
               type: item.type,
-              documentId: item.documentId,
+              documentId: item._id,
             };
       })
     );
@@ -357,7 +356,7 @@ export const search_document = async (req, res) => {
       .map((docDetail) => {
         const { documentId } = docDetail; // Extract documentId from document details
 
-        if (allowedDocuments.has(documentId.toString())) {
+        if (allowedDocuments.has(String(documentId))) {
           // If documentId is found in the user's permissions, include it in the result
           return processName
             ? {
