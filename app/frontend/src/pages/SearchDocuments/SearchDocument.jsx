@@ -90,7 +90,6 @@ const SearchDocument = () => {
   const [observations, setObservation] = useState([]);
   const [filesData, setFilesData] = useState([]);
   const [compareLoading, setCompareLoading] = useState(false);
-  console.log(filesData);
 
   const selectDocumentToCompare = (id, name, path, e) => {
     if (e.target.checked) {
@@ -110,7 +109,6 @@ const SearchDocument = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     let requestBody = { ...data, searchByProcess };
-    console.log(data);
     if (searchByProcess) {
       // name, branchName, departmentName, processName
       delete requestBody.cabinetNumber;
@@ -120,7 +118,6 @@ const SearchDocument = () => {
       delete requestBody.branchName;
       delete requestBody.processName;
     }
-    console.log(requestBody);
     const isNotEmpty = Object.values(data).some(
       (value) => value !== '' && value !== undefined,
     );
@@ -137,8 +134,8 @@ const SearchDocument = () => {
       });
       setResults(res.data.documents);
       setWorkRemain(res.data.workRemaining);
-
       toast.info(res.data.documents.length + ' Search Results');
+      setDocumentsToCompare([]);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
@@ -470,7 +467,8 @@ const SearchDocument = () => {
                 >
                   <Stack flexDirection="row" alignItems="center">
                     <Checkbox
-                      checked={documentsToCompare[index]?.name === result.name}
+                      key={result?.documentId}
+                      checked={documentsToCompare[result.documentId]}
                       onChange={(e) =>
                         selectDocumentToCompare(
                           result.documentId,
