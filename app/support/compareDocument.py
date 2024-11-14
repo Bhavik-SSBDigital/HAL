@@ -2,215 +2,265 @@ import fitz  # PyMuPDF for handling PDFs
 import json
 from PIL import Image, ImageChops
 import io
+import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 import sys
 
-# Compare text blocks between two PDF pages
+import fitz
+
+import fitz  # PyMuPDF
+
 def compare_text_blocks(pdf_path_1, pdf_path_2):
     discrepancies = []
+    
     try:
         pdf1 = fitz.open(pdf_path_1)
         pdf2 = fitz.open(pdf_path_2)
         min_pages = min(pdf1.page_count, pdf2.page_count)
 
+        observations_for_file1 = []
+        observations_for_file2 = []
+
+        # Function to merge continuous words and collect their coordinates
+        def merge_continuous_words(words):
+            merged_words = []
+            current_text = words[0][4]  # The text of the first word
+            current_coords = [{
+                "x1": words[0][0], "y1": words[0][1], "x2": words[0][2], "y2": words[0][3]
+            }]
+            last_y = words[0][1]
+
+            for i in range(1, len(words)):
+                prev_word = words[i - 1]
+                curr_word = words[i]
+
+                # Check if current word is continuous with the previous one (based on x-coordinates)
+                if curr_word[0] - prev_word[2] < 5 and abs(curr_word[1] - last_y) < 5:  # A threshold for continuity (can be adjusted)
+                    # Merge the text and append the current word's coordinates
+                    current_text += " " + curr_word[4]
+                    current_coords.append({
+                        "x1": curr_word[0], "y1": curr_word[1], "x2": curr_word[2], "y2": curr_word[3]
+                    })
+                else:
+                    # Add the current merged word and reset
+                    merged_words.append({"text": current_text, "coordinates": current_coords})
+                    current_text = curr_word[4]
+                    current_coords = [{
+                        "x1": curr_word[0], "y1": curr_word[1], "x2": curr_word[2], "y2": curr_word[3]
+                    }]
+                last_y = curr_word[1]
+
+            # Add the last merged word
+            merged_words.append({"text": current_text, "coordinates": current_coords})
+            return merged_words
+
+        # Iterate through pages of both PDFs and compare words
         for page_number in range(min_pages):
             page1 = pdf1.load_page(page_number)
             page2 = pdf2.load_page(page_number)
             words1 = page1.get_text("words")
             words2 = page2.get_text("words")
 
-            for word1, word2 in zip(words1, words2):
-                text1 = word1[4]
-                text2 = word2[4]
+            # Process continuous words for File 1
+            merged_words1 = merge_continuous_words(words1)
+            for word in merged_words1:
+                observations_for_file1.append({
+                    "pageNo": page_number + 1,
+                    "text": word["text"],
+                    "coordinates": word["coordinates"][0]  # Directly append the coordinates list
+                })
 
-                if text1 != text2:
-                    missing_text = ''.join(set(text1) - set(text2))
-                    added_text = ''.join(set(text2) - set(text1))
+            # Process continuous words for File 2
+            merged_words2 = merge_continuous_words(words2)
+            for word in merged_words2:
+                observations_for_file2.append({
+                    "pageNo": page_number + 1,
+                    "text": word["text"],
+                    "coordinates": word["coordinates"][0]  # Directly append the coordinates list
+                })
 
-                    if missing_text:
+        # Now compare the two sets of observations
+        temp_coordinates_pdf1 = []
+        temp_coordinates_pdf2 = []
+        temp_text_pdf1 = ""
+        temp_text_pdf2 = ""
+        last_page = None  # Track the last observed page number
+
+        # Loop through observations and compare
+        for obs1, obs2 in zip(observations_for_file1, observations_for_file2):
+            if obs1['text'] != obs2['text']:
+                # Merge the coordinates and text of both files where discrepancies are found
+                if temp_text_pdf1 and last_page == obs1['pageNo'] - 1:  # Merge if on the same page
+                    temp_coordinates_pdf1.append(obs1['coordinates'])  # No additional array wrapping
+                    temp_coordinates_pdf2.append(obs2['coordinates'])  # No additional array wrapping
+                    temp_text_pdf1 += " " + obs1['text']
+                    temp_text_pdf2 += " " + obs2['text']
+                else:
+                    if temp_text_pdf1:
+                        # Add the previous merged block to the result for both files
                         discrepancies.append({
-                            "page": page_number + 1,
-                            "changes": [
-                                {
-                                    "text": missing_text,
-                                    "coordinates": {
-                                        "x1": word1[0],
-                                        "y1": word1[1],
-                                        "x2": word1[2],
-                                        "y2": word1[3]
-                                    },
-                                    "added": False
-                                }
-                            ]
+                            "observations_for_file1": [{
+                                "pageNo": last_page + 1,
+                                "text": temp_text_pdf1,
+                                "coordinates": temp_coordinates_pdf1
+                            }],
+                            "observations_for_file2": [{
+                                "pageNo": last_page + 1,
+                                "text": temp_text_pdf2,
+                                "coordinates": temp_coordinates_pdf2
+                            }],
+                            "discrepancy_type": "text"
                         })
+                    # Reset temp variables for the new discrepancy
+                    temp_coordinates_pdf1 = [obs1['coordinates']]  # Directly append coordinates
+                    temp_coordinates_pdf2 = [obs2['coordinates']]  # Directly append coordinates
+                    temp_text_pdf1 = obs1['text']
+                    temp_text_pdf2 = obs2['text']
+                    last_page = obs1['pageNo'] - 1  # Update the last page
 
-                    if added_text:
-                        discrepancies.append({
-                            "page": page_number + 1,
-                            "changes": [
-                                {
-                                    "text": added_text,
-                                    "coordinates": {
-                                        "x1": word2[0],
-                                        "y1": word2[1],
-                                        "x2": word2[2],
-                                        "y2": word2[3]
-                                    },
-                                    "added": True
-                                }
-                            ]
-                        })
+        # If there's any leftover discrepancy
+        if temp_text_pdf1:
+            discrepancies.append({
+                "observations_for_file1": [{
+                    "pageNo": last_page + 1,
+                    "text": temp_text_pdf1,
+                    "coordinates": temp_coordinates_pdf1
+                }],
+                "observations_for_file2": [{
+                    "pageNo": last_page + 1,
+                    "text": temp_text_pdf2,
+                    "coordinates": temp_coordinates_pdf2
+                }],
+                "discrepancy_type": "text"
+            })
 
     except Exception as e:
         return {"detection_type": "text_discrepancy", "observations": [{"error": f"Error: {str(e)}"}]}
     
-    return {"detection_type": "text_discrepancy", "observations": discrepancies}
+    return discrepancies
 
-# Advanced image comparison function
-def detect_image_anomalies(img1, img2):
-    """
-    Detects and compares image anomalies such as folds, extra lines, distortions, and added marks.
-    
-    Args:
-        img1: The first image (as numpy array).
-        img2: The second image (as numpy array).
-    
-    Returns:
-        A dictionary with detected discrepancies and coordinates.
-    """
-    # Convert images to grayscale
-    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-    
-    # Resize images if necessary
-    if gray1.shape != gray2.shape:
-        gray2 = cv2.resize(gray2, (gray1.shape[1], gray1.shape[0]))
 
-    # Feature Detection (ORB)
-    orb = cv2.ORB_create()
-    kp1, des1 = orb.detectAndCompute(gray1, None)
-    kp2, des2 = orb.detectAndCompute(gray2, None)
+def get_images_from_pdf(pdf_path):
+    """Extracts images from the PDF and returns them as a list of byte arrays."""
+    images = []
+    pdf = fitz.open(pdf_path)
 
-    # Use Brute Force Matcher to match features between the two images
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    matches = bf.match(des1, des2)
+    for page in pdf:
+        image_list = page.get_images(full=True)
+        for img in image_list:
+            xref = img[0]
+            base_image = pdf.extract_image(xref)
+            img_data = base_image["image"]
+            images.append(img_data)
 
-    # Sort matches based on distance (quality of match)
-    matches = sorted(matches, key = lambda x: x.distance)
+    return images
 
-    # Anomaly Detection: Use Edge Detection to find discrepancies like extra lines or folds
-    edges1 = cv2.Canny(gray1, 100, 200)
-    edges2 = cv2.Canny(gray2, 100, 200)
-
-    # Find the difference between edge maps
-    edge_diff = cv2.absdiff(edges1, edges2)
-
-    # Gaussian filter to remove noise and focus on significant differences
-    edge_diff = gaussian_filter(edge_diff, sigma=1)
-
-    # Calculate Structural Similarity Index (SSIM)
-    ssim_value, _ = ssim(gray1, gray2, full=True)
-    
-    # Detect large discrepancies
-    diff_area = np.where(edge_diff > 50)  # Threshold based on intensity difference
-
-    discrepancies = []
-    
-    # Store the keypoints (features) that are significantly different
-    for match in matches[:10]:  # Top 10 matches (or adjust this value)
-        discrepancy_point = {
-            "x": kp1[match.queryIdx].pt[0],
-            "y": kp1[match.queryIdx].pt[1],
-            "distance": match.distance
-        }
-        discrepancies.append(discrepancy_point)
-
-    # Highlight the regions of differences found by edge detection
-    diff_regions = list(zip(diff_area[0], diff_area[1]))
-
-    # Output the final discrepancies
-    return {
-        "ssim_value": ssim_value,
-        "discrepancies": discrepancies,
-        "edge_diff_points": diff_regions
-    }
-
-def compare_images_with_coordinates(img_data1, img_data2, page_width, page_height):
-    """
-    Analyzes two images for discrepancies and anomalies, using both SSIM and edge detection.
-    
-    Args:
-        img_data1: The first image as byte data.
-        img_data2: The second image as byte data.
-        page_width: The width of the page for scaling discrepancy coordinates.
-        page_height: The height of the page for scaling discrepancy coordinates.
-    
-    Returns:
-        A dictionary with SSIM value, detected discrepancies, and edge differences.
-    """
-    # Open both images as RGB
+def compare_images_with_coordinates(img_data1, img_data2, page_number, page_width, page_height):
+    """Detects anomalies in images on a specific PDF page."""
     img1 = Image.open(io.BytesIO(img_data1)).convert("RGB")
     img2 = Image.open(io.BytesIO(img_data2)).convert("RGB")
 
-    # Ensure images have the same size, resize if necessary
+    # Resize img2 if dimensions differ
     if img1.size != img2.size:
         img2 = img2.resize(img1.size, Image.ANTIALIAS)
 
-    # Convert to numpy arrays for SSIM comparison
-    img1_array = np.array(img1)
-    img2_array = np.array(img2)
+    # Convert images to grayscale
+    img1_gray = cv2.cvtColor(np.array(img1), cv2.COLOR_RGB2GRAY)
+    img2_gray = cv2.cvtColor(np.array(img2), cv2.COLOR_RGB2GRAY)
 
-    # Compute SSIM between the two images
-    ssim_index, diff = ssim(img1_array, img2_array, full=True, multichannel=True)
+    # Calculate absolute difference and thresholding
+    diff = cv2.absdiff(img1_gray, img2_gray)
+    _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+
+    # Morphological operations to close gaps
+    kernel = np.ones((5, 5), np.uint8)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    # Find contours in the thresholded image
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    discrepancies = []
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        discrepancy_x = x / img1.size[0] * page_width
+        discrepancy_y = y / img1.size[1] * page_height
+        discrepancy_w = w / img1.size[0] * page_width
+        discrepancy_h = h / img1.size[1] * page_height
+
+        discrepancies.append({
+            "page": page_number,
+            "coordinates": {
+                "x1": discrepancy_x,
+                "y1": discrepancy_y,
+                "x2": discrepancy_x + discrepancy_w,
+                "y2": discrepancy_y + discrepancy_h
+            },
+            "radius": max(w, h) / 2
+        })
     
-    # Normalize the difference image to the range [0, 255]
-    diff = (diff * 255).astype(np.uint8)
-
-    # Detect significant differences in the image (pixel-wise comparison)
-    diff_image = Image.fromarray(diff)
-    
-    # Use ImageChops to get the pixel-level difference between the two images
-    diff_img = ImageChops.difference(img1, img2)
-
-    # If the difference image is significant, find the bounding box of the discrepancy
-    diff_bbox = diff_img.getbbox()
-
-    discrepancy_coords = None
-    if diff_bbox:
-        # Coordinates of the discrepancy (scaled to page dimensions)
-        discrepancy_coords = []
-        
-        # Extract the bounding box and create a circle around the detected differences
-        x1, y1, x2, y2 = diff_bbox
-        width, height = img1.size
-
-        for i in range(5):  # Adjust the number of discrepancies to find
-            # Randomly generate coordinates within the bounding box
-            discrepancy_x = x1 + (i * (x2 - x1) // 5)
-            discrepancy_y = y1 + (i * (y2 - y1) // 5)
-            
-            # Add discrepancy as a circle around the coordinate
-            discrepancy_coords.append({
-                "x": discrepancy_x / width * page_width,
-                "y": discrepancy_y / height * page_height,
-                "radius": 10  # Example radius
-            })
-
-    # Convert images to numpy arrays for anomaly detection
-    img1_cv = np.array(img1)
-    img2_cv = np.array(img2)
-
-    # Perform advanced anomaly detection
-    anomaly_results = detect_image_anomalies(img1_cv, img2_cv)
-
-    # Return the combined results
     return {
-        "ssim_value": ssim_index,
-        "discrepancies": discrepancy_coords,
-        "edge_diff_points": anomaly_results['edge_diff_points'],
-        "anomalies": anomaly_results['discrepancies']
+        "ssim_value": "N/A",
+        "discrepancies": discrepancies
     }
+
+def find_matching_images(images1, images2, page_number, page_width, page_height):
+    """Matches images between two PDF files and detects discrepancies."""
+    unmatched_images1 = images1[:]
+    unmatched_images2 = images2[:]
+    matched_images = []
+    results = []
+
+    for img1 in images1:
+        best_match = None
+        best_ssim = 0
+        best_img2 = None
+
+        for img2 in unmatched_images2:
+            image1 = Image.open(io.BytesIO(img1)).convert("RGB")
+            image2 = Image.open(io.BytesIO(img2)).convert("RGB")
+
+            if image1.size != image2.size:
+                image2 = image2.resize(image1.size, Image.ANTIALIAS)
+
+            # Convert to grayscale and calculate SSIM
+            gray_img1 = cv2.cvtColor(np.array(image1), cv2.COLOR_RGB2GRAY)
+            gray_img2 = cv2.cvtColor(np.array(image2), cv2.COLOR_RGB2GRAY)
+            current_ssim, _ = ssim(gray_img1, gray_img2, full=True)
+
+            if current_ssim > best_ssim:
+                best_ssim = current_ssim
+                best_match = img1
+                best_img2 = img2
+
+        if best_ssim > 0.95:  # Threshold for a match
+            matched_images.append((best_match, best_img2))
+            unmatched_images1.remove(best_match)
+            unmatched_images2.remove(best_img2)
+        else:
+            highest_similarity_pair = compare_images_with_coordinates(best_match, best_img2, page_number, page_width, page_height)
+            results.append({
+                "page": page_number,
+                "type": "resemblance",
+                "similarity": best_ssim,
+                "discrepancies": highest_similarity_pair
+            })
+    
+    # Handle unmatched images
+    for unmatched_img in unmatched_images1:
+        results.append({
+            "page": page_number,
+            "type": "missing_image",
+            "discrepancies": f"Image present in file 1 but not in file 2 on page {page_number}"
+        })
+    for unmatched_img in unmatched_images2:
+        results.append({
+            "page": page_number,
+            "type": "added_image",
+            "discrepancies": f"Image present in file 2 but not in file 1 on page {page_number}"
+        })
+    
+    return results
 
 
 # Compare metadata between two PDFs
@@ -239,59 +289,30 @@ def compare_documents(doc1_path, doc2_path):
     # Text discrepancy detection
     try:
         text_discrepancies = compare_text_blocks(doc1_path, doc2_path)
-        if text_discrepancies["observations"]:
+        if text_discrepancies:
             result.append(text_discrepancies)
     except Exception as e:
         result.append({"detection_type": "text_discrepancy", "observations": [{"error": f"Text discrepancies could not be found: {str(e)}"}]})
 
+
+    
+    # Image anomaly detection
+    images1 = get_images_from_pdf(doc1_path)
+    images2 = get_images_from_pdf(doc2_path)
+    
+    image_discrepancies = find_matching_images(images1, images2, page_number=1, page_width=600, page_height=800)
+    if image_discrepancies:
+        result.extend(image_discrepancies)
+
     # Open PDFs for image and metadata comparison
-    try:
-        doc1 = fitz.open(doc1_path)
-        doc2 = fitz.open(doc2_path)
-
-        # Image manipulation detection
-        image_diffs = []
-        for page_num in range(min(doc1.page_count, doc2.page_count)):
-            page1 = doc1.load_page(page_num)
-            page2 = doc2.load_page(page_num)
-
-            images1 = page1.get_images(full=True)
-            images2 = page2.get_images(full=True)
-
-            page_diffs = {"page": page_num + 1, "changes": []}
-
-            for img1, img2 in zip(images1, images2):
-                if img1[7] != img2[7]:  # Checksum-based initial check
-                    xref1, xref2 = img1[0], img2[0]
-                    img_data1 = doc1.extract_image(xref1)["image"]
-                    img_data2 = doc2.extract_image(xref2)["image"]
-
-                    diff_coords = compare_images_with_coordinates(
-                        img_data1, img_data2, page1.rect.width, page1.rect.height
-                    )
-                    if diff_coords:
-                        page_diffs["changes"].append({
-                            "coordinates": diff_coords,
-                            "added": True,
-                            "type": "image_discrepancy"
-                        })
-
-
-            if page_diffs["changes"]:
-                image_diffs.append(page_diffs)
-        
-        if image_diffs:
-            result.append({"detection_type": "image_manipulation", "observations": image_diffs})
-    except Exception as e:
-        result.append({"detection_type": "image_manipulation", "observations": [{"error": "Image discrepancies could not be found"}]})
-
+ 
     # Metadata manipulation detection
-    try:
-        metadata_discrepancies = compare_metadata(doc1, doc2)
-        if metadata_discrepancies["observations"]:
-            result.append(metadata_discrepancies)
-    except Exception as e:
-        result.append({"detection_type": "metadata_manipulation", "observations": [{"error": f"Metadata discrepancies could not be found: {str(e)}"}]})
+    # try:
+    #     metadata_discrepancies = compare_metadata(doc1, doc2)
+    #     if metadata_discrepancies["observations"]:
+    #         result.append(metadata_discrepancies)
+    # except Exception as e:
+    #     result.append({"detection_type": "metadata_manipulation", "observations": [{"error": f"Metadata discrepancies could not be found: {str(e)}"}]})
 
     return result
 
