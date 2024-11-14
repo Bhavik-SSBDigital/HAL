@@ -74,7 +74,7 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
             </Document>
           </div>
         )}
-        <div className={styles.changesList}>
+        {/* <div className={styles.changesList}>
           <h3 className={styles.changesHeading}>Changes</h3>
           {observations
             .flatMap((obs) => obs.observations)
@@ -93,7 +93,7 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
                 </div>
               )),
             )}
-        </div>
+        </div> */}
       </div>
     </div>
   );
