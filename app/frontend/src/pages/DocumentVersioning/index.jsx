@@ -13,31 +13,29 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
   const onLoadSuccess1 = ({ numPages }) => setNumPages1(numPages);
   const onLoadSuccess2 = ({ numPages }) => setNumPages2(numPages);
 
-  const renderHighlights = (pageNum) => {
-    // Find the relevant observation for the current page
-    const pageObservations = observations
-      .filter((obs) => obs?.observations?.some((o) => o.page === pageNum))
-      .flatMap((obs) => obs?.observations?.filter((o) => o.page === pageNum));
+  const renderHighlights = (pageNum, fileObservations, isAdded) => {
+    const pageObservations = fileObservations.filter(
+      (obs) => obs.pageNo === pageNum,
+    );
 
-    // Iterate over all changes in the relevant observations
-    return pageObservations?.flatMap((obs, obsIndex) =>
-      obs.changes.map((change, changeIndex) => {
+    return pageObservations.flatMap((obs, obsIndex) =>
+      obs.coordinates.map((coord, coordIndex) => {
         const style = {
-          left: `${change.coordinates.x1}px`,
-          top: `${change.coordinates.y1}px`,
-          width: `${change.coordinates.x2 - change.coordinates.x1}px`,
-          height: `${change.coordinates.y2 - change.coordinates.y1}px`,
-          backgroundColor: change.added
+          left: `${coord.x1}px`,
+          top: `${coord.y1}px`,
+          width: `${coord.x2 - coord.x1}px`,
+          height: `${coord.y2 - coord.y1}px`,
+          backgroundColor: isAdded
             ? 'rgba(0, 255, 0, 0.3)'
             : 'rgba(255, 0, 0, 0.3)',
         };
         return (
           <div
-            key={`${obsIndex}-${changeIndex}`}
+            key={`${obsIndex}-${coordIndex}`}
             style={style}
             className={styles.highlight}
           >
-            {change.text}
+            {obs.text}
           </div>
         );
       }),
@@ -55,7 +53,11 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
               {Array.from(new Array(numPages1), (el, index) => (
                 <Page key={`page_${index + 1}`} pageNumber={index + 1}>
                   <div className={styles.pageOverlay}>
-                    {renderHighlights(index + 1)}
+                    {renderHighlights(
+                      index + 1,
+                      observations[0].observations_for_file1,
+                      false,
+                    )}
                   </div>
                 </Page>
               ))}
@@ -69,31 +71,19 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
             {error2 && <p className={styles.error}>{error2}</p>}
             <Document file={file2} onLoadSuccess={onLoadSuccess2}>
               {Array.from(new Array(numPages2), (el, index) => (
-                <Page key={`page_${index + 1}`} pageNumber={index + 1}></Page>
+                <Page key={`page_${index + 1}`} pageNumber={index + 1}>
+                  <div className={styles.pageOverlay}>
+                    {renderHighlights(
+                      index + 1,
+                      observations[0].observations_for_file2,
+                      true,
+                    )}
+                  </div>
+                </Page>
               ))}
             </Document>
           </div>
         )}
-        {/* <div className={styles.changesList}>
-          <h3 className={styles.changesHeading}>Changes</h3>
-          {observations
-            .flatMap((obs) => obs.observations)
-            .map((obs, obsIndex) =>
-              obs.changes.map((change, changeIndex) => (
-                <div
-                  key={`${obsIndex}-${changeIndex}`}
-                  className={`${change.added ? styles.added : styles.removed} ${
-                    styles.changesElement
-                  }`}
-                >
-                  <p>
-                    Page {obs.page}: {change.text} (
-                    {change.added ? 'Added' : 'Removed'})
-                  </p>
-                </div>
-              )),
-            )}
-        </div> */}
       </div>
     </div>
   );
