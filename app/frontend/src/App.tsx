@@ -34,7 +34,6 @@ import ForgotPass from './pages/Authentication/ForgotPass';
 import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
-import DocumentVersioning from './pages/DocumentVersioning';
 // import History from './pages/Meeting/History';
 
 function App() {
@@ -351,15 +350,6 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Meeting" />
               <MeetingManager />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/test"
-          element={
-            <DefaultLayout>
-              <PageTitle title="test" />
-              <DocumentVersioning/>
             </DefaultLayout>
           }
         />

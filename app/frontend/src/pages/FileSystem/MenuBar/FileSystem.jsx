@@ -246,10 +246,10 @@ const FileSystem = () => {
                                                         height="100%"
                                                     />
                                                 </Box>
-                                            </Tooltip>
                                             <Typography variant="body2">
                                                 {truncateFileName(item.name)}
                                             </Typography>
+                                            </Tooltip>
                                         </Button>
                                     ))}
                                 </Stack>
