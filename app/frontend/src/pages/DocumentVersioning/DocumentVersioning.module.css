@@ -1,7 +1,4 @@
 .documentVersioning {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     padding: 20px;
 }
 
@@ -105,4 +102,12 @@
 .removed {
     color: red;
     font-weight: bold;
+}
+
+.colorContainer {
+    display: inline-block;
+    min-height: 13px;
+    min-width: 13px;
+    margin-right: 3px;
+    border: 1px solid lightgray;
 }

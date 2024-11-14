@@ -3,6 +3,7 @@ import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import styles from './DocumentVersioning.module.css';
+import Typography from '@mui/material/Typography';
 
 const DocumentVersioning = ({ file1, file2, observations }) => {
   const [numPages1, setNumPages1] = useState(null);
@@ -44,6 +45,28 @@ const DocumentVersioning = ({ file1, file2, observations }) => {
 
   return (
     <div className={styles.documentVersioning}>
+      <div
+        className={styles.colorContainer}
+        style={{ backgroundColor: '#ffa5a5' }}
+      />
+      <Typography
+        variant="body2"
+        color="initial"
+        sx={{ display: 'inline', mb: 1, mr: 2 }}
+      >
+        Removed
+      </Typography>
+      <div
+        className={styles.colorContainer}
+        style={{ backgroundColor: '#b2ffb2' }}
+      />
+      <Typography
+        variant="body2"
+        color="initial"
+        sx={{ display: 'inline', mb: 1, mr: 2 }}
+      >
+        Added
+      </Typography>
       <div className={styles.documentContainer}>
         {file1 && (
           <div className={styles.document}>
