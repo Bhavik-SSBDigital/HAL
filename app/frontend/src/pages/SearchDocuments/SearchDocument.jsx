@@ -87,7 +87,9 @@ const SearchDocument = () => {
 
   // document comparision
   const [documentsToCompare, setDocumentsToCompare] = useState([]);
+  const [observations, setObservation] = useState([]);
   const [filesData, setFilesData] = useState([]);
+  const [compareLoading, setCompareLoading] = useState(false);
   console.log(filesData);
 
   const selectDocumentToCompare = (id, name, path, e) => {
@@ -160,8 +162,19 @@ const SearchDocument = () => {
       toast.error('Unable to view the file.');
     }
   };
-  const handleCompare = () => {
+  const handleCompare = async () => {
+    setCompareLoading(true);
+    const url = backendUrl + '/compareDocuments';
     try {
+      const res = await axios({
+        method: 'post',
+        url: url,
+        data: {
+          document1: documentsToCompare[0]?.id,
+          document2: documentsToCompare[1].id,
+        },
+      });
+      setObservation(res?.data?.observations || []);
       documentsToCompare.map(async (item) => {
         const fileData = await download(item.name, item.path, true);
         if (fileData) {
@@ -179,6 +192,8 @@ const SearchDocument = () => {
       });
     } catch (error) {
       toast.error('Unable to view the file.');
+    } finally {
+      setCompareLoading(false);
     }
   };
   const handleViewClose = () => {
@@ -429,13 +444,14 @@ const SearchDocument = () => {
                 })}
                 <Button
                   variant="outlined"
+                  disabled={compareLoading}
                   onClick={() =>
                     documentsToCompare.length == 1
                       ? toast.info('Please add document to compare')
                       : handleCompare()
                   }
                 >
-                  Compare
+                  {compareLoading ? <CircularProgress size={22} /> : 'Compare'}
                 </Button>
               </div>
             ) : null}
@@ -507,12 +523,23 @@ const SearchDocument = () => {
           handleViewClose={handleViewClose}
         />
       ) : null}
-      <Dialog open={filesData.length == 2} maxWidth="xl">
+      <Dialog
+        open={filesData.length == 2}
+        maxWidth="xl"
+        onClose={() => setFilesData([])}
+      >
         <DialogTitle>Document Versioning</DialogTitle>
+        <Button
+          onClick={() => setFilesData([])}
+          sx={{ position: 'absolute', top: '10px', right: '10px' }}
+        >
+          CLose
+        </Button>
         <DialogContent>
           <DocumentVersioning
             file1={filesData[0]?.url}
             file2={filesData[1]?.url}
+            observations={observations}
           />
         </DialogContent>
       </Dialog>
