@@ -638,11 +638,11 @@ export default function ShowFolder(props) {
           },
           ['', ''],
         );
-        const truncatedName = `${baseName.slice(0, 8)}...${baseName.slice(-3)}`;
+        const truncatedName = `${baseName.slice(0, 5)}...${baseName.slice(-3)}`;
         return `${truncatedName}.${extension}`;
       } else {
         // Handle folder names
-        const truncatedName = `${fname.slice(0, 8)}...${fname.slice(-3)}`;
+        const truncatedName = `${fname.slice(0, 5)}...${fname.slice(-3)}`;
         return truncatedName;
       }
     }
