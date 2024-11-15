@@ -22,7 +22,12 @@ export const initializeSocket = (server) => {
     },
   });
 
-  io.on("connection", async (socket) => {
+  // Creating a custom namespace '/socket.io'
+  const socketNamespace = io.of("/socket.io");
+
+  socketNamespace.on("connection", async (socket) => {
+    console.log("New client connected to /socket.io/ namespace:", socket.id);
+
     socket.on("join-room", async ({ roomId, username }) => {
       socket.join(roomId);
 
@@ -47,7 +52,9 @@ export const initializeSocket = (server) => {
       socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
       // Send the list of users in the room to the newly joined user
-      const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+      const usersInRoom = Array.from(
+        socketNamespace.adapter.rooms.get(roomId) || []
+      )
         .map((id) => ({
           socketId: id,
           username: usernames.find((u) => u.socketId === id).username,
@@ -58,7 +65,9 @@ export const initializeSocket = (server) => {
 
       // Handle sending messages to the room
       socket.on("sendMessage", async ({ meetingId, message, username }) => {
-        io.to(meetingId).emit("message", { user: username, text: message });
+        socketNamespace
+          .to(meetingId)
+          .emit("message", { user: username, text: message });
 
         const commentor = await User.findOne({ username: username }).select(
           "_id"
@@ -66,7 +75,7 @@ export const initializeSocket = (server) => {
 
         await add_comment_in_meeting(meetingId, commentor._id, message.text);
 
-        const room = io.sockets.adapter.rooms.get(meetingId);
+        const room = socketNamespace.adapter.rooms.get(meetingId);
         if (!room) {
           console.log(`Room with meetingId ${meetingId} does not exist`);
           return;
@@ -83,7 +92,7 @@ export const initializeSocket = (server) => {
       // Handle offers, answers, and ICE candidates
       socket.on("offer", (data) => {
         const { target, offer } = data;
-        io.to(target).emit("offer", {
+        socketNamespace.to(target).emit("offer", {
           from: socket.id,
           offer,
           name: username,
@@ -92,7 +101,7 @@ export const initializeSocket = (server) => {
 
       socket.on("answer", (data) => {
         const { target, answer } = data;
-        io.to(target).emit("answer", {
+        socketNamespace.to(target).emit("answer", {
           from: socket.id,
           answer,
           name: username,
@@ -101,7 +110,7 @@ export const initializeSocket = (server) => {
 
       socket.on("ice-candidate", (data) => {
         const { target, candidate } = data;
-        io.to(target).emit("ice-candidate", {
+        socketNamespace.to(target).emit("ice-candidate", {
           from: socket.id,
           candidate,
         });
