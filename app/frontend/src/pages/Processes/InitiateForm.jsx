@@ -7,7 +7,7 @@ import {
   CircularProgress,
   FormControl,
   FormControlLabel,
-  Grid,
+  Grid2,
   IconButton,
   ListItemText,
   MenuItem,
@@ -23,41 +23,41 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from "@mui/material";
-import Stepper from "@mui/material/Stepper";
-import Step from "@mui/material/Step";
-import StepLabel from "@mui/material/StepLabel";
-import React, { useEffect, useState } from "react";
-import styles from "./InitiateForm.module.css";
-import axios from "axios";
-import CheckboxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
-import CheckboxIcon from "@mui/icons-material/CheckBox";
-import { IconCircle, IconGradienter, IconX } from "@tabler/icons-react";
-import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
-import InitiatProcess from "./InitiateProcess";
-import ComponentLoader from "../../common/Loader/ComponentLoader";
-import { FaRegTrashAlt } from "react-icons/fa";
+} from '@mui/material';
+import Stepper from '@mui/material/Stepper';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+import React, { useEffect, useState } from 'react';
+import styles from './InitiateForm.module.css';
+import axios from 'axios';
+import CheckboxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import CheckboxIcon from '@mui/icons-material/CheckBox';
+import { IconCircle, IconGradienter, IconX } from '@tabler/icons-react';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+import InitiatProcess from './InitiateProcess';
+import ComponentLoader from '../../common/Loader/ComponentLoader';
+import { FaRegTrashAlt } from 'react-icons/fa';
 
 export default function InitiateForm() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
   console.log(selectedDepartment);
-  const [workFlow, setWorkFlow] = useState("");
+  const [workFlow, setWorkFlow] = useState('');
   const [connectors, setConnectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [departmentSelection, setDepartmentSelection] = useState("");
+  const [departmentSelection, setDepartmentSelection] = useState('');
   const headOfficeDepartments = branches?.find(
-    (item) => item.name === "headOffice"
+    (item) => item.name === 'headOffice',
   )?.departments;
   const [processType, setProcessType] = useState();
   const [headofficeInclude, setHeadofficeInclude] = useState();
   const [managerDep, setManagerDep] = useState();
   const depBelongsToHeadoffice =
-    departmentSelection.split("_")[0].toLowerCase() === "headoffice"
+    departmentSelection.split('_')[0].toLowerCase() === 'headoffice'
       ? true
       : false;
 
@@ -72,7 +72,7 @@ export default function InitiateForm() {
     if (e.target.checked) {
       const nonHeadOfficeBranches = branches
         ?.filter(
-          (item) => item.name !== "headOffice" && item.departments.length > 0
+          (item) => item.name !== 'headOffice' && item.departments.length > 0,
         )
         ?.filter((item) => !departmentSelection.includes(item.name))
         .map((item) => item.name);
@@ -110,7 +110,7 @@ export default function InitiateForm() {
         ?.filter(
           (item) =>
             !departmentSelection.includes(item.name) &&
-            item.departments.length > 0
+            item.departments.length > 0,
         )
         .map((item) => item.name);
       setSelectedDepartments(allDeps);
@@ -134,10 +134,9 @@ export default function InitiateForm() {
   };
   // ----------------------------------------
   const fetchBranches = async () => {
-    const url =
-      backendUrl + "/getBranchesWithDepartments";
+    const url = backendUrl + '/getBranchesWithDepartments';
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
+      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(url, null, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -146,16 +145,15 @@ export default function InitiateForm() {
 
       setBranches(data.branches);
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error);
     }
   };
   const getDepartments = async () => {
-    const url =
-      backendUrl + "/getDepartmentForInititors";
+    const url = backendUrl + '/getDepartmentForInititors';
     axios
       .post(url, null, {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
         },
       })
       .then((response) => {
@@ -166,29 +164,29 @@ export default function InitiateForm() {
       })
       .catch((error) => {
         setLoading(false);
-        console.error("error", error);
+        console.error('error', error);
       });
   };
   const navigate = useNavigate();
   const handleProceed = (type) => {
-    let workFlow = "",
+    let workFlow = '',
       connectors = [],
       infoMessage;
 
     switch (type) {
-      case "1":
+      case '1':
         if (!departmentSelection) {
-          infoMessage = "Select a department";
+          infoMessage = 'Select a department';
           break;
         }
         // find if of workFlow using name
         const workFlowId = departments.find(
-          (item) => item.department === departmentSelection
+          (item) => item.department === departmentSelection,
         );
         workFlow = workFlowId?._id;
         break;
 
-      case "2":
+      case '2':
         // filter ids of departments from names
         const headDepsIDs = headOfficeDepartments
           ?.filter((dep) => selectedHeadDepartments.includes(dep.name))
@@ -199,25 +197,25 @@ export default function InitiateForm() {
           .flat();
         const finalDepartments = [...headDepsIDs, ...normalDepIDs];
         if (!departmentSelection || finalDepartments.length === 0) {
-          infoMessage = "Select department and provide inputs";
+          infoMessage = 'Select department and provide inputs';
           break;
         }
         // find id of workFlow using name
         const workFlowId1 = departments.find(
-          (item) => item.department === departmentSelection
+          (item) => item.department === departmentSelection,
         );
         workFlow = workFlowId1?._id;
         connectors = finalDepartments;
         break;
 
-      case "3":
+      case '3':
         if (!managerDep || !departmentSelection) {
-          infoMessage = "Please select department";
+          infoMessage = 'Please select department';
           break;
         }
         // find id of headoffice department using its name
         const managerDepId = headOfficeDepartments?.find(
-          (dep) => dep.name === managerDep
+          (dep) => dep.name === managerDep,
         );
         // find connector id using name from selectedDepartment array
         workFlow = managerDepId?._id;
@@ -226,12 +224,12 @@ export default function InitiateForm() {
 
       default:
         if (!departmentSelection || selectedBranches.length === 0) {
-          infoMessage = "Select department and provide branches";
+          infoMessage = 'Select department and provide branches';
           break;
         }
         // find workFLow id from departments array using its names
         const workFlowId2 = departments.find(
-          (item) => item.department === departmentSelection
+          (item) => item.department === departmentSelection,
         );
         // find branches ids from branches array by using names in selectedBranches array
         const branchesIds = branches
@@ -262,8 +260,6 @@ export default function InitiateForm() {
   const handleNextClick = () => {
     setActiveStep((prev) => prev + 1);
   };
-
-
 
   // workflow handling
   const [works, setWorks] = useState([]);
@@ -307,11 +303,11 @@ export default function InitiateForm() {
   };
   function formatUserNames(users) {
     if (!users || users.length === 0) {
-      return "No users";
+      return 'No users';
     } else if (users.length === 1) {
       return users[0].user;
     } else {
-      return users[0].user + ", ...";
+      return users[0].user + ', ...';
     }
   }
   const handleFlowChange = (event) => {
@@ -322,10 +318,9 @@ export default function InitiateForm() {
     }));
   };
   const getRoles = async (id) => {
-    setFieldsLoading(true)
+    setFieldsLoading(true);
     const urlRole = backendUrl + '/getRolesInBranch/';
     try {
-
       const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(urlRole + `${id}`, null, {
         headers: {
@@ -334,7 +329,7 @@ export default function InitiateForm() {
       });
       setRoles(data.roles);
     } catch {
-      console.error("Error getting roles for selected branch");
+      console.error('Error getting roles for selected branch');
     } finally {
       setFieldsLoading(false);
     }
@@ -347,7 +342,9 @@ export default function InitiateForm() {
       const url = backendUrl + '/getUsersByRoleInBranch';
       const accessToken = sessionStorage.getItem('accessToken');
       const { _id } = branches.find((item) => item.name === userBranch);
-      const id = roles.find((item) => item.role === role ? role : userSelection.role);
+      const id = roles.find((item) =>
+        item.role === role ? role : userSelection.role,
+      );
       const { data } = await axios.post(
         url,
         {
@@ -371,7 +368,7 @@ export default function InitiateForm() {
     const { name, value } = event.target;
     if (name === 'role') {
       setUserSelection((prev) => ({ ...prev, user: '' }));
-      getUsers(value)
+      getUsers(value);
       setUsers([]);
     }
     setUserSelection((prev) => ({
@@ -462,166 +459,391 @@ export default function InitiateForm() {
   }, []);
   return (
     <>
-      {loading ? <ComponentLoader /> : <Stack flexDirection="row">
-        <div
-          style={{
-            width: "100%",
-            backgroundColor: 'white',
-            padding: '5px'
-          }}
-        >
-          <Stepper activeStep={activeStep} alternativeLabel>
-            <Step>
-              <StepLabel>Provide Process Details</StepLabel>
-              {activeStep != 0 ? (
-                <Stack alignItems="center">
-                  <Button size="small" onClick={handlePreviousClick}>
-                    Previous
-                  </Button>
-                </Stack>
-              ) : null}
-            </Step>
-            <Step>
-              <StepLabel>Workflow</StepLabel>
-            </Step>
-            <Step>
-              <StepLabel>Initiate Process</StepLabel>
-              {activeStep == 1 ? (
-                <Stack alignItems="center">
-                  <Button size="small" onClick={handleNextClick}>
-                    Next
-                  </Button>
-                </Stack>
-              ) : null}
-            </Step>
-          </Stepper>
-          {activeStep === 0 ? (
-            <>
-              {!loading && (
-                <Stack
-                  mt={2}
-                  sx={{
-                    maxWidth: "fit-content",
-                    mx: "auto",
-                  }}
-                >
-                  <div style={{ marginBottom: "25px" }}>
-                    <Typography
-                      variant="body1"
-                      component="span"
-                      gutterBottom
-                      sx={{
-                        textAlign: "center",
-                        width: 350,
-                        height: 50,
-                        fontWeight: 400,
-                        margin: "10px",
-                      }}
-                    >
-                      1. Select Deparment to initiate process
-                    </Typography>
-                    <div className={styles.departmentList}>
-                      <Select
-                        value={departmentSelection}
-                        size="small"
-                        sx={{ maxWidth: "400px", backgroundColor: "white" }}
-                        onChange={(e) => {
-                          setSelectedDepartment(e.target?.value);
-                          setDepartmentSelection(e.target?.value?.department);
+      {loading ? (
+        <ComponentLoader />
+      ) : (
+        <Stack flexDirection="row">
+          <div
+            style={{
+              width: '100%',
+              backgroundColor: 'white',
+              padding: '5px',
+            }}
+          >
+            <Stepper activeStep={activeStep} alternativeLabel>
+              <Step>
+                <StepLabel>Provide Process Details</StepLabel>
+                {activeStep != 0 ? (
+                  <Stack alignItems="center">
+                    <Button size="small" onClick={handlePreviousClick}>
+                      Previous
+                    </Button>
+                  </Stack>
+                ) : null}
+              </Step>
+              <Step>
+                <StepLabel>Workflow</StepLabel>
+              </Step>
+              <Step>
+                <StepLabel>Initiate Process</StepLabel>
+                {activeStep == 1 ? (
+                  <Stack alignItems="center">
+                    <Button size="small" onClick={handleNextClick}>
+                      Next
+                    </Button>
+                  </Stack>
+                ) : null}
+              </Step>
+            </Stepper>
+            {activeStep === 0 ? (
+              <>
+                {!loading && (
+                  <Stack
+                    mt={2}
+                    sx={{
+                      maxWidth: 'fit-content',
+                      mx: 'auto',
+                    }}
+                  >
+                    <div style={{ marginBottom: '25px' }}>
+                      <Typography
+                        variant="body1"
+                        component="span"
+                        gutterBottom
+                        sx={{
+                          textAlign: 'center',
+                          width: 350,
+                          height: 50,
+                          fontWeight: 400,
+                          margin: '10px',
                         }}
-                        displayEmpty
-                        renderValue={(selected) =>
-                          selected === "" ? "Select Department" : selected
-                        }
                       >
-                        {departments.map((department) => (
-                          <MenuItem
-                            key={department.department}
-                            value={department}
-                          >
-                            {department.department}
-                          </MenuItem>
-                        ))}
-                      </Select>
+                        1. Select Deparment to initiate process
+                      </Typography>
+                      <div className={styles.departmentList}>
+                        <Select
+                          value={departmentSelection}
+                          size="small"
+                          sx={{ maxWidth: '400px', backgroundColor: 'white' }}
+                          onChange={(e) => {
+                            setSelectedDepartment(e.target?.value);
+                            setDepartmentSelection(e.target?.value?.department);
+                          }}
+                          displayEmpty
+                          renderValue={(selected) =>
+                            selected === '' ? 'Select Department' : selected
+                          }
+                        >
+                          {departments.map((department) => (
+                            <MenuItem
+                              key={department.department}
+                              value={department}
+                            >
+                              {department.department}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ marginBottom: "25px" }}>
-                    <Typography
-                      variant="body1"
-                      component="span"
-                      gutterBottom
-                      sx={{
-                        textAlign: "center",
-                        width: 350,
-                        height: 50,
-                        fontWeight: 400,
+                    <div style={{ marginBottom: '25px' }}>
+                      <Typography
+                        variant="body1"
+                        component="span"
+                        gutterBottom
+                        sx={{
+                          textAlign: 'center',
+                          width: 350,
+                          height: 50,
+                          fontWeight: 400,
 
-                        margin: "10px",
-                      }}
-                    >
-                      2. Select Type of process to initiate
-                    </Typography>
-                    <div className={styles.processType}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
-                          setProcessType("intra");
-                          setConnectors([])
-                          setSelectedDepartments([]);
-                          setSelectedHeadDepartments([]);
-                        }}
-                        size="medium"
-                        sx={{
-                          bgcolor:
-                            processType === "intra" ? "lightblue" : "white",
-                          "&:hover": {
-                            bgcolor: "#0000FF11",
-                          },
-                          width: "197px",
-                          display: "flex",
-                          justifyContent: "flex-start",
+                          margin: '10px',
                         }}
                       >
-                        {processType === "intra" ? (
-                          <IconGradienter
-                            style={{ marginRight: "5px" }}
-                            size={17}
-                          />
-                        ) : (
-                          <IconCircle style={{ marginRight: "7px" }} size={15} />
-                        )}
-                        <p style={{ fontSize: "11px" }}>Intra Branch</p>
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setProcessType("inter")}
-                        size="medium"
-                        sx={{
-                          bgcolor:
-                            processType === "inter" ? "lightblue" : "white",
-                          "&:hover": {
-                            bgcolor: "#0000FF11",
-                          },
-                          width: "197px",
-                          display: "flex",
-                          justifyContent: "flex-start",
-                        }}
-                      >
-                        {processType === "inter" ? (
-                          <IconGradienter
-                            style={{ marginRight: "5px" }}
-                            size={17}
-                          />
-                        ) : (
-                          <IconCircle style={{ marginRight: "7px" }} size={15} />
-                        )}
-                        <p style={{ fontSize: "11px" }}>Inter Branch</p>
-                      </Button>
+                        2. Select Type of process to initiate
+                      </Typography>
+                      <div className={styles.processType}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            setProcessType('intra');
+                            setConnectors([]);
+                            setSelectedDepartments([]);
+                            setSelectedHeadDepartments([]);
+                          }}
+                          size="medium"
+                          sx={{
+                            bgcolor:
+                              processType === 'intra' ? 'lightblue' : 'white',
+                            '&:hover': {
+                              bgcolor: '#0000FF11',
+                            },
+                            width: '197px',
+                            display: 'flex',
+                            justifyContent: 'flex-start',
+                          }}
+                        >
+                          {processType === 'intra' ? (
+                            <IconGradienter
+                              style={{ marginRight: '5px' }}
+                              size={17}
+                            />
+                          ) : (
+                            <IconCircle
+                              style={{ marginRight: '7px' }}
+                              size={15}
+                            />
+                          )}
+                          <p style={{ fontSize: '11px' }}>Intra Branch</p>
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setProcessType('inter')}
+                          size="medium"
+                          sx={{
+                            bgcolor:
+                              processType === 'inter' ? 'lightblue' : 'white',
+                            '&:hover': {
+                              bgcolor: '#0000FF11',
+                            },
+                            width: '197px',
+                            display: 'flex',
+                            justifyContent: 'flex-start',
+                          }}
+                        >
+                          {processType === 'inter' ? (
+                            <IconGradienter
+                              style={{ marginRight: '5px' }}
+                              size={17}
+                            />
+                          ) : (
+                            <IconCircle
+                              style={{ marginRight: '7px' }}
+                              size={15}
+                            />
+                          )}
+                          <p style={{ fontSize: '11px' }}>Inter Branch</p>
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  {processType === "inter" && !depBelongsToHeadoffice && (
-                    <>
-                      <div style={{ marginBottom: "25px" }}>
+                    {processType === 'inter' && !depBelongsToHeadoffice && (
+                      <>
+                        <div style={{ marginBottom: '25px' }}>
+                          <Typography
+                            variant="body1"
+                            component="span"
+                            gutterBottom
+                            sx={{
+                              width: 350,
+                              height: 50,
+                              fontWeight: 400,
+                              margin: '10px',
+                            }}
+                          >
+                            3. Is head-office included in process ?
+                          </Typography>
+                          <div className={styles.headOfficeInclude}>
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setHeadofficeInclude(true);
+                                setSelectedBranches([]);
+                              }}
+                              size="medium"
+                              sx={{
+                                bgcolor: headofficeInclude
+                                  ? 'lightblue'
+                                  : 'white',
+                                '&:hover': {
+                                  bgcolor: '#0000FF11',
+                                },
+                                display: 'flex',
+                                width: '197px',
+                                justifyContent: 'flex-start',
+                              }}
+                            >
+                              {headofficeInclude ? (
+                                <IconGradienter
+                                  style={{ marginRight: '5px' }}
+                                  size={17}
+                                />
+                              ) : (
+                                <IconCircle
+                                  style={{ marginRight: '7px' }}
+                                  size={15}
+                                />
+                              )}
+                              <p style={{ fontSize: '11px' }}>Yes</p>
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setHeadofficeInclude(false);
+                                setManagerDep(null);
+                              }}
+                              size="medium"
+                              sx={{
+                                bgcolor: !headofficeInclude
+                                  ? 'lightblue'
+                                  : 'white',
+                                '&:hover': {
+                                  bgcolor: '#0000FF11',
+                                },
+                                width: '197px',
+                                display: 'flex',
+                                justifyContent: 'flex-start',
+                              }}
+                            >
+                              {!headofficeInclude ? (
+                                <IconGradienter
+                                  style={{ marginRight: '5px' }}
+                                  size={17}
+                                />
+                              ) : (
+                                <IconCircle
+                                  style={{ marginRight: '7px' }}
+                                  size={15}
+                                />
+                              )}
+                              <p style={{ fontSize: '11px' }}>No</p>
+                            </Button>
+                          </div>
+                        </div>
+                        {headofficeInclude ? (
+                          <div style={{ marginBottom: '25px' }}>
+                            <Typography
+                              variant="body1"
+                              component="span"
+                              gutterBottom
+                              sx={{
+                                textAlign: 'center',
+                                width: 350,
+                                height: 50,
+                                fontWeight: 400,
+                                margin: '10px',
+                              }}
+                            >
+                              4. Select headoffice department
+                            </Typography>
+                            <div className={styles.managerDep}>
+                              <Autocomplete
+                                disablePortal
+                                id="combo-box-department"
+                                size="small"
+                                onChange={handleChangeManagerDep}
+                                options={headOfficeDepartments || []}
+                                value={
+                                  headOfficeDepartments?.filter(
+                                    (item) => item.name === managerDep,
+                                  )[0] || null
+                                }
+                                getOptionLabel={(option) => option.name}
+                                renderOption={(props, option) => (
+                                  <Box component="li" {...props}>
+                                    {option.name}
+                                  </Box>
+                                )}
+                                sx={{ maxWidth: 400, backgroundColor: 'white' }}
+                                renderInput={(params) => (
+                                  <TextField {...params} />
+                                )}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: '25px' }}>
+                            <Typography
+                              variant="body1"
+                              component="span"
+                              gutterBottom
+                              sx={{
+                                textAlign: 'center',
+                                width: 350,
+                                height: 50,
+                                fontWeight: 400,
+                                margin: '10px',
+                              }}
+                            >
+                              4. Select receiver branches
+                            </Typography>
+                            <div className={styles.receiverBranches}>
+                              <Autocomplete
+                                multiple
+                                sx={{
+                                  maxWidth: '400px',
+                                  backgroundColor: 'white',
+                                }}
+                                size="small"
+                                id="checkboxes-tags-demo"
+                                options={branches
+                                  ?.filter(
+                                    (item) =>
+                                      item.name !== 'headOffice' &&
+                                      item.departments.length > 0,
+                                  )
+                                  ?.filter(
+                                    (item) =>
+                                      !departmentSelection.includes(item.name),
+                                  )
+                                  ?.filter(
+                                    (item) => item.departments.length >= 0,
+                                  )
+                                  ?.map((branch) => branch.name)}
+                                disableCloseOnSelect
+                                getOptionLabel={(option) => option}
+                                renderOption={(props, option, { selected }) => (
+                                  <li {...props}>
+                                    <Checkbox
+                                      icon={
+                                        <CheckboxOutlineBlankIcon fontSize="small" />
+                                      }
+                                      checkedIcon={
+                                        <CheckboxIcon fontSize="small" />
+                                      }
+                                      style={{ marginRight: 8 }}
+                                      checked={selected}
+                                    />
+                                    <ListItemText primary={option} />
+                                  </li>
+                                )}
+                                fullWidth
+                                renderInput={(params) => (
+                                  <TextField {...params} variant="outlined" />
+                                )}
+                                value={selectedBranches}
+                                onChange={handleCommanBranchChange}
+                                renderTags={(value, getTagProps) =>
+                                  value.map((option, index) => (
+                                    <Chip
+                                      variant="outlined"
+                                      label={option}
+                                      {...getTagProps({ index })}
+                                    />
+                                  ))
+                                }
+                              />
+                              <FormControlLabel
+                                sx={{
+                                  justifyContent: 'flex-end',
+                                  maxWidth: '400px',
+                                }}
+                                control={
+                                  <Checkbox
+                                    size="small"
+                                    checked={selectAllCheckBranches}
+                                    // disabled={!selectedBranch}
+                                    onChange={handleSelectAllBranches}
+                                    name="selectAllBranches"
+                                  />
+                                }
+                                label="Select all branches"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {processType === 'inter' && depBelongsToHeadoffice && (
+                      <div style={{ marginBottom: '25px' }}>
                         <Typography
                           variant="body1"
                           component="span"
@@ -630,661 +852,487 @@ export default function InitiateForm() {
                             width: 350,
                             height: 50,
                             fontWeight: 400,
-                            margin: "10px",
+                            margin: '10px',
                           }}
                         >
-                          3. Is head-office included in process ?
+                          3. Select receiver departments
                         </Typography>
-                        <div className={styles.headOfficeInclude}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => {
-                              setHeadofficeInclude(true);
-                              setSelectedBranches([]);
-                            }}
-                            size="medium"
-                            sx={{
-                              bgcolor: headofficeInclude
-                                ? "lightblue"
-                                : "white",
-                              "&:hover": {
-                                bgcolor: "#0000FF11",
-                              },
-                              display: "flex",
-                              width: "197px",
-                              justifyContent: "flex-start",
-                            }}
-                          >
-                            {headofficeInclude ? (
-                              <IconGradienter
-                                style={{ marginRight: "5px" }}
-                                size={17}
-                              />
-                            ) : (
-                              <IconCircle
-                                style={{ marginRight: "7px" }}
-                                size={15}
-                              />
-                            )}
-                            <p style={{ fontSize: "11px" }}>Yes</p>
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            onClick={() => {
-                              setHeadofficeInclude(false);
-                              setManagerDep(null);
-                            }}
-                            size="medium"
-                            sx={{
-                              bgcolor: !headofficeInclude
-                                ? "lightblue"
-                                : "white",
-                              "&:hover": {
-                                bgcolor: "#0000FF11",
-                              },
-                              width: "197px",
-                              display: "flex",
-                              justifyContent: "flex-start",
-                            }}
-                          >
-                            {!headofficeInclude ? (
-                              <IconGradienter
-                                style={{ marginRight: "5px" }}
-                                size={17}
-                              />
-                            ) : (
-                              <IconCircle
-                                style={{ marginRight: "7px" }}
-                                size={15}
-                              />
-                            )}
-                            <p style={{ fontSize: "11px" }}>No</p>
-                          </Button>
-                        </div>
-                      </div>
-                      {headofficeInclude ? (
-                        <div style={{ marginBottom: "25px" }}>
-                          <Typography
-                            variant="body1"
-                            component="span"
-                            gutterBottom
-                            sx={{
-                              textAlign: "center",
-                              width: 350,
-                              height: 50,
-                              fontWeight: 400,
-                              margin: "10px",
-                            }}
-                          >
-                            4. Select headoffice department
-                          </Typography>
-                          <div className={styles.managerDep}>
-                            <Autocomplete
-                              disablePortal
-                              id="combo-box-department"
-                              size="small"
-                              onChange={handleChangeManagerDep}
-                              options={headOfficeDepartments || []}
-                              value={
-                                headOfficeDepartments?.filter(
-                                  (item) => item.name === managerDep
-                                )[0] || null
-                              }
-                              getOptionLabel={(option) => option.name}
-                              renderOption={(props, option) => (
-                                <Box component="li" {...props}>
-                                  {option.name}
-                                </Box>
-                              )}
-                              sx={{ maxWidth: 400, backgroundColor: "white" }}
-                              renderInput={(params) => <TextField {...params} />}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ marginBottom: "25px" }}>
-                          <Typography
-                            variant="body1"
-                            component="span"
-                            gutterBottom
-                            sx={{
-                              textAlign: "center",
-                              width: 350,
-                              height: 50,
-                              fontWeight: 400,
-                              margin: "10px",
-                            }}
-                          >
-                            4. Select receiver branches
-                          </Typography>
-                          <div className={styles.receiverBranches}>
-                            <Autocomplete
-                              multiple
-                              sx={{ maxWidth: "400px", backgroundColor: "white" }}
-                              size="small"
-                              id="checkboxes-tags-demo"
-                              options={branches
-                                ?.filter(
-                                  (item) =>
-                                    item.name !== "headOffice" &&
-                                    item.departments.length > 0
-                                )
-                                ?.filter(
-                                  (item) =>
-                                    !departmentSelection.includes(item.name)
-                                )
-                                ?.filter((item) => item.departments.length >= 0)
-                                ?.map((branch) => branch.name)}
-                              disableCloseOnSelect
-                              getOptionLabel={(option) => option}
-                              renderOption={(props, option, { selected }) => (
-                                <li {...props}>
-                                  <Checkbox
-                                    icon={
-                                      <CheckboxOutlineBlankIcon fontSize="small" />
-                                    }
-                                    checkedIcon={
-                                      <CheckboxIcon fontSize="small" />
-                                    }
-                                    style={{ marginRight: 8 }}
-                                    checked={selected}
-                                  />
-                                  <ListItemText primary={option} />
-                                </li>
-                              )}
-                              fullWidth
-                              renderInput={(params) => (
-                                <TextField {...params} variant="outlined" />
-                              )}
-                              value={selectedBranches}
-                              onChange={handleCommanBranchChange}
-                              renderTags={(value, getTagProps) =>
-                                value.map((option, index) => (
-                                  <Chip
-                                    variant="outlined"
-                                    label={option}
-                                    {...getTagProps({ index })}
-                                  />
-                                ))
-                              }
-                            />
-                            <FormControlLabel
-                              sx={{
-                                justifyContent: "flex-end",
-                                maxWidth: "400px",
-                              }}
-                              control={
+                        <div className={styles.receiverBranches}>
+                          <p>Headoffice Departments :</p>
+                          <Autocomplete
+                            multiple
+                            size="small"
+                            sx={{ maxWidth: '400px' }}
+                            id="checkboxes-tags-demo"
+                            options={headOfficeDepartments
+                              ?.filter(
+                                (dep) => dep.name !== departmentSelection,
+                              )
+                              ?.map((dep) => dep.name)}
+                            disableCloseOnSelect
+                            getOptionLabel={(option) => option}
+                            renderOption={(props, option, { selected }) => (
+                              <li {...props}>
                                 <Checkbox
-                                  size="small"
-                                  checked={selectAllCheckBranches}
-                                  // disabled={!selectedBranch}
-                                  onChange={handleSelectAllBranches}
-                                  name="selectAllBranches"
+                                  icon={
+                                    <CheckboxOutlineBlankIcon fontSize="small" />
+                                  }
+                                  checkedIcon={
+                                    <CheckboxIcon fontSize="small" />
+                                  }
+                                  style={{ marginRight: 8 }}
+                                  checked={selected}
                                 />
-                              }
-                              label="Select all branches"
-                            />
-                          </div>
+                                <ListItemText primary={option} />
+                              </li>
+                            )}
+                            fullWidth
+                            renderInput={(params) => (
+                              <TextField {...params} variant="outlined" />
+                            )}
+                            value={selectedHeadDepartments}
+                            onChange={handleHeadDepartmentsSelect}
+                            renderTags={(value, getTagProps) =>
+                              value.map((option, index) => (
+                                <Chip
+                                  variant="outlined"
+                                  label={option}
+                                  {...getTagProps({ index })}
+                                />
+                              ))
+                            }
+                          />
+                          <FormControlLabel
+                            sx={{
+                              justifyContent: 'flex-end',
+                              maxWidth: '400px',
+                            }}
+                            control={
+                              <Checkbox
+                                checked={selectAllCheckHeadDepartments}
+                                size="small"
+                                // disabled={!selectedBranch}
+                                onChange={handleSelectAllHeadDepartments}
+                                name="selectAllDepartments"
+                              />
+                            }
+                            label="Select all departments"
+                          />
+                          <p>Normal branches :</p>
+                          <Autocomplete
+                            multiple
+                            size="small"
+                            sx={{ maxWidth: '400px' }}
+                            id="checkboxes-tags-demo"
+                            options={branches
+                              ?.filter(
+                                (item) =>
+                                  !departmentSelection.includes(item.name),
+                              )
+                              ?.filter((item) => item.departments.length > 0)
+                              ?.map((branch) => branch.name)}
+                            disableCloseOnSelect
+                            getOptionLabel={(option) => option}
+                            renderOption={(props, option, { selected }) => (
+                              <li {...props}>
+                                <Checkbox
+                                  icon={
+                                    <CheckboxOutlineBlankIcon fontSize="small" />
+                                  }
+                                  checkedIcon={
+                                    <CheckboxIcon fontSize="small" />
+                                  }
+                                  style={{ marginRight: 8 }}
+                                  checked={selected}
+                                />
+                                <ListItemText primary={option} />
+                              </li>
+                            )}
+                            fullWidth
+                            renderInput={(params) => (
+                              <TextField {...params} variant="outlined" />
+                            )}
+                            value={selectedDepartments}
+                            onChange={handleDepartmentsSelect}
+                            renderTags={(value, getTagProps) =>
+                              value.map((option, index) => (
+                                <Chip
+                                  variant="outlined"
+                                  label={option}
+                                  {...getTagProps({ index })}
+                                />
+                              ))
+                            }
+                          />
+
+                          <FormControlLabel
+                            sx={{
+                              justifyContent: 'flex-end',
+                              maxWidth: '400px',
+                            }}
+                            control={
+                              <Checkbox
+                                checked={selectAllCheckDepartments}
+                                size="small"
+                                // disabled={!selectedBranch}
+                                onChange={handleSelectAllDepartments}
+                                name="selectAllDepartments"
+                              />
+                            }
+                            label="Select Branches"
+                          />
                         </div>
-                      )}
-                    </>
-                  )}
-                  {processType === "inter" && depBelongsToHeadoffice && (
-                    <div style={{ marginBottom: "25px" }}>
-                      <Typography
-                        variant="body1"
-                        component="span"
-                        gutterBottom
-                        sx={{
-                          width: 350,
-                          height: 50,
-                          fontWeight: 400,
-                          margin: "10px",
-                        }}
-                      >
-                        3. Select receiver departments
-                      </Typography>
-                      <div className={styles.receiverBranches}>
-                        <p>Headoffice Departments :</p>
-                        <Autocomplete
-                          multiple
-                          size="small"
-                          sx={{ maxWidth: "400px" }}
-                          id="checkboxes-tags-demo"
-                          options={headOfficeDepartments
-                            ?.filter((dep) => dep.name !== departmentSelection)
-                            ?.map((dep) => dep.name)}
-                          disableCloseOnSelect
-                          getOptionLabel={(option) => option}
-                          renderOption={(props, option, { selected }) => (
-                            <li {...props}>
-                              <Checkbox
-                                icon={
-                                  <CheckboxOutlineBlankIcon fontSize="small" />
-                                }
-                                checkedIcon={<CheckboxIcon fontSize="small" />}
-                                style={{ marginRight: 8 }}
-                                checked={selected}
-                              />
-                              <ListItemText primary={option} />
-                            </li>
-                          )}
-                          fullWidth
-                          renderInput={(params) => (
-                            <TextField {...params} variant="outlined" />
-                          )}
-                          value={selectedHeadDepartments}
-                          onChange={handleHeadDepartmentsSelect}
-                          renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                              <Chip
-                                variant="outlined"
-                                label={option}
-                                {...getTagProps({ index })}
-                              />
-                            ))
-                          }
-                        />
-                        <FormControlLabel
-                          sx={{
-                            justifyContent: "flex-end",
-                            maxWidth: "400px",
-                          }}
-                          control={
-                            <Checkbox
-                              checked={selectAllCheckHeadDepartments}
-                              size="small"
-                              // disabled={!selectedBranch}
-                              onChange={handleSelectAllHeadDepartments}
-                              name="selectAllDepartments"
-                            />
-                          }
-                          label="Select all departments"
-                        />
-                        <p>Normal branches :</p>
-                        <Autocomplete
-                          multiple
-                          size="small"
-                          sx={{ maxWidth: "400px" }}
-                          id="checkboxes-tags-demo"
-                          options={branches
-                            ?.filter(
-                              (item) => !departmentSelection.includes(item.name)
-                            )
-                            ?.filter((item) => item.departments.length > 0)
-                            ?.map((branch) => branch.name)}
-                          disableCloseOnSelect
-                          getOptionLabel={(option) => option}
-                          renderOption={(props, option, { selected }) => (
-                            <li {...props}>
-                              <Checkbox
-                                icon={
-                                  <CheckboxOutlineBlankIcon fontSize="small" />
-                                }
-                                checkedIcon={<CheckboxIcon fontSize="small" />}
-                                style={{ marginRight: 8 }}
-                                checked={selected}
-                              />
-                              <ListItemText primary={option} />
-                            </li>
-                          )}
-                          fullWidth
-                          renderInput={(params) => (
-                            <TextField {...params} variant="outlined" />
-                          )}
-                          value={selectedDepartments}
-                          onChange={handleDepartmentsSelect}
-                          renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                              <Chip
-                                variant="outlined"
-                                label={option}
-                                {...getTagProps({ index })}
-                              />
-                            ))
-                          }
-                        />
-
-                        <FormControlLabel
-                          sx={{
-                            justifyContent: "flex-end",
-                            maxWidth: "400px",
-                          }}
-                          control={
-                            <Checkbox
-                              checked={selectAllCheckDepartments}
-                              size="small"
-                              // disabled={!selectedBranch}
-                              onChange={handleSelectAllDepartments}
-                              name="selectAllDepartments"
-                            />
-                          }
-                          label="Select Branches"
-                        />
                       </div>
-                    </div>
-                  )}
-                  {/* buttons according to selections */}
-                  {processType === "intra" && (
-                    <Stack alignItems="center">
-                      <Button
-                        variant="contained"
-                        onClick={() => handleProceed("1")}
-                        sx={{ width: "fit-content", minWidth: "200px" }}
-                      >
-                        Proceed
-                      </Button>
-                    </Stack>
-                  )}
-                  {processType === "inter" && depBelongsToHeadoffice && (
-                    <Stack alignItems="center">
-                      <Button
-                        variant="contained"
-                        onClick={() => handleProceed("2")}
-                        sx={{ width: "fit-content", minWidth: "200px" }}
-                      >
-                        Proceed
-                      </Button>
-                    </Stack>
-                  )}
-                  {processType === "inter" && !depBelongsToHeadoffice && (
-                    <Stack alignItems="center" spacing={2}>
-                      {headofficeInclude && (
+                    )}
+                    {/* buttons according to selections */}
+                    {processType === 'intra' && (
+                      <Stack alignItems="center">
                         <Button
                           variant="contained"
-                          onClick={() => handleProceed("3")}
-                          sx={{ width: "fit-content", minWidth: "200px" }}
+                          onClick={() => handleProceed('1')}
+                          sx={{ width: 'fit-content', minWidth: '200px' }}
                         >
                           Proceed
                         </Button>
-                      )}
-                      {!headofficeInclude && (
+                      </Stack>
+                    )}
+                    {processType === 'inter' && depBelongsToHeadoffice && (
+                      <Stack alignItems="center">
                         <Button
                           variant="contained"
-                          onClick={handleProceed}
-                          sx={{ width: "fit-content", minWidth: "200px" }}
+                          onClick={() => handleProceed('2')}
+                          sx={{ width: 'fit-content', minWidth: '200px' }}
                         >
                           Proceed
                         </Button>
-                      )}
-                    </Stack>
-                  )}
-                </Stack>
-              )}
-            </>
-          ) : null}
-          {activeStep === 1 ?
-            <>
-              <Grid container spacing={3} p={2}>
-                <Grid item xs={12}>
-                  <Typography variant="body1">
-                    {/* {newWork ? "name of work" : "Work"}: */}
-                    Work
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: '3px' }}>
-
+                      </Stack>
+                    )}
+                    {processType === 'inter' && !depBelongsToHeadoffice && (
+                      <Stack alignItems="center" spacing={2}>
+                        {headofficeInclude && (
+                          <Button
+                            variant="contained"
+                            onClick={() => handleProceed('3')}
+                            sx={{ width: 'fit-content', minWidth: '200px' }}
+                          >
+                            Proceed
+                          </Button>
+                        )}
+                        {!headofficeInclude && (
+                          <Button
+                            variant="contained"
+                            onClick={handleProceed}
+                            sx={{ width: 'fit-content', minWidth: '200px' }}
+                          >
+                            Proceed
+                          </Button>
+                        )}
+                      </Stack>
+                    )}
+                  </Stack>
+                )}
+              </>
+            ) : null}
+            {activeStep === 1 ? (
+              <>
+                <Grid2 container spacing={3} p={2}>
+                  <Grid2 item size={{ xs: 12 }}>
+                    <Typography variant="body1">
+                      {/* {newWork ? "name of work" : "Work"}: */}
+                      Work
+                    </Typography>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'row', gap: '3px' }}
+                    >
+                      <FormControl fullWidth variant="outlined">
+                        <Select
+                          name="work"
+                          size="small"
+                          sx={{ backgroundColor: 'whitesmoke' }}
+                          fullWidth
+                          value={flow && flow.work}
+                          onChange={handleFlowChange}
+                        >
+                          <MenuItem value="">
+                            <em>None</em>
+                          </MenuItem>
+                          {works?.map((data) => (
+                            <MenuItem key={data.name} value={data.name}>
+                              {data.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  </Grid2>
+                  <Grid2 item size={{ xs: 12 }}>
+                    <Typography variant="body1">Step No:</Typography>
                     <FormControl fullWidth variant="outlined">
                       <Select
-                        name="work"
-                        size='small'
-                        sx={{ backgroundColor: "whitesmoke" }}
-                        fullWidth
-                        value={flow && flow.work}
+                        name="step"
+                        size="small"
+                        sx={{ backgroundColor: 'whitesmoke' }}
                         onChange={handleFlowChange}
+                        value={
+                          +flow.step
+                            ? +flow.step
+                            : selectedDepartment.workFlow.length + 1
+                        }
                       >
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {works?.map((data) => (
-                          <MenuItem key={data.name} value={data.name}>
-                            {data.name}
-                          </MenuItem>
-                        ))}
+                        {Array.from(
+                          { length: selectedDepartment?.workFlow?.length + 1 },
+                          (_, index) => (
+                            <MenuItem key={index} value={index + 1}>
+                              {index + 1}
+                            </MenuItem>
+                          ),
+                        )}
                       </Select>
                     </FormControl>
-                  </Box>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1">Step No:</Typography>
-                  <FormControl fullWidth variant="outlined">
-                    <Select
-                      name="step"
-                      size='small'
-                      sx={{ backgroundColor: "whitesmoke" }}
-                      onChange={handleFlowChange}
-                      value={+flow.step ? +flow.step : selectedDepartment.workFlow.length + 1}
+                  </Grid2>
+                  <Grid2 item size={{ xs: 12 }}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        width: '100%',
+                        padding: '20px',
+                        display: 'flex',
+                        gap: '10px',
+                        flexDirection: 'column',
+                        border: '1px solid lightgray',
+                      }}
                     >
-                      {Array.from(
-                        { length: selectedDepartment?.workFlow?.length + 1 },
-                        (_, index) => (
-                          <MenuItem key={index} value={index + 1}>
-                            {index + 1}
+                      {/* <Grid item xs={12}> */}
+                      <Typography variant="body1">User Branch:</Typography>
+                      <FormControl fullWidth variant="outlined">
+                        <Select
+                          name="userBranch"
+                          size="small"
+                          sx={{ backgroundColor: 'whitesmoke' }}
+                          value={userBranch}
+                          onChange={handleInputChange}
+                        >
+                          <MenuItem value="" disabled>
+                            <em>None</em>
                           </MenuItem>
-                        ),
-                      )}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper elevation={0} sx={{ width: '100%', padding: '20px', display: 'flex', gap: "10px", flexDirection: "column", border: '1px solid lightgray' }}>
-                    {/* <Grid item xs={12}> */}
-                    <Typography variant="body1">User Branch:</Typography>
-                    <FormControl fullWidth variant="outlined">
-                      <Select
-                        name="userBranch"
-                        size='small'
-                        sx={{ backgroundColor: "whitesmoke" }}
-                        value={userBranch}
-                        onChange={handleInputChange}
+                          {allBranches?.map((data) => (
+                            <MenuItem key={data.name} value={data.name}>
+                              {data.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {/* </Grid> */}
+                      {/* <Grid item xs={12}> */}
+                      <Typography variant="body1">Actor Role:</Typography>
+                      <FormControl fullWidth variant="outlined">
+                        <Select
+                          name="role"
+                          size="small"
+                          disabled={fieldsLoading}
+                          sx={{ backgroundColor: 'whitesmoke' }}
+                          value={userSelection.role}
+                          onChange={handleUserSelection}
+                        >
+                          <MenuItem value="" disabled>
+                            <em>None</em>
+                          </MenuItem>
+                          {roles?.map((data) => (
+                            <MenuItem key={data.role} value={data.role}>
+                              {data.role}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {/* </Grid> */}
+                      {/* <Grid item xs={12}> */}
+                      <Typography variant="body1">User:</Typography>
+                      <FormControl fullWidth variant="outlined">
+                        <Select
+                          name="user"
+                          size="small"
+                          sx={{ backgroundColor: 'whitesmoke' }}
+                          value={userSelection.user}
+                          disabled={fieldsLoading}
+                          onChange={handleUserSelection}
+                        >
+                          <MenuItem value="" disabled>
+                            <em>None</em>
+                          </MenuItem>
+                          {users?.map((data) => (
+                            <MenuItem key={data.username} value={data.username}>
+                              {data.username}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outlined"
+                        sx={{ mt: 1, width: '150px', mx: 'auto' }}
+                        onClick={handleUserAdd}
                       >
-                        <MenuItem value="" disabled>
-                          <em>None</em>
-                        </MenuItem>
-                        {allBranches?.map((data) => (
-                          <MenuItem key={data.name} value={data.name}>
-                            {data.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {/* </Grid> */}
-                    {/* <Grid item xs={12}> */}
-                    <Typography variant="body1">Actor Role:</Typography>
-                    <FormControl fullWidth variant="outlined">
-                      <Select
-                        name="role"
-                        size='small'
-                        disabled={fieldsLoading}
-                        sx={{ backgroundColor: "whitesmoke" }}
-                        value={userSelection.role}
-                        onChange={handleUserSelection}
-                      >
-                        <MenuItem value="" disabled>
-                          <em>None</em>
-                        </MenuItem>
-                        {roles?.map((data) => (
-                          <MenuItem key={data.role} value={data.role}>
-                            {data.role}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {/* </Grid> */}
-                    {/* <Grid item xs={12}> */}
-                    <Typography variant="body1">User:</Typography>
-                    <FormControl fullWidth variant="outlined">
-                      <Select
-                        name="user"
-                        size='small'
-                        sx={{ backgroundColor: "whitesmoke" }}
-                        value={userSelection.user}
-                        disabled={fieldsLoading}
-                        onChange={handleUserSelection}
-                      >
-                        <MenuItem value="" disabled>
-                          <em>None</em>
-                        </MenuItem>
-                        {users?.map((data) => (
-                          <MenuItem key={data.username} value={data.username}>
-                            {data.username}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <Button
-                      variant='outlined'
-                      sx={{ mt: 1, width: '150px', mx: 'auto' }}
-                      onClick={handleUserAdd}
-                    >
-                      Add User
-                    </Button>
-                    {/* </Grid> */}
-                    {usersOnStep.length ? (
-                      <div style={{ margin: '30px auto', width: '100%' }}>
-                        <Typography variant="h6" textAlign="center">
-                          This step users :
-                        </Typography>
-                        {/* {usersOnStep.map((obj, index) => (
+                        Add User
+                      </Button>
+                      {/* </Grid> */}
+                      {usersOnStep.length ? (
+                        <div style={{ margin: '30px auto', width: '100%' }}>
+                          <Typography variant="h6" textAlign="center">
+                            This step users :
+                          </Typography>
+                          {/* {usersOnStep.map((obj, index) => (
                 <p key={index} style={{ display: "inline" }}>
                   {obj.user}/{obj.role}
                   {index !== usersOnStep.length - 1 ? ", " : ""}
                 </p>
               ))} */}
-                        <TableContainer
-                          sx={{ maxHeight: '200px', overflow: 'auto', width: '100%', border: '1px solid lightgray' }}
-                        >
-                          <Table
-                            size="small"
-                            aria-label="a dense table"
+                          <TableContainer
+                            sx={{
+                              maxHeight: '200px',
+                              overflow: 'auto',
+                              width: '100%',
+                              border: '1px solid lightgray',
+                            }}
                           >
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Sr No</TableCell>
-                                <TableCell>Username</TableCell>
-                                <TableCell>User Role</TableCell>
-                                <TableCell>Delete</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {usersOnStep.map((row, index) => (
-                                <TableRow
-                                  key={index}
-                                // sx={{
-                                //   "&:last-child td, &:last-child th": { border: 0 },
-                                // }}
-                                >
-                                  <TableCell component="th" scope="row">
-                                    {index + 1}
-                                  </TableCell>
-                                  <TableCell component="th" scope="row">
-                                    {row.user}
-                                  </TableCell>
-                                  <TableCell component="th" scope="row">
-                                    {row.role}
-                                  </TableCell>
-                                  <TableCell component="th" scope="row">
-                                    <Button onClick={() => deleteStepUser(index)}><FaRegTrashAlt /> </Button>
-                                  </TableCell>
+                            <Table size="small" aria-label="a dense table">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Sr No</TableCell>
+                                  <TableCell>Username</TableCell>
+                                  <TableCell>User Role</TableCell>
+                                  <TableCell>Delete</TableCell>
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      </div>
-                    ) : null}
-                  </Paper>
-                </Grid>
-              </Grid>
-
-              {usersOnStep.length && flow.work && flow.step ? (
-                <Stack
-                  sx={{ marginTop: '10px' }}
-                  gap={1}
-                  flexDirection="row"
-                  justifyContent="center"
-                >
-                  <Box>
-                    <Button
-                      variant="contained"
-                      onClick={handleWorkFlow}
-                      sx={{ backgroundColor: '#40A2E3' }}
-                    >
-                      Add Step
-                    </Button>
-                  </Box>
-                </Stack>
-              ) : null}
-              <Stack
-                flexDirection="row"
-                flexWrap="wrap"
-                rowGap={3}
-                columnGap={1}
-                mt={4}
-                justifyContent="center"
-                sx={{ marginBottom: '40px', marginTop: '10px' }}
-              >
-                {selectedDepartment?.workFlow?.map((item, index) => (
-                  <>
-                    <Paper
-                      key={index + 1}
-                      elevation={3}
-                      sx={{
-                        position: 'relative',
-                        width: { xs: 230, sm: 250, md: 280 },
-                        borderRadius: '15px',
-                        backgroundColor: 'white',
-                      }}
-                    >
-                      <IconButton
-                        sx={{ position: 'absolute', right: '0px', top: '0px' }}
-                      // onClick={() => handleDelete(index)}
-                      >
-                        <IconX />
-                      </IconButton>
-                      <h3 className={styles.workflowIndex}>{index + 1}</h3>
-                      <div className={styles.workflowContent}>
-                        <div className={styles.workFlowElements}>
-                          <p style={{ width: '60px' }}>
-                            <strong>Work :</strong>
-                          </p>
-                          <p>{item?.work}</p>
+                              </TableHead>
+                              <TableBody>
+                                {usersOnStep.map((row, index) => (
+                                  <TableRow
+                                    key={index}
+                                    // sx={{
+                                    //   "&:last-child td, &:last-child th": { border: 0 },
+                                    // }}
+                                  >
+                                    <TableCell component="th" scope="row">
+                                      {index + 1}
+                                    </TableCell>
+                                    <TableCell component="th" scope="row">
+                                      {row.user}
+                                    </TableCell>
+                                    <TableCell component="th" scope="row">
+                                      {row.role}
+                                    </TableCell>
+                                    <TableCell component="th" scope="row">
+                                      <Button
+                                        onClick={() => deleteStepUser(index)}
+                                      >
+                                        <FaRegTrashAlt />{' '}
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
                         </div>
-                        <div className={styles.workFlowElements}>
-                          <p style={{ width: '60px' }}>
-                            <strong>Users :</strong>
-                          </p>
-                          <Tooltip
-                            title={
-                              item?.users?.length > 1
-                                ? item.users.map((user) => user.user).join(", ")
-                                : null
-                            }
-                          >
-                            <p>{formatUserNames(item?.users)}</p>
-                          </Tooltip>
-                        </div>
-                      </div>
+                      ) : null}
                     </Paper>
-                  </>
-                ))}
-              </Stack>
-            </>
-            : null}
-          {activeStep === 2 ? (
-            <InitiatProcess
-              workFlow={workFlow}
-              setWorkFlow={setWorkFlow}
-              connectors={connectors}
-              setConnectors={setConnectors}
-              isHeadofficeIncluded={headofficeInclude}
-              selectedDepartment={selectedDepartment}
-              initiatorDepartment={departmentSelection}
-              setSelectedDepartment={setSelectedDepartment}
-              interBranch={processType === "intra" ? false : true}
-            />
-          ) : null}
-        </div>
-      </Stack>}
+                  </Grid2>
+                </Grid2>
+
+                {usersOnStep.length && flow.work && flow.step ? (
+                  <Stack
+                    sx={{ marginTop: '10px' }}
+                    gap={1}
+                    flexDirection="row"
+                    justifyContent="center"
+                  >
+                    <Box>
+                      <Button
+                        variant="contained"
+                        onClick={handleWorkFlow}
+                        sx={{ backgroundColor: '#40A2E3' }}
+                      >
+                        Add Step
+                      </Button>
+                    </Box>
+                  </Stack>
+                ) : null}
+                <Stack
+                  flexDirection="row"
+                  flexWrap="wrap"
+                  rowGap={3}
+                  columnGap={1}
+                  mt={4}
+                  justifyContent="center"
+                  sx={{ marginBottom: '40px', marginTop: '10px' }}
+                >
+                  {selectedDepartment?.workFlow?.map((item, index) => (
+                    <>
+                      <Paper
+                        key={index + 1}
+                        elevation={3}
+                        sx={{
+                          position: 'relative',
+                          width: { xs: 230, sm: 250, md: 280 },
+                          borderRadius: '15px',
+                          backgroundColor: 'white',
+                        }}
+                      >
+                        <IconButton
+                          sx={{
+                            position: 'absolute',
+                            right: '0px',
+                            top: '0px',
+                          }}
+                          // onClick={() => handleDelete(index)}
+                        >
+                          <IconX />
+                        </IconButton>
+                        <h3 className={styles.workflowIndex}>{index + 1}</h3>
+                        <div className={styles.workflowContent}>
+                          <div className={styles.workFlowElements}>
+                            <p style={{ width: '60px' }}>
+                              <strong>Work :</strong>
+                            </p>
+                            <p>{item?.work}</p>
+                          </div>
+                          <div className={styles.workFlowElements}>
+                            <p style={{ width: '60px' }}>
+                              <strong>Users :</strong>
+                            </p>
+                            <Tooltip
+                              title={
+                                item?.users?.length > 1
+                                  ? item.users
+                                      .map((user) => user.user)
+                                      .join(', ')
+                                  : null
+                              }
+                            >
+                              <p>{formatUserNames(item?.users)}</p>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      </Paper>
+                    </>
+                  ))}
+                </Stack>
+              </>
+            ) : null}
+            {activeStep === 2 ? (
+              <InitiatProcess
+                workFlow={workFlow}
+                setWorkFlow={setWorkFlow}
+                connectors={connectors}
+                setConnectors={setConnectors}
+                isHeadofficeIncluded={headofficeInclude}
+                selectedDepartment={selectedDepartment}
+                initiatorDepartment={departmentSelection}
+                setSelectedDepartment={setSelectedDepartment}
+                interBranch={processType === 'intra' ? false : true}
+              />
+            ) : null}
+          </div>
+        </Stack>
+      )}
     </>
   );
 }

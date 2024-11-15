@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   Box,
   Button,
@@ -23,30 +23,29 @@ import {
   Alert,
   AlertTitle,
   Chip,
-} from "@mui/material";
-import styles from "./InitiateProcess.module.css";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+} from '@mui/material';
+import styles from './InitiateProcess.module.css';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import * as Yup from 'yup';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
-import { Typography } from "@mui/material";
-import { useState } from "react";
-import { useRef } from "react";
-import { upload } from "../../components/drop-file-input/FileUploadDownload";
-import { useEffect } from "react";
-import axios from "axios";
-import { useLocation, useNavigate } from "react-router-dom";
-import { InfoOutlined } from "@mui/icons-material";
-import { toast } from "react-toastify";
+import { Typography } from '@mui/material';
+import { useState } from 'react';
+import { useRef } from 'react';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
+import { useEffect } from 'react';
+import axios from 'axios';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { InfoOutlined } from '@mui/icons-material';
+import { toast } from 'react-toastify';
 
 const schema = Yup.object().shape({
   maxReceiverStepNumber: Yup.number()
     .typeError('Step number must be a number')
     .required('Step number is required'),
 });
-
 
 export default function LabelBottomNavigation(props) {
   const {
@@ -57,34 +56,40 @@ export default function LabelBottomNavigation(props) {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      maxReceiverStepNumber: props?.selectedDepartment?.workFlow[props?.selectedDepartment?.workFlow.length - 1].step || null,
+      maxReceiverStepNumber:
+        props?.selectedDepartment?.workFlow[
+          props?.selectedDepartment?.workFlow.length - 1
+        ].step || null,
       selectedOption: 'no',
       selectedStep: null,
       remarks: '',
     },
   });
-  const [selectedOption, maxReceiverStepNumber] = watch(["selectedOption", "maxReceiverStepNumber"]);
+  const [selectedOption, maxReceiverStepNumber] = watch([
+    'selectedOption',
+    'maxReceiverStepNumber',
+  ]);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [workNameError, setWorkNameError] = useState("");
-  const [cabinetNoError, setCabinetNoError] = useState("");
-  const [fileInputError, setFileInputError] = useState("");
+  const [workNameError, setWorkNameError] = useState('');
+  const [cabinetNoError, setCabinetNoError] = useState('');
+  const [fileInputError, setFileInputError] = useState('');
   const [fileData, setFileData] = useState([]);
-  const [workName, setWorkName] = useState("");
-  const [cabinetNo, setCabinetNo] = useState("");
+  const [workName, setWorkName] = useState('');
+  const [cabinetNo, setCabinetNo] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalOpen1, setModalOpen1] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const urlData = params.get("data");
+  const urlData = params.get('data');
   const decodedObject = decodeURIComponent(urlData);
   const [pathList, setPathList] = useState([]);
   const [remarks, setRemarks] = useState();
   const [loading, setLoading] = useState(false);
   const [initiateProcessLoading, setInitiateProcessLoading] = useState(false);
-  const [pathDetails, setPathDetails] = useState({ path: "", folderName: "" });
+  const [pathDetails, setPathDetails] = useState({ path: '', folderName: '' });
   // const [selectedDepartment, setSelectedDepartment] = useState(
   //   JSON.parse(decodedObject)
   // );
@@ -98,32 +103,31 @@ export default function LabelBottomNavigation(props) {
   // } = sessionData();
   const handleFileSelect = (e) => {
     const selected = e.target.files[0];
-    if (selected && selected.type !== "application/pdf") {
-      toast.info("Only pdf is allowed");
+    if (selected && selected.type !== 'application/pdf') {
+      toast.info('Only pdf is allowed');
       fileInputRef.current.value = null;
     } else {
       setSelectedFile(selected);
-      setFileInputError('')
+      setFileInputError('');
     }
   };
 
   const handleFileAdd = () => {
-    setWorkNameError("");
-    setCabinetNoError("");
-    setFileInputError("");
+    setWorkNameError('');
+    setCabinetNoError('');
+    setFileInputError('');
 
-    if (workName.trim() === "") {
-      setWorkNameError("Work Name is required");
+    if (workName.trim() === '') {
+      setWorkNameError('Work Name is required');
     }
 
-    if (cabinetNo.trim() === "") {
-      setCabinetNoError("Cabinet Number is required");
+    if (cabinetNo.trim() === '') {
+      setCabinetNoError('Cabinet Number is required');
     }
 
     if (!fileInputRef?.current?.files?.length) {
-      setFileInputError("Please select a file");
+      setFileInputError('Please select a file');
       fileInputRef.current.value = null;
-
     }
     if (workName && cabinetNo && selectedFile) {
       const newFile = {
@@ -133,17 +137,23 @@ export default function LabelBottomNavigation(props) {
       };
       setFileData([...fileData, newFile]);
 
-      setWorkName("");
-      setCabinetNo("");
+      setWorkName('');
+      setCabinetNo('');
       setSelectedFile(null);
       fileInputRef.current.value = null;
     }
   };
   const navigate = useNavigate();
 
-  const addProcess = async (finalData, departmentPath, rem, selectedStep, maxReceiverStepNumber) => {
+  const addProcess = async (
+    finalData,
+    departmentPath,
+    rem,
+    selectedStep,
+    maxReceiverStepNumber,
+  ) => {
     try {
-      const url = backendUrl + "/addProcess";
+      const url = backendUrl + '/addProcess';
       const res = await axios.post(
         url,
         {
@@ -154,6 +164,7 @@ export default function LabelBottomNavigation(props) {
           remarks: remarks ? remarks : rem,
           documents: finalData,
           initiatorDepartment: props.initiatorDepartment,
+          steps: props.selectedDepartment.workFlow,
           documentsPath: departmentPath,
           isHeadofficeIncluded: props.isHeadofficeIncluded,
           departmentName: props.selectedDepartment.department,
@@ -161,19 +172,19 @@ export default function LabelBottomNavigation(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
           },
-        }
+        },
       );
       if (res.status === 200) {
-        toast.success("Process is initiated");
-        navigate("/processes/work");
-        props.setWorkFlow("");
+        toast.success('Process is initiated');
+        navigate('/processes/work');
+        props.setWorkFlow('');
         props.setConnectors([]);
         props.setSelectedDepartment({});
       }
     } catch (error) {
-      toast.error("Unable to initiate process");
+      toast.error('Unable to initiate process');
     }
     setInitiateProcessLoading(false);
     modalClose();
@@ -190,19 +201,19 @@ export default function LabelBottomNavigation(props) {
 
       let path = `${pathDetails.path}/${pathDetails.folderName}`;
       const response = await axios.post(
-        backendUrl + "/createFolder",
+        backendUrl + '/createFolder',
         {
           path: path,
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
           },
-        }
+        },
       );
       return path;
     } catch (error) {
-      console.error("unable to create folder at given path");
+      console.error('unable to create folder at given path');
     }
   };
 
@@ -216,15 +227,15 @@ export default function LabelBottomNavigation(props) {
 
   const handleInitiat = async (data) => {
     setInitiateProcessLoading(true);
-    const url = backendUrl + "/getProcessDocumentName";
+    const url = backendUrl + '/getProcessDocumentName';
     const filelist = fileData.map((item) => item.file);
-    const dummy = () => { };
+    const dummy = () => {};
     let finalData = [];
     try {
       let department;
-      if (props.selectedDepartment.branch === "headOffice") {
+      if (props.selectedDepartment.branch === 'headOffice') {
         const [, outputString] =
-          props.selectedDepartment.department.split("headOffice_");
+          props.selectedDepartment.department.split('headOffice_');
         department = outputString;
       } else {
         department = props.selectedDepartment.branch;
@@ -247,17 +258,17 @@ export default function LabelBottomNavigation(props) {
           },
           {
             headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+              Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
             },
-          }
+          },
         );
         if (res.status !== 200) {
           setInitiateProcessLoading(false);
-          toast.error("Not able to generate document name");
+          toast.error('Not able to generate document name');
           return;
         }
 
-        let ext = filelist[i].name.split(".").pop();
+        let ext = filelist[i].name.split('.').pop();
         // console.log(path + " path after all");
         // return
         try {
@@ -266,10 +277,10 @@ export default function LabelBottomNavigation(props) {
             `${path}`,
             dummy,
             `${res.data.name}.${ext}`,
-            true
+            true,
           );
           data = data[0];
-          if (data && typeof fileData[i] === "object") {
+          if (data && typeof fileData[i] === 'object') {
             const updatedFileItem = {
               ...fileData[i],
               documentId: data,
@@ -277,22 +288,28 @@ export default function LabelBottomNavigation(props) {
             delete updatedFileItem.file;
             finalData.push(updatedFileItem);
           } else {
-            console.log("Error: data.id or filelist[i] is missing or invalid.");
+            console.log('Error: data.id or filelist[i] is missing or invalid.');
           }
         } catch (error) {
           console.log(error);
           // console.error(error);
           toast.error(
-            error?.response?.data?.message || "Document upload error"
+            error?.response?.data?.message || 'Document upload error',
           );
           setInitiateProcessLoading(false);
           return;
         }
       }
-      await addProcess(finalData, path, data.remarks, data.selectedStep, data.maxReceiverStepNumber);
+      await addProcess(
+        finalData,
+        path,
+        data.remarks,
+        data.selectedStep,
+        data.maxReceiverStepNumber,
+      );
       setFileData([]);
     } catch (error) {
-      alert("Unable to initiate process");
+      alert('Unable to initiate process');
     }
     setLoadingFalse();
   };
@@ -305,13 +322,12 @@ export default function LabelBottomNavigation(props) {
   };
   const modalClose = () => {
     setModalOpen(false);
-    setRemarks("")
+    setRemarks('');
   };
   const modalClose1 = () => {
     setModalOpen1(false);
-    setRemarks("")
+    setRemarks('');
   };
-
 
   const handleDeleteFile = (index) => {
     if (index >= 0 && index < fileData.length) {
@@ -319,7 +335,7 @@ export default function LabelBottomNavigation(props) {
       updatedFileData.splice(index, 1);
       setFileData(updatedFileData);
     } else {
-      console.log("Invalid index provided");
+      console.log('Invalid index provided');
     }
   };
   const handlePathDetailsChange = (e) => {
@@ -332,15 +348,14 @@ export default function LabelBottomNavigation(props) {
     const getPath = async () => {
       try {
         let department;
-        if (props.selectedDepartment.branch === "headOffice") {
+        if (props.selectedDepartment.branch === 'headOffice') {
           const [, outputString] =
-            props.selectedDepartment.department.split("headOffice_");
+            props.selectedDepartment.department.split('headOffice_');
           department = outputString;
         } else {
           department = props.selectedDepartment.branch;
         }
-        const getPathUrl =
-          backendUrl + "/getDocumentChildren";
+        const getPathUrl = backendUrl + '/getDocumentChildren';
         const res = await axios.post(
           getPathUrl,
           {
@@ -348,32 +363,30 @@ export default function LabelBottomNavigation(props) {
           },
           {
             headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+              Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
             },
-          }
+          },
         );
         setPathList(res.data.children);
       } catch (error) {
-        alert("something is wrong");
+        alert('something is wrong');
       }
     };
     getPath();
   }, []);
-  const username = sessionStorage.getItem("username");
+  const username = sessionStorage.getItem('username');
 
   return (
     <Stack>
-      <div
-        style={{ width: "100%" }}
-      >
-        <Stack alignItems="center" sx={{ margin: "5px", gap: "1px" }}>
+      <div style={{ width: '100%' }}>
+        <Stack alignItems="center" sx={{ margin: '5px', gap: '1px' }}>
           <Box
             sx={{
-              padding: "5px",
-              width: "100%",
-              maxWidth: "600px",
-              display: "flex",
-              flexDirection: "column",
+              padding: '5px',
+              width: '100%',
+              maxWidth: '600px',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
             <Grid container spacing={1}>
@@ -386,7 +399,7 @@ export default function LabelBottomNavigation(props) {
                   select
                   value={pathDetails.path}
                   onChange={(e) => handlePathDetailsChange(e)}
-                  sx={{ mb: 2, backgroundColor: "white" }}
+                  sx={{ mb: 2, backgroundColor: 'white' }}
                 >
                   {pathList?.map((option) => (
                     <MenuItem key={option} value={option}>
@@ -406,33 +419,34 @@ export default function LabelBottomNavigation(props) {
                   onChange={(e) => {
                     const inputValue = e.target.value;
                     const isValidInput = /^[a-zA-Z0-9_\-()\[\]\s]*$/.test(
-                      inputValue
+                      inputValue,
                     );
 
-                    if (isValidInput || inputValue === "") {
+                    if (isValidInput || inputValue === '') {
                       handlePathDetailsChange(e);
                     }
                   }}
                   // helperText="Field must contain only letters, numbers, and spaces."
-                  sx={{ mb: 2, backgroundColor: "white" }}
+                  sx={{ mb: 2, backgroundColor: 'white' }}
                 />
               </Grid>
               <Grid item xs={12}>
-                <h4 style={{ textAlign: "center", color: "red" }}>
-                  The documents save location is{" "}
+                <h4 style={{ textAlign: 'center', color: 'red' }}>
+                  The documents save location is{' '}
                   {pathDetails.path
                     ? pathDetails.folderName
                       ? `${pathDetails.path}/${pathDetails.folderName}`
                       : `${pathDetails.path}`
-                    : `/${props?.selectedDepartment?.branch?.toLowerCase() ===
-                      "headoffice"
-                      ? props?.selectedDepartment?.department?.split("_")[1]
-                      : props?.selectedDepartment?.branch
-                    }`}
+                    : `/${
+                        props?.selectedDepartment?.branch?.toLowerCase() ===
+                        'headoffice'
+                          ? props?.selectedDepartment?.department?.split('_')[1]
+                          : props?.selectedDepartment?.branch
+                      }`}
                 </h4>
               </Grid>
             </Grid>
-            <Typography variant="h6" sx={{ mb: 0.5, textAlign: "center" }}>
+            <Typography variant="h6" sx={{ mb: 0.5, textAlign: 'center' }}>
               Add Files
             </Typography>
             <TextField
@@ -446,12 +460,12 @@ export default function LabelBottomNavigation(props) {
                 const inputValue = e.target.value;
                 const isValidInput = /^[a-zA-Z0-9\s]*$/.test(inputValue);
 
-                if (isValidInput || inputValue === "") {
+                if (isValidInput || inputValue === '') {
                   setWorkName(inputValue);
                 }
               }}
               // helperText="Field must contain only letters, numbers, and spaces."
-              sx={{ mb: 2, backgroundColor: "white" }}
+              sx={{ mb: 2, backgroundColor: 'white' }}
             />
             <TextField
               fullWidth
@@ -462,42 +476,46 @@ export default function LabelBottomNavigation(props) {
               error={!!cabinetNoError}
               inputProps={{ min: 1 }}
               onKeyDown={(e) => {
-                (e.key === "e" ||
-                  e.key === "E" ||
-                  e.key === "-" ||
-                  e.key === "+") &&
+                (e.key === 'e' ||
+                  e.key === 'E' ||
+                  e.key === '-' ||
+                  e.key === '+') &&
                   e.preventDefault();
               }}
               // helperText={cabinetNoError}
               onChange={(e) => setCabinetNo(e.target.value)}
-              sx={{ mb: 2, backgroundColor: "white" }}
+              sx={{ mb: 2, backgroundColor: 'white' }}
             />
             {/* Hidden file input */}
             <input
               type="file"
               id="fileInput"
-              accept='.pdf' // Restrict to only accept PDF files
+              accept=".pdf" // Restrict to only accept PDF files
               onChange={handleFileSelect}
-              style={{ border: `1px solid ${!fileInputError ? "lightgray" : "red"}`, padding: "10px", borderRadius: '3px' }}
+              style={{
+                border: `1px solid ${!fileInputError ? 'lightgray' : 'red'}`,
+                padding: '10px',
+                borderRadius: '3px',
+              }}
               ref={fileInputRef}
             />
             <Typography variant="body2" color="error">
               {fileInputError}
             </Typography>
-            <div style={{ padding: "10px", width: "100%" }}>
+            <div style={{ padding: '10px', width: '100%' }}>
               <Alert severity="error" icon={<InfoOutlined />}>
-                <AlertTitle>{"Note"}</AlertTitle>
+                <AlertTitle>{'Note'}</AlertTitle>
                 <Typography sx={{ my: 0.4 }}>
                   Only the following file types are allowed for upload :
                 </Typography>
                 <Box>
                   <Chip
-                    label={"PDF"}
+                    label={'PDF'}
                     color="error"
                     // variant="outlined"
                     sx={{
                       padding: 0,
-                      height: "22px",
+                      height: '22px',
                       mr: 0.6,
                       my: 0.4,
                     }}
@@ -505,7 +523,7 @@ export default function LabelBottomNavigation(props) {
                 </Box>
               </Alert>
             </div>
-            <Box sx={{ alignSelf: "center" }}>
+            <Box sx={{ alignSelf: 'center' }}>
               <Button variant="outlined" onClick={handleFileAdd} sx={{ mt: 2 }}>
                 Add File
               </Button>
@@ -558,12 +576,34 @@ export default function LabelBottomNavigation(props) {
             </Table>
           </TableContainer>
           <Modal open={modalOpen} className="create-folder-modal">
-            <form onSubmit={handleSubmit(handleInitiat)} style={{ gap: "10px", position: "relative" }} className="create-folder-modal-content-container">
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <Typography variant="h5" sx={{ color: "#333", marginBottom: "10px", background: "lightblue", width: "100%", textAlign: "center", borderRadius: "5px" }}>
+            <form
+              onSubmit={handleSubmit(handleInitiat)}
+              style={{ gap: '10px', position: 'relative' }}
+              className="create-folder-modal-content-container"
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <Typography
+                  variant="h5"
+                  sx={{
+                    color: '#333',
+                    marginBottom: '10px',
+                    background: 'lightblue',
+                    width: '100%',
+                    textAlign: 'center',
+                    borderRadius: '5px',
+                  }}
+                >
                   Workflow Step Skip
                 </Typography>
-                <Typography variant="h6">Select step where you want to complete process</Typography>
+                <Typography variant="h6">
+                  Select step where you want to complete process
+                </Typography>
                 <Controller
                   name="maxReceiverStepNumber"
                   control={control}
@@ -575,20 +615,40 @@ export default function LabelBottomNavigation(props) {
                       fullWidth
                       error={!!errors?.maxReceiverStepNumber}
                       helperText={errors?.maxReceiverStepNumber?.message}
-                      sx={{ minWidth: "150px", color: "#333", mb: 2 }}
+                      sx={{ minWidth: '150px', color: '#333', mb: 2 }}
                     >
                       {props.selectedDepartment.workFlow
-                        .filter((item) => !item.users.some(user => user.user === username))
+                        .filter(
+                          (item) =>
+                            !item.users.some((user) => user.user === username),
+                        )
                         .map((item) => (
                           <MenuItem key={item.step} value={item.step}>
-                            <b style={{ marginRight: "3px", marginLeft: '3px' }}>{item.users.map(user => user.user).join(',')}</b> | <b style={{ marginRight: "3px", marginLeft: '3px' }}>{item.work}</b> | (step - {item.step})
+                            <b
+                              style={{ marginRight: '3px', marginLeft: '3px' }}
+                            >
+                              {item.users.map((user) => user.user).join(',')}
+                            </b>{' '}
+                            |{' '}
+                            <b
+                              style={{ marginRight: '3px', marginLeft: '3px' }}
+                            >
+                              {item.work}
+                            </b>{' '}
+                            | (step - {item.step})
                           </MenuItem>
                         ))}
                     </TextField>
                   )}
                 />
-                <p style={{ fontSize: "18px", marginBottom: "10px" }}>Do you want to skip any step from workflow?</p>
-                <Stack flexDirection="row" gap={4} sx={{ marginBottom: "10px" }}>
+                <p style={{ fontSize: '18px', marginBottom: '10px' }}>
+                  Do you want to skip any step from workflow?
+                </p>
+                <Stack
+                  flexDirection="row"
+                  gap={4}
+                  sx={{ marginBottom: '10px' }}
+                >
                   <Controller
                     name="selectedOption"
                     control={control}
@@ -596,13 +656,21 @@ export default function LabelBottomNavigation(props) {
                       <>
                         <FormControlLabel
                           control={
-                            <Radio {...field} checked={field.value === "yes"} value="yes" />
+                            <Radio
+                              {...field}
+                              checked={field.value === 'yes'}
+                              value="yes"
+                            />
                           }
                           label="Yes"
                         />
                         <FormControlLabel
                           control={
-                            <Radio {...field} checked={field.value === "no"} value="no" />
+                            <Radio
+                              {...field}
+                              checked={field.value === 'no'}
+                              value="no"
+                            />
                           }
                           label="No"
                         />
@@ -610,9 +678,11 @@ export default function LabelBottomNavigation(props) {
                     )}
                   />
                 </Stack>
-                {selectedOption === "yes" && (
-                  <Stack width="100%" spacing={3} sx={{ marginBottom: "20px" }}>
-                    <Typography sx={{ color: "#333" }}>Step Number to forward process:</Typography>
+                {selectedOption === 'yes' && (
+                  <Stack width="100%" spacing={3} sx={{ marginBottom: '20px' }}>
+                    <Typography sx={{ color: '#333' }}>
+                      Step Number to forward process:
+                    </Typography>
                     <Controller
                       name="selectedStep"
                       control={control}
@@ -620,14 +690,43 @@ export default function LabelBottomNavigation(props) {
                         <Select
                           {...field}
                           size="small"
-                          sx={{ minWidth: "150px", color: "#333" }}
+                          sx={{ minWidth: '150px', color: '#333' }}
                         >
                           {props.selectedDepartment.workFlow
-                            .filter((item) => !item.users.some(user => user.user === username))
-                            .filter((item) => maxReceiverStepNumber ? item.step <= maxReceiverStepNumber : item)
+                            .filter(
+                              (item) =>
+                                !item.users.some(
+                                  (user) => user.user === username,
+                                ),
+                            )
+                            .filter((item) =>
+                              maxReceiverStepNumber
+                                ? item.step <= maxReceiverStepNumber
+                                : item,
+                            )
                             .map((item) => (
                               <MenuItem key={item.step} value={item.step}>
-                                Forward to <b style={{ marginRight: "3px", marginLeft: '3px' }}>{item.users.map(user => user.user).join(',')}</b> for work <b style={{ marginRight: "3px", marginLeft: '3px' }}>{item.work}</b> (step - {item.step})
+                                Forward to{' '}
+                                <b
+                                  style={{
+                                    marginRight: '3px',
+                                    marginLeft: '3px',
+                                  }}
+                                >
+                                  {item.users
+                                    .map((user) => user.user)
+                                    .join(',')}
+                                </b>{' '}
+                                for work{' '}
+                                <b
+                                  style={{
+                                    marginRight: '3px',
+                                    marginLeft: '3px',
+                                  }}
+                                >
+                                  {item.work}
+                                </b>{' '}
+                                (step - {item.step})
                               </MenuItem>
                             ))}
                         </Select>
@@ -635,8 +734,16 @@ export default function LabelBottomNavigation(props) {
                     />
                   </Stack>
                 )}
-                <Stack direction="column" alignItems="flex-start" spacing={2} width="100%" sx={{ marginBottom: "20px" }}>
-                  <Typography sx={{ color: "#333", textAlign: "start" }}>Remarks:</Typography>
+                <Stack
+                  direction="column"
+                  alignItems="flex-start"
+                  spacing={2}
+                  width="100%"
+                  sx={{ marginBottom: '20px' }}
+                >
+                  <Typography sx={{ color: '#333', textAlign: 'start' }}>
+                    Remarks:
+                  </Typography>
                   <Controller
                     name="remarks"
                     control={control}
@@ -657,13 +764,13 @@ export default function LabelBottomNavigation(props) {
                   <Button
                     variant="contained"
                     disabled={initiateProcessLoading}
-                    color={initiateProcessLoading ? "inherit" : "primary"}
+                    color={initiateProcessLoading ? 'inherit' : 'primary'}
                     type="submit"
                   >
                     {initiateProcessLoading ? (
                       <CircularProgress size={20} />
                     ) : (
-                      "Initiate"
+                      'Initiate'
                     )}
                   </Button>
                   <Button
@@ -680,15 +787,15 @@ export default function LabelBottomNavigation(props) {
           </Modal>
           <Modal open={modalOpen1} className="create-folder-modal">
             <div
-              style={{ gap: "10px", position: "relative" }}
+              style={{ gap: '10px', position: 'relative' }}
               className="create-folder-modal-content-container"
             >
               <Box
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  width: "300px"
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: '300px',
                 }}
               >
                 <Stack
@@ -696,9 +803,12 @@ export default function LabelBottomNavigation(props) {
                   alignItems="flex-start"
                   spacing={2}
                   width="100%"
-                  sx={{ marginBottom: "20px" }}
+                  sx={{ marginBottom: '20px' }}
                 >
-                  <Typography variant="h6" sx={{ color: "#333", textAlign: "start" }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ color: '#333', textAlign: 'start' }}
+                  >
                     Remarks:
                   </Typography>
                   <TextField
@@ -715,12 +825,12 @@ export default function LabelBottomNavigation(props) {
                     variant="contained"
                     onClick={handleInitiat}
                     disabled={initiateProcessLoading}
-                    color={initiateProcessLoading ? "inherit" : "primary"}
+                    color={initiateProcessLoading ? 'inherit' : 'primary'}
                   >
                     {initiateProcessLoading ? (
                       <CircularProgress size={20} />
                     ) : (
-                      "Initiate"
+                      'Initiate'
                     )}
                   </Button>
                   <Button
@@ -744,17 +854,17 @@ export default function LabelBottomNavigation(props) {
                   : openModal
               }
               disabled={initiateProcessLoading}
-              sx={{ marginTop: "15px" }}
+              sx={{ marginTop: '15px' }}
             >
               {/*  */}
               {props.interBranch && !props.isHeadofficeIncluded ? (
                 initiateProcessLoading ? (
                   <CircularProgress size={20} />
                 ) : (
-                  "Next"
+                  'Next'
                 )
               ) : (
-                "Next"
+                'Next'
               )}
             </Button>
           )}
@@ -763,17 +873,17 @@ export default function LabelBottomNavigation(props) {
         {loading && (
           <div
             style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%,-50%)",
-              zIndex: "500",
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%,-50%)',
+              zIndex: '500',
             }}
           >
             <CircularProgress color="inherit" size={30} />
           </div>
         )}
       </div>
-    </Stack >
+    </Stack>
   );
 }
