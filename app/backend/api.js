@@ -182,8 +182,6 @@ app.use((req, res, next) => {
     req.protocol + "://" + req.get("host") + req.originalUrl
   );
 
-  console.log("parsed url", parsedUrl);
-
   if (req.url.startsWith("/socket")) {
     // Handle WebSocket requests
 
