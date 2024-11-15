@@ -446,6 +446,15 @@ export default function InitiateForm() {
       toast.info('Please provide all inputs!');
     }
   };
+  const handleDelete = (index) => {
+    const updatedWorkFlow = [...selectedDepartment.workFlow];
+    updatedWorkFlow.splice(index, 1);
+    setSelectedDepartment({
+      ...selectedDepartment,
+      workFlow: updatedWorkFlow.map((step, i) => ({ ...step, step: i + 1 })),
+    });
+  };
+
   // working here
   useEffect(() => {
     fetchBranches();
@@ -1239,7 +1248,7 @@ export default function InitiateForm() {
 
                 {usersOnStep.length && flow.work && flow.step ? (
                   <Stack
-                    sx={{ marginTop: '10px' }}
+                    sx={{ mb: '30px' }}
                     gap={1}
                     flexDirection="row"
                     justifyContent="center"
@@ -1282,7 +1291,7 @@ export default function InitiateForm() {
                             right: '0px',
                             top: '0px',
                           }}
-                          // onClick={() => handleDelete(index)}
+                          onClick={() => handleDelete(index)}
                         >
                           <IconX />
                         </IconButton>
@@ -1315,6 +1324,13 @@ export default function InitiateForm() {
                     </>
                   ))}
                 </Stack>
+                <Button
+                  variant="contained"
+                  onClick={handleNextClick}
+                  sx={{ display: 'block', mx: 'auto' }}
+                >
+                  Process
+                </Button>
               </>
             ) : null}
             {activeStep === 2 ? (
