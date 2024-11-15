@@ -4,7 +4,7 @@ from PIL import Image, ImageChops
 import io
 import cv2
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
+# from skimage.metrics import structural_similarity as ssim
 import sys
 
 import fitz  # PyMuPDF
