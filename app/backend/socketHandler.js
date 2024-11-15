@@ -134,7 +134,7 @@ export const initializeSocket = (server) => {
         socket.removeAllListeners("offer");
         socket.removeAllListeners("answer");
         socket.removeAllListeners("ice-candidate");
-
+        socket.removeAllListeners("leave-room");
         usernames = usernames.filter((u) => u.socketId !== socket.id);
 
         socket.to(roomId).emit("user-left", { socketId: socket.id, username });
