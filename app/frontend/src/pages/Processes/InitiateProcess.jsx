@@ -62,7 +62,6 @@ export default function LabelBottomNavigation(props) {
       remarks: '',
     },
   });
-  console.log(props?.selectedDepartment?.workFlow);
   const [selectedOption, maxReceiverStepNumber] = watch([
     'selectedOption',
     'maxReceiverStepNumber',
