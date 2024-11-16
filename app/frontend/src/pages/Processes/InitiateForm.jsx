@@ -479,7 +479,7 @@ export default function InitiateForm() {
 
   const handleDynamicFlowChange = (value) => {
     setIsDynamicFlow(value);
-    setProcessType();
+    setProcessType('intra');
     setHeadofficeInclude();
   };
   return (

@@ -56,15 +56,13 @@ export default function LabelBottomNavigation(props) {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      maxReceiverStepNumber:
-        props?.selectedDepartment?.workFlow[
-          props?.selectedDepartment?.workFlow.length - 1
-        ].step || null,
+      maxReceiverStepNumber: props?.selectedDepartment?.workFlow?.length,
       selectedOption: 'no',
       selectedStep: null,
       remarks: '',
     },
   });
+  console.log(props?.selectedDepartment?.workFlow);
   const [selectedOption, maxReceiverStepNumber] = watch([
     'selectedOption',
     'maxReceiverStepNumber',
