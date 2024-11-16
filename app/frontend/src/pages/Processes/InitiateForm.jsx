@@ -343,17 +343,17 @@ export default function InitiateForm() {
     }
   };
   const getUsers = async (role) => {
-    // const branchValue = value ? headInfo.branch : userBranch;
-    // const roleValue = value ? headInfo.role : flow.role;
     setFieldsLoading(true);
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
       const accessToken = sessionStorage.getItem('accessToken');
       const { _id } = branches.find((item) => item.name === userBranch);
-      const id = roles.find((item) =>
-        item.role === role ? role : userSelection.role,
-      );
-      console.log(_id, id._id);
+      const id = roles.find((item) => item.role === role);
+      // console.log(role);
+      // console.log(userBranch);
+      // console.log(branches);
+      // console.log(roles);
+      // console.log(_id, id._id);
       const { data } = await axios.post(
         url,
         {
