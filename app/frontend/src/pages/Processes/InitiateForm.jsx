@@ -43,7 +43,6 @@ export default function InitiateForm() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
-  console.log(selectedDepartment);
   const [workFlow, setWorkFlow] = useState('');
   const [connectors, setConnectors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -264,13 +263,22 @@ export default function InitiateForm() {
   // workflow handling
   const [works, setWorks] = useState([]);
   const [allBranches, setAllBranches] = useState([]);
-  const [flow, setFlow] = useState({ work: '', step: '' });
   const [userBranch, setUserBranch] = useState('');
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [roles, setRoles] = useState([]);
   const [userSelection, setUserSelection] = useState({ user: '', role: '' });
   const [users, setUsers] = useState([]);
   const [usersOnStep, setUsersOnStep] = useState([]);
+  const [flow, setFlow] = useState({
+    work: '',
+    step: selectedDepartment?.workFlow?.length,
+  });
+  useEffect(() => {
+    setFlow((prev) => ({
+      ...prev,
+      step: selectedDepartment?.workFlow?.length || 0,
+    }));
+  }, [selectedDepartment]);
 
   const getBranches = async () => {
     try {
@@ -1242,28 +1250,27 @@ export default function InitiateForm() {
                           </TableContainer>
                         </div>
                       ) : null}
+                      {usersOnStep.length && flow.work && flow.step ? (
+                        <Stack
+                          sx={{ mb: '30px' }}
+                          gap={1}
+                          flexDirection="row"
+                          justifyContent="center"
+                        >
+                          <Box>
+                            <Button
+                              variant="contained"
+                              onClick={handleWorkFlow}
+                              sx={{ backgroundColor: '#40A2E3' }}
+                            >
+                              Add Step
+                            </Button>
+                          </Box>
+                        </Stack>
+                      ) : null}
                     </Paper>
                   </Grid2>
                 </Grid2>
-
-                {usersOnStep.length && flow.work && flow.step ? (
-                  <Stack
-                    sx={{ mb: '30px' }}
-                    gap={1}
-                    flexDirection="row"
-                    justifyContent="center"
-                  >
-                    <Box>
-                      <Button
-                        variant="contained"
-                        onClick={handleWorkFlow}
-                        sx={{ backgroundColor: '#40A2E3' }}
-                      >
-                        Add Step
-                      </Button>
-                    </Box>
-                  </Stack>
-                ) : null}
                 <Stack
                   flexDirection="row"
                   flexWrap="wrap"
