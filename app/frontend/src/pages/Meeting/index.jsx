@@ -74,7 +74,7 @@ const MeetingManager = () => {
   } = useForm({ defaultValues: { meetingId: '', username: username } });
 
   useEffect(() => {
-    // Only connect if there's no existing connection
+    // Establish connection and setup listeners
     if (!socketRef.current) {
       socketRef.current = socketConnection;
 
@@ -82,31 +82,27 @@ const MeetingManager = () => {
         const { user, text } = data;
         setChatMessages((prev) => [...prev, text]);
       });
+
       socketRef.current.on('user-joined', async ({ socketId, username }) => {
         console.log(`${username} joined: ${socketId}`);
         await createOffer(socketId, username);
-        console.log(username);
       });
 
-      // Listen for offers
       socketRef.current.on('offer', async (data) => {
         const { from, offer, name } = data;
         await handleReceiveOffer(from, offer, name);
       });
 
-      // Listen for answers
       socketRef.current.on('answer', async (data) => {
-        const { from, answer, user } = data;
+        const { from, answer } = data;
         await handleReceiveAnswer(from, answer);
       });
 
-      // Listen for ICE candidates
       socketRef.current.on('ice-candidate', async (data) => {
         const { from, candidate } = data;
         await handleNewICECandidate(from, candidate);
       });
 
-      // Listen for users leaving
       socketRef.current.on('user-left', (data) => {
         const { socketId, username } = data;
         toast.info(`${username} left: ${socketId}`);
@@ -121,12 +117,41 @@ const MeetingManager = () => {
         }
       });
     }
-  }, []);
+
+    return () => {
+      // Cleanup function when
+      //   console.log(username, meetingId);
+      const IdMeeting = localStorage.getItem('IdMeeting');
+      if (socketRef.current && username && IdMeeting) {
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => {
+            track.stop(); // Stop each media track (audio and video)
+          });
+
+          // Clear the local video element
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
+          }
+
+          // Set the localStream to null
+          localStreamRef.current = null;
+        }
+        socketRef.current.emit('leave-room', {
+          roomId: IdMeeting,
+          username: username,
+        });
+        localStorage.removeItem('IdMeeting');
+        console.log('leaving room');
+      }
+      console.log('clean-up');
+    };
+  }, []); // Ensure this effect only runs once on mount and unmount
 
   const onSubmit = async (meetingId) => {
     if (meetingId.trim() === '') return;
     setInRoom(true);
     setMeetingId(meetingId);
+    localStorage.setItem('IdMeeting', meetingId);
     try {
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({

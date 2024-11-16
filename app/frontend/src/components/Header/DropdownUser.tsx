@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { backButtonPath, setPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -48,10 +48,9 @@ const DropdownUser = () => {
     return () => document.removeEventListener('keydown', keyHandler);
   });
   const resetStore = sessionData((state) => state.reset);
-
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const handleLogout = () => {
-    sessionStorage.clear();
     resetStore();
     queryClient.clear();
     setNotifications([]);
@@ -59,9 +58,9 @@ const DropdownUser = () => {
     setProfileImage('');
     setWork('');
     dispatch(setPath('..'));
-
     dispatch(backButtonPath('..'));
-    window.location.href = '/auth/signin';
+    navigate('/auth/signin');
+    sessionStorage.clear();
   };
   const fetchProfilePic = async () => {
     try {
