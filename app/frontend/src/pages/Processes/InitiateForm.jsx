@@ -254,7 +254,7 @@ export default function InitiateForm() {
   };
   // handle step
   const handlePreviousClick = () => {
-    setActiveStep(0);
+    setActiveStep((prev) => prev - 1);
   };
   const handleNextClick = () => {
     setActiveStep((prev) => prev + 1);
@@ -353,6 +353,7 @@ export default function InitiateForm() {
       const id = roles.find((item) =>
         item.role === role ? role : userSelection.role,
       );
+      console.log(_id, id._id);
       const { data } = await axios.post(
         url,
         {
@@ -503,7 +504,7 @@ export default function InitiateForm() {
               </Step>
               <Step>
                 <StepLabel>Initiate Process</StepLabel>
-                {activeStep == 1 ? (
+                {activeStep !== 2 ? (
                   <Stack alignItems="center">
                     <Button size="small" onClick={handleNextClick}>
                       Next
