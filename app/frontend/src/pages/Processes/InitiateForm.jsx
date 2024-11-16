@@ -475,6 +475,13 @@ export default function InitiateForm() {
       step: selectedDepartment?.workFlow?.length + 1,
     }));
   }, []);
+  const [isDynamicFlow, setIsDynamicFlow] = useState(false);
+
+  const handleDynamicFlowChange = (value) => {
+    setIsDynamicFlow(value);
+    setProcessType();
+    setHeadofficeInclude();
+  };
   return (
     <>
       {loading ? (
@@ -499,12 +506,14 @@ export default function InitiateForm() {
                   </Stack>
                 ) : null}
               </Step>
-              <Step>
-                <StepLabel>Workflow</StepLabel>
-              </Step>
+              {isDynamicFlow ? (
+                <Step>
+                  <StepLabel>Workflow</StepLabel>
+                </Step>
+              ) : null}
               <Step>
                 <StepLabel>Initiate Process</StepLabel>
-                {activeStep !== 2 ? (
+                {(isDynamicFlow ? activeStep == 1 : null) ? (
                   <Stack alignItems="center">
                     <Button size="small" onClick={handleNextClick}>
                       Next
@@ -577,21 +586,16 @@ export default function InitiateForm() {
                           margin: '10px',
                         }}
                       >
-                        2. Select Type of process to initiate
+                        Is this dynamic workflow?
                       </Typography>
                       <div className={styles.processType}>
                         <Button
                           variant="outlined"
-                          onClick={() => {
-                            setProcessType('intra');
-                            setConnectors([]);
-                            setSelectedDepartments([]);
-                            setSelectedHeadDepartments([]);
-                          }}
+                          onClick={() => handleDynamicFlowChange(true)}
                           size="medium"
                           sx={{
                             bgcolor:
-                              processType === 'intra' ? 'lightblue' : 'white',
+                              isDynamicFlow === true ? 'lightblue' : 'white',
                             '&:hover': {
                               bgcolor: '#0000FF11',
                             },
@@ -600,7 +604,7 @@ export default function InitiateForm() {
                             justifyContent: 'flex-start',
                           }}
                         >
-                          {processType === 'intra' ? (
+                          {isDynamicFlow === true ? (
                             <IconGradienter
                               style={{ marginRight: '5px' }}
                               size={17}
@@ -611,15 +615,15 @@ export default function InitiateForm() {
                               size={15}
                             />
                           )}
-                          <p style={{ fontSize: '11px' }}>Intra Branch</p>
+                          <p style={{ fontSize: '11px' }}>Yes</p>
                         </Button>
                         <Button
                           variant="outlined"
-                          onClick={() => setProcessType('inter')}
+                          onClick={() => handleDynamicFlowChange(false)}
                           size="medium"
                           sx={{
                             bgcolor:
-                              processType === 'inter' ? 'lightblue' : 'white',
+                              isDynamicFlow === false ? 'lightblue' : 'white',
                             '&:hover': {
                               bgcolor: '#0000FF11',
                             },
@@ -628,7 +632,7 @@ export default function InitiateForm() {
                             justifyContent: 'flex-start',
                           }}
                         >
-                          {processType === 'inter' ? (
+                          {isDynamicFlow === false ? (
                             <IconGradienter
                               style={{ marginRight: '5px' }}
                               size={17}
@@ -639,11 +643,11 @@ export default function InitiateForm() {
                               size={15}
                             />
                           )}
-                          <p style={{ fontSize: '11px' }}>Inter Branch</p>
+                          <p style={{ fontSize: '11px' }}>No</p>
                         </Button>
                       </div>
                     </div>
-                    {processType === 'inter' && !depBelongsToHeadoffice && (
+                    {!isDynamicFlow ? (
                       <>
                         <div style={{ marginBottom: '25px' }}>
                           <Typography
@@ -651,35 +655,40 @@ export default function InitiateForm() {
                             component="span"
                             gutterBottom
                             sx={{
+                              textAlign: 'center',
                               width: 350,
                               height: 50,
                               fontWeight: 400,
+
                               margin: '10px',
                             }}
                           >
-                            3. Is head-office included in process ?
+                            2. Select Type of process to initiate
                           </Typography>
-                          <div className={styles.headOfficeInclude}>
+                          <div className={styles.processType}>
                             <Button
                               variant="outlined"
                               onClick={() => {
-                                setHeadofficeInclude(true);
-                                setSelectedBranches([]);
+                                setProcessType('intra');
+                                setConnectors([]);
+                                setSelectedDepartments([]);
+                                setSelectedHeadDepartments([]);
                               }}
                               size="medium"
                               sx={{
-                                bgcolor: headofficeInclude
-                                  ? 'lightblue'
-                                  : 'white',
+                                bgcolor:
+                                  processType === 'intra'
+                                    ? 'lightblue'
+                                    : 'white',
                                 '&:hover': {
                                   bgcolor: '#0000FF11',
                                 },
-                                display: 'flex',
                                 width: '197px',
+                                display: 'flex',
                                 justifyContent: 'flex-start',
                               }}
                             >
-                              {headofficeInclude ? (
+                              {processType === 'intra' ? (
                                 <IconGradienter
                                   style={{ marginRight: '5px' }}
                                   size={17}
@@ -690,19 +699,17 @@ export default function InitiateForm() {
                                   size={15}
                                 />
                               )}
-                              <p style={{ fontSize: '11px' }}>Yes</p>
+                              <p style={{ fontSize: '11px' }}>Intra Branch</p>
                             </Button>
                             <Button
                               variant="outlined"
-                              onClick={() => {
-                                setHeadofficeInclude(false);
-                                setManagerDep(null);
-                              }}
+                              onClick={() => setProcessType('inter')}
                               size="medium"
                               sx={{
-                                bgcolor: !headofficeInclude
-                                  ? 'lightblue'
-                                  : 'white',
+                                bgcolor:
+                                  processType === 'inter'
+                                    ? 'lightblue'
+                                    : 'white',
                                 '&:hover': {
                                   bgcolor: '#0000FF11',
                                 },
@@ -711,7 +718,7 @@ export default function InitiateForm() {
                                 justifyContent: 'flex-start',
                               }}
                             >
-                              {!headofficeInclude ? (
+                              {processType === 'inter' ? (
                                 <IconGradienter
                                   style={{ marginRight: '5px' }}
                                   size={17}
@@ -722,88 +729,328 @@ export default function InitiateForm() {
                                   size={15}
                                 />
                               )}
-                              <p style={{ fontSize: '11px' }}>No</p>
+                              <p style={{ fontSize: '11px' }}>Inter Branch</p>
                             </Button>
                           </div>
                         </div>
-                        {headofficeInclude ? (
-                          <div style={{ marginBottom: '25px' }}>
-                            <Typography
-                              variant="body1"
-                              component="span"
-                              gutterBottom
-                              sx={{
-                                textAlign: 'center',
-                                width: 350,
-                                height: 50,
-                                fontWeight: 400,
-                                margin: '10px',
-                              }}
-                            >
-                              4. Select headoffice department
-                            </Typography>
-                            <div className={styles.managerDep}>
-                              <Autocomplete
-                                disablePortal
-                                id="combo-box-department"
-                                size="small"
-                                onChange={handleChangeManagerDep}
-                                options={headOfficeDepartments || []}
-                                value={
-                                  headOfficeDepartments?.filter(
-                                    (item) => item.name === managerDep,
-                                  )[0] || null
-                                }
-                                getOptionLabel={(option) => option.name}
-                                renderOption={(props, option) => (
-                                  <Box component="li" {...props}>
-                                    {option.name}
-                                  </Box>
-                                )}
-                                sx={{ maxWidth: 400, backgroundColor: 'white' }}
-                                renderInput={(params) => (
-                                  <TextField {...params} />
-                                )}
-                              />
+                        {processType === 'inter' && !depBelongsToHeadoffice && (
+                          <>
+                            <div style={{ marginBottom: '25px' }}>
+                              <Typography
+                                variant="body1"
+                                component="span"
+                                gutterBottom
+                                sx={{
+                                  width: 350,
+                                  height: 50,
+                                  fontWeight: 400,
+                                  margin: '10px',
+                                }}
+                              >
+                                3. Is head-office included in process ?
+                              </Typography>
+                              <div className={styles.headOfficeInclude}>
+                                <Button
+                                  variant="outlined"
+                                  onClick={() => {
+                                    setHeadofficeInclude(true);
+                                    setSelectedBranches([]);
+                                  }}
+                                  size="medium"
+                                  sx={{
+                                    bgcolor: headofficeInclude
+                                      ? 'lightblue'
+                                      : 'white',
+                                    '&:hover': {
+                                      bgcolor: '#0000FF11',
+                                    },
+                                    display: 'flex',
+                                    width: '197px',
+                                    justifyContent: 'flex-start',
+                                  }}
+                                >
+                                  {headofficeInclude ? (
+                                    <IconGradienter
+                                      style={{ marginRight: '5px' }}
+                                      size={17}
+                                    />
+                                  ) : (
+                                    <IconCircle
+                                      style={{ marginRight: '7px' }}
+                                      size={15}
+                                    />
+                                  )}
+                                  <p style={{ fontSize: '11px' }}>Yes</p>
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  onClick={() => {
+                                    setHeadofficeInclude(false);
+                                    setManagerDep(null);
+                                  }}
+                                  size="medium"
+                                  sx={{
+                                    bgcolor: !headofficeInclude
+                                      ? 'lightblue'
+                                      : 'white',
+                                    '&:hover': {
+                                      bgcolor: '#0000FF11',
+                                    },
+                                    width: '197px',
+                                    display: 'flex',
+                                    justifyContent: 'flex-start',
+                                  }}
+                                >
+                                  {!headofficeInclude ? (
+                                    <IconGradienter
+                                      style={{ marginRight: '5px' }}
+                                      size={17}
+                                    />
+                                  ) : (
+                                    <IconCircle
+                                      style={{ marginRight: '7px' }}
+                                      size={15}
+                                    />
+                                  )}
+                                  <p style={{ fontSize: '11px' }}>No</p>
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
+                            {headofficeInclude ? (
+                              <div style={{ marginBottom: '25px' }}>
+                                <Typography
+                                  variant="body1"
+                                  component="span"
+                                  gutterBottom
+                                  sx={{
+                                    textAlign: 'center',
+                                    width: 350,
+                                    height: 50,
+                                    fontWeight: 400,
+                                    margin: '10px',
+                                  }}
+                                >
+                                  4. Select headoffice department
+                                </Typography>
+                                <div className={styles.managerDep}>
+                                  <Autocomplete
+                                    disablePortal
+                                    id="combo-box-department"
+                                    size="small"
+                                    onChange={handleChangeManagerDep}
+                                    options={headOfficeDepartments || []}
+                                    value={
+                                      headOfficeDepartments?.filter(
+                                        (item) => item.name === managerDep,
+                                      )[0] || null
+                                    }
+                                    getOptionLabel={(option) => option.name}
+                                    renderOption={(props, option) => (
+                                      <Box component="li" {...props}>
+                                        {option.name}
+                                      </Box>
+                                    )}
+                                    sx={{
+                                      maxWidth: 400,
+                                      backgroundColor: 'white',
+                                    }}
+                                    renderInput={(params) => (
+                                      <TextField {...params} />
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ marginBottom: '25px' }}>
+                                <Typography
+                                  variant="body1"
+                                  component="span"
+                                  gutterBottom
+                                  sx={{
+                                    textAlign: 'center',
+                                    width: 350,
+                                    height: 50,
+                                    fontWeight: 400,
+                                    margin: '10px',
+                                  }}
+                                >
+                                  4. Select receiver branches
+                                </Typography>
+                                <div className={styles.receiverBranches}>
+                                  <Autocomplete
+                                    multiple
+                                    sx={{
+                                      maxWidth: '400px',
+                                      backgroundColor: 'white',
+                                    }}
+                                    size="small"
+                                    id="checkboxes-tags-demo"
+                                    options={branches
+                                      ?.filter(
+                                        (item) =>
+                                          item.name !== 'headOffice' &&
+                                          item.departments.length > 0,
+                                      )
+                                      ?.filter(
+                                        (item) =>
+                                          !departmentSelection.includes(
+                                            item.name,
+                                          ),
+                                      )
+                                      ?.filter(
+                                        (item) => item.departments.length >= 0,
+                                      )
+                                      ?.map((branch) => branch.name)}
+                                    disableCloseOnSelect
+                                    getOptionLabel={(option) => option}
+                                    renderOption={(
+                                      props,
+                                      option,
+                                      { selected },
+                                    ) => (
+                                      <li {...props}>
+                                        <Checkbox
+                                          icon={
+                                            <CheckboxOutlineBlankIcon fontSize="small" />
+                                          }
+                                          checkedIcon={
+                                            <CheckboxIcon fontSize="small" />
+                                          }
+                                          style={{ marginRight: 8 }}
+                                          checked={selected}
+                                        />
+                                        <ListItemText primary={option} />
+                                      </li>
+                                    )}
+                                    fullWidth
+                                    renderInput={(params) => (
+                                      <TextField
+                                        {...params}
+                                        variant="outlined"
+                                      />
+                                    )}
+                                    value={selectedBranches}
+                                    onChange={handleCommanBranchChange}
+                                    renderTags={(value, getTagProps) =>
+                                      value.map((option, index) => (
+                                        <Chip
+                                          variant="outlined"
+                                          label={option}
+                                          {...getTagProps({ index })}
+                                        />
+                                      ))
+                                    }
+                                  />
+                                  <FormControlLabel
+                                    sx={{
+                                      justifyContent: 'flex-end',
+                                      maxWidth: '400px',
+                                    }}
+                                    control={
+                                      <Checkbox
+                                        size="small"
+                                        checked={selectAllCheckBranches}
+                                        // disabled={!selectedBranch}
+                                        onChange={handleSelectAllBranches}
+                                        name="selectAllBranches"
+                                      />
+                                    }
+                                    label="Select all branches"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {processType === 'inter' && depBelongsToHeadoffice && (
                           <div style={{ marginBottom: '25px' }}>
                             <Typography
                               variant="body1"
                               component="span"
                               gutterBottom
                               sx={{
-                                textAlign: 'center',
                                 width: 350,
                                 height: 50,
                                 fontWeight: 400,
                                 margin: '10px',
                               }}
                             >
-                              4. Select receiver branches
+                              3. Select receiver departments
                             </Typography>
                             <div className={styles.receiverBranches}>
+                              <p>Headoffice Departments :</p>
                               <Autocomplete
                                 multiple
-                                sx={{
-                                  maxWidth: '400px',
-                                  backgroundColor: 'white',
-                                }}
                                 size="small"
+                                sx={{ maxWidth: '400px' }}
+                                id="checkboxes-tags-demo"
+                                options={headOfficeDepartments
+                                  ?.filter(
+                                    (dep) => dep.name !== departmentSelection,
+                                  )
+                                  ?.map((dep) => dep.name)}
+                                disableCloseOnSelect
+                                getOptionLabel={(option) => option}
+                                renderOption={(props, option, { selected }) => (
+                                  <li {...props}>
+                                    <Checkbox
+                                      icon={
+                                        <CheckboxOutlineBlankIcon fontSize="small" />
+                                      }
+                                      checkedIcon={
+                                        <CheckboxIcon fontSize="small" />
+                                      }
+                                      style={{ marginRight: 8 }}
+                                      checked={selected}
+                                    />
+                                    <ListItemText primary={option} />
+                                  </li>
+                                )}
+                                fullWidth
+                                renderInput={(params) => (
+                                  <TextField {...params} variant="outlined" />
+                                )}
+                                value={selectedHeadDepartments}
+                                onChange={handleHeadDepartmentsSelect}
+                                renderTags={(value, getTagProps) =>
+                                  value.map((option, index) => (
+                                    <Chip
+                                      variant="outlined"
+                                      label={option}
+                                      {...getTagProps({ index })}
+                                    />
+                                  ))
+                                }
+                              />
+                              <FormControlLabel
+                                sx={{
+                                  justifyContent: 'flex-end',
+                                  maxWidth: '400px',
+                                }}
+                                control={
+                                  <Checkbox
+                                    checked={selectAllCheckHeadDepartments}
+                                    size="small"
+                                    // disabled={!selectedBranch}
+                                    onChange={handleSelectAllHeadDepartments}
+                                    name="selectAllDepartments"
+                                  />
+                                }
+                                label="Select all departments"
+                              />
+                              <p>Normal branches :</p>
+                              <Autocomplete
+                                multiple
+                                size="small"
+                                sx={{ maxWidth: '400px' }}
                                 id="checkboxes-tags-demo"
                                 options={branches
-                                  ?.filter(
-                                    (item) =>
-                                      item.name !== 'headOffice' &&
-                                      item.departments.length > 0,
-                                  )
                                   ?.filter(
                                     (item) =>
                                       !departmentSelection.includes(item.name),
                                   )
                                   ?.filter(
-                                    (item) => item.departments.length >= 0,
+                                    (item) => item.departments.length > 0,
                                   )
                                   ?.map((branch) => branch.name)}
                                 disableCloseOnSelect
@@ -827,8 +1074,8 @@ export default function InitiateForm() {
                                 renderInput={(params) => (
                                   <TextField {...params} variant="outlined" />
                                 )}
-                                value={selectedBranches}
-                                onChange={handleCommanBranchChange}
+                                value={selectedDepartments}
+                                onChange={handleDepartmentsSelect}
                                 renderTags={(value, getTagProps) =>
                                   value.map((option, index) => (
                                     <Chip
@@ -839,6 +1086,7 @@ export default function InitiateForm() {
                                   ))
                                 }
                               />
+
                               <FormControlLabel
                                 sx={{
                                   justifyContent: 'flex-end',
@@ -846,164 +1094,22 @@ export default function InitiateForm() {
                                 }}
                                 control={
                                   <Checkbox
+                                    checked={selectAllCheckDepartments}
                                     size="small"
-                                    checked={selectAllCheckBranches}
                                     // disabled={!selectedBranch}
-                                    onChange={handleSelectAllBranches}
-                                    name="selectAllBranches"
+                                    onChange={handleSelectAllDepartments}
+                                    name="selectAllDepartments"
                                   />
                                 }
-                                label="Select all branches"
+                                label="Select Branches"
                               />
                             </div>
                           </div>
                         )}
+                        {/* buttons according to selections */}
                       </>
-                    )}
-                    {processType === 'inter' && depBelongsToHeadoffice && (
-                      <div style={{ marginBottom: '25px' }}>
-                        <Typography
-                          variant="body1"
-                          component="span"
-                          gutterBottom
-                          sx={{
-                            width: 350,
-                            height: 50,
-                            fontWeight: 400,
-                            margin: '10px',
-                          }}
-                        >
-                          3. Select receiver departments
-                        </Typography>
-                        <div className={styles.receiverBranches}>
-                          <p>Headoffice Departments :</p>
-                          <Autocomplete
-                            multiple
-                            size="small"
-                            sx={{ maxWidth: '400px' }}
-                            id="checkboxes-tags-demo"
-                            options={headOfficeDepartments
-                              ?.filter(
-                                (dep) => dep.name !== departmentSelection,
-                              )
-                              ?.map((dep) => dep.name)}
-                            disableCloseOnSelect
-                            getOptionLabel={(option) => option}
-                            renderOption={(props, option, { selected }) => (
-                              <li {...props}>
-                                <Checkbox
-                                  icon={
-                                    <CheckboxOutlineBlankIcon fontSize="small" />
-                                  }
-                                  checkedIcon={
-                                    <CheckboxIcon fontSize="small" />
-                                  }
-                                  style={{ marginRight: 8 }}
-                                  checked={selected}
-                                />
-                                <ListItemText primary={option} />
-                              </li>
-                            )}
-                            fullWidth
-                            renderInput={(params) => (
-                              <TextField {...params} variant="outlined" />
-                            )}
-                            value={selectedHeadDepartments}
-                            onChange={handleHeadDepartmentsSelect}
-                            renderTags={(value, getTagProps) =>
-                              value.map((option, index) => (
-                                <Chip
-                                  variant="outlined"
-                                  label={option}
-                                  {...getTagProps({ index })}
-                                />
-                              ))
-                            }
-                          />
-                          <FormControlLabel
-                            sx={{
-                              justifyContent: 'flex-end',
-                              maxWidth: '400px',
-                            }}
-                            control={
-                              <Checkbox
-                                checked={selectAllCheckHeadDepartments}
-                                size="small"
-                                // disabled={!selectedBranch}
-                                onChange={handleSelectAllHeadDepartments}
-                                name="selectAllDepartments"
-                              />
-                            }
-                            label="Select all departments"
-                          />
-                          <p>Normal branches :</p>
-                          <Autocomplete
-                            multiple
-                            size="small"
-                            sx={{ maxWidth: '400px' }}
-                            id="checkboxes-tags-demo"
-                            options={branches
-                              ?.filter(
-                                (item) =>
-                                  !departmentSelection.includes(item.name),
-                              )
-                              ?.filter((item) => item.departments.length > 0)
-                              ?.map((branch) => branch.name)}
-                            disableCloseOnSelect
-                            getOptionLabel={(option) => option}
-                            renderOption={(props, option, { selected }) => (
-                              <li {...props}>
-                                <Checkbox
-                                  icon={
-                                    <CheckboxOutlineBlankIcon fontSize="small" />
-                                  }
-                                  checkedIcon={
-                                    <CheckboxIcon fontSize="small" />
-                                  }
-                                  style={{ marginRight: 8 }}
-                                  checked={selected}
-                                />
-                                <ListItemText primary={option} />
-                              </li>
-                            )}
-                            fullWidth
-                            renderInput={(params) => (
-                              <TextField {...params} variant="outlined" />
-                            )}
-                            value={selectedDepartments}
-                            onChange={handleDepartmentsSelect}
-                            renderTags={(value, getTagProps) =>
-                              value.map((option, index) => (
-                                <Chip
-                                  variant="outlined"
-                                  label={option}
-                                  {...getTagProps({ index })}
-                                />
-                              ))
-                            }
-                          />
-
-                          <FormControlLabel
-                            sx={{
-                              justifyContent: 'flex-end',
-                              maxWidth: '400px',
-                            }}
-                            control={
-                              <Checkbox
-                                checked={selectAllCheckDepartments}
-                                size="small"
-                                // disabled={!selectedBranch}
-                                onChange={handleSelectAllDepartments}
-                                name="selectAllDepartments"
-                              />
-                            }
-                            label="Select Branches"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* buttons according to selections */}
-                    {processType === 'intra' && (
+                    ) : null}
+                    {(processType === 'intra' || isDynamicFlow) && (
                       <Stack alignItems="center">
                         <Button
                           variant="contained"
@@ -1051,7 +1157,8 @@ export default function InitiateForm() {
                 )}
               </>
             ) : null}
-            {activeStep === 1 ? (
+
+            {(isDynamicFlow ? activeStep === 1 : activeStep == null) ? (
               <>
                 <Grid2 container spacing={3} p={2}>
                   <Grid2 item size={{ xs: 12 }}>
@@ -1341,7 +1448,7 @@ export default function InitiateForm() {
                 </Button>
               </>
             ) : null}
-            {activeStep === 2 ? (
+            {(isDynamicFlow ? activeStep === 2 : activeStep == 1) ? (
               <InitiatProcess
                 workFlow={workFlow}
                 setWorkFlow={setWorkFlow}
