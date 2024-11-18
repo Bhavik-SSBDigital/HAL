@@ -5,6 +5,10 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   Grid2,
@@ -418,6 +422,7 @@ export default function InitiateForm() {
     // Update the state with the new user object
     setUsersOnStep((prevData) => [...prevData, newUser]);
     setUserSelection({ user: '', role: '' });
+    setUserDialogOpen(false);
   };
   const handleWorkFlow = () => {
     if (selectedDepartment?.workFlow?.length === 0 && flow.work !== 'upload') {
@@ -452,7 +457,11 @@ export default function InitiateForm() {
       // setUserBranch('');
       setUsersOnStep([]);
     } else {
-      toast.info('Please provide all inputs!');
+      if (!flow.work) {
+        toast.info('Please select work!!');
+      } else {
+        toast.info('Please add users!!');
+      }
     }
   };
   const handleDelete = (index) => {
@@ -462,6 +471,10 @@ export default function InitiateForm() {
       ...selectedDepartment,
       workFlow: updatedWorkFlow.map((step, i) => ({ ...step, step: i + 1 })),
     });
+  };
+  const deleteStepUser = (index) => {
+    const updatedUsersOnStep = usersOnStep.filter((_, i) => i !== index);
+    setUsersOnStep(updatedUsersOnStep);
   };
 
   // working here
@@ -476,11 +489,16 @@ export default function InitiateForm() {
     }));
   }, []);
   const [isDynamicFlow, setIsDynamicFlow] = useState(false);
-
   const handleDynamicFlowChange = (value) => {
     setIsDynamicFlow(value);
     setProcessType('intra');
     setHeadofficeInclude();
+  };
+
+  // multi user add dialog
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const onUserDialogClose = () => {
+    setUserDialogOpen(false);
   };
   return (
     <>
@@ -1161,7 +1179,7 @@ export default function InitiateForm() {
             {(isDynamicFlow ? activeStep === 1 : activeStep == null) ? (
               <>
                 <Grid2 container spacing={3} p={2}>
-                  <Grid2 item size={{ xs: 12 }}>
+                  <Grid2 item size={{ xs: 6 }}>
                     <Typography variant="body1">
                       {/* {newWork ? "name of work" : "Work"}: */}
                       Work
@@ -1190,7 +1208,7 @@ export default function InitiateForm() {
                       </FormControl>
                     </Box>
                   </Grid2>
-                  <Grid2 item size={{ xs: 12 }}>
+                  <Grid2 item size={{ xs: 6 }}>
                     <Typography variant="body1">Step No:</Typography>
                     <FormControl fullWidth variant="outlined">
                       <Select
@@ -1216,167 +1234,89 @@ export default function InitiateForm() {
                     </FormControl>
                   </Grid2>
                   <Grid2 item size={{ xs: 12 }}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        width: '100%',
-                        padding: '20px',
-                        display: 'flex',
-                        gap: '10px',
-                        flexDirection: 'column',
-                        border: '1px solid lightgray',
-                      }}
-                    >
-                      {/* <Grid item xs={12}> */}
-                      <Typography variant="body1">User Branch:</Typography>
-                      <FormControl fullWidth variant="outlined">
-                        <Select
-                          name="userBranch"
-                          size="small"
-                          sx={{ backgroundColor: 'whitesmoke' }}
-                          value={userBranch}
-                          onChange={handleInputChange}
-                        >
-                          <MenuItem value="" disabled>
-                            <em>None</em>
-                          </MenuItem>
-                          {allBranches?.map((data) => (
-                            <MenuItem key={data.name} value={data.name}>
-                              {data.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      {/* </Grid> */}
-                      {/* <Grid item xs={12}> */}
-                      <Typography variant="body1">Actor Role:</Typography>
-                      <FormControl fullWidth variant="outlined">
-                        <Select
-                          name="role"
-                          size="small"
-                          disabled={fieldsLoading}
-                          sx={{ backgroundColor: 'whitesmoke' }}
-                          value={userSelection.role}
-                          onChange={handleUserSelection}
-                        >
-                          <MenuItem value="" disabled>
-                            <em>None</em>
-                          </MenuItem>
-                          {roles?.map((data) => (
-                            <MenuItem key={data.role} value={data.role}>
-                              {data.role}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      {/* </Grid> */}
-                      {/* <Grid item xs={12}> */}
-                      <Typography variant="body1">User:</Typography>
-                      <FormControl fullWidth variant="outlined">
-                        <Select
-                          name="user"
-                          size="small"
-                          sx={{ backgroundColor: 'whitesmoke' }}
-                          value={userSelection.user}
-                          disabled={fieldsLoading}
-                          onChange={handleUserSelection}
-                        >
-                          <MenuItem value="" disabled>
-                            <em>None</em>
-                          </MenuItem>
-                          {users?.map((data) => (
-                            <MenuItem key={data.username} value={data.username}>
-                              {data.username}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      <Button
-                        variant="outlined"
-                        sx={{ mt: 1, width: '150px', mx: 'auto' }}
-                        onClick={handleUserAdd}
+                    <div>
+                      <Typography variant="h6">This step users :</Typography>
+                      <TableContainer
+                        sx={{
+                          maxHeight: '300px',
+                          overflow: 'auto',
+                          width: '100%',
+                          borderRadius: '5px',
+                          border: '1px solid lightgray',
+                        }}
                       >
-                        Add User
-                      </Button>
-                      {/* </Grid> */}
-                      {usersOnStep.length ? (
-                        <div style={{ margin: '30px auto', width: '100%' }}>
-                          <Typography variant="h6" textAlign="center">
-                            This step users :
-                          </Typography>
-                          {/* {usersOnStep.map((obj, index) => (
-                <p key={index} style={{ display: "inline" }}>
-                  {obj.user}/{obj.role}
-                  {index !== usersOnStep.length - 1 ? ", " : ""}
-                </p>
-              ))} */}
-                          <TableContainer
-                            sx={{
-                              maxHeight: '200px',
-                              overflow: 'auto',
-                              width: '100%',
-                              border: '1px solid lightgray',
-                            }}
-                          >
-                            <Table size="small" aria-label="a dense table">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell>Sr No</TableCell>
-                                  <TableCell>Username</TableCell>
-                                  <TableCell>User Role</TableCell>
-                                  <TableCell>Delete</TableCell>
+                        <Table size="small" aria-label="a dense table">
+                          <TableHead>
+                            <TableRow sx={{ height: '50px' }}>
+                              <TableCell>Sr No</TableCell>
+                              <TableCell>Username</TableCell>
+                              <TableCell>User Role</TableCell>
+                              <TableCell>Delete</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {usersOnStep.length ? (
+                              usersOnStep.map((row, index) => (
+                                <TableRow
+                                  key={index}
+                                  // sx={{
+                                  //   "&:last-child td, &:last-child th": { border: 0 },
+                                  // }}
+                                >
+                                  <TableCell component="th" scope="row">
+                                    {index + 1}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    {row.user}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    {row.role}
+                                  </TableCell>
+                                  <TableCell component="th" scope="row">
+                                    <Button
+                                      onClick={() => deleteStepUser(index)}
+                                    >
+                                      <FaRegTrashAlt color="red" />
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {usersOnStep.map((row, index) => (
-                                  <TableRow
-                                    key={index}
-                                    // sx={{
-                                    //   "&:last-child td, &:last-child th": { border: 0 },
-                                    // }}
-                                  >
-                                    <TableCell component="th" scope="row">
-                                      {index + 1}
-                                    </TableCell>
-                                    <TableCell component="th" scope="row">
-                                      {row.user}
-                                    </TableCell>
-                                    <TableCell component="th" scope="row">
-                                      {row.role}
-                                    </TableCell>
-                                    <TableCell component="th" scope="row">
-                                      <Button
-                                        onClick={() => deleteStepUser(index)}
-                                      >
-                                        <FaRegTrashAlt />{' '}
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </div>
-                      ) : null}
-                      {usersOnStep.length && flow.work && flow.step ? (
-                        <Stack
-                          sx={{ mb: '30px' }}
-                          gap={1}
-                          flexDirection="row"
-                          justifyContent="center"
-                        >
-                          <Box>
-                            <Button
-                              variant="contained"
-                              onClick={handleWorkFlow}
-                              sx={{ backgroundColor: '#40A2E3' }}
-                            >
-                              Add Step
-                            </Button>
-                          </Box>
-                        </Stack>
-                      ) : null}
-                    </Paper>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={4}>
+                                  Please add users
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow>
+                              <TableCell colSpan={4} align="right">
+                                <Button
+                                  variant="contained"
+                                  color="secondary"
+                                  size="small"
+                                  onClick={() => setUserDialogOpen(true)}
+                                >
+                                  Add Users
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </div>
+                  </Grid2>
+                  <Grid2 item size={{ xs: 12 }}>
+                    <Box sx={{ mx: 'auto', width: 'fit-content' }}>
+                      {/* {usersOnStep.length && flow.work && flow.step ? ( */}
+                      <Button
+                        variant="contained"
+                        onClick={handleWorkFlow}
+                        // sx={{ backgroundColor: '#40A2E3' }}
+                      >
+                        Add Step
+                      </Button>
+                      {/* ) : null} */}
+                    </Box>
                   </Grid2>
                 </Grid2>
                 <Stack
@@ -1384,9 +1324,8 @@ export default function InitiateForm() {
                   flexWrap="wrap"
                   rowGap={3}
                   columnGap={1}
-                  mt={4}
                   justifyContent="center"
-                  sx={{ marginBottom: '40px', marginTop: '10px' }}
+                  sx={{ marginBottom: '20px', marginTop: '40px' }}
                 >
                   {selectedDepartment?.workFlow?.map((item, index) => (
                     <>
@@ -1462,6 +1401,85 @@ export default function InitiateForm() {
               />
             ) : null}
           </div>
+          <Dialog
+            maxWidth="sm"
+            fullWidth
+            open={userDialogOpen}
+            onClose={onUserDialogClose}
+          >
+            <DialogTitle>Add users</DialogTitle>
+            <DialogContent>
+              <Stack gap={1}>
+                <Typography variant="body1">User Branch:</Typography>
+                <FormControl fullWidth variant="outlined">
+                  <Select
+                    name="userBranch"
+                    size="small"
+                    fullWidth
+                    sx={{ backgroundColor: 'whitesmoke' }}
+                    value={userBranch}
+                    onChange={handleInputChange}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>None</em>
+                    </MenuItem>
+                    {allBranches?.map((data) => (
+                      <MenuItem key={data.name} value={data.name}>
+                        {data.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Typography variant="body1">Actor Role:</Typography>
+                <FormControl fullWidth variant="outlined">
+                  <Select
+                    name="role"
+                    fullWidth
+                    size="small"
+                    disabled={fieldsLoading}
+                    sx={{ backgroundColor: 'whitesmoke' }}
+                    value={userSelection.role}
+                    onChange={handleUserSelection}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>None</em>
+                    </MenuItem>
+                    {roles?.map((data) => (
+                      <MenuItem key={data.role} value={data.role}>
+                        {data.role}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Typography variant="body1">User:</Typography>
+                <FormControl fullWidth variant="outlined">
+                  <Select
+                    name="user"
+                    fullWidth
+                    size="small"
+                    sx={{ backgroundColor: 'whitesmoke' }}
+                    value={userSelection.user}
+                    disabled={fieldsLoading}
+                    onChange={handleUserSelection}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>None</em>
+                    </MenuItem>
+                    {users?.map((data) => (
+                      <MenuItem key={data.username} value={data.username}>
+                        {data.username}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="contained" onClick={handleUserAdd}>
+                Add User
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Stack>
       )}
     </>
