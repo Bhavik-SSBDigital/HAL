@@ -16,6 +16,7 @@ import { exec } from "child_process";
 import sharp from "sharp";
 import LogWork from "../models/logWork.js";
 import { promisify } from "util";
+import { is_process_forwardable } from "./process-utility-controller.js";
 const execPromise = promisify(exec);
 
 const envVariables = process.env;
@@ -200,16 +201,23 @@ export const sign_document = async (req, res, next) => {
     let date = Date.now();
     date = formatDate(date);
 
-    let departmentName = await Department.findOne({
-      _id: new ObjectId(req.body.workFlowToBeFollowed),
-    }).select("name");
-    departmentName = departmentName.name;
+    let departmentName;
+
+    if (!(process.steps && process.steps.length)) {
+      departmentName = await Department.findOne({
+        _id: new ObjectId(req.body.workFlowToBeFollowed),
+      }).select("name");
+      departmentName = departmentName.name;
+    }
 
     let documentName = await Document.findOne({
       _id: foundDocument.documentId,
     }).select("name");
     documentName = documentName.name;
-    const signature = `[${userData.username}(branch-${branchName}, department-${departmentName}, role-${roleName}, Timestamp: ${date}, fileName: ${documentName} )]`;
+    const signature =
+      process.steps && process.steps.length > 0
+        ? `[${userData.username}(branch-${branchName},  role-${roleName}, Timestamp: ${date}, fileName: ${documentName} )]`
+        : `[${userData.username}(branch-${branchName}, department-${departmentName}, role-${roleName}, Timestamp: ${date}, fileName: ${documentName} )]`;
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const pages = pdfDoc.getPages();
     const lastPageIndex = pages.length - 1;
@@ -408,8 +416,12 @@ export const sign_document = async (req, res, next) => {
       await logWorkDataObj.save();
     }
 
+    const process_result = await is_process_forwardable(process, userData._id);
+
     return res.status(200).json({
       message: "document signed successfully",
+      isForwardable: process_result.isForwardable,
+      isRevertable: process_result.isRevertable,
     });
   } catch (error) {
     console.log(error);
@@ -436,19 +448,28 @@ export const reject_document = async (req, res, next) => {
     const process = await Process.findOne({ _id: processId });
 
     if (process) {
-      const workFlow = await Department.findOne({
-        _id: req.body.workFlowToBeFollowed
-          ? req.body.workFlowToBeFollowed
-          : process.workFlow,
-      });
+      let workFlow;
 
-      const steps = workFlow.steps;
+      if (!(process.steps && process.steps.length > 0)) {
+        workFlow = await Department.findOne({
+          _id: req.body.workFlowToBeFollowed
+            ? req.body.workFlowToBeFollowed
+            : process.workFlow,
+        });
+      }
+
+      const steps =
+        process.steps && process.steps.length > 0
+          ? process.steps
+          : workFlow.steps;
 
       let foundDocument;
-      const connectorIndex = process.connectors.findIndex((connector) =>
-        connector.department.equals(new ObjectId(req.body.workFlowToBeFollowed))
-      );
       if (process.isInterBranchProcess) {
+        const connectorIndex = process.connectors.findIndex((connector) =>
+          connector.department.equals(
+            new ObjectId(req.body.workFlowToBeFollowed)
+          )
+        );
         if (
           process.workFlow.equals(new ObjectId(req.body.workFlowToBeFollowed))
         ) {
@@ -667,8 +688,12 @@ export const reject_document = async (req, res, next) => {
       });
     }
 
+    const process_result = await is_process_forwardable(process, userData._id);
+
     return res.status(200).json({
       message: "rejected document successfully",
+      isForwardable: process_result.isForwardable,
+      isRevertable: process_result.isRevertable,
     });
   } catch (error) {
     console.log(error, "error rejecting document");

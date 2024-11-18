@@ -209,6 +209,33 @@ const processSchema = new mongoose.Schema({
     ref: "User",
     default: null,
   },
+  steps: [
+    {
+      work: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Work",
+        required: true,
+      },
+      stepNumber: {
+        type: Number,
+        required: true,
+      },
+      users: [
+        {
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          role: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Role",
+            required: true,
+          },
+        },
+      ],
+    },
+  ],
 });
 
 const Process = mongoose.model("Process", processSchema);

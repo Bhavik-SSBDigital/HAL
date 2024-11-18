@@ -93,7 +93,7 @@ export const logSchema = new mongoose.Schema({
   belongingDepartment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Department",
-    required: true,
+    required: false,
   },
 });
 

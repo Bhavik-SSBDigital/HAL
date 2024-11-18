@@ -18,6 +18,7 @@ import { ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import { convertToISTAndFormatISO } from "../utility/date-functions.js";
 import LogWork from "../models/logWork.js";
+import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
 
 dotenv.config();
@@ -99,19 +100,29 @@ export const add_process = async (req, res, next) => {
     // selecting all the process done/pending in the workflow, current process is being aadded with
     /* CHANGE: use documentCount() method instead of selecting all the process to get the count of process 
     exising in current workflow */
-    let process_no = await Process.find({ workFlow: req.body.workFlow }).select(
-      "_id"
-    );
-
-    let departmentName = req.body.initiatorDepartment;
-
-    // departmentName = departmentName.name;
-
-    let name = process_no.name;
-
-    process_no = process_no.length;
 
     let process = req.body;
+
+    let ifProcessContainsCustomWorkFlow =
+      (req.body.steps && req.body.steps.length) > 0;
+
+    let processName;
+
+    if (ifProcessContainsCustomWorkFlow) {
+      let process_no = await Process.countDocuments({
+        steps: { $ne: null },
+      });
+
+      processName = `manual_process_${process_no}`;
+    } else {
+      let process_no = await Process.countDocuments({
+        workFlow: req.body.workFlow,
+      });
+
+      let departmentName = req.body.initiatorDepartment;
+
+      processName = `${initiatorDepartment_.name}_${process_no}`;
+    }
 
     /*
       getting count work name wise, so that we can add in analytics that on this specific date this many
@@ -152,11 +163,13 @@ export const add_process = async (req, res, next) => {
 
     process.createdAt = Date.now();
 
-    const initiatorDepartment_ = await Department.findOne({
-      _id: req.body.workFlow,
-    }).select("name");
+    let initiatorDepartment_;
 
-    process.name = `${initiatorDepartment_.name}_${process_no}`;
+    if (!ifProcessContainsCustomWorkFlow) {
+      initiatorDepartment_ = await Department.findOne({
+        _id: req.body.workFlow,
+      }).select("name");
+    }
 
     /*
       DESCRIPTION OF THIS IF BLOCK FOR THE CONDITION: 
@@ -174,8 +187,12 @@ export const add_process = async (req, res, next) => {
       2. If process is not inter-branch add documents to process object directly
     */
 
-    let isInitiatorDepartmentFromHeadOffice =
-      departmentName.split("_")[0] === "headOffice";
+    let isInitiatorDepartmentFromHeadOffice;
+    if (!ifProcessContainsCustomWorkFlow) {
+      isInitiatorDepartmentFromHeadOffice =
+        initiatorDepartment_.name.split("_")[0] === "headOffice";
+    }
+
     if (req.body.isInterBranchProcess) {
       process.isInterBranchProcess = req.body.isInterBranchProcess;
 
@@ -203,7 +220,68 @@ export const add_process = async (req, res, next) => {
       process.documents = req.body.documents;
     }
 
-    process.maxReceiverStepNumber = req.body.maxReceiverStepNumber;
+    if (!ifProcessContainsCustomWorkFlow) {
+      process.maxReceiverStepNumber = req.body.maxReceiverStepNumber;
+    }
+
+    let updatedSteps = [];
+    let steps = req.body.steps;
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      let users = [];
+
+      for (let j = 0; j < step.users.length; j++) {
+        const currentUser = step.users[j].user;
+        const currentRole = step.users[j].role;
+        let user = await User.findOne({ username: currentUser }).select("id");
+        if (!user) {
+          return res.status(400).json({
+            message:
+              "one of the users mentioned in steps as an actor doesn't exist",
+          });
+        }
+        user = user._id;
+
+        let role = await Role.findOne({ role: currentRole }).select("id");
+
+        if (!role) {
+          return res.status(400).json({
+            message:
+              "one of the roles mentioned in steps as an role doesn't exist",
+          });
+        }
+
+        role = role._id;
+
+        users.push({
+          user: user,
+          role: role,
+        });
+      }
+
+      let work = await Work.findOne({ name: step.work });
+
+      if (!work) {
+        const newWork = new Work({
+          name: step.work,
+        });
+
+        work = await newWork.save();
+      }
+
+      work = work._id;
+
+      updatedSteps.push({
+        users: users,
+        work: work,
+        stepNumber: step.step,
+      });
+    }
+
+    process.steps = updatedSteps;
+
+    process.name = processName;
+
     let Process_ = new Process(process);
 
     Process_ = await Process_.save();
@@ -270,7 +348,8 @@ export const add_process = async (req, res, next) => {
       });
 
       if (processAnalytics) {
-        processAnalytics.noOfPendingProcess += 1;
+        processAnalytics.noOfPendingProcess =
+          (processAnalytics.noOfPendingProcess || 0) + 1;
         let documentDetailsOfOverallBank = processAnalytics.documentDetails;
         if (documentDetailsOfOverallBank) {
           for (let i = 0; i < workNameCounts.length; i++) {
@@ -289,74 +368,86 @@ export const add_process = async (req, res, next) => {
           processAnalytics.documentDetails = workNameCounts;
         }
 
-        // Document found, update the counts
-        const departmentIndex = processAnalytics.departmentsPendingProcess
-          ? processAnalytics.departmentsPendingProcess.findIndex((department) =>
-              department.department.equals(new ObjectId(req.body.workFlow))
-            )
-          : -1;
+        if (!ifProcessContainsCustomWorkFlow) {
+          // Document found, update the counts
+          const departmentIndex = processAnalytics.departmentsPendingProcess
+            ? processAnalytics.departmentsPendingProcess.findIndex(
+                (department) =>
+                  department.department.equals(new ObjectId(req.body.workFlow))
+              )
+            : -1;
 
-        if (departmentIndex !== -1) {
-          // If the department is found, increment its count
-          // processAnalytics.noOfPendingProcess += 1;
-          // processAnalytics.departmentsPendingProcess[
-          //   departmentIndex
-          // ].noOfPendingProcess += 1;
-          processAnalytics.departmentsPendingProcess[
-            departmentIndex
-          ].noOfPendingProcess =
-            (processAnalytics.departmentsPendingProcess[departmentIndex]
-              .noOfPendingProcess || 0) + 1;
-          let documentDetailsOfDepartment =
-            processAnalytics.departmentsPendingProcess[departmentIndex]
-              .documentDetails;
-          if (documentDetailsOfDepartment) {
-            for (let i = 0; i < workNameCounts.length; i++) {
-              const workNameIndex = documentDetailsOfDepartment.findIndex(
-                (work) => work.workName === workNameCounts[i].workName
-              );
-              if (workNameIndex !== -1) {
-                documentDetailsOfDepartment[workNameIndex].documentCount +=
-                  workNameCounts[i].documentCount;
-              } else {
-                documentDetailsOfDepartment.push(workNameCounts[i]);
+          if (departmentIndex !== -1) {
+            // If the department is found, increment its count
+            // processAnalytics.noOfPendingProcess += 1;
+            // processAnalytics.departmentsPendingProcess[
+            //   departmentIndex
+            // ].noOfPendingProcess += 1;
+            processAnalytics.departmentsPendingProcess[
+              departmentIndex
+            ].noOfPendingProcess =
+              (processAnalytics.departmentsPendingProcess[departmentIndex]
+                .noOfPendingProcess || 0) + 1;
+            let documentDetailsOfDepartment =
+              processAnalytics.departmentsPendingProcess[departmentIndex]
+                .documentDetails;
+            if (documentDetailsOfDepartment) {
+              for (let i = 0; i < workNameCounts.length; i++) {
+                const workNameIndex = documentDetailsOfDepartment.findIndex(
+                  (work) => work.workName === workNameCounts[i].workName
+                );
+                if (workNameIndex !== -1) {
+                  documentDetailsOfDepartment[workNameIndex].documentCount +=
+                    workNameCounts[i].documentCount;
+                } else {
+                  documentDetailsOfDepartment.push(workNameCounts[i]);
+                }
               }
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].documentDetails = documentDetailsOfDepartment;
+            } else {
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].documentDetails = workNameCounts;
             }
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].documentDetails = documentDetailsOfDepartment;
           } else {
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].documentDetails = workNameCounts;
+            // If the department is not found, add it with an initial count of 1
+            // processAnalytics.noOfPendingProcess += 1;
+            processAnalytics.departmentsPendingProcess.push({
+              department: new ObjectId(req.body.workFlow),
+              noOfPendingProcess: 1,
+              documentDetails: workNameCounts,
+            });
           }
-        } else {
-          // If the department is not found, add it with an initial count of 1
-          // processAnalytics.noOfPendingProcess += 1;
-          processAnalytics.departmentsPendingProcess.push({
-            department: new ObjectId(req.body.workFlow),
-            noOfPendingProcess: 1,
-            documentDetails: workNameCounts,
-          });
         }
 
         // Save the updated document back to the database
         await processAnalytics.save();
       } else {
-        let newProcessAnalytics = new ProcessAnalytics({
-          date: new Date(),
-          noOfPendingProcess: 1,
-          noOfRevertedProcess: 0,
-          documentDetails: workNameCounts,
-          departmentsPendingProcess: [
-            {
-              department: new ObjectId(req.body.workFlow),
+        let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
+          ? {
+              date: new Date(),
               noOfPendingProcess: 1,
               noOfRevertedProcess: 0,
               documentDetails: workNameCounts,
-            },
-          ],
-        });
+              departmentsPendingProcess: [
+                {
+                  department: new ObjectId(req.body.workFlow),
+                  noOfPendingProcess: 1,
+                  noOfRevertedProcess: 0,
+                  documentDetails: workNameCounts,
+                },
+              ],
+            }
+          : {
+              date: new Date(),
+              noOfPendingProcess: 1,
+              noOfRevertedProcess: 0,
+              documentDetails: workNameCounts,
+            };
+
+        let newProcessAnalytics = new ProcessAnalytics();
 
         await newProcessAnalytics.save();
       }
@@ -902,10 +993,6 @@ export const forwardProcess = async (
   try {
     let process = await Process.findOne({ _id: processId });
 
-    const docsToBeCheckedIfUserSigned = process.documents.filter(
-      (item) => item.rejection === undefined
-    );
-
     /* 
       1. removal of process from notifications array for current user 
       2. removal of process from processes array for current user
@@ -953,15 +1040,22 @@ export const forwardProcess = async (
 
         Handler department user might not have the workFlowToBeProcessed value in its processes array
     */
-    let workflow = isInterBranchProcess
-      ? new ObjectId(workFlowToBeFollowed)
-      : process.workFlow;
+    let workflow;
+    let departmentName;
+    let isCustomProcess = process.steps ? true : false;
+    let steps = [];
 
-    workflow = await Department.findOne({ _id: workflow });
+    if (isCustomProcess) {
+      steps = process.steps;
+    } else {
+      workflow = isInterBranchProcess
+        ? new ObjectId(workFlowToBeFollowed)
+        : process.workFlow;
 
-    let departmentName = workflow.name;
-
-    let steps = workflow.steps;
+      workflow = await Department.findOne({ _id: workflow });
+      departmentName = workflow.name;
+      steps = workflow.steps;
+    }
 
     let nextStepNumber;
 
@@ -1018,18 +1112,24 @@ export const forwardProcess = async (
 
             if (processAnalytics) {
               // Document found, update the counts
-              const departmentIndex =
-                processAnalytics.departmentsPendingProcess.findIndex(
-                  (department) =>
-                    department.department.equals(new ObjectId(process.workFlow))
-                );
 
-              if (departmentIndex !== -1) {
-                // If the department is found, increment its count
+              if (isCustomProcess) {
                 processAnalytics.noOfPendingProcess -= 1;
-                processAnalytics.departmentsPendingProcess[
-                  departmentIndex
-                ].noOfPendingProcess -= 1;
+              } else {
+                const departmentIndex =
+                  processAnalytics.departmentsPendingProcess.findIndex(
+                    (department) =>
+                      department.department.equals(
+                        new ObjectId(process.workFlow)
+                      )
+                  );
+
+                if (departmentIndex !== -1) {
+                  // If the department is found, increment its count
+                  processAnalytics.departmentsPendingProcess[
+                    departmentIndex
+                  ].noOfPendingProcess -= 1;
+                }
               }
 
               // Save the updated document back to the database
@@ -1054,24 +1154,51 @@ export const forwardProcess = async (
           process.documents
         );
 
-        await addLog(
-          processId,
-          false,
-          currentStepObject,
-          null,
-          logWorkDocs,
-          process.workFlow
-        );
+        if (isCustomProcess) {
+          await addLog(
+            processId,
+            false,
+            currentStepObject,
+            null,
+            logWorkDocs,
+            null
+          );
+        } else {
+          await addLog(
+            processId,
+            false,
+            currentStepObject,
+            null,
+            logWorkDocs,
+            process.workFlow
+          );
+        }
 
-        const head = workflow.head;
+        const firstLog = await Log.findOne({ processId }).sort({ time: 1 }); // Sort by time in ascending order
+
+        if (!firstLog) {
+          console.log("No log found for the given processId.");
+        }
+
+        console.log("first log", firstLog);
+
+        // for custom process, completed process will be sent to initiator
+        const head = isCustomProcess
+          ? firstLog
+            ? firstLog.currentStep.actorUser
+            : process.steps[0].users[0]
+          : workflow.head;
 
         if (head) {
           let newProcess = {
             process: process._id, // Replace with the actual process ID
             pending: true, // Set to the desired value
             receivedAt: Date.now(),
-            workFlowToBeFollowed: workFlowToBeFollowed,
           };
+
+          if (!isCustomProcess) {
+            newProcess.workFlowToBeFollowed = workFlowToBeFollowed;
+          }
 
           await User.updateOne(
             { _id: head },
@@ -1087,31 +1214,33 @@ export const forwardProcess = async (
               _id: head,
             }).select("username notifications");
 
-            if (usernameOfProcessIsForwardedTo.notifications) {
-              usernameOfProcessIsForwardedTo.notifications.push({
-                processId: process._id,
-                processName: process.name,
-                completed: process.completed,
-                receivedAt: Date.now(),
-                isPending: true,
-                workFlowToBeFollowed: workFlowToBeFollowed,
-              });
-              const z = await usernameOfProcessIsForwardedTo.save();
-            } else {
-              usernameOfProcessIsForwardedTo.notifications = [];
-              usernameOfProcessIsForwardedTo.notifications.push({
-                processId: process._id,
-                processName: process.name,
-                completed: process.completed,
-                receivedAt: Date.now(),
-                isPending: true,
-                workFlowToBeFollowed: workFlowToBeFollowed,
-              });
+            let notification = {
+              processId: process._id,
+              processName: process.name,
+              completed: process.completed,
+              receivedAt: Date.now(),
+              isPending: true,
+            };
 
-              const z = await usernameOfProcessIsForwardedTo.save();
+            if (!isCustomProcess) {
+              notification.workFlowToBeFollowed = workFlowToBeFollowed;
             }
+
+            if (isCustomProcess)
+              if (usernameOfProcessIsForwardedTo.notifications) {
+                usernameOfProcessIsForwardedTo.notifications.push(notification);
+                const z = await usernameOfProcessIsForwardedTo.save();
+              } else {
+                usernameOfProcessIsForwardedTo.notifications = [];
+                usernameOfProcessIsForwardedTo.notifications.push(notification);
+
+                const z = await usernameOfProcessIsForwardedTo.save();
+              }
           } catch (error) {
-            console.log("error adding process in head's notification array");
+            console.log(
+              "error adding process in head's notification array",
+              error
+            );
           }
 
           // Send the email
@@ -1167,8 +1296,12 @@ export const forwardProcess = async (
 
     let documents = [];
 
-    const isInitiatorDepartmentFromHeadOffice =
-      departmentName.split("_")[0] === "headOffice";
+    let isInitiatorDepartmentFromHeadOffice;
+
+    if (!isCustomProcess) {
+      isInitiatorDepartmentFromHeadOffice =
+        departmentName.split("_")[0] === "headOffice";
+    }
 
     if (
       isInterBranchProcess &&
@@ -1204,14 +1337,25 @@ export const forwardProcess = async (
         })
       : await get_log_docs(processId, currentUserId, documents);
 
-    await addLog(
-      processId,
-      false,
-      currentStepObject,
-      nextStep,
-      logWorkDocs,
-      new ObjectId(workflow)
-    );
+    if (!isCustomProcess) {
+      await addLog(
+        processId,
+        false,
+        currentStepObject,
+        nextStep,
+        logWorkDocs,
+        new ObjectId(workflow)
+      );
+    } else {
+      await addLog(
+        processId,
+        false,
+        currentStepObject,
+        nextStep,
+        logWorkDocs,
+        null
+      );
+    }
 
     if (nextStep) {
       // let nextActor = nextStep.actorUser;
@@ -1241,17 +1385,26 @@ export const forwardProcess = async (
 
       const nextStepUsers = nextStep.users;
 
-      const log = await Log.findOne({
-        processId: processId,
-        belongingDepartment:
-          workFlowToBeFollowed !== null &&
-          workFlowToBeFollowed !== undefined &&
-          workFlowToBeFollowed !== "null" &&
-          workFlowToBeFollowed !== "undefined"
-            ? new ObjectId(workFlowToBeFollowed)
-            : process.workFlow,
-        "currentStep.stepNumber": nextStepNumber,
-      }).sort({ time: -1 });
+      let log;
+
+      if (!isCustomProcess) {
+        log = await Log.findOne({
+          processId: processId,
+          belongingDepartment:
+            workFlowToBeFollowed !== null &&
+            workFlowToBeFollowed !== undefined &&
+            workFlowToBeFollowed !== "null" &&
+            workFlowToBeFollowed !== "undefined"
+              ? new ObjectId(workFlowToBeFollowed)
+              : process.workFlow,
+          "currentStep.stepNumber": nextStepNumber,
+        }).sort({ time: -1 });
+      } else {
+        log = await Log.findOne({
+          processId: processId,
+          "currentStep.stepNumber": nextStepNumber,
+        }).sort({ time: -1 });
+      }
 
       if (
         isInterBranchProcess &&
@@ -1744,30 +1897,40 @@ export const getProcess = async (
       throw new Error("process not found for work in associated user account");
     }
 
-    const { workFlowToBeFollowed, work, isToBeSentToClerk } = foundProcess;
+    const { work, isToBeSentToClerk } = foundProcess;
 
     let process = JSON.parse(JSON.stringify(process_));
 
+    let process_result = await is_process_forwardable(process, userId);
+
+    process.isForwardable = process_result.isForwardable;
+
+    process.isRevertable = process_result.isRevertable;
+
     let department;
+    let workFlowToBeFollowed;
 
-    if (workFlowToBeFollowed !== null && workFlowToBeFollowed !== "null") {
-      department = workFlowToBeFollowed;
-    } else {
-      department = new ObjectId(process.workFlow);
+    if (!(process.steps && process.steps.length > 0)) {
+      workFlowToBeFollowed = foundProcess.workFlowToBeFollowed;
+      if (workFlowToBeFollowed !== null && workFlowToBeFollowed !== "null") {
+        department = workFlowToBeFollowed;
+      } else {
+        department = new ObjectId(process.workFlow);
+      }
+      // workflowToBeFollowed !== null || workFlowToBeFollowed !== "null"
+      //   ? workflowToBeFollowed
+      //   : new ObjectId(process.workFlow);
+
+      department = await Department.findOne({ _id: department });
+
+      if (department.head && department.head.equals(new ObjectId(userId))) {
+        process.isHead = true;
+      } else {
+        process.isHead = false;
+      }
+
+      department = await format_department_data([department]);
     }
-    // workflowToBeFollowed !== null || workFlowToBeFollowed !== "null"
-    //   ? workflowToBeFollowed
-    //   : new ObjectId(process.workFlow);
-
-    department = await Department.findOne({ _id: department });
-
-    if (department.head && department.head.equals(new ObjectId(userId))) {
-      process.isHead = true;
-    } else {
-      process.isHead = false;
-    }
-
-    department = await format_department_data([department]);
 
     let documents_ = [];
 
@@ -1884,25 +2047,50 @@ export const getProcess = async (
       then only set multiUserStep property to true
     */
 
-    const count = await Log.countDocuments({
-      processId: process_id,
-      belongingDepartment: workFlowToBeFollowed
-        ? new ObjectId(workFlowToBeFollowed)
-        : process.workFlow,
-      "currentStep.stepNumber": process.currentStepNumber,
-    });
+    const count =
+      process && process.steps.length > 0
+        ? await Log.countDocuments({
+            processId: process_id,
+            "currentStep.stepNumber": process.currentStepNumber,
+          })
+        : await Log.countDocuments({
+            processId: process_id,
+            belongingDepartment: workFlowToBeFollowed
+              ? new ObjectId(workFlowToBeFollowed)
+              : process.workFlow,
+            "currentStep.stepNumber": process.currentStepNumber,
+          });
 
     if (count <= 0) {
-      if (
-        department[0].workFlow[process.currentStepNumber - 1].users.length > 1
-      ) {
-        process.isMultiUserStep = true;
+      if (process.steps && process.steps.length > 0) {
+        if (process.steps[process.currentStepNumber - 1].users.length > 1) {
+          process.isMultiUserStep = true;
+        }
+      } else {
+        if (
+          department[0].workFlow[process.currentStepNumber - 1].users.length > 1
+        ) {
+          process.isMultiUserStep = true;
+        }
       }
     }
 
     process.processWorkFlow = process.workFlow;
 
-    process.workFlow = department[0].workFlow;
+    let formattedSteps = [];
+    if (process.steps && process.steps.length > 0) {
+      for (let k = 0; k < process.steps.length; k++) {
+        const formattedStep = await format_workflow_step(process.steps[k]);
+        formattedSteps.push(formattedStep);
+      }
+    } else {
+      process.workFlow = department[0].workFlow;
+    }
+
+    if (process.steps && process.steps.length > 0) {
+      process.workFlow = formattedSteps;
+      delete process.steps;
+    }
 
     process.samples = samples;
 
@@ -2262,20 +2450,32 @@ export const revertProcess = async (
     }
     let process = await Process.findOne({ _id: processId });
 
+    const isCustomProcess = process.steps && process.steps.length > 0;
+
     // get the process workflow id
-    let workflow = isInterBranchProcess
-      ? new ObjectId(workFlowToBeFollowed)
-      : process.workFlow;
+    let workflow;
+
+    if (!isCustomProcess) {
+      workflow = isInterBranchProcess
+        ? new ObjectId(workFlowToBeFollowed)
+        : process.workFlow;
+      workflow = await Department.findOne({ _id: workflow });
+    }
 
     // fetch the workflow details using its id
-    workflow = await Department.findOne({ _id: workflow });
 
-    const log = await Log.findOne({
-      "nextStep.users.user": currentUserId,
-      processId: processId,
-      reverted: false,
-      belongingDepartment: workflow,
-    }).sort({ time: -1 });
+    const log = isCustomProcess
+      ? await Log.findOne({
+          "nextStep.users.user": currentUserId,
+          processId: processId,
+          reverted: false,
+        }).sort({ time: -1 })
+      : await Log.findOne({
+          "nextStep.users.user": currentUserId,
+          processId: processId,
+          reverted: false,
+          belongingDepartment: workflow,
+        }).sort({ time: -1 });
 
     // const log = await Log.findOne({
     //   "nextStep.actorUser": currentUserId,
@@ -2289,7 +2489,7 @@ export const revertProcess = async (
     let nextActor = log.currentStep.actorUser;
 
     // get the workflow steps
-    let steps = workflow.steps;
+    let steps = isCustomProcess ? process.steps : workflow.steps;
 
     // let nextStepNumber;
 
@@ -2376,6 +2576,8 @@ export const revertProcess = async (
       currentUserId,
       documentsArray
     );
+
+    console.log("log work docs", logWorkDocs);
 
     await addLog(
       processId,
@@ -3176,12 +3378,16 @@ export const pick_process = async (req, res, next) => {
     const processId = req.params.processId;
 
     const process = await Process.findOne({ _id: processId }).select(
-      "isInterBranchProcess connectors workFlow"
+      "isInterBranchProcess connectors workFlow steps"
     );
 
-    const workFlow = req.body.workFlowToBeFollowed
-      ? new ObjectId(req.body.workFlowToBeFollowed)
-      : process.workFlow;
+    let workFlow;
+
+    if (!(process.steps && process.steps.length > 0)) {
+      workFlow = req.body.workFlowToBeFollowed
+        ? new ObjectId(req.body.workFlowToBeFollowed)
+        : process.workFlow;
+    }
 
     if (
       !process.isInterBranchProcess ||
