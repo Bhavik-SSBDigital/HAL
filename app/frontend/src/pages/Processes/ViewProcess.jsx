@@ -95,6 +95,7 @@ export default function ViewProcess(props) {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm();
   const fileRef = useRef(null);
@@ -145,7 +146,7 @@ export default function ViewProcess(props) {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       toast.success('Document Replaced');
-      handleOpenReplaceDialog()
+      onclose();
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
@@ -161,6 +162,7 @@ export default function ViewProcess(props) {
   const onClose = () => {
     setOpenReplaceDialog(false);
     fileRef.current = null;
+    reset();
   };
   // ----------------------
   const { work, setWork, pickedProcesses } = sessionData();
