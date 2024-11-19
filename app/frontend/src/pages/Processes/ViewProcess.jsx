@@ -146,7 +146,7 @@ export default function ViewProcess(props) {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       toast.success('Document Replaced');
-      onclose();
+      onClose();
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
