@@ -59,6 +59,7 @@ import {
   IconDownload,
   IconEye,
   IconFileOff,
+  IconReplace,
   IconSquareLetterX,
   IconSquareRoundedX,
   IconUpload,
@@ -71,9 +72,13 @@ import { toast } from 'react-toastify';
 import sessionData from '../../Store';
 import { useQueryClient } from 'react-query';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import { useForm } from 'react-hook-form';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const [processData, setProcessData] = useState();
+  const token = sessionStorage.getItem('accessToken');
+
   const style = {
     position: 'absolute',
     top: '50%',
@@ -85,8 +90,80 @@ export default function ViewProcess(props) {
     boxShadow: 24,
     p: 3,
   };
+
+  // replace document in process react hook form
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm();
+  const fileRef = useRef(null);
+  const onSubmit = async (data) => {
+    const branch = processData.documentsPath.split('/');
+    try {
+      const urlForDocName = backendUrl + '/getProcessDocumentName';
+      const uploadUrl = backendUrl + '/uploadDocumentsInProcess';
+      let res = await axios.post(
+        urlForDocName,
+        {
+          department: branch[1],
+          workName: data.workName,
+          cabinetNo: data.cabinetNo,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const dummy = () => {};
+
+      console.log(data);
+      let ext = data.fileInput[0].name.split('.').pop();
+      let fileUploaded = await upload(
+        [data.fileInput[0]],
+        `${processData.documentsPath}`,
+        dummy,
+        `${res.data.name}.${ext}`,
+        true,
+      );
+      await axios.post(
+        uploadUrl,
+        {
+          processId: viewId,
+          documents: [
+            {
+              cabinetNo: data.cabinetNo,
+              workName: data.workName,
+              ref: fileUploaded[0],
+              documentId: fileToBeOperated?.details?._id,
+            },
+          ],
+          workFlowToBeFollowed: workFlowToBeFollowed,
+          isInterBranchProcess: processData.isInterBranchProcess,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      toast.success('Document Replaced');
+      handleOpenReplaceDialog()
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+    console.log('Uploaded File:', data.file[0]);
+    alert('File uploaded successfully!');
+  };
+  // replace
+  const [openReplaceDialog, setOpenReplaceDialog] = useState(false);
+  const handleOpenReplaceDialog = () => {
+    setOpenReplaceDialog(true);
+    handleClose();
+  };
+  const onClose = () => {
+    setOpenReplaceDialog(false);
+    fileRef.current = null;
+  };
+  // ----------------------
   const { work, setWork, pickedProcesses } = sessionData();
-  const [processData, setProcessData] = useState();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const receivedData = params.get('data');
@@ -123,6 +200,7 @@ export default function ViewProcess(props) {
   const [cabinetNoError, setCabinetNoError] = useState('');
   const [fileInputError, setFileInputError] = useState('');
   const [fileData, setFileData] = useState([]);
+  console.log(fileData);
   const [workName, setWorkName] = useState('');
   const [cabinetNo, setCabinetNo] = useState('');
   const [forwardProcessLoading, setForwardProcessLoading] = useState(false);
@@ -194,7 +272,7 @@ export default function ViewProcess(props) {
           },
           {
             headers: {
-              Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+              Authorization: `Bearer ${token}`,
             },
           },
         );
@@ -244,7 +322,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -458,7 +536,7 @@ export default function ViewProcess(props) {
             },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -494,7 +572,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -532,7 +610,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -642,7 +720,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -663,10 +741,7 @@ export default function ViewProcess(props) {
               // Update the signedBy array
               return {
                 ...file,
-                signedBy: [
-                  ...file.signedBy,
-                  { username: sessionStorage.getItem('username') },
-                ],
+                signedBy: [...file.signedBy, { username: username }],
               };
             }
             return file;
@@ -700,7 +775,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -734,29 +809,6 @@ export default function ViewProcess(props) {
           return updatedProcessData;
         });
       }
-      // if (res.status === 200) {
-      //   let process = processData;
-
-      //   let documents = process.documents;
-
-      //   let document = documents.find(
-      //     (file) => file.details._id === fileToBeOperated.details._id
-      //   );
-
-      //   document.rejection = {
-      //     rejectedBy: sessionStorage.getItem("username"),
-      //   };
-
-      //   documents = documents.filter(
-      //     (file) => file.details._id !== fileToBeOperated.details._id
-      //   );
-
-      //   documents.push(document);
-
-      //   process.documents = documents;
-
-      //   setProcessData(process);
-      // }
     } catch (error) {
       toast.error('not able to reject document');
     }
@@ -798,13 +850,10 @@ export default function ViewProcess(props) {
     handleClose();
   };
   const checkFileIsOperable = () => {
-    // const clickedFile = processData.documents[i];
-
     return (
       fileToBeOperated.signedBy
         .map((item) => item.username)
-        .includes(sessionStorage.getItem('username')) ||
-      fileToBeOperated.rejection !== undefined
+        .includes(username) || fileToBeOperated.rejection !== undefined
     );
   };
 
@@ -813,10 +862,9 @@ export default function ViewProcess(props) {
   const getWorks = async () => {
     try {
       const url = backendUrl + '/getWorks';
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(url, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setWorks(data.works);
@@ -847,7 +895,7 @@ export default function ViewProcess(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -875,7 +923,7 @@ export default function ViewProcess(props) {
         { workFlowToBeFollowed, currentStep: processData.currentStepNumber },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -891,7 +939,6 @@ export default function ViewProcess(props) {
     }
   };
   const fetchViewData = async () => {
-    // setProcessData([]);
     let shouldNavigate = false;
     try {
       const url = backendUrl + `/getProcess/${viewId}`;
@@ -900,7 +947,7 @@ export default function ViewProcess(props) {
         { workFlowToBeFollowed },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -918,10 +965,9 @@ export default function ViewProcess(props) {
     const fetchBranches = async () => {
       const url = backendUrl + '/getBranchesWithDepartments';
       try {
-        const accessToken = sessionStorage.getItem('accessToken');
         const { data } = await axios.post(url, null, {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -935,7 +981,7 @@ export default function ViewProcess(props) {
       try {
         const res = await axios.post(url, null, {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         });
         setRoleList(res.data.roles);
@@ -943,12 +989,7 @@ export default function ViewProcess(props) {
         console.error('error');
       }
     };
-    // const params = new URLSearchParams(search);
-    // const receivedStatus = params.get("status");
-    // const status = decodeURIComponent(receivedStatus);
-    // if (status.toLowerCase() === "received") {
-    //     setOperable(false);
-    // }
+
     fetchViewData();
     fetchBranches();
     fetchRoles();
@@ -958,30 +999,6 @@ export default function ViewProcess(props) {
     setLoading(true);
     fetchViewData();
   }, [viewId]);
-
-  //   const InfoRow = ({ label, value }) => (
-  //     <Stack
-  //       flexDirection="row"
-  //       justifyContent="space-between"
-  //       sx={{
-  //         minWidth: { xs: '99%', sm: '500px', md: '70%' },
-  //         margin: '5px',
-  //         borderRight: '4px solid #6C22A6',
-  //         borderLeft: '4px solid #6C22A6',
-  //         borderTop: '1px solid #6C22A6',
-  //         borderBottom: '1px solid #6C22A6',
-  //         borderRadius: '5px',
-  //         backgroundColor: 'white',
-  //       }}
-  //     >
-  //       <Typography sx={{ padding: '5px' }} variant="body1" fontWeight="700">
-  //         {label}:
-  //       </Typography>
-  //       <Typography sx={{ padding: '5px' }} variant="body1">
-  //         {value}
-  //       </Typography>
-  //     </Stack>
-  //   );
 
   const Divider = () => (
     <hr style={{ margin: '5px 0', borderWidth: '0.1px solid' }} />
@@ -995,7 +1012,7 @@ export default function ViewProcess(props) {
         { work },
         {
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -1062,7 +1079,7 @@ export default function ViewProcess(props) {
         { workFlowToBeFollowed },
         {
           headers: {
-            Authorization: `bearer ${sessionStorage.getItem('accessToken')}`,
+            Authorization: `bearer ${token}`,
           },
         },
       );
@@ -1106,14 +1123,8 @@ export default function ViewProcess(props) {
     .map((userObj) => userObj.user)
     .includes(username);
 
-  // const chas = processData?.workFlow
-  //     .filter((item) => !item.users.some((user) => user.user === username))
-  //     .filter((item) => item.step > publishCheck.step);
-  // .filter((item) => item.step < processData?.maxReceiverStepNumber)
-
   const disableNext = () => {
     console.log('disabled');
-    // If the current step's work is not 'e-sign', don't disable the "Next" button
     if (
       processData?.workFlow[processData?.currentStepNumber - 1]?.work !==
       'e-sign'
@@ -1277,6 +1288,7 @@ export default function ViewProcess(props) {
       </Typography>
     </Grid2>
   );
+
   return (
     <>
       {loading ? (
@@ -1463,7 +1475,7 @@ export default function ViewProcess(props) {
                               <Stack
                                 sx={{
                                   minHeight: '270px',
-                                  width: '250px',
+                                  width: '270px',
                                   borderRadius: '15px',
                                   flex: '1 1 auto',
                                   margin: '10px',
@@ -1483,9 +1495,7 @@ export default function ViewProcess(props) {
                                       >
                                         {file?.signedBy
                                           .map((item) => item.username)
-                                          .includes(
-                                            sessionStorage.getItem('username'),
-                                          ) ? (
+                                          .includes(username) ? (
                                           <Button color="success">
                                             Signed
                                           </Button>
@@ -2414,15 +2424,7 @@ export default function ViewProcess(props) {
                             label="SELECT ALL BRANCHES"
                           />
                         </Grid>
-                        {/* <Grid item xs={12}>
-                                                <TextField
-                                                    fullWidth
-                                                    variant="outlined"
-                                                    label={"departments"}
-                                                    value={"general department"}
-                                                    disabled={true}
-                                                ></TextField>
-                                            </Grid> */}
+
                         <Grid item xs={12}>
                           <Autocomplete
                             multiple
@@ -2561,6 +2563,15 @@ export default function ViewProcess(props) {
                     >
                       <IconDownload />
                       Download
+                    </MenuItem>
+                    <MenuItem
+                      sx={{ gap: '5px' }}
+                      onClick={() => {
+                        handleOpenReplaceDialog();
+                      }}
+                    >
+                      <IconReplace />
+                      Replace
                     </MenuItem>
                     {operable &&
                       username !== 'admin' &&
@@ -2718,17 +2729,8 @@ export default function ViewProcess(props) {
             {processData && published != 'true' && (
               <div
                 style={{
-                  // position: 'sticky',
-                  // bottom: 5,
-                  // right: -10,
-                  // zIndex: 999,
-                  // minHeight: "70px",
-                  // maxHeight: "fit-content",
                   width: '100%',
                   padding: '15px',
-                  // border: "1px solid",
-                  // backgroundColor: "rgba(255, 255, 255, 0.5)",
-                  // boxShadow: "0px -2px 5px rgba(0, 0, 0, 0.2)"
                 }}
               >
                 {processData.currentActorUser === username ||
@@ -2959,6 +2961,124 @@ export default function ViewProcess(props) {
                   </TableBody>
                 </Table>
               </TableContainer>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={openReplaceDialog}>
+            <DialogTitle>Replace File</DialogTitle>
+            <DialogContent>
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                style={{ padding: '10px' }}
+              >
+                {/* Work Name */}
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="Work Name"
+                  {...register('workName', {
+                    required: 'Work Name is required',
+                    pattern: {
+                      value: /^[a-zA-Z0-9\s]*$/,
+                      message: 'Only letters, numbers, and spaces are allowed',
+                    },
+                  })}
+                  error={!!errors.workName}
+                  helperText={errors.workName?.message}
+                  sx={{ mb: 2, backgroundColor: 'white' }}
+                />
+
+                {/* Cabinet Number */}
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="Cabinet Number"
+                  type="number"
+                  {...register('cabinetNo', {
+                    required: 'Cabinet Number is required',
+                    min: {
+                      value: 1,
+                      message: 'Cabinet Number must be at least 1',
+                    },
+                  })}
+                  error={!!errors.cabinetNo}
+                  helperText={errors.cabinetNo?.message}
+                  inputProps={{ min: 1 }}
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '-', '+'].includes(e.key))
+                      e.preventDefault();
+                  }}
+                  sx={{ mb: 2, backgroundColor: 'white' }}
+                />
+
+                {/* File Upload */}
+                <Box>
+                  <input
+                    style={{
+                      border: '1px solid lightgray',
+                      width: '100%',
+                      padding: '10px',
+                    }}
+                    type="file"
+                    accept=".pdf"
+                    {...register('fileInput')}
+                    ref={(e) => {
+                      fileRef.current = e; // Attach the ref
+                      register('fileInput').ref(e); // Attach React Hook Form's ref
+                    }}
+                  />
+                </Box>
+                <Typography variant="body2" color="error">
+                  {errors.fileInput?.message}
+                </Typography>
+
+                {/* Alert */}
+                <div style={{ padding: '10px', width: '100%' }}>
+                  <Alert severity="error" icon={<InfoOutlined />}>
+                    <AlertTitle>Note</AlertTitle>
+                    <Typography sx={{ my: 0.4 }}>
+                      Only the following file types are allowed for upload:
+                    </Typography>
+                    <Box>
+                      <Chip
+                        label="PDF"
+                        color="error"
+                        sx={{
+                          padding: 0,
+                          height: '22px',
+                          mr: 0.6,
+                          my: 0.4,
+                        }}
+                      />
+                    </Box>
+                  </Alert>
+                </div>
+
+                {/* Submit Buttons */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    marginTop: '1em',
+                  }}
+                >
+                  <Button
+                    onClick={onClose}
+                    disabled={isSubmitting}
+                    variant="outlined"
+                    style={{ marginRight: '1em' }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={isSubmitting}
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                  >
+                    Submit
+                  </Button>
+                </div>
+              </form>
             </DialogContent>
           </Dialog>
           {fileView && (
