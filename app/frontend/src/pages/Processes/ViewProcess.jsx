@@ -136,8 +136,8 @@ export default function ViewProcess(props) {
             {
               cabinetNo: data.cabinetNo,
               workName: data.workName,
-              ref: fileUploaded[0],
-              documentId: fileToBeOperated?.details?._id,
+              ref: fileToBeOperated?.details?._id,
+              documentId: fileUploaded[0],
             },
           ],
           workFlowToBeFollowed: workFlowToBeFollowed,
