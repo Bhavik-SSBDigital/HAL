@@ -70,6 +70,11 @@ const processSchema = new mongoose.Schema({
             },
           },
         ],
+        ref: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Document",
+          default: null,
+        },
       },
     ],
   },

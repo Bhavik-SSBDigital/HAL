@@ -135,9 +135,6 @@ export const is_process_forwardable = async (process, userId) => {
         : []
       : [];
 
-    console.log("uploaded docs in prev logs", uploadedDocsInPrevLogs);
-    console.log("currently uploaded docs", currently_uploaded_docs);
-
     const all_worked_docs =
       currentWork === "e-sign"
         ? [
@@ -157,12 +154,6 @@ export const is_process_forwardable = async (process, userId) => {
           new ObjectId(sign._id).equals(new ObjectId(userId))
         )
     );
-
-    console.log("process docs", process.documents.length);
-    console.log("all worked docs", all_worked_docs.length);
-    console.log("currently rejected docs", currently_rejected_docs.length);
-    console.log("current step number", process.currentStepNumber);
-    console.log("max step receiver number", process.maxReceiverStepNumber);
 
     if (
       process.documents.length === all_worked_docs.length &&

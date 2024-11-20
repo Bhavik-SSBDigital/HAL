@@ -17,6 +17,7 @@ import { format_workflow_step } from "./department-controller.js";
 import { ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import { convertToISTAndFormatISO } from "../utility/date-functions.js";
+import { get_documents_with_replacements } from "../utility/process-docs-manager.js";
 import LogWork from "../models/logWork.js";
 import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
@@ -1799,6 +1800,9 @@ export const format_process_documents = async (
     let documents_ = [];
     for (let i = 0; i < documents.length; i++) {
       let finalDocument = {};
+      if (documents[i].ref) {
+        finalDocument.ref = documents[i].ref;
+      }
       finalDocument.workName = documents[i].workName;
       finalDocument.cabinetNo = documents[i].cabinetNo;
       let document = documents[i];
@@ -2151,6 +2155,10 @@ export const getProcess = async (
     process.rejectedDocIdsInPrevLogs = process.rejectedDocIdsInPrevLogs.map(
       (doc) => doc.documentId
     );
+
+    const result = await get_documents_with_replacements(process.documents);
+
+    process.documents = result;
 
     const logWork = await LogWork.findOne({
       process: process_id,
@@ -2736,13 +2744,16 @@ export const upload_documents_in_process = async (req, res, next) => {
 
     const process = await Process.findOne({
       _id: new ObjectId(req.body.processId),
-    }).select("workFlow documents connectors");
+    }).select("workFlow documents connectors steps");
 
     const workFlow = req.body.isInterBranchProcess
       ? new ObjectId(req.body.workFlowToBeFollowed)
       : process.workFlow;
 
-    if (process.workFlow.equals(workFlow)) {
+    if (
+      (process.steps && process.steps.length > 0) ||
+      process.workFlow.equals(workFlow)
+    ) {
       process.documents = [...process.documents, ...req.body.documents];
       // await Process.findOneAndUpdate(
       //   { _id: req.body.processId },
