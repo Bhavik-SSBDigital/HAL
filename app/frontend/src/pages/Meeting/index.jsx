@@ -78,8 +78,9 @@ const MeetingManager = () => {
 
   useEffect(() => {
     // Establish connection and setup listeners
-    if (!socketRef.current) {
+    if (!socketRef.current && socketConnection) {
       socketRef.current = socketConnection;
+      console.log(socketConnection);
 
       socketRef.current.on('message', async (data) => {
         const { user, text } = data;
@@ -148,7 +149,7 @@ const MeetingManager = () => {
       }
       console.log('clean-up');
     };
-  }, []); // Ensure this effect only runs once on mount and unmount
+  }, [socketConnection]); // Ensure this effect only runs once on mount and unmount
 
   const onSubmit = async (meetingId) => {
     if (meetingId.trim() === '') return;
