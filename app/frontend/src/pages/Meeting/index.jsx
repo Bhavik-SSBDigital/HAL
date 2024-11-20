@@ -26,6 +26,8 @@ import {
   IconVideo,
   IconVideoOff,
   IconSend2,
+  IconPin,
+  IconPinnedOff,
 } from '@tabler/icons-react';
 import io from 'socket.io-client';
 import { useForm } from 'react-hook-form';
@@ -46,6 +48,7 @@ const MeetingManager = () => {
   const { socketConnection } = socketData();
   // State Management
   // const socketUrl = import.meta.env.VITE_SOCKET_URL;
+  const [pinnedParticipant, setPinnedParticipant] = React.useState(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -315,6 +318,7 @@ const MeetingManager = () => {
     // Stop and clear chat messages and set the room state
     setChatMessages([]);
     setInRoom(false);
+    setPinned('');
 
     // Stop all local media tracks (audio and video)
     if (localStreamRef.current) {
@@ -471,6 +475,7 @@ const MeetingManager = () => {
     }
   };
 
+  console.log(peers);
   function getColor(string) {
     let hash = 0;
     let i;
@@ -490,7 +495,14 @@ const MeetingManager = () => {
     console.log(color);
     return color;
   }
+  const pinVideo = (participant) => {
+    setPinnedParticipant(participant);
+  };
 
+  const [pinned, setPinned] = useState('');
+  const parti = Object.keys(peers)?.find(
+    (participant) => peers[participant]?.name == pinned,
+  );
   return (
     <div>
       {!inRoom ? (
@@ -500,7 +512,58 @@ const MeetingManager = () => {
           <Typography variant="h6" textAlign="center">
             Meeting ID : {meetingId}
           </Typography>
-          <Box display="flex">
+
+          <Box display="flex" flexWrap={'wrap'} gap={1}>
+            {/* highlight */}
+            {pinned ? (
+              <Box
+                height={500}
+                maxWidth={850}
+                width={'100%'}
+                sx={{
+                  bgcolor: 'black',
+                  border: '1px solid',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  position: 'relative',
+                }}
+              >
+                <video
+                  ref={(el) => {
+                    if (el) el.srcObject = peers[parti]?.stream || null;
+                  }}
+                  autoPlay
+                  muted
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'fill',
+                  }}
+                />
+                <Box
+                  position="absolute"
+                  bottom={0}
+                  left={0}
+                  width="100%"
+                  bgcolor="rgba(0,0,0,0.5)"
+                  color="#fff"
+                  p={0.5}
+                >
+                  <Typography variant="subtitle2">
+                    {peers[parti]?.name}
+                  </Typography>
+                </Box>
+                <IconButton
+                  sx={{ position: 'absolute', top: '10px', right: '10px' }}
+                  onClick={() => setPinned('')}
+                >
+                  <IconPinnedOff color="blue" />
+                </IconButton>
+              </Box>
+            ) : null}
+
             {/* Main Meeting Screen */}
             <Box
               sx={{
@@ -508,6 +571,7 @@ const MeetingManager = () => {
                 flexWrap: 'wrap',
                 boxSizing: 'border-box',
                 overflowY: 'auto',
+                gap: 1,
               }}
             >
               {/* Local Video */}
@@ -515,7 +579,7 @@ const MeetingManager = () => {
                 variant="outlined"
                 sx={{
                   position: 'relative',
-                  margin: 1,
+                  // margin: 1,
                   width: 300,
                   height: 200,
                   backgroundColor: '#000',
@@ -553,35 +617,43 @@ const MeetingManager = () => {
               </Paper>
 
               {/* Remote Videos */}
-              {Object.keys(peers)?.map((participant) => (
-                <Paper
-                  key={participant}
-                  variant="outlined"
-                  sx={{
-                    position: 'relative',
-                    margin: 1,
-                    width: 300,
-                    height: 200,
-                    backgroundColor: '#000',
-                  }}
-                >
-                  <RemoteVideo stream={peers[participant]?.stream} />
-
-                  <Box
-                    position="absolute"
-                    bottom={0}
-                    left={0}
-                    width="100%"
-                    bgcolor="rgba(0,0,0,0.5)"
-                    color="#fff"
-                    p={0.5}
+              {Object.keys(peers)
+                ?.filter((participant) => peers[participant]?.name !== pinned)
+                ?.map((participant) => (
+                  <Paper
+                    key={participant}
+                    variant="outlined"
+                    sx={{
+                      position: 'relative',
+                      // margin: 1,
+                      width: 300,
+                      height: 200,
+                      backgroundColor: '#000',
+                    }}
                   >
-                    <Typography variant="subtitle2">
-                      {peers[participant]?.name}
-                    </Typography>
-                  </Box>
-                </Paper>
-              ))}
+                    <RemoteVideo stream={peers[participant]?.stream} />
+
+                    <Box
+                      position="absolute"
+                      bottom={0}
+                      left={0}
+                      width="100%"
+                      bgcolor="rgba(0,0,0,0.5)"
+                      color="#fff"
+                      p={0.5}
+                    >
+                      <Typography variant="subtitle2">
+                        {peers[participant]?.name}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      sx={{ position: 'absolute', top: '10px', right: '10px' }}
+                      onClick={() => setPinned(peers[participant]?.name)}
+                    >
+                      <IconPin color="blue" />
+                    </IconButton>
+                  </Paper>
+                ))}
             </Box>
 
             {/* Right Sidebar (Chat and Members) */}
@@ -751,6 +823,7 @@ const MeetingManager = () => {
     </div>
   );
 };
+
 const RemoteVideo = ({ stream }) => {
   const videoRef = useRef();
 
