@@ -518,9 +518,10 @@ const MeetingManager = () => {
             {pinned ? (
               <Box
                 height={500}
-                maxWidth={850}
+                minWidth={500}
                 width={'100%'}
                 sx={{
+                  flex: 8,
                   bgcolor: 'black',
                   border: '1px solid',
                   display: 'flex',
@@ -572,6 +573,8 @@ const MeetingManager = () => {
                 boxSizing: 'border-box',
                 overflowY: 'auto',
                 gap: 1,
+                flex: 4,
+                minWidth: '220px',
               }}
             >
               {/* Local Video */}
@@ -580,8 +583,9 @@ const MeetingManager = () => {
                 sx={{
                   position: 'relative',
                   // margin: 1,
-                  width: 300,
-                  height: 200,
+                  maxWidth: 400,
+                  minWidth: 200,
+                  height: 240,
                   backgroundColor: '#000',
                 }}
               >
@@ -593,7 +597,7 @@ const MeetingManager = () => {
                   style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover',
+                    objectFit: 'fill',
                   }}
                 />
                 {/* Camera Off Overlay */}
@@ -626,8 +630,9 @@ const MeetingManager = () => {
                     sx={{
                       position: 'relative',
                       // margin: 1,
-                      width: 300,
-                      height: 200,
+                      maxWidth: 400,
+                      minWidth: 200,
+                      height: 240,
                       backgroundColor: '#000',
                     }}
                   >
@@ -841,7 +846,7 @@ const RemoteVideo = ({ stream }) => {
       style={{
         width: '100%',
         height: '100%',
-        objectFit: 'cover',
+        objectFit: 'fill',
       }}
     />
   );
