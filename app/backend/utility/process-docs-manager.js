@@ -59,6 +59,7 @@ export const get_documents_with_replacements = async (documents) => {
     signedBy: doc.signedBy,
     details: {
       name: doc.details.name,
+      createdOn: doc.details.createdOn,
       _id: doc.details._id,
       file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
     },
@@ -91,6 +92,7 @@ const transform_replacements = (replacements) => {
         signedBy: latestDoc.signedBy || [],
         details: {
           name: latestDoc.details.name,
+          createdOn: latestDoc.details.createdOn,
           _id: latestDoc.details._id,
           file_name: latestDoc.details.name,
         },
@@ -102,6 +104,7 @@ const transform_replacements = (replacements) => {
         signedBy: doc.signedBy || [],
         details: {
           name: doc.details.name,
+          createdOn: doc.details.createdOn,
           _id: doc.details._id,
           file_name: doc.details.name,
         },

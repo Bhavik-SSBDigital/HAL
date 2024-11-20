@@ -2158,7 +2158,9 @@ export const getProcess = async (
 
     const result = await get_documents_with_replacements(process.documents);
 
-    process.documents = result;
+    process.documents = result.activeDocs;
+
+    process.replacementsWithRef = result.replacementsWithRef;
 
     const logWork = await LogWork.findOne({
       process: process_id,
