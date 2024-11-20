@@ -124,6 +124,9 @@ function Schedule({ handleClose, setMeetings, meetings }) {
         name="startTime"
         control={control}
         defaultValue=""
+        rules={{
+          required: 'Start time is required',
+        }}
         render={({ field }) => (
           <TextField
             {...field}
@@ -134,6 +137,8 @@ function Schedule({ handleClose, setMeetings, meetings }) {
             sx={{ width: { xs: '100%', sm: '49%' }, mr: '5px' }}
             margin="dense"
             InputLabelProps={{ shrink: true }}
+            error={!!errors.startTime}
+            helperText={errors.startTime?.message}
           />
         )}
       />
@@ -141,6 +146,17 @@ function Schedule({ handleClose, setMeetings, meetings }) {
         name="endTime"
         control={control}
         defaultValue=""
+        rules={{
+          required: 'End time is required',
+          validate: (value) => {
+            const startTime = new Date(control._formValues.startTime);
+            const endTime = new Date(value);
+            if (endTime <= startTime) {
+              return 'End time must be later than start time';
+            }
+            return true;
+          },
+        }}
         render={({ field }) => (
           <TextField
             {...field}
@@ -151,9 +167,12 @@ function Schedule({ handleClose, setMeetings, meetings }) {
             margin="dense"
             sx={{ width: { xs: '100%', sm: '49%' } }}
             InputLabelProps={{ shrink: true }}
+            error={!!errors.endTime}
+            helperText={errors.endTime?.message}
           />
         )}
       />
+
       <Controller
         name="attendees"
         control={control}
