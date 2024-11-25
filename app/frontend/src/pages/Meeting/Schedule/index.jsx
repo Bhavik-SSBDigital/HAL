@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
   TextField,
   Button,
-  IconButton,
   Typography,
   FormControlLabel,
   Checkbox,
   Stack,
   Autocomplete,
+  RadioGroup,
+  Radio,
+  FormControl,
+  FormLabel,
+  MenuItem,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import axios from 'axios';
@@ -20,11 +21,11 @@ function Schedule({ handleClose, setMeetings, meetings }) {
   const {
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm();
   const token = sessionStorage.getItem('accessToken');
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [selectedUsers, setSelectedUsers] = useState([]);
   const [users, setUsers] = useState([]);
 
   const onSubmit = async (data) => {
@@ -34,13 +35,13 @@ function Schedule({ handleClose, setMeetings, meetings }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success(res.data.message);
+
       setMeetings((prev) => {
         const foundIdx = prev.findIndex(
-          (item) => item.date == res.data.meeting.date,
+          (item) => item.date === res.data.meeting.date,
         );
 
         if (foundIdx >= 0) {
-          // Correct condition to check if date exists
           return prev.map((item, idx) => {
             if (idx === foundIdx) {
               return {
@@ -98,14 +99,22 @@ function Schedule({ handleClose, setMeetings, meetings }) {
       });
       setUsers(res.data.users || []);
     } catch (error) {
-      console.log(error?.response?.data?.message || error?.message);
+      console.error(error?.response?.data?.message || error?.message);
     }
   };
+
   useEffect(() => {
     getUsers();
   }, []);
+
+  const watchIsRecurring = watch('isRecurring', false);
+  const watchFrequency = watch('frequency', 'daily');
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 400 }}>
+    <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 600 }}>
+      <Typography variant="h6" gutterBottom>
+        Schedule a Meeting
+      </Typography>
       <Controller
         name="title"
         control={control}
@@ -120,59 +129,58 @@ function Schedule({ handleClose, setMeetings, meetings }) {
           />
         )}
       />
-      <Controller
-        name="startTime"
-        control={control}
-        defaultValue=""
-        rules={{
-          required: 'Start time is required',
-        }}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            required
-            label="Start Time"
-            type="datetime-local"
-            fullWidth
-            sx={{ width: { xs: '100%', sm: '49%' }, mr: '5px' }}
-            margin="dense"
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.startTime}
-            helperText={errors.startTime?.message}
-          />
-        )}
-      />
-      <Controller
-        name="endTime"
-        control={control}
-        defaultValue=""
-        rules={{
-          required: 'End time is required',
-          validate: (value) => {
-            const startTime = new Date(control._formValues.startTime);
-            const endTime = new Date(value);
-            if (endTime <= startTime) {
-              return 'End time must be later than start time';
-            }
-            return true;
-          },
-        }}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            required
-            label="End Time"
-            type="datetime-local"
-            fullWidth
-            margin="dense"
-            sx={{ width: { xs: '100%', sm: '49%' } }}
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.endTime}
-            helperText={errors.endTime?.message}
-          />
-        )}
-      />
-
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={1}>
+        <Controller
+          name="startTime"
+          control={control}
+          defaultValue=""
+          rules={{
+            required: 'Start time is required',
+          }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              required
+              label="Start Time"
+              type="datetime-local"
+              fullWidth
+              margin="dense"
+              InputLabelProps={{ shrink: true }}
+              error={!!errors.startTime}
+              helperText={errors.startTime?.message}
+            />
+          )}
+        />
+        <Controller
+          name="endTime"
+          control={control}
+          defaultValue=""
+          rules={{
+            required: 'End time is required',
+            validate: (value) => {
+              const startTime = new Date(control._formValues.startTime);
+              const endTime = new Date(value);
+              if (endTime <= startTime) {
+                return 'End time must be later than start time';
+              }
+              return true;
+            },
+          }}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              required
+              label="End Time"
+              type="datetime-local"
+              fullWidth
+              margin="dense"
+              InputLabelProps={{ shrink: true }}
+              error={!!errors.endTime}
+              helperText={errors.endTime?.message}
+            />
+          )}
+        />
+      </Stack>
       <Controller
         name="attendees"
         control={control}
@@ -183,18 +191,9 @@ function Schedule({ handleClose, setMeetings, meetings }) {
             options={users}
             disableCloseOnSelect
             getOptionLabel={(option) => option.username}
-            value={selectedUsers}
-            onChange={(e, value) => {
-              setSelectedUsers(value); // Update local state for display
-              field.onChange(value.map((user) => user.username)); // Update form value to only labels
-            }}
-            isOptionEqualToValue={(option, value) => option._id === value._id}
-            renderOption={(props, option, { selected }) => (
-              <li {...props} key={option._id}>
-                <Checkbox checked={selected} style={{ marginRight: 8 }} />
-                {option.username}
-              </li>
-            )}
+            onChange={(e, value) =>
+              field.onChange(value.map((user) => user.username))
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -202,22 +201,19 @@ function Schedule({ handleClose, setMeetings, meetings }) {
                 placeholder="Select attendees"
                 margin="dense"
                 fullWidth
-                error={!!errors.attendees}
-                helperText={errors.attendees ? errors.attendees.message : ''}
               />
             )}
           />
         )}
       />
-
       <Controller
         name="agenda"
         control={control}
         defaultValue=""
         render={({ field }) => (
           <TextField
-            required
             {...field}
+            required
             label="Agenda"
             fullWidth
             multiline
@@ -227,17 +223,89 @@ function Schedule({ handleClose, setMeetings, meetings }) {
         )}
       />
       <Controller
-        name="flexibleWithAttendees"
+        name="isRecurring"
         control={control}
         defaultValue={false}
         render={({ field }) => (
           <FormControlLabel
             control={<Checkbox {...field} checked={field.value} />}
-            label="Flexible with Attendees"
+            label="Recurring Meeting"
+            sx={{ marginTop: 2 }}
           />
         )}
       />
-      <Stack mt={1} flexDirection="row" justifyContent="flex-end" gap={1}>
+      {watchIsRecurring && (
+        <Stack spacing={2} mt={2}>
+          <FormControl>
+            <FormLabel>Recurrence Frequency</FormLabel>
+            <Controller
+              name="frequency"
+              control={control}
+              defaultValue="daily"
+              render={({ field }) => (
+                <RadioGroup {...field} row>
+                  <FormControlLabel
+                    value="daily"
+                    control={<Radio />}
+                    label="Daily"
+                  />
+                  <FormControlLabel
+                    value="weekly"
+                    control={<Radio />}
+                    label="Weekly"
+                  />
+                  <FormControlLabel
+                    value="monthly"
+                    control={<Radio />}
+                    label="Monthly"
+                  />
+                </RadioGroup>
+              )}
+            />
+          </FormControl>
+          {watchFrequency === 'weekly' && (
+            <Controller
+              name="dayOfWeek"
+              control={control}
+              defaultValue="Monday"
+              render={({ field }) => (
+                <TextField {...field} select label="Day of the Week" fullWidth>
+                  {[
+                    'Sunday',
+                    'Monday',
+                    'Tuesday',
+                    'Wednesday',
+                    'Thursday',
+                    'Friday',
+                    'Saturday',
+                  ].map((day) => (
+                    <MenuItem key={day} value={day}>
+                      {day}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+          )}
+          {watchFrequency === 'monthly' && (
+            <Controller
+              name="dateOfMonth"
+              control={control}
+              defaultValue={1}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Date of the Month"
+                  type="number"
+                  inputProps={{ min: 1, max: 31 }}
+                  fullWidth
+                />
+              )}
+            />
+          )}
+        </Stack>
+      )}
+      <Stack mt={2} flexDirection="row" justifyContent="flex-end" gap={2}>
         <Button onClick={handleClose} color="error">
           Cancel
         </Button>
