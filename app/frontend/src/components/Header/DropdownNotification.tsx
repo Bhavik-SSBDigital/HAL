@@ -106,7 +106,6 @@ const DropdownNotification = () => {
       } else {
         socket = socketConnection;
       }
-      console.log(socket);
       socket.on('connect', () => {
         console.log('Connected to server');
         // Perform any actions upon successful connection
