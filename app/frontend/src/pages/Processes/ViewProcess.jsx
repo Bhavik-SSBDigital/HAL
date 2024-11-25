@@ -73,6 +73,7 @@ import sessionData from '../../Store';
 import { useQueryClient } from 'react-query';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { useForm } from 'react-hook-form';
+import Replacements from './Components/Replacements';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -1633,6 +1634,7 @@ export default function ViewProcess(props) {
                       </Stack>
                     </Box>
                   </Box>
+                  <Replacements data={processData?.replacementsWithRef} />
                   {(work === 'publish' ||
                     (work === '' && upload_Work?.work === 'publish')) &&
                     !processData.isInterBranchProcess &&
