@@ -4,6 +4,55 @@ import Meeting from "../models/Meeting.js";
 import { userSockets } from "../api.js";
 import { verifyUser } from "../utility/verifyUser.js";
 import { ObjectId } from "mongodb";
+import { getSocketInstance } from "../socketHandler.js";
+import moment from "moment";
+
+const checkIfRoomHasParticipants = (roomId) => {
+  const io = getSocketInstance(); // Get the Socket.io instance
+
+  const room = io.sockets.adapter.rooms.get(roomId); // Get the room by its ID
+
+  if (room && room.size > 0) {
+    // Room exists and has participants
+
+    return true;
+  } else {
+    // Room is empty or doesn't exist
+
+    return false;
+  }
+};
+
+/*
+
+[
+  {
+    "isRecurring": true,
+    "frequency": "daily",
+    "dayOfWeek": null,
+    "dateOfMonth": null
+  },
+  {
+    "isRecurring": true,
+    "frequency": "weekly",
+    "dayOfWeek": "Monday",
+    "dateOfMonth": null
+  },
+  {
+    "isRecurring": true,
+    "frequency": "monthly",
+    "dayOfWeek": null,
+    "dateOfMonth": 15
+  },
+  {
+    "isRecurring": false,
+    "frequency": null,
+    "dayOfWeek": null,
+    "dateOfMonth": null
+  }
+]
+
+*/
 
 export const create_meeting = async (req, res, next) => {
   try {
@@ -39,9 +88,43 @@ export const create_meeting = async (req, res, next) => {
       })
     );
 
-    console.log("attendees", attendees);
-    console.log("start time", req.body.startTime);
-    console.log("end time", req.body.endTime);
+    const { isRecurring, frequency, dayOfWeek, dateOfMonth } =
+      req.body.recurrence || {};
+
+    if (isRecurring) {
+      const meetings = [];
+      const maxRecurrences = 12; // For example, cap the number of recurrences
+      let currentStartTime = startTime;
+      let currentEndTime = endTime;
+
+      for (let i = 0; i < maxRecurrences; i++) {
+        const newMeeting = {
+          meetingId: uuidv4(),
+          createdBy: userData._id,
+          attendees,
+          title: req.body.title,
+          agenda: req.body.agenda,
+          startTime: currentStartTime,
+          endTime: currentEndTime,
+          flexibleWithAttendees: req.body.flexibleWithAttendees,
+          recurrence: { isRecurring, frequency, dayOfWeek, dateOfMonth },
+        };
+
+        meetings.push(newMeeting);
+
+        // Update the next start and end times based on frequency
+        if (frequency === "daily") {
+          currentStartTime.setDate(currentStartTime.getDate() + 1);
+          currentEndTime.setDate(currentEndTime.getDate() + 1);
+        } else if (frequency === "weekly") {
+          currentStartTime.setDate(currentStartTime.getDate() + 7);
+          currentEndTime.setDate(currentEndTime.getDate() + 7);
+        } else if (frequency === "monthly") {
+          currentStartTime.setMonth(currentStartTime.getMonth() + 1);
+          currentEndTime.setMonth(currentEndTime.getMonth() + 1);
+        }
+      }
+    }
     attendees.push(userData._id);
 
     const newMeeting = new Meeting({
@@ -211,16 +294,11 @@ export const get_meetings_for_user = async (req, res, next) => {
     }
 
     let meetings = await Meeting.find({
-      endTime: { $gt: Date.now() },
       attendees: { $in: [new ObjectId(userData._id)] },
     })
-      .select("meetingId startTime endTime title agenda createdBy")
+      .select("meetingId startTime endTime title agenda createdBy recurrence")
       .lean()
-      // .populate("attendees", "username") // Populate participant info, e.g., name
-      // .populate("createdBy", "username") // Populate creator info if needed
       .exec();
-
-    console.log("meetings", meetings);
 
     meetings = await Promise.all(
       meetings.map(async (meeting) => {
@@ -236,7 +314,25 @@ export const get_meetings_for_user = async (req, res, next) => {
     );
 
     const formattedMeetings = meetings.reduce((acc, meeting) => {
-      const meetingDate = new Date(meeting.startTime);
+      const recurrence = meeting.recurrence;
+      let meetingDate = new Date(meeting.startTime);
+
+      // Handle recurrence
+      if (recurrence) {
+        if (recurrence === "daily") {
+          // For daily recurrence, we just add the meeting for today
+          meetingDate = new Date();
+        } else if (recurrence === "weekly") {
+          // For weekly recurrence, find the next date of the same weekday
+          const nextMeetingDate = moment(meetingDate).add(1, "weeks").toDate();
+          meetingDate = nextMeetingDate;
+        } else if (recurrence === "monthly") {
+          // For monthly recurrence, find the next occurrence of the same day in the next month
+          const nextMeetingDate = moment(meetingDate).add(1, "months").toDate();
+          meetingDate = nextMeetingDate;
+        }
+      }
+
       const dateStr = meetingDate.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -275,7 +371,9 @@ export const get_meetings_for_user = async (req, res, next) => {
         agenda: meeting.agenda || "",
         time: timeStr,
         duration: durationStr,
-        meetingEnded: meeting.endTime < Date.now(),
+        anyParticipantInMeeting: checkIfRoomHasParticipants(meeting.meetingId),
+        meetingEnded: meeting.recurrence ? false : meeting.endTime < Date.now(),
+        recurrence: meeting.recurrence, // Add recurrence property
       });
 
       return acc;
@@ -390,5 +488,30 @@ export const get_meeting_details = async (req, res, next) => {
     return res.status(500).json({
       message: "Error getting meeting details",
     });
+  }
+};
+
+export const get_attendees_list = async (meetingId) => {
+  try {
+    const meeting = await Meeting.findOne({ meetingId: meetingId })
+      .select("participants")
+      .lean();
+
+    let participants = meeting.attendees;
+
+    participants = await Promise.all(
+      participants.map(async (participant) => {
+        let participant_ = participant;
+
+        participant_ = await User.findOne({ _id: participant_ }).select(
+          "username"
+        );
+
+        return participant_.username;
+      })
+    );
+  } catch (error) {
+    console.log("Error getting meeting participant", error);
+    return [];
   }
 };

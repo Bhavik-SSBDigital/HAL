@@ -68,6 +68,39 @@ const meetingSchema = new mongoose.Schema({
       },
     },
   ],
+  recurrence: {
+    isRecurring: {
+      type: Boolean,
+      default: false,
+    },
+    frequency: {
+      type: String,
+      enum: ["daily", "weekly", "monthly"],
+    },
+    dayOfWeek: {
+      type: String,
+      enum: [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ],
+      required: function () {
+        return this.recurrence.frequency === "weekly";
+      },
+    },
+    dateOfMonth: {
+      type: Number,
+      min: 1,
+      max: 31,
+      required: function () {
+        return this.recurrence.frequency === "monthly";
+      },
+    },
+  },
 });
 
 const Meeting = mongoose.model("Meeting", meetingSchema);
