@@ -230,7 +230,17 @@ function Schedule({ handleClose, setMeetings, meetings }) {
           <FormControlLabel
             control={<Checkbox {...field} checked={field.value} />}
             label="Recurring Meeting"
-            sx={{ marginTop: 2 }}
+          />
+        )}
+      />
+      <Controller
+        name="flexibleWithAttendees"
+        control={control}
+        defaultValue={false}
+        render={({ field }) => (
+          <FormControlLabel
+            control={<Checkbox {...field} checked={field.value} />}
+            label="Flexible with Attendees"
           />
         )}
       />
