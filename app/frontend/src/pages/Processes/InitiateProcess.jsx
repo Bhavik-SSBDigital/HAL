@@ -23,6 +23,7 @@ import {
   Alert,
   AlertTitle,
   Chip,
+  Grid2,
 } from '@mui/material';
 import styles from './InitiateProcess.module.css';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -306,7 +307,7 @@ export default function LabelBottomNavigation(props) {
       );
       setFileData([]);
     } catch (error) {
-      alert('Unable to initiate process');
+      toast.error('Unable to initiate process');
     }
     setLoadingFalse();
   };
@@ -366,7 +367,7 @@ export default function LabelBottomNavigation(props) {
         );
         setPathList(res.data.children);
       } catch (error) {
-        alert('something is wrong');
+        console.log(error?.response?.data?.message || error?.message);
       }
     };
     getPath();
@@ -386,8 +387,8 @@ export default function LabelBottomNavigation(props) {
               flexDirection: 'column',
             }}
           >
-            <Grid container spacing={1}>
-              <Grid item xs={12}>
+            <Grid2 container spacing={1}>
+              <Grid2 item size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -404,8 +405,8 @@ export default function LabelBottomNavigation(props) {
                     </MenuItem>
                   ))}
                 </TextField>
-              </Grid>
-              <Grid item xs={12}>
+              </Grid2>
+              <Grid2 item size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -426,8 +427,8 @@ export default function LabelBottomNavigation(props) {
                   // helperText="Field must contain only letters, numbers, and spaces."
                   sx={{ mb: 2, backgroundColor: 'white' }}
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </Grid2>
+              <Grid2 item size={{ xs: 12 }}>
                 <h4 style={{ textAlign: 'center', color: 'red' }}>
                   The documents save location is{' '}
                   {pathDetails.path
@@ -441,8 +442,8 @@ export default function LabelBottomNavigation(props) {
                           : props?.selectedDepartment?.branch
                       }`}
                 </h4>
-              </Grid>
-            </Grid>
+              </Grid2>
+            </Grid2>
             <Typography variant="h6" sx={{ mb: 0.5, textAlign: 'center' }}>
               Add Files
             </Typography>
