@@ -18,6 +18,7 @@ import { ObjectId } from "mongodb";
 import https from "https";
 import fs from "fs";
 import { initializeSocket } from "./socketHandler.js";
+import { userSockets } from "./socketHandler.js";
 // database connection
 // dbConnection();
 
@@ -54,8 +55,6 @@ initializeSocket(server);
 // });
 
 // const io = io.of("/socket/");
-
-export const userSockets = new Map();
 
 // Start the HTTP/2 server with spdy
 // const options = {

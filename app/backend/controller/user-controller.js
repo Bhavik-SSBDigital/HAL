@@ -20,7 +20,7 @@ import { ObjectId } from "mongodb";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { userSockets } from "../api.js";
+import { userSockets } from "../socketHandler.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

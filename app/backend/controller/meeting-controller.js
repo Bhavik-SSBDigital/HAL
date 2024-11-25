@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import User from "../models/user.js";
 import Meeting from "../models/Meeting.js";
-import { userSockets } from "../api.js";
 import { verifyUser } from "../utility/verifyUser.js";
 import { ObjectId } from "mongodb";
 import { getSocketInstance } from "../socketHandler.js";

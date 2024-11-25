@@ -6,9 +6,10 @@ import {
 import User from "./models/user.js";
 import { ObjectId } from "mongodb";
 import Meeting from "./models/Meeting.js";
+import { get_attendees_list } from "./controller/meeting-controller.js";
 
 let io;
-let usernames = [];
+export let userSockets = new Map(); // Changed to Map
 
 export const initializeSocket = (server) => {
   io = new Server(server, {
@@ -23,6 +24,14 @@ export const initializeSocket = (server) => {
   });
 
   io.on("connection", async (socket) => {
+    socket.on("login", async (username) => {
+      socket.username = username; // Set the username on the socket object
+      console.log(`Username set for socket ${socket.id}: ${username}`);
+
+      // Now add the user to the Map with socketId as the key
+      userSockets.set(socket.id, { socket, username });
+    });
+
     socket.on("join-room", async ({ roomId, username }) => {
       socket.join(roomId);
 
@@ -41,8 +50,6 @@ export const initializeSocket = (server) => {
 
       await meet.save();
 
-      usernames.push({ socketId: socket.id, username }); // Add user
-
       // Notify other users in the room about the new user
       socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
 
@@ -50,9 +57,46 @@ export const initializeSocket = (server) => {
       const usersInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
         .map((id) => ({
           socketId: id,
-          username: usernames.find((u) => u.socketId === id).username,
+          username: userSockets.get(id)?.username, // Retrieve username from the Map
         }))
         .filter((user) => user.socketId !== socket.id);
+
+      if (usersInRoom.length === 0) {
+        const attendees = await get_attendees_list(roomId);
+        const users = Array.from(userSockets.values()).filter(
+          (item) =>
+            item.username !== username && attendees.includes(item.username)
+        );
+
+        users.forEach((user) => {
+          console.log("user", user.username);
+          user.socket.emit("meeting-started", {
+            message: `${username} has started the meeting`,
+          });
+        });
+      }
+
+      // Check if the startTime has arrived and notify participants
+      if (meet.startTime <= Date.now()) {
+        const attendees = await get_attendees_list(roomId);
+        const users = Array.from(userSockets.values());
+
+        users.forEach((user) => {
+          console.log("user", user.username);
+          user.socket.emit("meeting-start-time", {
+            message: meet.agenda
+              ? `It's time for meeting with ID ${meet.meetingId} having agenda ${meet.agenda}`
+              : `It's time for meeting with ID ${meet.meetingId}`,
+          });
+        });
+      }
+
+      // Check if the endTime has passed and notify participants
+      if (meet.endTime <= Date.now()) {
+        socket.to(roomId).emit("meeting-end-time", {
+          message: "The meeting time is over!",
+        });
+      }
 
       socket.emit("room-users", usersInRoom);
 
@@ -75,7 +119,7 @@ export const initializeSocket = (server) => {
         const usersInRoom = Array.from(room)
           .map((id) => ({
             socketId: id,
-            username: usernames.find((item) => item.socketId === id).username,
+            username: userSockets.get(id)?.username, // Retrieve username from the Map
           }))
           .filter((user) => user.socketId !== socket.id);
       });
@@ -135,14 +179,14 @@ export const initializeSocket = (server) => {
         socket.removeAllListeners("answer");
         socket.removeAllListeners("ice-candidate");
         socket.removeAllListeners("leave-room");
-        usernames = usernames.filter((u) => u.socketId !== socket.id);
+        userSockets.delete(socket.id); // Remove from the Map
 
         socket.to(roomId).emit("user-left", { socketId: socket.id, username });
       });
 
       // Handle disconnection
       socket.on("disconnect", () => {
-        usernames = usernames.filter((u) => u.socketId !== socket.id);
+        userSockets.delete(socket.id); // Remove from the Map
 
         const rooms = Array.from(socket.rooms);
         rooms.forEach((roomId) => {
