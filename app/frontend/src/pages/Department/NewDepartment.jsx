@@ -43,6 +43,7 @@ import Workflow from '../../components/Workflow';
 export default function NewDepartment(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { id } = useParams();
+  const location = useLocation();
 
   const [editObject, setEditObject] = useState({});
   const initialUser = {
@@ -52,7 +53,6 @@ export default function NewDepartment(props) {
     workFlow: [],
   };
   const [formData, setFormData] = useState({ ...initialUser });
-  console.log(formData);
   const [flow, setFlow] = useState({ work: '', step: '' });
   const [usersOnStep, setUsersOnStep] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -304,6 +304,9 @@ export default function NewDepartment(props) {
       step: formData?.workFlow?.length + 1,
     }));
   }, [formData?.workFlow]);
+  useEffect(() => {
+    setFormData(initialUser);
+  }, [location.pathname]);
 
   return (
     <>
