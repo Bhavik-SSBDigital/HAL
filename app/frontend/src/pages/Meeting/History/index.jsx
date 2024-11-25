@@ -203,14 +203,17 @@ export default function History({ joinMeet }) {
                             flexWrap: 'wrap',
                           }}
                         >
-                          <Button
-                            sx={{ width: 'fit-content' }}
-                            startIcon={<IconPhoneCall />}
-                            color="secondary"
-                            onClick={() => joinMeeting(item.meetingId)}
-                          >
-                            JOIN
-                          </Button>
+                          {selectedTab !== 'past' ||
+                          item.anyParticipantInMeeting ? (
+                            <Button
+                              sx={{ width: 'fit-content' }}
+                              startIcon={<IconPhoneCall />}
+                              color="secondary"
+                              onClick={() => joinMeeting(item.meetingId)}
+                            >
+                              JOIN
+                            </Button>
+                          ) : null}
                           <Button
                             startIcon={<IconListDetails />}
                             sx={{ width: 'fit-content' }}
