@@ -76,6 +76,31 @@ const MeetingManager = () => {
     formState: { errors },
   } = useForm({ defaultValues: { meetingId: '', username: username } });
 
+  // leave room before refresh or unmount
+  const leave = () => {
+    const id = localStorage.getItem('IdMeeting');
+    if ((id, username, socketRef)) {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          track.stop(); // Stop each media track (audio and video)
+        });
+
+        // Clear the local video element
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
+
+        // Set the localStream to null
+        localStreamRef.current = null;
+      }
+      socketRef?.current?.emit('leave-room', {
+        roomId: id,
+        username: username,
+      });
+      console.log('leaving room');
+    }
+  };
+
   useEffect(() => {
     // Establish connection and setup listeners
     if (!socketRef.current && socketConnection) {
@@ -121,32 +146,11 @@ const MeetingManager = () => {
         }
       });
     }
+    window.addEventListener('beforeunload', leave);
 
     return () => {
-      // Cleanup function when
-      //   console.log(username, meetingId);
-      const IdMeeting = localStorage.getItem('IdMeeting');
-      if (socketRef.current && username && IdMeeting) {
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach((track) => {
-            track.stop(); // Stop each media track (audio and video)
-          });
-
-          // Clear the local video element
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = null;
-          }
-
-          // Set the localStream to null
-          localStreamRef.current = null;
-        }
-        socketRef.current.emit('leave-room', {
-          roomId: IdMeeting,
-          username: username,
-        });
-        localStorage.removeItem('IdMeeting');
-        console.log('leaving room');
-      }
+      leave();
+      window.removeEventListener('beforeunload', leave);
       console.log('clean-up');
     };
   }, [socketConnection]); // Ensure this effect only runs once on mount and unmount
