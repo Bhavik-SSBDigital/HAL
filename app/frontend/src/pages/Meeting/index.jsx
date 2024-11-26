@@ -151,6 +151,9 @@ const MeetingManager = () => {
     return () => {
       leave();
       // socketRef?.current?.removeAllListeners();
+      if (socketRef?.current && !meetingId) {
+        socketRef.current.removeAllListeners();
+      }
       window.removeEventListener('beforeunload', leave);
     };
   }, [socketConnection]); // Ensure this effect only runs once on mount and unmount
