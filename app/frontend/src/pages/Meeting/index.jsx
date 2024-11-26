@@ -517,11 +517,11 @@ const MeetingManager = () => {
               {/* highlight */}
               {pinned ? (
                 <Box
-                  height={500}
+                  height={600}
                   minWidth={500}
                   width={'100%'}
                   sx={{
-                    flex: 8,
+                    flex: 9,
                     bgcolor: 'black',
                     border: '1px solid',
                     display: 'flex',
@@ -581,11 +581,12 @@ const MeetingManager = () => {
                 <Paper
                   variant="outlined"
                   sx={{
+                    flex: 1,
                     position: 'relative',
                     // margin: 1,
                     maxWidth: 400,
-                    minWidth: 200,
-                    height: 240,
+                    minWidth: 300,
+                    height: 250,
                     backgroundColor: '#000',
                   }}
                 >
@@ -628,11 +629,12 @@ const MeetingManager = () => {
                       key={participant}
                       variant="outlined"
                       sx={{
+                        flex: 1,
                         position: 'relative',
                         // margin: 1,
                         maxWidth: 400,
-                        minWidth: 200,
-                        height: 240,
+                        minWidth: 300,
+                        height: 250,
                         backgroundColor: '#000',
                       }}
                     >
@@ -766,7 +768,7 @@ const MeetingManager = () => {
 
               {/* Bottom Controls */}
               <Box
-                position="absolute"
+                position="fixed"
                 bottom={10}
                 left="50%"
                 p={1}
@@ -774,10 +776,11 @@ const MeetingManager = () => {
                 justifyContent="center"
                 alignItems="center"
                 bgcolor="background.paper"
-                borderTop={1}
+                border={3}
                 borderColor="divider"
                 sx={{
                   width: 'fit-content',
+
                   transform: 'translateX(-50%)',
                   borderRadius: '10px',
                 }}
