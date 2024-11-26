@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './Schedule.module.css';
 import {
+  Box,
   Button,
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import Schedule from '../Schedule';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import MeetingDetailsDialog from '../MeetingDetails';
+import ListSkeleton from '../../../common/Skeletons/ListSkeleton';
 
 export default function History({ joinMeet }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -29,6 +31,7 @@ export default function History({ joinMeet }) {
   const [meetings, setMeetings] = useState([]);
   const [selectedTab, setSelectedTab] = useState('upcoming');
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
@@ -71,6 +74,8 @@ export default function History({ joinMeet }) {
       setMeetings(res.data.meetings || []);
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
+    } finally {
+      setLoading(false);
     }
   };
   const joinMeeting = async (meetingId) => {
@@ -137,7 +142,11 @@ export default function History({ joinMeet }) {
             Schedule Meeting
           </Button>
         </Stack>
-        {meetings.length ? (
+        {loading ? (
+          <Box p={1}>
+            <ListSkeleton />
+          </Box>
+        ) : meetings.length ? (
           meetings
             .filter((meeting) =>
               meeting.scheduledMeetings.some((item) =>

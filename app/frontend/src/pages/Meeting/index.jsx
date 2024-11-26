@@ -105,7 +105,6 @@ const MeetingManager = () => {
     // Establish connection and setup listeners
     if (!socketRef.current && socketConnection) {
       socketRef.current = socketConnection;
-      console.log(socketConnection);
 
       socketRef.current.on('message', async (data) => {
         const { user, text } = data;
@@ -150,8 +149,8 @@ const MeetingManager = () => {
 
     return () => {
       leave();
+      // socketRef?.current?.removeAllListeners();
       window.removeEventListener('beforeunload', leave);
-      console.log('clean-up');
     };
   }, [socketConnection]); // Ensure this effect only runs once on mount and unmount
 
@@ -232,7 +231,6 @@ const MeetingManager = () => {
       peer: peerConnection,
       stream: remoteStream,
     };
-    console.log(user);
     setPeers((prevPeers) => ({
       ...prevPeers,
       [socketId]: { name: user, stream: remoteStream },
@@ -363,9 +361,6 @@ const MeetingManager = () => {
     }
     setIsAudioEnabled(false);
     setIsVideoEnabled(false);
-    console.log(
-      'Left meeting room, stopped all tracks, and closed connections.',
-    );
   };
 
   // Function to send a message to the room
@@ -480,7 +475,6 @@ const MeetingManager = () => {
     }
   };
 
-  console.log(peers);
   function getColor(string) {
     let hash = 0;
     let i;
@@ -497,7 +491,6 @@ const MeetingManager = () => {
       color += `00${value.toString(16)}`.slice(-2);
     }
     /* eslint-enable no-bitwise */
-    console.log(color);
     return color;
   }
   const pinVideo = (participant) => {
