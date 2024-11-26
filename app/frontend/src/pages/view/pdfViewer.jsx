@@ -80,10 +80,10 @@ function PdfContainer({ url, documentId }) {
                       rectCoordinates.x <= hCoord.x + hCoord.width) ||
                     (rectCoordinates.x <= hCoord.x &&
                       rectCoordinates.x + rectCoordinates.width >=
-                      hCoord.x + hCoord.width) ||
+                        hCoord.x + hCoord.width) ||
                     (hCoord.x <= rectCoordinates.x &&
                       hCoord.x + hCoord.width >=
-                      rectCoordinates.x + rectCoordinates.width)),
+                        rectCoordinates.x + rectCoordinates.width)),
               ),
             );
 
@@ -139,9 +139,12 @@ function PdfContainer({ url, documentId }) {
                 <>
                   <Box
                     sx={{
-                      display: (openTooltip?.x == coord?.x && openTooltip?.y == coord?.y) ? 'block' : 'none',
+                      display:
+                        openTooltip?.x == coord?.x && openTooltip?.y == coord?.y
+                          ? 'block'
+                          : 'none',
                       position: 'absolute',
-                      width: "fit-content",
+                      width: 'fit-content',
                       right: 10,
                       background: 'white',
                       boxShadow:
@@ -149,14 +152,20 @@ function PdfContainer({ url, documentId }) {
                       padding: '2px',
                       top: coord.y + coord.height,
                       left: coord.x,
-                      zIndex: 999
+                      zIndex: 999,
                     }}
                   >
-                    <Typography fontWeight={700} fontSize={14} color="black">User : {highlight.createdBy}</Typography>
-                    <Typography fontWeight={700} fontSize={14} color="black">Remarks : {highlight.remark}</Typography>
+                    <Typography fontWeight={700} fontSize={14} color="black">
+                      User : {highlight.createdBy}
+                    </Typography>
+                    <Typography fontWeight={700} fontSize={14} color="black">
+                      Remarks : {highlight.remark}
+                    </Typography>
                   </Box>
                   <div
-                    onMouseEnter={() => setOpenTooltip({ x: coord.x, y: coord.y })}
+                    onMouseEnter={() =>
+                      setOpenTooltip({ x: coord.x, y: coord.y })
+                    }
                     onMouseLeave={() => setOpenTooltip(null)}
                     style={{
                       userSelect: 'none',
@@ -263,7 +272,7 @@ function PdfContainer({ url, documentId }) {
       </div>
       <Dialog
         open={openRemarksMenu}
-        sx={{ zIndex: '999999', backdropFilter: 'blur(4px)' }}
+        sx={{ zIndex: '999999' }}
         onClose={() => (submitLoading ? null : setOpenRemarksMenu(false))}
       >
         <DialogTitle
