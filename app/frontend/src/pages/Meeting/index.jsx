@@ -676,6 +676,7 @@ const MeetingManager = () => {
                 open={showChat || showMembers}
                 sx={{
                   '& .MuiDrawer-paper': { width: 300 },
+                  zIndex: 9999,
                 }}
               >
                 {showChat && (
