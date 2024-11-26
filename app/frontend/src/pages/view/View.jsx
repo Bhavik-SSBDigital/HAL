@@ -72,56 +72,58 @@ const PdfViewer = ({ docu, handleViewClose }) => {
       </IconButton>
       {docu && (
         <>
-          {() => {
-            if (docu.type === 'pdf') {
-              return (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    position: 'relative',
-                    height: '100%',
-                  }}
-                >
-                  <PdfContainer url={docu.url} documentId={docu.fileId} />
-                </div>
-              );
-            } else if (docu.type == 'xls' || docu.type == 'xlsx') {
-              return (
-                <div
-                  style={{
-                    overflowY: 'auto',
-                    maxHeight: '100vh',
-                    background: 'white',
-                  }}
-                >
-                  <table
-                    border="1"
-                    style={{ borderCollapse: 'collapse', width: '100%' }}
-                  >
-                    {excelData?.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <td
-                            key={cellIndex}
-                            style={{
-                              padding: '8px',
-                              border: '1px solid',
-                              textAlign: 'left',
-                              fontWeight: rowIndex == 0 ? 700 : null,
-                            }}
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </table>
-                </div>
-              );
-            }
-          }}
+          {docu.type === 'pdf' ? (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative',
+                height: '100%',
+              }}
+            >
+              <PdfContainer url={docu.url} documentId={docu.fileId} />
+            </div>
+          ) : docu.type === 'xls' || docu.type === 'xlsx' ? (
+            <div
+              style={{
+                overflowY: 'auto',
+                maxHeight: '100vh',
+                background: 'white',
+              }}
+            >
+              <table
+                border="1"
+                style={{ borderCollapse: 'collapse', width: '100%' }}
+              >
+                {excelData?.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell, cellIndex) => {
+                      // Check if the cell value is empty or not and apply styles accordingly
+                      const isEmpty = cell === '';
+                      return (
+                        <td
+                          key={cellIndex}
+                          style={{
+                            padding: '8px',
+                            border: '1px solid',
+                            textAlign: 'left',
+                            fontWeight: rowIndex === 0 ? 700 : 'normal',
+                            backgroundColor: isEmpty
+                              ? '#f0f0f0'
+                              : 'transparent', // Highlight empty cells if needed
+                          }}
+                        >
+                          {isEmpty ? ' ' : cell}{' '}
+                          {/* Show empty string as space */}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </table>
+            </div>
+          ) : null}
         </>
       )}
     </div>
