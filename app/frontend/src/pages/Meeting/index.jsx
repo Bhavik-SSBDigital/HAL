@@ -570,11 +570,11 @@ const MeetingManager = () => {
                 sx={{
                   display: 'flex',
                   flexWrap: 'wrap',
-                  boxSizing: 'border-box',
-                  overflowY: 'auto',
                   gap: 1,
                   flex: 4,
-                  minWidth: '220px',
+                  minWidth: '300px',
+                  maxHeight: '600px',
+                  overflow: 'auto',
                 }}
               >
                 {/* Local Video */}
