@@ -371,7 +371,9 @@ export const get_meetings_for_user = async (req, res, next) => {
         time: timeStr,
         duration: durationStr,
         anyParticipantInMeeting: checkIfRoomHasParticipants(meeting.meetingId),
-        meetingEnded: meeting.recurrence ? false : meeting.endTime < Date.now(),
+        meetingEnded: meeting.recurrence?.isRecurring
+          ? false
+          : meeting.endTime < Date.now(),
         recurrence: meeting.recurrence, // Add recurrence property
       });
 
