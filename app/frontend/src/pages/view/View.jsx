@@ -1,100 +1,131 @@
-  import React, { useEffect, useState } from "react";
-  import { Box, IconButton } from "@mui/material";
-  import CloseIcon from "@mui/icons-material/Close";
-  import { pdfjs } from "react-pdf";
-  import PdfContainer from "./pdfViewer";
-  import "react-pdf/dist/Page/AnnotationLayer.css";
-  import "react-pdf/dist/Page/TextLayer.css";
+import React, { useEffect, useState } from 'react';
+import { Box, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { pdfjs } from 'react-pdf';
+import PdfContainer from './pdfViewer';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+import * as XLSX from 'xlsx';
 
-  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-  const PdfViewer = ({ docu, handleViewClose }) => {
-    const [excelData, setExcelData] = useState();
-    const closeIconStyle = {
-      position: "absolute",
-      top: "10px",
-      right: "20px",
-      zIndex: "9999999",
-    };
-
-    useEffect(() => {
-      if (docu.type === "xlsx" || docu.type === "xls") {
-        fetch(docu.url)
-          .then((response) => response.blob())
-          .then((blob) => {
-            const reader = new FileReader();
-
-            reader.onload = (evt) => {
-              const bstr = evt.target.result;
-              const wb = XLSX.read(bstr, { type: "binary", cellDates: true });
-              const wsname = wb.SheetNames[0];
-              const ws = wb.Sheets[wsname];
-              const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-              let maxLength = 0;
-              let rowIndex = -1;
-
-              for (let i = 0; i < data.length; i++) {
-                if (data[i].length > maxLength) {
-                  maxLength = data[i].length;
-                  rowIndex = i;
-                }
-              }
-              for (let i = 0; i < data.length; i++) {
-                for (let j = 0; j < maxLength; j++) {
-                  if (data[i][j] === undefined) {
-                    data[i][j] = "";
-                  }
-                }
-              }
-
-              setExcelData(data);
-            };
-            reader.readAsBinaryString(blob);
-          })
-          .catch((error) => {
-            console.error("Error fetching Excel file:", error);
-          });
-      }
-    }, [docu]);
-
-    return (
-      <div
-        style={{
-          position: "fixed",
-          left: '0px',
-          top: "0px",
-          width: '100vw',
-          height: "100vh",
-          backgroundColor: "lightgray",
-          zIndex: "99999",
-        }}
-      >
-        <IconButton sx={closeIconStyle} onClick={handleViewClose}>
-          <CloseIcon />
-        </IconButton>
-        {docu && (
-          <>
-            {(() => {
-              if (docu.type === "pdf") {
-                return (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      position: "relative",
-                      height: "100%",
-                    }}
-                  >
-                    <PdfContainer url={docu.url} documentId={docu.fileId} />
-                  </div>
-                );
-              }
-            })()}
-          </>
-        )}
-      </div>
-    );
+const PdfViewer = ({ docu, handleViewClose }) => {
+  const [excelData, setExcelData] = useState([]);
+  const closeIconStyle = {
+    position: 'absolute',
+    top: '10px',
+    right: '20px',
+    zIndex: '9999999',
   };
 
-  export default PdfViewer;
+  useEffect(() => {
+    if (docu.type === 'xlsx' || docu.type === 'xls') {
+      fetch(docu.url)
+        .then((response) => response.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+
+          reader.onload = (evt) => {
+            const bstr = evt.target.result;
+            const workbook = XLSX.read(bstr, {
+              type: 'binary',
+              cellDates: true,
+            });
+            const sheetName = workbook.SheetNames[0]; // First sheet
+            const sheet = workbook.Sheets[sheetName];
+
+            // Convert to JSON format
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // `header: 1` keeps it in an array format
+
+            // Normalize and store data
+            const maxLength = jsonData.reduce(
+              (max, row) => Math.max(max, row.length),
+              0,
+            );
+            const normalizedData = jsonData.map((row) =>
+              Array.from({ length: maxLength }, (_, i) => row[i] || ''),
+            );
+
+            setExcelData(normalizedData);
+          };
+
+          reader.readAsBinaryString(blob);
+        })
+        .catch((error) => console.error('Error reading Excel file:', error));
+    }
+  }, [docu]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'lightgray',
+        zIndex: '99999',
+      }}
+    >
+      <IconButton sx={closeIconStyle} onClick={handleViewClose}>
+        <CloseIcon />
+      </IconButton>
+      {docu && (
+        <>
+          {() => {
+            if (docu.type === 'pdf') {
+              return (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    position: 'relative',
+                    height: '100%',
+                  }}
+                >
+                  <PdfContainer url={docu.url} documentId={docu.fileId} />
+                </div>
+              );
+            } else if (docu.type == 'xls' || docu.type == 'xlsx') {
+              return (
+                <div
+                  style={{
+                    overflowY: 'auto',
+                    maxHeight: '100vh',
+                    background: 'white',
+                  }}
+                >
+                  <table
+                    border="1"
+                    style={{ borderCollapse: 'collapse', width: '100%' }}
+                  >
+                    {excelData?.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, cellIndex) => (
+                          <td
+                            key={cellIndex}
+                            style={{
+                              padding: '8px',
+                              border: '1px solid',
+                              textAlign: 'left',
+                              fontWeight: rowIndex == 0 ? 700 : null,
+                            }}
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </table>
+                </div>
+              );
+            }
+          }}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default PdfViewer;
