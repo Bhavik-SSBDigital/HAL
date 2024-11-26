@@ -510,9 +510,12 @@ export const get_attendees_list = async (meetingId) => {
           "username"
         );
 
+
         return participant_.username;
       })
     );
+
+    return participants;
   } catch (error) {
     console.log("Error getting meeting participant", error);
     return [];
