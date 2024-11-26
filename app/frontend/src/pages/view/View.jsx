@@ -109,6 +109,7 @@ const PdfViewer = ({ docu, handleViewClose }) => {
                             border: '1px solid',
                             textAlign: 'left',
                             fontWeight: rowIndex === 0 ? 700 : 'normal',
+                            color: rowIndex === 0 ? 'black' : '',
                             backgroundColor: isEmpty
                               ? '#f0f0f0'
                               : 'transparent', // Highlight empty cells if needed
