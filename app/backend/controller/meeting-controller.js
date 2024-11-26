@@ -495,10 +495,12 @@ export const get_meeting_details = async (req, res, next) => {
 export const get_attendees_list = async (meetingId) => {
   try {
     const meeting = await Meeting.findOne({ meetingId: meetingId })
-      .select("participants")
+      .select("attendees")
       .lean();
 
-    let participants = meeting.attendees;
+    console.log("meeting", meeting);
+
+    let participants = meeting.attendees.map((item) => item.toString());
 
     participants = await Promise.all(
       participants.map(async (participant) => {
