@@ -15,6 +15,7 @@ import {
   Avatar,
   Stack,
   CircularProgress,
+  Dialog,
 } from '@mui/material';
 import {
   IconMessages,
@@ -506,322 +507,338 @@ const MeetingManager = () => {
       {!inRoom ? (
         <History joinMeet={(id) => onSubmit(id)} />
       ) : (
-        <div className={styles.container}>
-          <Typography variant="h6" textAlign="center">
-            Meeting ID : {meetingId}
-          </Typography>
+        <Dialog open={inRoom} fullScreen fullWidth>
+          <div className={styles.container}>
+            <Typography variant="h6" textAlign="center">
+              Meeting ID : {meetingId}
+            </Typography>
 
-          <Box display="flex" flexWrap={'wrap'} gap={1}>
-            {/* highlight */}
-            {pinned ? (
-              <Box
-                height={500}
-                minWidth={500}
-                width={'100%'}
-                sx={{
-                  flex: 8,
-                  bgcolor: 'black',
-                  border: '1px solid',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  position: 'relative',
-                }}
-              >
-                <video
-                  ref={(el) => {
-                    if (el) el.srcObject = peers[parti]?.stream || null;
-                  }}
-                  autoPlay
-                  muted
-                  playsInline
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'fill',
-                  }}
-                />
+            <Box display="flex" flexWrap={'wrap'} gap={1}>
+              {/* highlight */}
+              {pinned ? (
                 <Box
-                  position="absolute"
-                  bottom={0}
-                  left={0}
-                  width="100%"
-                  bgcolor="rgba(0,0,0,0.5)"
-                  color="#fff"
-                  p={0.5}
-                >
-                  <Typography variant="subtitle2">
-                    {peers[parti]?.name}
-                  </Typography>
-                </Box>
-                <IconButton
-                  sx={{ position: 'absolute', top: '10px', right: '10px' }}
-                  onClick={() => setPinned('')}
-                >
-                  <IconPinnedOff color="blue" />
-                </IconButton>
-              </Box>
-            ) : null}
-
-            {/* Main Meeting Screen */}
-            <Box
-              sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                boxSizing: 'border-box',
-                overflowY: 'auto',
-                gap: 1,
-                flex: 4,
-                minWidth: '220px',
-              }}
-            >
-              {/* Local Video */}
-              <Paper
-                variant="outlined"
-                sx={{
-                  position: 'relative',
-                  // margin: 1,
-                  maxWidth: 400,
-                  minWidth: 200,
-                  height: 240,
-                  backgroundColor: '#000',
-                }}
-              >
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'fill',
+                  height={500}
+                  minWidth={500}
+                  width={'100%'}
+                  sx={{
+                    flex: 8,
+                    bgcolor: 'black',
+                    border: '1px solid',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    position: 'relative',
                   }}
-                />
-                {/* Camera Off Overlay */}
-                {!isVideoEnabled && (
+                >
+                  <video
+                    ref={(el) => {
+                      if (el) el.srcObject = peers[parti]?.stream || null;
+                    }}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'fill',
+                    }}
+                  />
                   <Box
                     position="absolute"
-                    top={0}
+                    bottom={0}
                     left={0}
                     width="100%"
-                    height="100%"
-                    bgcolor="rgba(0,0,0,0.6)"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
+                    bgcolor="rgba(0,0,0,0.5)"
+                    color="#fff"
+                    p={0.5}
                   >
-                    <Typography variant="h6" color="#fff">
-                      Camera Off
+                    <Typography variant="subtitle2">
+                      {peers[parti]?.name}
                     </Typography>
                   </Box>
-                )}
-              </Paper>
-
-              {/* Remote Videos */}
-              {Object.keys(peers)
-                ?.filter((participant) => peers[participant]?.name !== pinned)
-                ?.map((participant) => (
-                  <Paper
-                    key={participant}
-                    variant="outlined"
-                    sx={{
-                      position: 'relative',
-                      // margin: 1,
-                      maxWidth: 400,
-                      minWidth: 200,
-                      height: 240,
-                      backgroundColor: '#000',
-                    }}
+                  <IconButton
+                    sx={{ position: 'absolute', top: '10px', right: '10px' }}
+                    onClick={() => setPinned('')}
                   >
-                    <RemoteVideo stream={peers[participant]?.stream} />
+                    <IconPinnedOff color="blue" />
+                  </IconButton>
+                </Box>
+              ) : null}
 
+              {/* Main Meeting Screen */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  boxSizing: 'border-box',
+                  overflowY: 'auto',
+                  gap: 1,
+                  flex: 4,
+                  minWidth: '220px',
+                }}
+              >
+                {/* Local Video */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    position: 'relative',
+                    // margin: 1,
+                    maxWidth: 400,
+                    minWidth: 200,
+                    height: 240,
+                    backgroundColor: '#000',
+                  }}
+                >
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'fill',
+                    }}
+                  />
+                  {/* Camera Off Overlay */}
+                  {!isVideoEnabled && (
                     <Box
                       position="absolute"
-                      bottom={0}
+                      top={0}
                       left={0}
                       width="100%"
-                      bgcolor="rgba(0,0,0,0.5)"
-                      color="#fff"
-                      p={0.5}
+                      height="100%"
+                      bgcolor="rgba(0,0,0,0.6)"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
                     >
-                      <Typography variant="subtitle2">
-                        {peers[participant]?.name}
+                      <Typography variant="h6" color="#fff">
+                        Camera Off
                       </Typography>
                     </Box>
-                    <IconButton
-                      sx={{ position: 'absolute', top: '10px', right: '10px' }}
-                      onClick={() => setPinned(peers[participant]?.name)}
-                    >
-                      <IconPin color="blue" />
-                    </IconButton>
-                  </Paper>
-                ))}
-            </Box>
+                  )}
+                </Paper>
 
-            {/* Right Sidebar (Chat and Members) */}
-            <Drawer
-              variant="temporary"
-              onClose={() => {
-                setShowChat(false);
-                setShowMembers(false);
-              }}
-              anchor="right"
-              open={showChat || showMembers}
-              sx={{
-                '& .MuiDrawer-paper': { width: 300 },
-              }}
-            >
-              {showChat && (
-                <Box p={2} display="flex" flexDirection="column" height="100%">
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    textAlign="center"
-                    sx={{ borderBottom: '2px solid' }}
+                {/* Remote Videos */}
+                {Object.keys(peers)
+                  ?.filter((participant) => peers[participant]?.name !== pinned)
+                  ?.map((participant) => (
+                    <Paper
+                      key={participant}
+                      variant="outlined"
+                      sx={{
+                        position: 'relative',
+                        // margin: 1,
+                        maxWidth: 400,
+                        minWidth: 200,
+                        height: 240,
+                        backgroundColor: '#000',
+                      }}
+                    >
+                      <RemoteVideo stream={peers[participant]?.stream} />
+
+                      <Box
+                        position="absolute"
+                        bottom={0}
+                        left={0}
+                        width="100%"
+                        bgcolor="rgba(0,0,0,0.5)"
+                        color="#fff"
+                        p={0.5}
+                      >
+                        <Typography variant="subtitle2">
+                          {peers[participant]?.name}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        sx={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                        }}
+                        onClick={() => setPinned(peers[participant]?.name)}
+                      >
+                        <IconPin color="blue" />
+                      </IconButton>
+                    </Paper>
+                  ))}
+              </Box>
+
+              {/* Right Sidebar (Chat and Members) */}
+              <Drawer
+                variant="temporary"
+                onClose={() => {
+                  setShowChat(false);
+                  setShowMembers(false);
+                }}
+                anchor="right"
+                open={showChat || showMembers}
+                sx={{
+                  '& .MuiDrawer-paper': { width: 300 },
+                }}
+              >
+                {showChat && (
+                  <Box
+                    p={2}
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
                   >
-                    Chat
-                  </Typography>
-                  <Box flex={1} overflow="auto" mb={2}>
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      textAlign="center"
+                      sx={{ borderBottom: '2px solid' }}
+                    >
+                      Chat
+                    </Typography>
+                    <Box flex={1} overflow="auto" mb={2}>
+                      <List>
+                        {chatMessages.map((msg, idx) => (
+                          <ListItem
+                            sx={{ padding: 0 }}
+                            key={idx}
+                            alignItems="flex-start"
+                          >
+                            <ListItemText
+                              primary={msg.sender}
+                              secondary={msg.text}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                    <Box display="flex">
+                      <TextField
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') sendMessage();
+                        }}
+                        placeholder="Type a message"
+                      />
+                      <IconButton color="primary" onClick={sendMessage}>
+                        <IconSend2 />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                )}
+
+                {showMembers && (
+                  <Box
+                    p={2}
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
+                  >
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      textAlign="center"
+                      sx={{ borderBottom: '2px solid' }}
+                    >
+                      Participants
+                    </Typography>
                     <List>
-                      {chatMessages.map((msg, idx) => (
-                        <ListItem
-                          sx={{ padding: 0 }}
-                          key={idx}
-                          alignItems="flex-start"
-                        >
-                          <ListItemText
-                            primary={msg.sender}
-                            secondary={msg.text}
-                          />
+                      {Object.keys(peers)?.map((member, idx) => (
+                        <ListItem key={idx} sx={{ my: 1 }}>
+                          <ListItemAvatar>
+                            <Avatar
+                              sx={{
+                                background: `${getColor(peers[member]?.name)}`,
+                              }}
+                            >
+                              {peers[member]?.name?.charAt(0).toUpperCase()}
+                            </Avatar>
+                          </ListItemAvatar>{' '}
+                          <ListItemText primary={peers[member]?.name} />
                         </ListItem>
                       ))}
                     </List>
                   </Box>
-                  <Box display="flex">
-                    <TextField
-                      variant="outlined"
-                      size="small"
-                      fullWidth
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') sendMessage();
-                      }}
-                      placeholder="Type a message"
-                    />
-                    <IconButton color="primary" onClick={sendMessage}>
-                      <IconSend2 />
-                    </IconButton>
-                  </Box>
-                </Box>
-              )}
+                )}
+              </Drawer>
 
-              {showMembers && (
-                <Box p={2} display="flex" flexDirection="column" height="100%">
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    textAlign="center"
-                    sx={{ borderBottom: '2px solid' }}
-                  >
-                    Participants
-                  </Typography>
-                  <List>
-                    {Object.keys(peers)?.map((member, idx) => (
-                      <ListItem key={idx} sx={{ my: 1 }}>
-                        <ListItemAvatar>
-                          <Avatar
-                            sx={{
-                              background: `${getColor(peers[member]?.name)}`,
-                            }}
-                          >
-                            {peers[member]?.name?.charAt(0).toUpperCase()}
-                          </Avatar>
-                        </ListItemAvatar>{' '}
-                        <ListItemText primary={peers[member]?.name} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
-            </Drawer>
-
-            {/* Bottom Controls */}
-            <Box
-              position="absolute"
-              bottom={10}
-              left="50%"
-              p={1}
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-              bgcolor="background.paper"
-              borderTop={1}
-              borderColor="divider"
-              sx={{
-                width: 'fit-content',
-                transform: 'translateX(-50%)',
-                borderRadius: '10px',
-              }}
-            >
-              {/* Mute Button */}
-              <IconButton
-                color={!isAudioEnabled ? 'secondary' : 'primary'}
-                onClick={toggleMute}
-              >
-                {!isAudioEnabled ? <IconMicrophoneOff /> : <IconMicrophone />}
-              </IconButton>
-
-              {/* Camera Button */}
-              <IconButton
-                color={!isVideoEnabled ? 'secondary' : 'primary'}
-                onClick={toggleCamera}
-              >
-                {!isVideoEnabled ? <IconVideoOff /> : <IconVideo />}
-              </IconButton>
-
-              {/* Share Screen Button */}
-              <IconButton color="primary" onClick={shareScreen}>
-                <IconShareplay />
-              </IconButton>
-
-              {/* Chat Button */}
-              <IconButton
-                color={showChat ? 'primary' : 'default'}
-                onClick={() => {
-                  setShowChat(!showChat);
-                  if (showMembers) setShowMembers(false);
+              {/* Bottom Controls */}
+              <Box
+                position="absolute"
+                bottom={10}
+                left="50%"
+                p={1}
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                bgcolor="background.paper"
+                borderTop={1}
+                borderColor="divider"
+                sx={{
+                  width: 'fit-content',
+                  transform: 'translateX(-50%)',
+                  borderRadius: '10px',
                 }}
               >
-                <IconMessages />
-              </IconButton>
+                {/* Mute Button */}
+                <IconButton
+                  color={!isAudioEnabled ? 'secondary' : 'primary'}
+                  onClick={toggleMute}
+                >
+                  {!isAudioEnabled ? <IconMicrophoneOff /> : <IconMicrophone />}
+                </IconButton>
 
-              {/* Members Button */}
-              <IconButton
-                color={showMembers ? 'primary' : 'default'}
-                onClick={() => {
-                  setShowMembers(!showMembers);
-                  if (showChat) setShowChat(false);
-                }}
-              >
-                <IconUsersGroup />
-              </IconButton>
+                {/* Camera Button */}
+                <IconButton
+                  color={!isVideoEnabled ? 'secondary' : 'primary'}
+                  onClick={toggleCamera}
+                >
+                  {!isVideoEnabled ? <IconVideoOff /> : <IconVideo />}
+                </IconButton>
 
-              {/* Leave/End Button */}
-              <Button
-                variant="contained"
-                color="error"
-                size="small"
-                startIcon={<IconPhone />}
-                sx={{ ml: 2, height: 34 }}
-                onClick={leaveMeetingRoom}
-              >
-                Leave
-              </Button>
+                {/* Share Screen Button */}
+                <IconButton color="primary" onClick={shareScreen}>
+                  <IconShareplay />
+                </IconButton>
+
+                {/* Chat Button */}
+                <IconButton
+                  color={showChat ? 'primary' : 'default'}
+                  onClick={() => {
+                    setShowChat(!showChat);
+                    if (showMembers) setShowMembers(false);
+                  }}
+                >
+                  <IconMessages />
+                </IconButton>
+
+                {/* Members Button */}
+                <IconButton
+                  color={showMembers ? 'primary' : 'default'}
+                  onClick={() => {
+                    setShowMembers(!showMembers);
+                    if (showChat) setShowChat(false);
+                  }}
+                >
+                  <IconUsersGroup />
+                </IconButton>
+
+                {/* Leave/End Button */}
+                <Button
+                  variant="contained"
+                  color="error"
+                  size="small"
+                  startIcon={<IconPhone />}
+                  sx={{ ml: 2, height: 34 }}
+                  onClick={leaveMeetingRoom}
+                >
+                  Leave
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        </div>
+          </div>
+        </Dialog>
       )}
     </div>
   );
