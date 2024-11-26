@@ -6,7 +6,10 @@ import path_ from "path";
 import fs from "fs/promises";
 import { dirname, join } from "path";
 import Role from "../models/role.js";
-import { getChildrenForFullAccess } from "../utility/accessFunction.js";
+import {
+  getChildrenForDoc,
+  getChildrenForFullAccess,
+} from "../utility/accessFunction.js";
 import { read } from "fs";
 
 export const getRootDocumentsWithAccess = async (req, res) => {
@@ -58,14 +61,15 @@ export const getRootDocumentsWithAccess = async (req, res) => {
       fullAccessDownloadable = userRole.fullAccessDownloadable.map((doc) =>
         doc.toString()
       );
+
+      console.log("FULL ACCESS UPLOADABLE", fullAccessUploadable);
       for (let i = 0; i < fullAccessUploadable.length; i++) {
-        const children = await getChildrenForFullAccess(
-          fullAccessUploadable[i]
-        );
+        const children = await getChildrenForDoc(fullAccessUploadable[i]);
+
         uploadableDocumentIds = [
           ...uploadableDocumentIds,
-          ...children,
-          ...fullAccessUploadable[i],
+          // ...children,
+          fullAccessUploadable[i],
         ];
       }
       for (let j = 0; j < fullAccessReadable.length; j++) {
@@ -96,15 +100,20 @@ export const getRootDocumentsWithAccess = async (req, res) => {
     );
     let uploadableDocumentIds_ = user.uploadable.map((doc) => doc.toString());
 
-    readableDocumentIds = [...readableDocumentIds, ...readableDocumentIds_];
-    writableDocumentIds = [...writableDocumentIds, ...writableDocumentIds_];
+    console.log("uploadable docs by user", uploadableDocumentIds_);
+    console.log("uploadable docs by role", uploadableDocumentIds);
+
+    readableDocumentIds = [
+      ...new Set([...readableDocumentIds, ...readableDocumentIds_]),
+    ];
+    writableDocumentIds = [
+      ...new Set([...writableDocumentIds, ...writableDocumentIds_]),
+    ];
     uploadableDocumentIds = [
-      ...uploadableDocumentIds,
-      ...uploadableDocumentIds_,
+      ...new Set([...uploadableDocumentIds, ...uploadableDocumentIds_]),
     ];
     downloadableDocumentIds = [
-      ...downloadableDocumentIds,
-      ...downloadableDocumentIds_,
+      ...new Set(...downloadableDocumentIds, ...downloadableDocumentIds_),
     ];
 
     // Find documents whose parent's path contains "../"
@@ -157,7 +166,12 @@ export const getRootDocumentsWithAccess = async (req, res) => {
               user.username === "admin" ||
               child.createdBy.toString() === user._id.toString()
                 ? true
-                : downloadableDocumentIds.includes(child._id),
+                : downloadableDocumentIds.includes(child._id.toString()),
+            isUploadable:
+              user.username === "admin" ||
+              uploadableDocumentIds
+                .map((item) => item.toString())
+                .includes(child._id.toString()),
             children: [],
           };
         } catch (error) {

@@ -221,6 +221,22 @@ export const getChildrenForFullAccess = async (id) => {
   return children;
 };
 
+export const getChildrenForDoc = async (id) => {
+  console.log("id from child doc", id);
+  let children = [];
+  const document = await Document.findById(id);
+
+  if (document === null) {
+    return [];
+  }
+
+  if (document.children && document.children.length > 0) {
+    children = document.children;
+  }
+
+  return children;
+};
+
 export const fullAccess = async (fullAccess) => {
   let uploads = [];
   let downloads = [];
