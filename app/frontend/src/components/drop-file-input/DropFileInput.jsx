@@ -163,12 +163,19 @@ const DropFileInput = (props) => {
         setPermissions([]);
     };
     const [loading, setLoading] = useState(false);
-    const handleUpload = async () => {
+     const handleUpload = async () => {
+        try{
         setLoading(true);
         await upload(fileList, pathValue, props.getData);
         await handleHitBackPoint();
         setLoading(false);
         props.setOpen(false);
+        }catch(error){
+        setLoading(false);
+        props.setOpen(false);
+        toast.error(error.message)
+        }
+    
     };
     const handleSelectedFileChange = (name) => {
         setSelectedFile(name);

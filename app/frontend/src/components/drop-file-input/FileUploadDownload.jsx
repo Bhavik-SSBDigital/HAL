@@ -156,7 +156,6 @@ export const download = async (fileName, path, view) => {
   let fileSize = await getFileSize(fileName, path, token);
 
   if (fileSize === undefined) {
-    console.log('File does not exist');
     // alert("File does not exist, please check file name");
     return null; // Return null if the file doesn't exist
   }
@@ -274,6 +273,8 @@ export async function uploadFileWithChunks(
       const chunk = file.slice(start, end + 1);
 
       const url = backendUrl + '/upload';
+
+
       // console.log('url is', url);
       const response = await fetch(url, {
         method: 'POST',
@@ -282,16 +283,23 @@ export async function uploadFileWithChunks(
       });
       // console.log('reseponse', response);
 
+      if(response.status === 409){
+        console.log("file exists, response received")
+        throw new Error("File with given name already exists")
+      }
+
       if (response.ok) {
         const data = await response.json();
         return data;
         // console.log(`Chunk ${chunkNumber + 1}/${totalChunks} uploaded successfully`);
       } else {
+        throw new Error("upload failed")
         console.error(`Chunk ${chunkNumber + 1}/${totalChunks} upload failed`);
       }
     }
   } catch (error) {
     console.log(error.message);
+    throw new Error(error.message)
     return error;
   }
 }
@@ -312,7 +320,6 @@ export async function upload(
   try {
     let documentIds = [];
     for (let i = 0; i < fileList.length; i++) {
-      console.log('in loop');
       const file = fileList[i];
       let res =
         customName !== undefined
@@ -328,13 +335,19 @@ export async function upload(
               undefined,
               isInvolvedInProcess,
             );
+        
+            console.log("res", res)
       documentIds.push(res.documentId);
+      console.log("document ids", documentIds)
       // console.log(path)
       getData();
+      
+
       return documentIds;
     }
     console.log('document ids', documentIds);
   } catch (error) {
-    throw error;
+    console.log("error", error)
+    throw new Error(error);
   }
 }
