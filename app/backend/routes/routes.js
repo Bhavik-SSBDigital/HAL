@@ -85,7 +85,7 @@ import {
 } from "../controller/processes-controller.js";
 
 import { get_user_logs, get_user_log } from "../controller/log-controller.js";
-import { add_sign_coordinates } from "../controller/sign-handlers/sign-coordinates-handlers.js";
+import { add_sign_coordinates } from "../controller/sign-handlers/sign-coordinates-handler.js";
 
 import {
   sign_document,

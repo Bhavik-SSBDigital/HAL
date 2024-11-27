@@ -1,4 +1,4 @@
-import SignCoordinate from "../../models/signCoorditaes.js";
+import SignCoordinate from "../../models/signCoordinates.js";
 export const add_sign_coordinates = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
