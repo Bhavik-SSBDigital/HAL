@@ -181,13 +181,17 @@ function PdfContainer({
   // dialog inputs for user sign area
   const [userSelected, setUserSelected] = useState(null);
   const submitSignArea = async () => {
-    const url = backendUrl + '/add_sign_coordinates';
+    const url = backendUrl + '/storeSignCoordinates';
     try {
-      await axios.post(url, {
-        docId: documentId,
-        processId,
-        coordinates: [{ ...currentSignArea, stepNo: userSelected }],
-      });
+      await axios.post(
+        url,
+        {
+          docId: documentId,
+          processId,
+          coordinates: [{ ...currentSignArea, stepNo: userSelected }],
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       setSignAreas((prev) => [
         ...prev,
         { ...currentSignArea, stepNo: userSelected },
