@@ -856,7 +856,7 @@ export default function ViewProcess(props) {
     return (
       fileToBeOperated.signedBy
         .map((item) => item.username)
-        .includes(username) || fileToBeOperated.rejection !== undefined
+        .includes(username) || fileToBeOperated.rejection
     );
   };
 
@@ -2132,7 +2132,7 @@ export default function ViewProcess(props) {
                     >
                       <Box
                         sx={{
-                          background: 'lightblue',
+                          background: 'var(--themeColor)',
                           padding: '5px',
                           mb: '10px',
                           borderRadius: '5px',
@@ -2140,7 +2140,7 @@ export default function ViewProcess(props) {
                       >
                         <Typography
                           variant="h6"
-                          sx={{ marginBottom: '10px', color: 'black' }}
+                          sx={{ marginBottom: '10px', color: 'white' }}
                         >
                           Give reason to reject this process!!
                         </Typography>
@@ -3090,8 +3090,10 @@ export default function ViewProcess(props) {
           {fileView && (
             <View
               docu={fileView}
+              workflow={processData?.workFlow}
               setFileView={setFileView}
               handleViewClose={handleViewClose}
+              maxReceiverStepNumber={processData?.maxReceiverStepNumber}
             />
           )}
         </Stack>

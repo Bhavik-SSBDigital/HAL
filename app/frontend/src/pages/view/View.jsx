@@ -9,7 +9,12 @@ import * as XLSX from 'xlsx';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-const PdfViewer = ({ docu, handleViewClose }) => {
+const PdfViewer = ({
+  docu,
+  handleViewClose,
+  workflow,
+  maxReceiverStepNumber,
+}) => {
   const [excelData, setExcelData] = useState([]);
   const closeIconStyle = {
     position: 'absolute',
@@ -64,7 +69,7 @@ const PdfViewer = ({ docu, handleViewClose }) => {
         width: '100vw',
         height: '100vh',
         backgroundColor: 'lightgray',
-        zIndex: '99999',
+        zIndex: '99',
       }}
     >
       <IconButton sx={closeIconStyle} onClick={handleViewClose}>
@@ -82,7 +87,12 @@ const PdfViewer = ({ docu, handleViewClose }) => {
                 height: '100%',
               }}
             >
-              <PdfContainer url={docu.url} documentId={docu.fileId} />
+              <PdfContainer
+                url={docu.url}
+                documentId={docu.fileId}
+                workflow={workflow}
+                maxReceiverStepNumber={maxReceiverStepNumber}
+              />
             </div>
           ) : docu.type === 'xls' || docu.type === 'xlsx' ? (
             <div

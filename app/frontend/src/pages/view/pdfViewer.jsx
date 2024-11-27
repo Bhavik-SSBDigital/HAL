@@ -7,7 +7,11 @@ import {
   Button,
   CircularProgress,
   Dialog,
+  DialogActions,
+  DialogContent,
   DialogTitle,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -15,10 +19,12 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { IconInfoTriangle } from '@tabler/icons-react';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-function PdfContainer({ url, documentId }) {
+function PdfContainer({ url, documentId, workflow, maxReceiverStepNumber }) {
+  const username = sessionStorage.getItem('username');
   const [numPages, setNumPages] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [coordinates, setCoordinates] = useState([]);
@@ -27,7 +33,6 @@ function PdfContainer({ url, documentId }) {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [highlights, setHighlights] = useState([]);
   const [signAreas, setSignAreas] = useState([]); // NEW STATE
-  console.log(signAreas);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState('textSelection'); // NEW STATE
   const [drawing, setDrawing] = useState(false); // For sign area drawing
@@ -38,17 +43,17 @@ function PdfContainer({ url, documentId }) {
 
   useEffect(() => {
     if (mode === 'signSelection') {
-      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('dblclick', handleMouseDown);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     } else {
-      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('dblclick', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('dblclick', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -157,14 +162,28 @@ function PdfContainer({ url, documentId }) {
     }
   };
 
+  const [userSignDialogOpen, setUserSignDialogOpen] = useState(false);
   const handleMouseUp = () => {
+    setDrawing(false);
     if (mode === 'signSelection' && drawing) {
       setDrawing(false);
       if (currentSignArea.width > 0 && currentSignArea.height > 0) {
-        setSignAreas((prev) => [...prev, currentSignArea]);
+        setUserSignDialogOpen(true);
       }
-      setCurrentSignArea(null);
     }
+  };
+  // dialog inputs for user sign area
+  const [userSelected, setUserSelected] = useState(null);
+  const submitSignArea = () => {
+    setSignAreas((prev) => [...prev, currentSignArea]);
+    setCurrentSignArea(null);
+    setUserSignDialogOpen(false);
+    setUserSelected(null);
+  };
+  const onSignAreaDialogClose = () => {
+    setCurrentSignArea(null);
+    setUserSignDialogOpen(false);
+    setUserSelected(null);
   };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
@@ -286,6 +305,7 @@ function PdfContainer({ url, documentId }) {
                     minWidth: '0',
                     padding: '0',
                     zIndex: 9999,
+                    border: '2px solid red',
                   }}
                 >
                   X
@@ -357,29 +377,34 @@ function PdfContainer({ url, documentId }) {
     <div style={{ height: '100%', overflow: 'auto' }}>
       <Box
         sx={{
-          mb: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
+          background: 'white',
           position: 'sticky',
           top: '2px',
           zIndex: 999,
           padding: '10px',
-          // border: '1px solid',
-          background: 'white',
+          mb: 1,
         }}
       >
-        <Button
-          variant={mode === 'textSelection' ? 'contained' : 'outlined'}
-          onClick={() => setMode('textSelection')}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+          }}
         >
-          Text Selection Mode
-        </Button>
-        <Button
-          variant={mode === 'signSelection' ? 'contained' : 'outlined'}
-          onClick={() => setMode('signSelection')}
-        >
-          Sign Selection Mode
-        </Button>
+          <Button
+            variant={mode === 'textSelection' ? 'contained' : 'outlined'}
+            onClick={() => setMode('textSelection')}
+          >
+            Text Selection Mode
+          </Button>
+
+          <Button
+            variant={mode === 'signSelection' ? 'contained' : 'outlined'}
+            onClick={() => setMode('signSelection')}
+          >
+            Sign Selection Mode
+          </Button>
+        </Box>
       </Box>
       <Document
         file={url}
@@ -426,6 +451,67 @@ function PdfContainer({ url, documentId }) {
             {submitLoading ? <CircularProgress size={20} /> : 'Submit'}
           </Button>
         </Stack>
+      </Dialog>
+      <Dialog
+        open={userSignDialogOpen}
+        sx={{ zIndex: '100' }}
+        onClose={onSignAreaDialogClose}
+      >
+        <form>
+          <DialogTitle
+            sx={{ bgcolor: 'var(--themeColor)', margin: 1, color: 'white' }}
+          >
+            Select user you want sign of here
+          </DialogTitle>
+          <DialogContent>
+            <Select
+              value={userSelected}
+              onChange={(e) => setUserSelected(e.target.value)}
+              size="small"
+              fullWidth
+              sx={{ minWidth: '150px', color: '#333' }}
+            >
+              {workflow
+                .filter(
+                  (item) => !item.users.some((user) => user.user === username),
+                )
+                // .filter((item) => item.step > publishCheck.step)
+                .filter((item) => item.step <= maxReceiverStepNumber)
+                .map((item) => (
+                  <MenuItem key={item.step} value={item.step}>
+                    forward to{' '}
+                    <b
+                      style={{
+                        marginRight: '3px',
+                        marginLeft: '3px',
+                      }}
+                    >
+                      {item.users.map((user) => user.user).join(',')}
+                    </b>{' '}
+                    for work{' '}
+                    <b
+                      style={{
+                        marginRight: '3px',
+                        marginLeft: '3px',
+                      }}
+                    >
+                      {item.work}
+                    </b>
+                    (step - {item.step})
+                  </MenuItem>
+                ))}
+            </Select>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={submitSignArea}
+            >
+              Submit
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </div>
   );
