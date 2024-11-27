@@ -3095,6 +3095,7 @@ export default function ViewProcess(props) {
               setFileView={setFileView}
               handleViewClose={handleViewClose}
               maxReceiverStepNumber={processData?.maxReceiverStepNumber}
+              processId={processData?._id}
             />
           )}
         </Stack>

@@ -23,7 +23,13 @@ import { IconInfoTriangle } from '@tabler/icons-react';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-function PdfContainer({ url, documentId, workflow, maxReceiverStepNumber }) {
+function PdfContainer({
+  url,
+  documentId,
+  workflow,
+  maxReceiverStepNumber,
+  processId,
+}) {
   const username = sessionStorage.getItem('username');
   const [numPages, setNumPages] = useState(null);
   const [selectedText, setSelectedText] = useState('');
@@ -174,11 +180,24 @@ function PdfContainer({ url, documentId, workflow, maxReceiverStepNumber }) {
   };
   // dialog inputs for user sign area
   const [userSelected, setUserSelected] = useState(null);
-  const submitSignArea = () => {
-    setSignAreas((prev) => [...prev, currentSignArea]);
-    setCurrentSignArea(null);
-    setUserSignDialogOpen(false);
-    setUserSelected(null);
+  const submitSignArea = async () => {
+    const url = backendUrl + '/add_sign_coordinates';
+    try {
+      await axios.post(url, {
+        docId: documentId,
+        processId,
+        coordinates: [{ ...currentSignArea, stepNo: userSelected }],
+      });
+      setSignAreas((prev) => [
+        ...prev,
+        { ...currentSignArea, stepNo: userSelected },
+      ]);
+      setCurrentSignArea(null);
+      setUserSignDialogOpen(false);
+      setUserSelected(null);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
   const onSignAreaDialogClose = () => {
     setCurrentSignArea(null);

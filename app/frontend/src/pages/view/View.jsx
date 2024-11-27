@@ -14,6 +14,7 @@ const PdfViewer = ({
   handleViewClose,
   workflow,
   maxReceiverStepNumber,
+  processId,
 }) => {
   const [excelData, setExcelData] = useState([]);
   const closeIconStyle = {
@@ -92,6 +93,7 @@ const PdfViewer = ({
                 documentId={docu.fileId}
                 workflow={workflow}
                 maxReceiverStepNumber={maxReceiverStepNumber}
+                processId={processId}
               />
             </div>
           ) : docu.type === 'xls' || docu.type === 'xlsx' ? (
