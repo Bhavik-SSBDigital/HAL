@@ -203,7 +203,6 @@ export default function ViewProcess(props) {
   const [cabinetNoError, setCabinetNoError] = useState('');
   const [fileInputError, setFileInputError] = useState('');
   const [fileData, setFileData] = useState([]);
-  console.log(fileData);
   const [workName, setWorkName] = useState('');
   const [cabinetNo, setCabinetNo] = useState('');
   const [forwardProcessLoading, setForwardProcessLoading] = useState(false);
@@ -1217,17 +1216,15 @@ export default function ViewProcess(props) {
               const name = item.details.name;
               const work = name.split('_')[1]; // Assuming work can be extracted here
               return (
-                <>
-                  <Typography
-                    px={1}
-                    borderRadius={1}
-                    className={styles.workName}
-                    key={index}
-                    sx={{ border: '1px solid lightgray' }}
-                  >
-                    {work}
-                  </Typography>
-                </>
+                <Typography
+                  px={1}
+                  borderRadius={1}
+                  className={styles.workName}
+                  key={index}
+                  sx={{ border: '1px solid lightgray' }}
+                >
+                  {work}
+                </Typography>
               );
             })}
           </Stack>
@@ -1688,11 +1685,11 @@ export default function ViewProcess(props) {
                               flexDirection: 'column',
                             }}
                           >
-                            <Grid
+                            <Grid2
                               container
                               spacing={3}
                               sx={{ marginBottom: '20px' }}
-                            ></Grid>
+                            ></Grid2>
 
                             <TextField
                               fullWidth
@@ -2582,7 +2579,7 @@ export default function ViewProcess(props) {
                     {operable &&
                       username !== 'admin' &&
                       processData.currentActorUser === username && (
-                        <>
+                        <div>
                           <MenuItem
                             sx={{ gap: '5px' }}
                             onClick={async () => {
@@ -2613,7 +2610,7 @@ export default function ViewProcess(props) {
                             <IconFileOff />
                             Reject
                           </MenuItem>
-                        </>
+                        </div>
                       )}
                     {/* <hr /> */}
                   </Menu>

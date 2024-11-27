@@ -398,12 +398,14 @@ function PdfContainer({ url, documentId, workflow, maxReceiverStepNumber }) {
             Text Selection Mode
           </Button>
 
-          <Button
-            variant={mode === 'signSelection' ? 'contained' : 'outlined'}
-            onClick={() => setMode('signSelection')}
-          >
-            Sign Selection Mode
-          </Button>
+          {sessionStorage.getItem('initiator') ? (
+            <Button
+              variant={mode === 'signSelection' ? 'contained' : 'outlined'}
+              onClick={() => setMode('signSelection')}
+            >
+              Sign Selection Mode
+            </Button>
+          ) : null}
         </Box>
       </Box>
       <Document
