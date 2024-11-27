@@ -26,41 +26,51 @@ function PdfContainer({ url, documentId }) {
   const [remark, setRemark] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [highlights, setHighlights] = useState([]);
+  const [signAreas, setSignAreas] = useState([]); // NEW STATE
+  console.log(signAreas);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState('textSelection'); // NEW STATE
+  const [drawing, setDrawing] = useState(false); // For sign area drawing
+  const [currentSignArea, setCurrentSignArea] = useState(null); // For active rectangle
   const pageRefs = useRef([]);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
 
   useEffect(() => {
-    document.addEventListener('mouseup', handleTextSelection);
-    return () => {
-      document.removeEventListener('mouseup', handleTextSelection);
-    };
-  }, [highlights]);
-  const temp = window.getSelection();
-  const selected = temp.toString();
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    const selectedText = selection.toString();
-    if (selectedText == '' || selectedText == undefined) {
-      return;
+    if (mode === 'signSelection') {
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     }
-    if (selectedText.length > 0) {
-      const range = selection.getRangeAt(0);
-      const rects = range.getClientRects();
-      const newCoordinates = [];
-      let isOverlapDetected = false;
 
-      if (rects.length > 0) {
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [mode, drawing, currentSignArea]);
+
+  useEffect(() => {
+    const handleTextSelection = () => {
+      if (mode !== 'textSelection') return; // Only handle text selection in text mode
+      const selection = window.getSelection();
+      const selectedText = selection.toString();
+      if (selectedText.length > 0) {
+        const range = selection.getRangeAt(0);
+        const rects = range.getClientRects();
+        const newCoordinates = [];
+        let isOverlapDetected = false;
+
         for (const rect of rects) {
-          const container = pageRefs.current.find(
-            (ref) => ref && ref.contains(range.commonAncestorContainer),
+          const container = pageRefs.current.find((ref) =>
+            ref.contains(range.commonAncestorContainer),
           );
           if (container) {
             const containerRect = container.getBoundingClientRect();
-            if (rect.left - containerRect.left == 0 || rect.width == 0) {
-              continue;
-            }
             const rectCoordinates = {
               page: pageRefs.current.indexOf(container) + 1,
               x: rect.left - containerRect.left,
@@ -77,13 +87,7 @@ function PdfContainer({ url, documentId }) {
                   ((hCoord.x >= rectCoordinates.x &&
                     hCoord.x <= rectCoordinates.x + rectCoordinates.width) ||
                     (rectCoordinates.x >= hCoord.x &&
-                      rectCoordinates.x <= hCoord.x + hCoord.width) ||
-                    (rectCoordinates.x <= hCoord.x &&
-                      rectCoordinates.x + rectCoordinates.width >=
-                        hCoord.x + hCoord.width) ||
-                    (hCoord.x <= rectCoordinates.x &&
-                      hCoord.x + hCoord.width >=
-                        rectCoordinates.x + rectCoordinates.width)),
+                      rectCoordinates.x <= hCoord.x + hCoord.width)),
               ),
             );
 
@@ -92,14 +96,10 @@ function PdfContainer({ url, documentId }) {
               break;
             } else {
               newCoordinates.push(rectCoordinates);
-              setCoordinates((prevCoordinates) => [
-                ...prevCoordinates,
-                { remark: '', coordinates: newCoordinates },
-              ]);
             }
           }
         }
-
+        console.log(isOverlapDetected);
         if (isOverlapDetected) {
           toast.info('Selected text overlaps with existing highlights.');
         } else if (newCoordinates.length > 0) {
@@ -108,6 +108,62 @@ function PdfContainer({ url, documentId }) {
           setOpenRemarksMenu(true);
         }
       }
+    };
+
+    document.addEventListener('mouseup', handleTextSelection);
+
+    return () => {
+      document.removeEventListener('mouseup', handleTextSelection);
+    };
+  }, [mode, highlights]);
+
+  const handleMouseDown = (e) => {
+    if (mode === 'signSelection') {
+      // Start drawing rectangle
+      setDrawing(true);
+      const container = pageRefs.current.find((ref) => ref.contains(e.target));
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        setCurrentSignArea({
+          page: pageRefs.current.indexOf(container) + 1,
+          x: e.clientX - containerRect.left,
+          y: e.clientY - containerRect.top,
+          width: 0,
+          height: 0,
+        });
+      }
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (mode === 'signSelection' && drawing && currentSignArea) {
+      const container = pageRefs.current[currentSignArea.page - 1];
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const width = Math.max(
+          0,
+          e.clientX - containerRect.left - currentSignArea.x,
+        );
+        const height = Math.max(
+          0,
+          e.clientY - containerRect.top - currentSignArea.y,
+        );
+        setCurrentSignArea({
+          ...currentSignArea,
+          width: width,
+          height: height,
+        });
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (mode === 'signSelection' && drawing) {
+      setDrawing(false);
+      if (currentSignArea.width > 0 && currentSignArea.height > 0) {
+        setSignAreas((prev) => [...prev, currentSignArea]);
+      }
+      setCurrentSignArea(null);
     }
   };
 
@@ -116,9 +172,10 @@ function PdfContainer({ url, documentId }) {
     setLoading(false);
   };
 
-  const onDocumentLoadError = () => {
-    setLoading(false);
+  const removeSignArea = (index) => {
+    setSignAreas((prev) => prev.filter((_, i) => i !== index));
   };
+
   const [openTooltip, setOpenTooltip] = useState(false);
   const renderPages = () => {
     const pages = [];
@@ -184,13 +241,87 @@ function PdfContainer({ url, documentId }) {
                 </>
               )),
           )}
+          {mode === 'signSelection' &&
+            currentSignArea &&
+            currentSignArea.page === i && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: currentSignArea.y,
+                  left: currentSignArea.x,
+                  width: currentSignArea.width,
+                  height: currentSignArea.height,
+                  border: '2px dashed red',
+                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                  zIndex: 1000,
+                }}
+              />
+            )}
+
+          {signAreas
+            .filter((signArea) => signArea.page === i)
+            .map((signArea, index) => (
+              <Box
+                key={index}
+                sx={{
+                  position: 'absolute',
+                  top: signArea.y,
+                  left: signArea.x,
+                  width: signArea.width,
+                  height: signArea.height,
+                  border: '2px solid red',
+                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                }}
+              >
+                <Button
+                  onClick={() => removeSignArea(index)}
+                  sx={{
+                    position: 'absolute',
+                    top: -10,
+                    right: -10,
+                    backgroundColor: 'white',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '0',
+                    padding: '0',
+                    zIndex: 9999,
+                  }}
+                >
+                  X
+                </Button>
+              </Box>
+            ))}
         </Box>,
       );
     }
     return pages;
   };
 
+  function generateColor(num) {
+    const hash = num * 123456789;
+    const r = (hash & 0xff0000) >> 16;
+    const g = (hash & 0x00ff00) >> 8;
+    const b = hash & 0x0000ff;
+    return `rgba(${r % 256}, ${g % 256}, ${b % 256}, 0.3)`;
+  }
   const [remarkError, setRemarkError] = useState('');
+  const getFileHighlights = async () => {
+    const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
+    try {
+      const res = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setHighlights(res.data.highlights);
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+  useEffect(() => {
+    getFileHighlights();
+  }, []);
   const submitRemarks = async () => {
     if (!remark) {
       setRemarkError('Enter Remarks');
@@ -222,93 +353,82 @@ function PdfContainer({ url, documentId }) {
     }
   };
 
-  const getFileHighlights = async () => {
-    const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
-    try {
-      const res = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setHighlights(res.data.highlights);
-    } catch (error) {
-      console.log(error.message);
-    }
-  };
-  useEffect(() => {
-    getFileHighlights();
-  }, []);
-
-  function generateColor(num) {
-    const hash = num * 123456789;
-    const r = (hash & 0xff0000) >> 16;
-    const g = (hash & 0x00ff00) >> 8;
-    const b = hash & 0x0000ff;
-    return `rgb(${r % 256}, ${g % 256}, ${b % 256}, 0.2)`;
-  }
-
   return (
-    <>
-      <div style={{ height: '100%', overflow: 'auto' }}>
-        <Document
-          file={url}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={onDocumentLoadError}
-          loading={
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-              }}
-            >
-              <CircularProgress size={40} />
-            </Box>
-          }
+    <div style={{ height: '100%', overflow: 'auto' }}>
+      <Box
+        sx={{
+          mb: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          position: 'sticky',
+          top: '2px',
+          zIndex: 999,
+          padding: '10px',
+          // border: '1px solid',
+          background: 'white',
+        }}
+      >
+        <Button
+          variant={mode === 'textSelection' ? 'contained' : 'outlined'}
+          onClick={() => setMode('textSelection')}
         >
-          {renderPages()}
-        </Document>
-      </div>
+          Text Selection Mode
+        </Button>
+        <Button
+          variant={mode === 'signSelection' ? 'contained' : 'outlined'}
+          onClick={() => setMode('signSelection')}
+        >
+          Sign Selection Mode
+        </Button>
+      </Box>
+      <Document
+        file={url}
+        onLoadSuccess={onDocumentLoadSuccess}
+        loading={
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+            }}
+          >
+            <CircularProgress size={40} />
+          </Box>
+        }
+      >
+        {renderPages()}
+      </Document>
       <Dialog
-        open={openRemarksMenu}
         sx={{ zIndex: '999999' }}
-        onClose={() => (submitLoading ? null : setOpenRemarksMenu(false))}
+        open={openRemarksMenu}
+        onClose={() => setOpenRemarksMenu(false)}
       >
         <DialogTitle
           sx={{
-            background: '#34546E',
-            width: '280px',
-            margin: '10px',
-            fontSize: '20px',
-            fontWeight: 700,
+            background: 'var(--themeColor)',
+            margin: '5px',
             color: 'white',
           }}
         >
           Enter Remarks
         </DialogTitle>
-        <Stack sx={{ padding: '10px', gap: 2 }}>
+        <Stack spacing={2} sx={{ p: 2 }}>
           <TextField
-            error={!!remarkError}
-            helperText={remarkError}
             value={remark}
-            onChange={(e) => {
-              setRemark(e.target.value);
-              if (e.target?.value?.length > 0) {
-                setRemarkError(null);
-              }
-            }}
+            onChange={(e) => setRemark(e.target.value)}
           />
           <Button
-            disabled={submitLoading}
             variant="contained"
-            onClick={submitRemarks}
+            disabled={submitLoading}
+            onClick={() => submitRemarks()}
           >
-            {submitLoading ? <CircularProgress size={26} /> : 'Submit'}
+            {submitLoading ? <CircularProgress size={20} /> : 'Submit'}
           </Button>
         </Stack>
       </Dialog>
-    </>
+    </div>
   );
 }
+
 export default PdfContainer;
