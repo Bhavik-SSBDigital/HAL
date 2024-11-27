@@ -85,6 +85,7 @@ import {
 } from "../controller/processes-controller.js";
 
 import { get_user_logs, get_user_log } from "../controller/log-controller.js";
+import { add_sign_coordinates } from "../controller/sign-handlers/sign-coordinates-handlers.js";
 
 import {
   sign_document,
@@ -285,5 +286,7 @@ router.get("/getMeetingDetails/:meetingId", get_meeting_details);
 router.post("/addCommentInMeeting", add_comment_in_meeting_after_meeting_time);
 
 router.post("/compareDocuments", compare_documents);
+
+router.post("/storeSignCoordinates", add_sign_coordinates);
 
 export default router;
