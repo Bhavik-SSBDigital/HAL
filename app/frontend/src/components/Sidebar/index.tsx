@@ -74,7 +74,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         width: '280px',
         zIndex: 21,
         // background: 'linear-gradient(63deg, #08203e, #557c93)',
-        background: 'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
+        // background: 'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
+        // background: 'linear-gradient(360deg, rgb(0, 0, 0), rgb(78 57 116))',
+        background: 'linear-gradient(360deg, rgb(0, 0, 0), rgb(87 0 149))',
       }}
       className={`absolute left-0 top-0 z-10 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'

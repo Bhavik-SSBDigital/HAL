@@ -1404,7 +1404,7 @@ export default function ViewProcess(props) {
                                       </div>
                                       <div className={styles.fileTimeContainer}>
                                         <p>
-                                          -{' '}
+                                          -
                                           {moment(
                                             file?.details?.createdOn,
                                           ).format('DD-MMM-YYYY hh:mm A')}
@@ -2206,8 +2206,12 @@ export default function ViewProcess(props) {
                       >
                         PUBLISH DETAILS :
                       </Typography>
-                      <Grid container spacing={4} sx={{ marginBottom: '10px' }}>
-                        <Grid item xs={12}>
+                      <Grid2
+                        container
+                        spacing={4}
+                        sx={{ marginBottom: '10px' }}
+                      >
+                        <Grid2 item size={{ xs: 12 }}>
                           <TextField
                             fullWidth
                             select
@@ -2235,8 +2239,8 @@ export default function ViewProcess(props) {
                                 </MenuItem>
                               ))}
                           </TextField>
-                        </Grid>
-                        <Grid item xs={12}>
+                        </Grid2>
+                        <Grid2 item size={{ xs: 12 }}>
                           <Autocomplete
                             multiple
                             id="checkboxes-tags-demo"
@@ -2293,8 +2297,8 @@ export default function ViewProcess(props) {
                             }
                             label="SELECT ALL DEPARTMENTS"
                           />
-                        </Grid>
-                        <Grid item xs={12}>
+                        </Grid2>
+                        <Grid2 item size={{ xs: 12 }}>
                           <Autocomplete
                             multiple
                             id="roles-autocomplete"
@@ -2338,8 +2342,8 @@ export default function ViewProcess(props) {
                               ))
                             }
                           />
-                        </Grid>
-                      </Grid>
+                        </Grid2>
+                      </Grid2>
                       <Stack alignItems="center">
                         <Box>
                           <Button
