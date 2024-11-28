@@ -45,7 +45,7 @@ const FileSystem = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     reset,
   } = useForm();
 
@@ -169,14 +169,20 @@ const FileSystem = () => {
               helperText={errors.folderName ? errors.folderName.message : ''}
             />
             <Box mt={2}>
-              <Button type="submit" variant="contained" color="success">
-                Create
+              <Button
+                disabled={isSubmitting}
+                type="submit"
+                variant="contained"
+                color="success"
+              >
+                {isSubmitting ? <CircularProgress size={22} /> : 'Create'}
               </Button>
               <Button
                 variant="contained"
                 color="error"
                 onClick={closeModal}
                 sx={{ ml: 1 }}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
@@ -253,7 +259,7 @@ const FileSystem = () => {
                 </Stack>
               )}
             </Box>
-            <Dialog open={open} onClose={closeModal}>
+            <Dialog open={open}>
               <Box className="create-folder-modal-content-container">
                 {renderModalContent()}
               </Box>

@@ -706,19 +706,21 @@ export default function ShowFolder(props) {
               size="small"
               color="success"
               onClick={createFolder}
+              disabled={loading}
               sx={{
                 '&:hover': {
                   backgroundColor: '#0056b3',
                 },
               }}
             >
-              Create
+              {loading ? <CircularProgress size={22} /> : 'Create'}
             </Button>
             <Button
               variant="contained"
               size="small"
               onClick={() => setOpen(false)}
               color="error"
+              disabled={loading}
               sx={{
                 color: 'white',
                 '&:hover': {
@@ -1540,7 +1542,7 @@ export default function ShowFolder(props) {
 
       {/* create folder */}
       {open && (
-        <Modal open={open} onClose={closeModal} className="create-folder-modal">
+        <Modal open={open} className="create-folder-modal">
           <div
             style={{
               gap: '10px',
