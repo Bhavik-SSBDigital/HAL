@@ -2505,8 +2505,8 @@ export default function ViewProcess(props) {
                   >
                     <Typography
                       textAlign="center"
-                      variant="h6"
-                      sx={{ background: '#4E327E', color: 'white', p: 1 }}
+                      variant="body1"
+                      sx={{ background: 'var(--themeColor)', color: 'white', p: 1 }}
                     >
                       USERNAMES
                     </Typography>
@@ -2517,7 +2517,7 @@ export default function ViewProcess(props) {
                     ) : (
                       <Typography
                         textAlign="center"
-                        variant="body1"
+                        variant="body2"
                         color="red"
                       >
                         NO SIGNS
