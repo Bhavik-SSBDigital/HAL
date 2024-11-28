@@ -112,9 +112,6 @@ function Schedule({ handleClose, setMeetings, meetings }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} style={{ maxWidth: 600 }}>
-      <Typography variant="h6" gutterBottom>
-        Schedule a Meeting
-      </Typography>
       <Controller
         name="title"
         control={control}
