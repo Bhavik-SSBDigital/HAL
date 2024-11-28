@@ -85,7 +85,10 @@ import {
 } from "../controller/processes-controller.js";
 
 import { get_user_logs, get_user_log } from "../controller/log-controller.js";
-import { add_sign_coordinates } from "../controller/sign-handlers/sign-coordinates-handler.js";
+import {
+  add_sign_coordinates,
+  get_sign_coordinates_for_specific_step,
+} from "../controller/sign-handlers/sign-coordinates-handler.js";
 
 import {
   sign_document,
@@ -288,5 +291,10 @@ router.post("/addCommentInMeeting", add_comment_in_meeting_after_meeting_time);
 router.post("/compareDocuments", compare_documents);
 
 router.post("/storeSignCoordinates", add_sign_coordinates);
+
+router.post(
+  "/getSignCoordinatesForCurrentStep",
+  get_sign_coordinates_for_specific_step
+);
 
 export default router;
