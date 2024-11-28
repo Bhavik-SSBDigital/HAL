@@ -2587,8 +2587,6 @@ export const revertProcess = async (
       documentsArray
     );
 
-    console.log("log work docs", logWorkDocs);
-
     await addLog(
       processId,
       true,
@@ -2746,7 +2744,7 @@ export const upload_documents_in_process = async (req, res, next) => {
 
     const process = await Process.findOne({
       _id: new ObjectId(req.body.processId),
-    }).select("workFlow documents connectors steps");
+    }).select("workFlow documents connectors steps currentStepNumber");
 
     const workFlow = req.body.isInterBranchProcess
       ? new ObjectId(req.body.workFlowToBeFollowed)
@@ -2849,62 +2847,71 @@ export const upload_documents_in_process = async (req, res, next) => {
 
         // Document found, update the counts
 
-        const departmentIndex = processAnalytics.departmentsPendingProcess
-          ? processAnalytics.departmentsPendingProcess.findIndex(
-              (departmentData) =>
-                departmentData.department.equals(process.workFlow)
-            )
-          : -1;
+        if (!(process.steps && process.steps.length > 0)) {
+          const departmentIndex = processAnalytics.departmentsPendingProcess
+            ? processAnalytics.departmentsPendingProcess.findIndex(
+                (departmentData) =>
+                  departmentData.department.equals(process.workFlow)
+              )
+            : -1;
 
-        if (departmentIndex !== -1) {
-          // If the department is found, increment its count
-          // processAnalytics.noOfPendingProcess += 1;
+          if (departmentIndex !== -1) {
+            // If the department is found, increment its count
+            // processAnalytics.noOfPendingProcess += 1;
 
-          let documentDetailsOfDepartment =
-            processAnalytics.departmentsPendingProcess[departmentIndex]
-              .documentDetails;
-          if (documentDetailsOfDepartment) {
-            for (let i = 0; i < workNameCounts.length; i++) {
-              const workNameIndex = documentDetailsOfDepartment.findIndex(
-                (work) => work.workName === workNameCounts[i].workName
-              );
-              if (workNameIndex !== -1) {
-                documentDetailsOfDepartment[workNameIndex].documentCount +=
-                  workNameCounts[i].documentCount;
-              } else {
-                documentDetailsOfDepartment.push(workNameCounts[i]);
+            let documentDetailsOfDepartment =
+              processAnalytics.departmentsPendingProcess[departmentIndex]
+                .documentDetails;
+            if (documentDetailsOfDepartment) {
+              for (let i = 0; i < workNameCounts.length; i++) {
+                const workNameIndex = documentDetailsOfDepartment.findIndex(
+                  (work) => work.workName === workNameCounts[i].workName
+                );
+                if (workNameIndex !== -1) {
+                  documentDetailsOfDepartment[workNameIndex].documentCount +=
+                    workNameCounts[i].documentCount;
+                } else {
+                  documentDetailsOfDepartment.push(workNameCounts[i]);
+                }
               }
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].documentDetails = documentDetailsOfDepartment;
+            } else {
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].documentDetails = workNameCounts;
             }
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].documentDetails = documentDetailsOfDepartment;
           } else {
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].documentDetails = workNameCounts;
+            // If the department is not found, add it with an initial count of 1
+            // processAnalytics.noOfPendingProcess += 1;
+            processAnalytics.departmentsPendingProcess.push({
+              department: new ObjectId(req.body.workFlow),
+              documentDetails: workNameCounts,
+            });
           }
-        } else {
-          // If the department is not found, add it with an initial count of 1
-          // processAnalytics.noOfPendingProcess += 1;
-          processAnalytics.departmentsPendingProcess.push({
-            department: new ObjectId(req.body.workFlow),
-            documentDetails: workNameCounts,
-          });
         }
 
         // Save the updated document back to the database
         await processAnalytics.save();
       } else {
-        let newProcessAnalytics = new ProcessAnalytics({
-          date: new Date(),
-          documentDetails: workNameCounts,
-          departmentsPendingProcess: [
-            {
-              department: new ObjectId(req.body.workFlow),
-              documentDetails: workNameCounts,
-            },
-          ],
-        });
+        const processData =
+          process.steps && process.steps.length > 0
+            ? {
+                date: new Date(),
+                documentDetails: workNameCounts,
+              }
+            : {
+                date: new Date(),
+                documentDetails: workNameCounts,
+                departmentsPendingProcess: [
+                  {
+                    department: new ObjectId(req.body.workFlow),
+                    documentDetails: workNameCounts,
+                  },
+                ],
+              };
+        let newProcessAnalytics = new ProcessAnalytics();
 
         await newProcessAnalytics.save();
       }

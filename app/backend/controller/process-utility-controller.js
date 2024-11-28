@@ -31,7 +31,10 @@ export const is_process_forwardable = async (process, userId) => {
     //   };
     // }
 
-    let currentWork = workflow.steps[process.currentStepNumber - 1];
+    let currentWork =
+      process.steps && process.steps.length > 0
+        ? workflow[process.currentStepNumber - 1]
+        : workflow.steps[process.currentStepNumber - 1];
 
     currentWork = await Work.findOne({ _id: currentWork.work }).select("name");
 
