@@ -31,10 +31,7 @@ export const is_process_forwardable = async (process, userId) => {
     //   };
     // }
 
-    let currentWork =
-      process.steps && process.steps.length > 0
-        ? workflow[process.currentStepNumber - 1]
-        : workflow.steps[process.currentStepNumber - 1];
+    let currentWork = workflow.steps[process.currentStepNumber - 1];
 
     currentWork = await Work.findOne({ _id: currentWork.work }).select("name");
 
@@ -56,6 +53,13 @@ export const is_process_forwardable = async (process, userId) => {
       }
     }
 
+    /* 
+    
+    step:1 - Fetch logs where current actor user is user requesting this fun & specific pID
+    step:2 - project documents from logs by filtering docs which has rejected: true
+    step:3 - 
+    
+    */
     const results = await Log.aggregate([
       {
         $match: {
@@ -109,6 +113,14 @@ export const is_process_forwardable = async (process, userId) => {
       );
     }
 
+    let currently_signed_docs = [];
+
+    if (logWork && logWork.signedDocuments) {
+      currently_signed_docs = logWork.signedDocuments.map(
+        (item) => item.document
+      );
+    }
+
     // get the uploaded documents in log if any
 
     let uploadedDocsInPrevLogs = [];
@@ -144,7 +156,7 @@ export const is_process_forwardable = async (process, userId) => {
           ]
         : [...uploadedDocsInPrevLogs, ...currently_uploaded_docs];
 
-    const rejected_docs = process.documents.filter(
+    const signed_but_rejected_after = process.documents.filter(
       (item) =>
         item.rejection &&
         !new ObjectId(item.rejection.step.actorUser).equals(
@@ -156,22 +168,35 @@ export const is_process_forwardable = async (process, userId) => {
     );
 
     if (
-      process.documents.length === all_worked_docs.length &&
-      // rejected_docs.length === 0 &&
-      currently_rejected_docs.length === 0 &&
-      !(process.currentStepNumber === process.maxReceiverStepNumber)
+      currently_rejected_docs.length > 0 ||
+      (signed_but_rejected_after.length > 0 &&
+        currently_signed_docs.length === 0 &&
+        process.documents.length === all_worked_docs.length)
     ) {
-      return {
-        isForwardable: true,
-        isRevertable: false,
-      };
-    }
-
-    if (currently_rejected_docs.length > 0) {
       return {
         isForwardable: false,
         isRevertable: true,
       };
+    }
+
+    if (currentWork === "upload") {
+      if (currently_uploaded_docs.length > 0) {
+        return {
+          isForwardable: true,
+          isRevertable: false,
+        };
+      }
+    } else {
+      if (
+        currently_rejected_docs.length === 0 &&
+        currently_signed_docs.length > 0 &&
+        !(process.currentStepNumber === process.maxReceiverStepNumber)
+      ) {
+        return {
+          isForwardable: true,
+          isRevertable: false,
+        };
+      }
     }
 
     return {
