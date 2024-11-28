@@ -397,7 +397,13 @@ function PdfContainer({
   };
 
   return (
-    <div style={{ height: '100%', overflow: 'auto' }}>
+    <div
+      style={{
+        height: '100%',
+        overflow: 'auto',
+        userSelect: mode === 'signSelection' ? 'none' : 'auto',
+      }}
+    >
       <Box
         sx={{
           background: 'white',
