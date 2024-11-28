@@ -480,7 +480,7 @@ function PdfContainer({
             Text Selection Mode
           </Button>
 
-          {initiator ? (
+          {initiator && processId && documentId ? (
             <Button
               variant={mode === 'signSelection' ? 'contained' : 'outlined'}
               onClick={() => setMode('signSelection')}
