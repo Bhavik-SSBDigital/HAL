@@ -330,6 +330,11 @@ export default function ViewProcess(props) {
       );
       if (res.status === 200) {
         processData.documents.push(...newDoc);
+        setProcessData((prev) => ({
+          ...prev,
+          isRevertable: res?.data?.isRevertable,
+          isForwardable: res?.data?.isForwardable,
+        }));
         toast.success('Documents is uploaded');
       }
     } catch (error) {
