@@ -2506,7 +2506,11 @@ export default function ViewProcess(props) {
                     <Typography
                       textAlign="center"
                       variant="body1"
-                      sx={{ background: 'var(--themeColor)', color: 'white', p: 1 }}
+                      sx={{
+                        background: 'var(--themeColor)',
+                        color: 'white',
+                        p: 1,
+                      }}
                     >
                       USERNAMES
                     </Typography>
@@ -3096,6 +3100,7 @@ export default function ViewProcess(props) {
               handleViewClose={handleViewClose}
               maxReceiverStepNumber={processData?.maxReceiverStepNumber}
               processId={processData?._id}
+              currentStep={processData?.currentStepNumber}
             />
           )}
         </Stack>

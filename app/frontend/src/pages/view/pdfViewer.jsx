@@ -29,11 +29,14 @@ function PdfContainer({
   workflow,
   maxReceiverStepNumber,
   processId,
+  currentStep,
 }) {
   const username = sessionStorage.getItem('username');
+  const initiator = sessionStorage.getItem('initiator') == 'true';
   const [numPages, setNumPages] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [coordinates, setCoordinates] = useState([]);
+  const [userSign, setUserSign] = useState();
   const [openRemarksMenu, setOpenRemarksMenu] = useState(false);
   const [remark, setRemark] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -301,8 +304,8 @@ function PdfContainer({
             )}
 
           {signAreas
-            .filter((signArea) => signArea.page === i)
-            .map((signArea, index) => (
+            ?.filter((signArea) => signArea.page === i)
+            ?.map((signArea, index) => (
               <Box
                 key={index}
                 sx={{
@@ -315,24 +318,31 @@ function PdfContainer({
                   backgroundColor: 'rgba(255, 0, 0, 0.3)',
                 }}
               >
-                <Button
-                  onClick={() => removeSignArea(index)}
-                  sx={{
-                    position: 'absolute',
-                    top: -10,
-                    right: -10,
-                    backgroundColor: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    minWidth: '0',
-                    padding: '0',
-                    zIndex: 9999,
-                    border: '2px solid red',
-                  }}
-                >
-                  X
-                </Button>
+                <img
+                  src={userSign}
+                  style={{ objectFit: 'fill', height: '100%', width: '100%' }}
+                  alt="signature"
+                />
+                {initiator ? (
+                  <Button
+                    onClick={() => removeSignArea(index)}
+                    sx={{
+                      position: 'absolute',
+                      top: -10,
+                      right: -10,
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      minWidth: '0',
+                      padding: '0',
+                      zIndex: 9999,
+                      border: '2px solid red',
+                    }}
+                  >
+                    X
+                  </Button>
+                ) : null}
               </Box>
             ))}
         </Box>,
@@ -362,8 +372,51 @@ function PdfContainer({
       console.log(error.message);
     }
   };
+  const getSignCoordinates = async () => {
+    const url = backendUrl + '/getSignCoordinatesForCurrentStep';
+    try {
+      const res = await axios.post(
+        url,
+        {
+          docId: documentId,
+          processId: processId,
+          stepNo: currentStep,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSignAreas(res?.data?.coordinates);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  const fetchSingature = async () => {
+    try {
+      const url = backendUrl + '/getUserSignature';
+      const accessToken = sessionStorage.getItem('accessToken');
+      const response = await axios.post(url, null, {
+        headers: {
+          Authorization: ` Bearer ${accessToken}`,
+        },
+        responseType: 'blob',
+      });
+
+      if (response.status === 200) {
+        const blob = new Blob([response.data], {
+          type: response.headers['content-type'],
+        });
+        const objectURL = URL.createObjectURL(blob);
+        setUserSign(objectURL);
+      } else {
+        console.error('Error fetching profile picture:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching profile picture:', error.message);
+    }
+  };
   useEffect(() => {
     getFileHighlights();
+    getSignCoordinates();
+    fetchSingature();
   }, []);
   const submitRemarks = async () => {
     if (!remark) {
@@ -427,7 +480,7 @@ function PdfContainer({
             Text Selection Mode
           </Button>
 
-          {sessionStorage.getItem('initiator') ? (
+          {initiator ? (
             <Button
               variant={mode === 'signSelection' ? 'contained' : 'outlined'}
               onClick={() => setMode('signSelection')}
@@ -503,7 +556,7 @@ function PdfContainer({
               sx={{ minWidth: '150px', color: '#333' }}
             >
               {workflow
-                .filter(
+                ?.filter(
                   (item) => !item.users.some((user) => user.user === username),
                 )
                 // .filter((item) => item.step > publishCheck.step)
