@@ -1045,6 +1045,7 @@ export default function InitiateForm() {
                 setWorkFlow={setWorkFlow}
                 connectors={connectors}
                 setConnectors={setConnectors}
+                isDynamicFlow={isDynamicFlow}
                 isHeadofficeIncluded={headofficeInclude}
                 selectedDepartment={selectedDepartment}
                 initiatorDepartment={departmentSelection}

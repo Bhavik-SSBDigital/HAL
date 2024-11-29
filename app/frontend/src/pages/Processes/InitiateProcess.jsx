@@ -162,7 +162,9 @@ export default function LabelBottomNavigation(props) {
           remarks: remarks ? remarks : rem,
           documents: finalData,
           initiatorDepartment: props.initiatorDepartment,
-          steps: props.selectedDepartment.workFlow,
+          ...(props.isDynamicFlow
+            ? {}
+            : { steps: props.selectedDepartment.workFlow }),
           documentsPath: departmentPath,
           isHeadofficeIncluded: props.isHeadofficeIncluded,
           departmentName: props.selectedDepartment.department,
