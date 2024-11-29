@@ -13,6 +13,13 @@ export const is_process_forwardable = async (process, userId) => {
         isRevertable: false,
       };
     }
+
+    if (process.isInterBranchProcess) {
+      return {
+        isForwardable: true,
+        isRevertable: true,
+      };
+    }
     let signed_docs = [];
 
     let workflow;
@@ -36,9 +43,23 @@ export const is_process_forwardable = async (process, userId) => {
         ? workflow[process.currentStepNumber - 1]
         : workflow.steps[process.currentStepNumber - 1];
 
+    if (!currentWork) {
+      return {
+        isForwardable: false,
+        isRevertable: false,
+      };
+    }
+
     currentWork = await Work.findOne({ _id: currentWork.work }).select("name");
 
     currentWork = currentWork.name;
+
+    if (currentWork === "publish") {
+      return {
+        isForwardable: true,
+        isRevertable: true,
+      };
+    }
 
     for (let x = 0; x < process.documents.length; x++) {
       const signed_doc = process.documents[x];

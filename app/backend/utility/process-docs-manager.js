@@ -81,7 +81,9 @@ const transform_replacements = (replacements) => {
     );
 
     // Filter out the latest document from the array
-    const remainingDocs = array.filter((doc) => doc !== latestDoc);
+    const remainingDocs = array.filter(
+      (doc) => doc.details._id.toString() !== latestDoc.details._id.toString()
+    );
 
     // Format the latest document (ref) and remaining documents (replacements)
     return {

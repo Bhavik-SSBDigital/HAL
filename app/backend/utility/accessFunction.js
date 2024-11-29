@@ -138,6 +138,7 @@ export const getParents = async (view) => {
     }
 
     for (let i = 0; i < view.length; i++) {
+      console.log("view[i]", view[i]);
       const childDocument = await Document.findOne({
         _id: new mongoose.Types.ObjectId(view[i]),
       });

@@ -241,6 +241,10 @@ const processSchema = new mongoose.Schema({
       ],
     },
   ],
+  meetingId: {
+    type: String,
+    default: null,
+  },
 });
 
 const Process = mongoose.model("Process", processSchema);

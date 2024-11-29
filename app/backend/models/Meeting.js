@@ -101,6 +101,9 @@ const meetingSchema = new mongoose.Schema({
       },
     },
   },
+  associatedProcesses: [
+    { type: mongoose.Schema.Types.ObjectId, ref: "Process", default: [] },
+  ],
 });
 
 const Meeting = mongoose.model("Meeting", meetingSchema);

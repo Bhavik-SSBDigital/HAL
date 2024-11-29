@@ -5,6 +5,7 @@ import { verifyUser } from "../utility/verifyUser.js";
 import { ObjectId } from "mongodb";
 import { getSocketInstance } from "../socketHandler.js";
 import moment from "moment";
+import Process from "../models/process.js";
 
 const checkIfRoomHasParticipants = (roomId) => {
   const io = getSocketInstance(); // Get the Socket.io instance
@@ -481,6 +482,19 @@ export const get_meeting_details = async (req, res, next) => {
       })
     );
 
+    let associatedProcesses = meet.associatedProcesses;
+
+    associatedProcesses = await Promise.all(
+      associatedProcesses.map(async (item) => {
+        const process = await Process.findOne({ _id: item }).select("name");
+        return {
+          processName: process.name,
+        };
+      })
+    );
+
+    meet.associatedProcesses = associatedProcesses;
+
     return res.status(200).json({
       meetingDetails: meet,
     });
@@ -509,7 +523,6 @@ export const get_attendees_list = async (meetingId) => {
         participant_ = await User.findOne({ _id: participant_ }).select(
           "username"
         );
-
 
         return participant_.username;
       })

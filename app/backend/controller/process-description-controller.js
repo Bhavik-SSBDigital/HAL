@@ -1,6 +1,9 @@
 import Process from "../models/process.js";
 import Log from "../models/log.js";
-import { format_department_data } from "./department-controller.js";
+import {
+  format_department_data,
+  format_workflow_step,
+} from "./department-controller.js";
 import Department from "../models/department.js";
 import Work from "../models/work.js";
 import Document from "../models/document.js";
@@ -52,7 +55,8 @@ export const get_process_history = async (req, res, next) => {
     for (let i = 0; i < logs.length; i++) {
       let history = {};
       const currentLog = logs[i];
-      console.log("log belonging department", currentLog);
+      const stepDone = currentLog.currentStep;
+
       // getting the department from where the work mentioned in log is done
       let department;
 
@@ -64,55 +68,59 @@ export const get_process_history = async (req, res, next) => {
         formattedDepartment = await format_department_data([department]);
 
         formattedDepartment = formattedDepartment[0];
+
+        const targettedDepartmentIndex = deparment_wise_workflows
+          .map((item) => item.departmentName)
+          .indexOf(formattedDepartment.department);
+
+        if (targettedDepartmentIndex === -1) {
+          deparment_wise_workflows.push({
+            departmentName: formattedDepartment.department,
+            workFlow: formattedDepartment.workFlow,
+            lastStepDone: stepDone.stepNumber,
+            isCompleted:
+              !process.isInterBranchProcess ||
+              process.workFlow.equals(new ObjectId(formattedDepartment._id))
+                ? process.completed
+                : process.connectors.filter((item) =>
+                    item.department.equals(
+                      new ObjectId(formattedDepartment._id)
+                    )
+                  )[0].completed,
+            usedStepNumbers: [stepDone.stepNumber],
+          });
+        } else {
+          deparment_wise_workflows[targettedDepartmentIndex].lastStepDone =
+            deparment_wise_workflows[targettedDepartmentIndex].lastStepDone <
+            stepDone.stepNumber
+              ? stepDone.stepNumber
+              : deparment_wise_workflows[targettedDepartmentIndex].lastStepDone;
+
+          deparment_wise_workflows[targettedDepartmentIndex].usedStepNumbers = [
+            ...deparment_wise_workflows[targettedDepartmentIndex]
+              .usedStepNumbers,
+            stepDone.stepNumber,
+          ];
+        }
+        delete formattedDepartment.createdAt;
       }
-
-      const stepDone = currentLog.currentStep;
-
-      const targettedDepartmentIndex = deparment_wise_workflows
-        .map((item) => item.departmentName)
-        .indexOf(formattedDepartment.department);
 
       console.log("department wise workflows", deparment_wise_workflows);
 
-      if (targettedDepartmentIndex === -1) {
-        deparment_wise_workflows.push({
-          departmentName: formattedDepartment.department,
-          workFlow: formattedDepartment.workFlow,
-          lastStepDone: stepDone.stepNumber,
-          isCompleted:
-            !process.isInterBranchProcess ||
-            process.workFlow.equals(new ObjectId(formattedDepartment._id))
-              ? process.completed
-              : process.connectors.filter((item) =>
-                  item.department.equals(new ObjectId(formattedDepartment._id))
-                )[0].completed,
-          usedStepNumbers: [stepDone.stepNumber],
-        });
-      } else {
-        deparment_wise_workflows[targettedDepartmentIndex].lastStepDone =
-          deparment_wise_workflows[targettedDepartmentIndex].lastStepDone <
-          stepDone.stepNumber
-            ? stepDone.stepNumber
-            : deparment_wise_workflows[targettedDepartmentIndex].lastStepDone;
-
-        deparment_wise_workflows[targettedDepartmentIndex].usedStepNumbers = [
-          ...deparment_wise_workflows[targettedDepartmentIndex].usedStepNumbers,
-          stepDone.stepNumber,
-        ];
-      }
-
-      delete formattedDepartment.createdAt;
+      const workFlow = processHasCustomWorkflow
+        ? process.steps
+        : formattedDepartment.workFlow;
 
       // here we will have formatted step of department for given log
-      let currentFormattedStep = formattedDepartment.workFlow.find(
+      let currentFormattedStep = workFlow.find(
         (item) => item.step === stepDone.stepNumber
       );
 
-      let nextFormattedStep = formattedDepartment.workFlow.find(
+      let nextFormattedStep = workFlow.find(
         (item) => item.step === currentLog.nextStep.stepNumber
       );
 
-      if (stepDone.stepNumber > formattedDepartment.workFlow.length) {
+      if (stepDone.stepNumber > workFlow.length) {
         let work = await Work.findOne({ _id: stepDone.work }).select("name");
         let user = await User.findOne({ _id: stepDone.actorUser }).select(
           "username"
@@ -292,7 +300,7 @@ export const get_process_history = async (req, res, next) => {
 
       history.publishedTo = publishedTo;
       historyDetails.push(history);
-      history.belongingDepartment = department.name;
+      history.belongingDepartment = department ? department.name : "custom";
     }
 
     /* 
@@ -322,12 +330,51 @@ export const get_process_history = async (req, res, next) => {
       };
     });
 
+    let processSteps = [];
+
+    if (process.steps && process.steps.length > 0) {
+      const steps = process.steps;
+
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        let work = await Work.findOne({ _id: step.work });
+        work = work.name;
+
+        let users = step.users;
+
+        users = await Promise.all(
+          users.map(async (user) => {
+            let user_ = user.user;
+            user_ = await User.findOne({ _id: user_ }).select("username");
+            user_ = user_.username;
+
+            let role = user.role;
+            role = await Role.findOne({ _id: role }).select("role");
+            role = role.role;
+
+            return {
+              user: user_,
+              role: role,
+            };
+          })
+        );
+
+        processSteps.push({
+          work: work,
+          users: users,
+          stepNumber: step.stepNumber,
+        });
+      }
+    }
+
     return res.status(200).json({
       name: process.name,
       documentsPath: process.documentsPath,
       isInterBranchProcess: process.isInterBranchProcess,
       currentRemarks: process.remarks,
-      workFlow: formattedDepartment.workFlow,
+      workFlow: formattedDepartment
+        ? formattedDepartment.workFlow
+        : processSteps,
       lastStepDone: process.lastStepDone,
       historyDetails: historyDetails,
       workflows: deparment_wise_workflows,

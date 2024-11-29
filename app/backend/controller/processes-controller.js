@@ -21,6 +21,7 @@ import { get_documents_with_replacements } from "../utility/process-docs-manager
 import LogWork from "../models/logWork.js";
 import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
+import Meeting from "../models/Meeting.js";
 
 dotenv.config();
 
@@ -225,83 +226,102 @@ export const add_process = async (req, res, next) => {
       process.maxReceiverStepNumber = req.body.maxReceiverStepNumber;
     }
 
-    let updatedSteps = [];
     let steps = ifProcessContainsCustomWorkFlow
       ? req.body.steps
       : initiatorDepartment_.steps;
 
-    console.log("steps", steps[0].users);
+    let updatedSteps = [];
 
-    // steps = await Promise.all(
-    //   steps.map(async (item) => {
-    //     let formattedStep = await format_workflow_step(item);
-    //     return formattedStep;
-    //   })
-    // );
+    if (ifProcessContainsCustomWorkFlow) {
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
 
-    // for (let i = 0; i < steps.length; i++) {
-    //   const step = steps[i];
-    //   let users = [];
+        let users = [];
 
-    //   for (let j = 0; j < step.users.length; j++) {
-    //     const currentUser = step.users[j].user;
-    //     const currentRole = step.users[j].role;
-    //     let user = await User.findOne({ _id: currentUser }).select("id");
-    //     if (!user) {
-    //       return res.status(400).json({
-    //         message:
-    //           "one of the users mentioned in steps as an actor doesn't exist",
-    //       });
-    //     }
-    //     user = user._id;
+        for (let j = 0; j < step.users.length; j++) {
+          const currentUser = step.users[j].user;
 
-    //     let role = await Role.findOne({ _id: currentRole }).select("id");
+          const currentRole = step.users[j].role;
+          let user = await User.findOne({ username: currentUser }).select(
+            "_id"
+          );
 
-    //     if (!role) {
-    //       return res.status(400).json({
-    //         message:
-    //           "one of the roles mentioned in steps as an role doesn't exist",
-    //       });
-    //     }
+          if (!user) {
+            return res.status(400).json({
+              message:
+                "one of the users mentioned in steps as an actor doesn't exist",
+            });
+          }
+          user = user._id;
 
-    //     role = role._id;
+          let role = await Role.findOne({ role: currentRole }).select("_id");
 
-    //     users.push({
-    //       user: user,
-    //       role: role,
-    //     });
-    //   }
+          if (!role) {
+            return res.status(400).json({
+              message:
+                "one of the roles mentioned in steps as an role doesn't exist",
+            });
+          }
 
-    //   let work = await Work.findOne({ name: step.work });
+          role = role._id;
 
-    //   if (!work) {
-    //     const newWork = new Work({
-    //       name: step.work,
-    //     });
+          users.push({
+            user: user,
+            role: role,
+          });
+        }
 
-    //     work = await newWork.save();
-    //   }
+        let work = await Work.findOne({ name: step.work });
 
-    //   work = work._id;
+        if (!work) {
+          const newWork = new Work({
+            name: step.work,
+          });
 
-    //   updatedSteps.push({
-    //     users: users,
-    //     work: work,
-    //     stepNumber: step.step,
-    //   });
-    // }
+          work = await newWork.save();
+        }
+
+        work = work._id;
+
+        updatedSteps.push({
+          users: users,
+          work: work,
+          stepNumber: step.step,
+        });
+      }
+    }
 
     if (ifProcessContainsCustomWorkFlow) {
       process.steps = updatedSteps;
     }
 
+    console.log("process.steps", process.steps || []);
+
     process.name = processName;
+
+    if (req.body.meetingId) {
+      process.meetingId = req.body.meetingId;
+    }
 
     let Process_ = new Process(process);
 
     Process_ = await Process_.save();
 
     process._id = Process_._id;
+
+    if (req.body.meetingId) {
+      const meet = await Meeting.findOne({
+        meetingId: req.body.meetingId,
+      }).select("associatedProcesses");
+
+      if (meet.associatedProcesses.length > 0) {
+        meet.associatedProcesses.push(process._id);
+      } else {
+        meet.associatedProcesses = [process._id];
+      }
+
+      await meet.save();
+    }
 
     /*
       For inter branch process, we need to send process to connectors but there is a catch,
@@ -534,7 +554,7 @@ export const add_process = async (req, res, next) => {
       newProcess: Process_,
     });
   } catch (error) {
-    console.log("error", error);
+    console.log("error adding process", error);
     return res.status(500).json({
       message: "error adding process",
     });
@@ -1065,10 +1085,16 @@ export const forwardProcess = async (
     */
     let workflow;
     let departmentName;
+
+    console.log("process.steps", process.steps);
+    console.log("process steps length", process.steps.length);
+    console.log("condn", process.steps && process.steps.length > 0);
     let isCustomProcess =
       process.steps && process.steps.length > 0 ? true : false;
 
     let steps = [];
+
+    console.log("is custom process", isCustomProcess);
 
     if (isCustomProcess) {
       steps = process.steps;
@@ -1081,6 +1107,8 @@ export const forwardProcess = async (
       departmentName = workflow.name;
       steps = workflow.steps;
     }
+
+    console.log("steps", steps);
 
     let nextStepNumber;
 
