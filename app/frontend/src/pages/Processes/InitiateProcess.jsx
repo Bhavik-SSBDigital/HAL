@@ -68,6 +68,10 @@ export default function LabelBottomNavigation(props) {
     'maxReceiverStepNumber',
   ]);
 
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const meetingId = queryParams.get('meetingId');
+
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [workNameError, setWorkNameError] = useState('');
   const [cabinetNoError, setCabinetNoError] = useState('');
@@ -165,6 +169,7 @@ export default function LabelBottomNavigation(props) {
           ...(props.isDynamicFlow
             ? { steps: props.selectedDepartment.workFlow }
             : {}),
+          ...(meetingId ? { meetingId: meetingId } : {}),
           documentsPath: departmentPath,
           isHeadofficeIncluded: props.isHeadofficeIncluded,
           departmentName: props.selectedDepartment.department,

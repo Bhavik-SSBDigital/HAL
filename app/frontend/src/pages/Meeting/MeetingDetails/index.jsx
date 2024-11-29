@@ -30,6 +30,7 @@ import { toast } from 'react-toastify';
 import { useForm } from 'react-hook-form';
 import Loader from '../../../common/Loader';
 import FormSkeleton from '../../../common/Skeletons/FormSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const {
@@ -94,6 +95,11 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
       getDetails();
     }
   }, [id]);
+  const navigate = useNavigate();
+  const handleInitiate = () => {
+    const url = `/processes/initiate?meetingId=${id}`;
+    navigate(url);
+  };
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
@@ -257,6 +263,16 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                 </Typography>
               )}
             </List>
+            <Typography
+              variant="h6"
+              my={2}
+              sx={{ display: 'inline-block', marginTop: '20px' }}
+            >
+              Do you want to initiate process for this meeting :
+            </Typography>
+            <Button variant="contained" sx={{ ml: 1 }} onClick={handleInitiate}>
+              Initiate
+            </Button>
             <form onSubmit={handleSubmit(postComment)}>
               <Stack flexDirection={'row'} mt={2} gap={1}>
                 <TextField
