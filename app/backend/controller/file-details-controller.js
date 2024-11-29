@@ -337,14 +337,16 @@ export const create_permissions = async (req, res) => {
       const pathSegments = path.split("/").filter((segment) => segment !== "");
       const permissionedUsers = [...obj.read, ...obj.write];
       for (let m = 0; m < permissionedUsers.length; m++) {
-        let id_ = "..";
-        for (let p = 1; p < pathSegments.length - 1; p++) {
-          if (id_ === "") {
-            id_ = "/" + pathSegments[p];
-          } else {
-            id_ = id_ + "/" + pathSegments[p];
-          }
+        let id_ = "../../../../storage";
+        for (let p = 1; p < pathSegments.length; p++) {
+          //   if (id_ === "") {
+          //     id_ = "/" + pathSegments[p];
+          //   } else {
+          //     id_ = id_ + "/" + pathSegments[p];
+          //   }
+          id_ = id_ + `/${pathSegments[p]}`;
           const documentID = await Document.findOne({ path: id_ }).exec();
+          console.log("nested", id_);
           await createUserPermissions(documentID, permissionedUsers[m], false);
         }
       }
