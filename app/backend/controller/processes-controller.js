@@ -105,9 +105,17 @@ export const add_process = async (req, res, next) => {
     let process = req.body;
 
     let ifProcessContainsCustomWorkFlow =
-      (req.body.steps && req.body.steps.length) > 0;
+      req.body.steps && req.body.steps.length > 0 ? true : false;
 
     let processName;
+
+    let initiatorDepartment_;
+
+    if (!ifProcessContainsCustomWorkFlow) {
+      initiatorDepartment_ = await Department.findOne({
+        _id: req.body.workFlow,
+      }).select("name steps");
+    }
 
     if (ifProcessContainsCustomWorkFlow) {
       let process_no = await Process.countDocuments({
@@ -164,14 +172,6 @@ export const add_process = async (req, res, next) => {
 
     process.createdAt = Date.now();
 
-    let initiatorDepartment_;
-
-    if (!ifProcessContainsCustomWorkFlow) {
-      initiatorDepartment_ = await Department.findOne({
-        _id: req.body.workFlow,
-      }).select("name");
-    }
-
     /*
       DESCRIPTION OF THIS IF BLOCK FOR THE CONDITION: 
       
@@ -226,60 +226,74 @@ export const add_process = async (req, res, next) => {
     }
 
     let updatedSteps = [];
-    let steps = req.body.steps;
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      let users = [];
+    let steps = ifProcessContainsCustomWorkFlow
+      ? req.body.steps
+      : initiatorDepartment_.steps;
 
-      for (let j = 0; j < step.users.length; j++) {
-        const currentUser = step.users[j].user;
-        const currentRole = step.users[j].role;
-        let user = await User.findOne({ username: currentUser }).select("id");
-        if (!user) {
-          return res.status(400).json({
-            message:
-              "one of the users mentioned in steps as an actor doesn't exist",
-          });
-        }
-        user = user._id;
+    console.log("steps", steps[0].users);
 
-        let role = await Role.findOne({ role: currentRole }).select("id");
+    // steps = await Promise.all(
+    //   steps.map(async (item) => {
+    //     let formattedStep = await format_workflow_step(item);
+    //     return formattedStep;
+    //   })
+    // );
 
-        if (!role) {
-          return res.status(400).json({
-            message:
-              "one of the roles mentioned in steps as an role doesn't exist",
-          });
-        }
+    // for (let i = 0; i < steps.length; i++) {
+    //   const step = steps[i];
+    //   let users = [];
 
-        role = role._id;
+    //   for (let j = 0; j < step.users.length; j++) {
+    //     const currentUser = step.users[j].user;
+    //     const currentRole = step.users[j].role;
+    //     let user = await User.findOne({ _id: currentUser }).select("id");
+    //     if (!user) {
+    //       return res.status(400).json({
+    //         message:
+    //           "one of the users mentioned in steps as an actor doesn't exist",
+    //       });
+    //     }
+    //     user = user._id;
 
-        users.push({
-          user: user,
-          role: role,
-        });
-      }
+    //     let role = await Role.findOne({ _id: currentRole }).select("id");
 
-      let work = await Work.findOne({ name: step.work });
+    //     if (!role) {
+    //       return res.status(400).json({
+    //         message:
+    //           "one of the roles mentioned in steps as an role doesn't exist",
+    //       });
+    //     }
 
-      if (!work) {
-        const newWork = new Work({
-          name: step.work,
-        });
+    //     role = role._id;
 
-        work = await newWork.save();
-      }
+    //     users.push({
+    //       user: user,
+    //       role: role,
+    //     });
+    //   }
 
-      work = work._id;
+    //   let work = await Work.findOne({ name: step.work });
 
-      updatedSteps.push({
-        users: users,
-        work: work,
-        stepNumber: step.step,
-      });
+    //   if (!work) {
+    //     const newWork = new Work({
+    //       name: step.work,
+    //     });
+
+    //     work = await newWork.save();
+    //   }
+
+    //   work = work._id;
+
+    //   updatedSteps.push({
+    //     users: users,
+    //     work: work,
+    //     stepNumber: step.step,
+    //   });
+    // }
+
+    if (ifProcessContainsCustomWorkFlow) {
+      process.steps = updatedSteps;
     }
-
-    process.steps = updatedSteps;
 
     process.name = processName;
 
@@ -348,109 +362,117 @@ export const add_process = async (req, res, next) => {
         date: currentDate,
       });
 
-      if (processAnalytics) {
-        processAnalytics.noOfPendingProcess =
-          (processAnalytics.noOfPendingProcess || 0) + 1;
-        let documentDetailsOfOverallBank = processAnalytics.documentDetails;
-        if (documentDetailsOfOverallBank) {
-          for (let i = 0; i < workNameCounts.length; i++) {
-            const workNameIndex = documentDetailsOfOverallBank.findIndex(
-              (work) => work.workName === workNameCounts[i].workName
-            );
-            if (workNameIndex !== -1) {
-              documentDetailsOfOverallBank[workNameIndex].documentCount +=
-                workNameCounts[i].documentCount;
-            } else {
-              documentDetailsOfOverallBank.push(workNameCounts[i]);
-            }
-          }
-          processAnalytics.documentDetails = documentDetailsOfOverallBank;
-        } else {
-          processAnalytics.documentDetails = workNameCounts;
-        }
-
-        if (!ifProcessContainsCustomWorkFlow) {
-          // Document found, update the counts
-          const departmentIndex = processAnalytics.departmentsPendingProcess
-            ? processAnalytics.departmentsPendingProcess.findIndex(
-                (department) =>
-                  department.department.equals(new ObjectId(req.body.workFlow))
-              )
-            : -1;
-
-          if (departmentIndex !== -1) {
-            // If the department is found, increment its count
-            // processAnalytics.noOfPendingProcess += 1;
-            // processAnalytics.departmentsPendingProcess[
-            //   departmentIndex
-            // ].noOfPendingProcess += 1;
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].noOfPendingProcess =
-              (processAnalytics.departmentsPendingProcess[departmentIndex]
-                .noOfPendingProcess || 0) + 1;
-            let documentDetailsOfDepartment =
-              processAnalytics.departmentsPendingProcess[departmentIndex]
-                .documentDetails;
-            if (documentDetailsOfDepartment) {
-              for (let i = 0; i < workNameCounts.length; i++) {
-                const workNameIndex = documentDetailsOfDepartment.findIndex(
-                  (work) => work.workName === workNameCounts[i].workName
-                );
-                if (workNameIndex !== -1) {
-                  documentDetailsOfDepartment[workNameIndex].documentCount +=
-                    workNameCounts[i].documentCount;
-                } else {
-                  documentDetailsOfDepartment.push(workNameCounts[i]);
-                }
+      try {
+        if (processAnalytics) {
+          processAnalytics.noOfPendingProcess =
+            (processAnalytics.noOfPendingProcess || 0) + 1;
+          let documentDetailsOfOverallBank = processAnalytics.documentDetails;
+          if (documentDetailsOfOverallBank) {
+            for (let i = 0; i < workNameCounts.length; i++) {
+              const workNameIndex = documentDetailsOfOverallBank.findIndex(
+                (work) => work.workName === workNameCounts[i].workName
+              );
+              if (workNameIndex !== -1) {
+                documentDetailsOfOverallBank[workNameIndex].documentCount +=
+                  workNameCounts[i].documentCount;
+              } else {
+                documentDetailsOfOverallBank.push(workNameCounts[i]);
               }
-              processAnalytics.departmentsPendingProcess[
-                departmentIndex
-              ].documentDetails = documentDetailsOfDepartment;
-            } else {
-              processAnalytics.departmentsPendingProcess[
-                departmentIndex
-              ].documentDetails = workNameCounts;
             }
+            processAnalytics.documentDetails = documentDetailsOfOverallBank;
           } else {
-            // If the department is not found, add it with an initial count of 1
-            // processAnalytics.noOfPendingProcess += 1;
-            processAnalytics.departmentsPendingProcess.push({
-              department: new ObjectId(req.body.workFlow),
-              noOfPendingProcess: 1,
-              documentDetails: workNameCounts,
-            });
+            processAnalytics.documentDetails = workNameCounts;
           }
-        }
 
-        // Save the updated document back to the database
-        await processAnalytics.save();
-      } else {
-        let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
-          ? {
-              date: new Date(),
-              noOfPendingProcess: 1,
-              noOfRevertedProcess: 0,
-              documentDetails: workNameCounts,
-              departmentsPendingProcess: [
-                {
-                  department: new ObjectId(req.body.workFlow),
-                  noOfPendingProcess: 1,
-                  noOfRevertedProcess: 0,
-                  documentDetails: workNameCounts,
-                },
-              ],
+          if (!ifProcessContainsCustomWorkFlow) {
+            // Document found, update the counts
+            const departmentIndex = processAnalytics.departmentsPendingProcess
+              ? processAnalytics.departmentsPendingProcess.findIndex(
+                  (department) =>
+                    department.department.equals(
+                      new ObjectId(req.body.workFlow)
+                    )
+                )
+              : -1;
+
+            if (departmentIndex !== -1) {
+              // If the department is found, increment its count
+              // processAnalytics.noOfPendingProcess += 1;
+              // processAnalytics.departmentsPendingProcess[
+              //   departmentIndex
+              // ].noOfPendingProcess += 1;
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].noOfPendingProcess =
+                (processAnalytics.departmentsPendingProcess[departmentIndex]
+                  .noOfPendingProcess || 0) + 1;
+              let documentDetailsOfDepartment =
+                processAnalytics.departmentsPendingProcess[departmentIndex]
+                  .documentDetails;
+              if (documentDetailsOfDepartment) {
+                for (let i = 0; i < workNameCounts.length; i++) {
+                  const workNameIndex = documentDetailsOfDepartment.findIndex(
+                    (work) => work.workName === workNameCounts[i].workName
+                  );
+                  if (workNameIndex !== -1) {
+                    documentDetailsOfDepartment[workNameIndex].documentCount +=
+                      workNameCounts[i].documentCount;
+                  } else {
+                    documentDetailsOfDepartment.push(workNameCounts[i]);
+                  }
+                }
+                processAnalytics.departmentsPendingProcess[
+                  departmentIndex
+                ].documentDetails = documentDetailsOfDepartment;
+              } else {
+                processAnalytics.departmentsPendingProcess[
+                  departmentIndex
+                ].documentDetails = workNameCounts;
+              }
+            } else {
+              // If the department is not found, add it with an initial count of 1
+              // processAnalytics.noOfPendingProcess += 1;
+              processAnalytics.departmentsPendingProcess.push({
+                department: new ObjectId(req.body.workFlow),
+                noOfPendingProcess: 1,
+                documentDetails: workNameCounts,
+              });
             }
-          : {
-              date: new Date(),
-              noOfPendingProcess: 1,
-              noOfRevertedProcess: 0,
-              documentDetails: workNameCounts,
-            };
+          }
 
-        let newProcessAnalytics = new ProcessAnalytics();
+          // Save the updated document back to the database
+          await processAnalytics.save();
+        } else {
+          let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
+            ? {
+                date: new Date(),
+                noOfPendingProcess: 1,
+                noOfRevertedProcess: 0,
+                documentDetails: workNameCounts,
+                departmentsPendingProcess: [
+                  {
+                    department: new ObjectId(req.body.workFlow),
+                    noOfPendingProcess: 1,
+                    noOfRevertedProcess: 0,
+                    documentDetails: workNameCounts,
+                  },
+                ],
+              }
+            : {
+                date: new Date(),
+                noOfPendingProcess: 1,
+                noOfRevertedProcess: 0,
+                documentDetails: workNameCounts,
+              };
 
-        await newProcessAnalytics.save();
+          let newProcessAnalytics = new ProcessAnalytics(
+            newProcessAnalyticsData
+          );
+
+          await newProcessAnalytics.save();
+        }
+      } catch (error) {
+        console.log("error adding process analytics data");
       }
     } catch (error) {
       console.log("error adding process analytics data", error);
@@ -1043,7 +1065,9 @@ export const forwardProcess = async (
     */
     let workflow;
     let departmentName;
-    let isCustomProcess = process.steps ? true : false;
+    let isCustomProcess =
+      process.steps && process.steps.length > 0 ? true : false;
+
     let steps = [];
 
     if (isCustomProcess) {
@@ -1155,6 +1179,8 @@ export const forwardProcess = async (
           process.documents
         );
 
+        console.log("is custom workflow", isCustomProcess);
+
         if (isCustomProcess) {
           await addLog(
             processId,
@@ -1180,8 +1206,6 @@ export const forwardProcess = async (
         if (!firstLog) {
           console.log("No log found for the given processId.");
         }
-
-        console.log("first log", firstLog);
 
         // for custom process, completed process will be sent to initiator
         const head = isCustomProcess
@@ -1339,13 +1363,14 @@ export const forwardProcess = async (
       : await get_log_docs(processId, currentUserId, documents);
 
     if (!isCustomProcess) {
+      console.log("in right");
       await addLog(
         processId,
         false,
         currentStepObject,
         nextStep,
         logWorkDocs,
-        new ObjectId(workflow)
+        process.workFlow
       );
     } else {
       await addLog(

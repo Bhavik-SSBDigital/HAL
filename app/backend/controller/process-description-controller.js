@@ -25,6 +25,8 @@ export const get_process_history = async (req, res, next) => {
     // fetching the process
     let process = await Process.findOne({ name: processName });
 
+    const processHasCustomWorkflow = process.steps && process.steps.length > 0;
+
     if (!process) {
       return res.status(400).json({
         message: "process doesn't exist",
@@ -50,21 +52,27 @@ export const get_process_history = async (req, res, next) => {
     for (let i = 0; i < logs.length; i++) {
       let history = {};
       const currentLog = logs[i];
-
+      console.log("log belonging department", currentLog);
       // getting the department from where the work mentioned in log is done
-      const department = await Department.findOne({
-        _id: currentLog.belongingDepartment,
-      });
+      let department;
 
-      formattedDepartment = await format_department_data([department]);
+      if (!processHasCustomWorkflow) {
+        department = await Department.findOne({
+          _id: currentLog.belongingDepartment,
+        });
 
-      formattedDepartment = formattedDepartment[0];
+        formattedDepartment = await format_department_data([department]);
+
+        formattedDepartment = formattedDepartment[0];
+      }
 
       const stepDone = currentLog.currentStep;
 
       const targettedDepartmentIndex = deparment_wise_workflows
         .map((item) => item.departmentName)
         .indexOf(formattedDepartment.department);
+
+      console.log("department wise workflows", deparment_wise_workflows);
 
       if (targettedDepartmentIndex === -1) {
         deparment_wise_workflows.push({
