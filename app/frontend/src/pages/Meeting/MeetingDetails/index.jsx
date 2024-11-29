@@ -19,6 +19,7 @@ import {
   TextField,
   CircularProgress,
   Skeleton,
+  ListItemButton,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
@@ -45,6 +46,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const username = sessionStorage.getItem('username');
   const token = sessionStorage.getItem('accessToken');
   const [meetingDetails, setMeetingDetails] = useState({});
+  const processes = [{ processName: 'manual_process_7' }];
   const formatDateTime = (dateString) => new Date(dateString).toLocaleString();
 
   const getDetails = async () => {
@@ -98,6 +100,10 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const navigate = useNavigate();
   const handleInitiate = () => {
     const url = `/processes/initiate?meetingId=${id}`;
+    navigate(url);
+  };
+  const handleViewTimeline = (process) => {
+    const url = `/dashboard/timeLine?data=${process}`;
     navigate(url);
   };
   return (
@@ -241,6 +247,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                 p: '10px',
                 borderRadius: '8px',
                 maxHeight: '350px',
+                mb: 2,
                 overflow: 'auto',
               }}
             >
@@ -263,16 +270,54 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                 </Typography>
               )}
             </List>
-            <Typography
-              variant="h6"
-              my={2}
-              sx={{ display: 'inline-block', marginTop: '20px' }}
+            <Typography variant="h6">Associate Processes :</Typography>
+            <List
+              dense
+              sx={{
+                bgcolor: '#EEEEEE',
+                p: '10px',
+                borderRadius: '8px',
+                maxHeight: '350px',
+                mb: 3,
+                overflow: 'auto',
+              }}
             >
-              Do you want to initiate process for this meeting :
-            </Typography>
-            <Button variant="contained" sx={{ ml: 1 }} onClick={handleInitiate}>
-              Initiate
-            </Button>
+              {meetingDetails?.associatedProcesses?.length > 0 ? (
+                meetingDetails?.associatedProcesses?.map((process, index) => (
+                  <ListItem key={index} alignItems="flex-start">
+                    <ListItemText
+                      sx={{ flex: 10 }}
+                      primary={process?.processName}
+                    />
+                    <ListItemButton
+                      sx={{ flex: 2, color: 'blue' }}
+                      onClick={() => handleViewTimeline(process?.processName)}
+                    >
+                      View Timeline
+                    </ListItemButton>
+                  </ListItem>
+                ))
+              ) : (
+                <Typography color="textSecondary" variant="body2">
+                  No processes initiated yet.
+                </Typography>
+              )}
+              <Divider sx={{ my: 1 }} />
+              <Typography
+                variant="subtitle1"
+                color="textSecondary"
+                sx={{ display: 'inline-block' }}
+              >
+                Initiate new process in context of this meeting :
+              </Typography>
+              <Button
+                variant="outlined"
+                sx={{ ml: 2, display: 'inline-block' }}
+                onClick={handleInitiate}
+              >
+                Initiate
+              </Button>
+            </List>
             <form onSubmit={handleSubmit(postComment)}>
               <Stack flexDirection={'row'} mt={2} gap={1}>
                 <TextField
