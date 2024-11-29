@@ -46,7 +46,6 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const username = sessionStorage.getItem('username');
   const token = sessionStorage.getItem('accessToken');
   const [meetingDetails, setMeetingDetails] = useState({});
-  const processes = [{ processName: 'manual_process_7' }];
   const formatDateTime = (dateString) => new Date(dateString).toLocaleString();
 
   const getDetails = async () => {
