@@ -109,6 +109,7 @@ const MeetingManager = () => {
 
       socketRef.current.on('message', async (data) => {
         const { user, text } = data;
+        console.log('message');
         setChatMessages((prev) => [...prev, text]);
       });
 
@@ -505,6 +506,31 @@ const MeetingManager = () => {
   const parti = Object.keys(peers)?.find(
     (participant) => peers[participant]?.name == pinned,
   );
+
+  // chat messages get
+  const getDetails = async () => {
+    const url = backendUrl + `/getMeetingDetails/${meetingId}`;
+    try {
+      const res = await axios({
+        method: 'get',
+        url: url,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setChatMessages(
+        res?.data?.meetingDetails?.comments?.map((chat) => ({
+          text: chat.comment,
+          sender: chat.commentor,
+        })),
+      );
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    if (meetingId && showChat) {
+      getDetails();
+    }
+  }, [showChat]);
   return (
     <div>
       {!inRoom ? (
@@ -604,6 +630,17 @@ const MeetingManager = () => {
                       objectFit: 'fill',
                     }}
                   />
+                  <Box
+                    position="absolute"
+                    bottom={0}
+                    left={0}
+                    width="100%"
+                    bgcolor="rgba(0,0,0,0.5)"
+                    color="#fff"
+                    p={0.5}
+                  >
+                    <Typography variant="subtitle2">Me</Typography>
+                  </Box>
                   {/* Camera Off Overlay */}
                   {!isVideoEnabled && (
                     <Box
