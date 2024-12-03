@@ -74,6 +74,7 @@ import { useQueryClient } from 'react-query';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { useForm } from 'react-hook-form';
 import Replacements from './Components/Replacements';
+import TopLoader from '../../common/Loader/TopLoader';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -760,11 +761,11 @@ export default function ViewProcess(props) {
           // Return the updated state
           return updatedProcessData;
         });
-        setSignLoading((value) => !value);
       }
     } catch (error) {
       console.log('error', error);
       toast.error(error.response.data.message);
+    } finally {
       setSignLoading(false);
     }
   };
@@ -1425,24 +1426,6 @@ export default function ViewProcess(props) {
                                       </p>
                                     </div>
                                   </Stack>
-                                  <>
-                                    {signLoading && (
-                                      <div
-                                        style={{
-                                          position: 'fixed',
-                                          zIndex: '999',
-                                          top: '50%',
-                                          left: '50%',
-                                          transform: 'translate(-50%, -50%)',
-                                        }}
-                                      >
-                                        <CircularProgress
-                                          color="inherit"
-                                          size={30}
-                                        />
-                                      </div>
-                                    )}
-                                  </>
                                 </Box>
                               );
                             })}
@@ -1614,24 +1597,6 @@ export default function ViewProcess(props) {
                                   </p>
                                 </div>
                               </Stack>
-                              <>
-                                {signLoading && (
-                                  <div
-                                    style={{
-                                      position: 'fixed',
-                                      zIndex: '999',
-                                      top: '50%',
-                                      left: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                    }}
-                                  >
-                                    <CircularProgress
-                                      color="inherit"
-                                      size={30}
-                                    />
-                                  </div>
-                                )}
-                              </>
                             </Box>
                           );
                         })}
@@ -2559,10 +2524,13 @@ export default function ViewProcess(props) {
                     PaperProps={{ elevation: 2 }}
                   >
                     <MenuItem
-                      disabled={itemName.split('.').pop().trim() === 'zip'}
+                      disabled={
+                        itemName.split('.').pop().trim() === 'zip' ||
+                        signLoading
+                      }
                       sx={{ gap: '5px' }}
                       onClick={() => {
-                        handleView(processData.documentsPath, itemName);
+                        handleView(fileToBeOperated?.details?.path, itemName);
                         handleClose();
                       }}
                     >
@@ -2570,7 +2538,10 @@ export default function ViewProcess(props) {
                       View
                     </MenuItem>
                     <MenuItem
-                      disabled={itemName?.split('.').pop().trim() === 'zip'}
+                      disabled={
+                        itemName?.split('.').pop().trim() === 'zip' ||
+                        signLoading
+                      }
                       sx={{ gap: '5px' }}
                       onClick={() => {
                         handleDownload(processData?.documentsPath, itemName);
@@ -2585,6 +2556,7 @@ export default function ViewProcess(props) {
                       onClick={() => {
                         handleOpenReplaceDialog();
                       }}
+                      disabled={signLoading}
                     >
                       <IconReplace />
                       Replace
@@ -2637,7 +2609,7 @@ export default function ViewProcess(props) {
                       disabled={itemName.split('.').pop().trim() === 'zip'}
                       sx={{ gap: '5px' }}
                       onClick={() => {
-                        handleView(processData.documentsPath, itemName);
+                        handleView(fileToBeOperated?.details?.path, itemName);
                         handleClose();
                       }}
                     >
@@ -3108,6 +3080,7 @@ export default function ViewProcess(props) {
               currentStep={processData?.currentStepNumber}
             />
           )}
+          {signLoading ? <TopLoader /> : null}
         </Stack>
       )}
     </>

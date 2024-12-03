@@ -26,12 +26,9 @@ import {
   Grid2,
 } from '@mui/material';
 import styles from './InitiateProcess.module.css';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-
 import * as Yup from 'yup';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-
 import { Typography } from '@mui/material';
 import { useState } from 'react';
 import { useRef } from 'react';
@@ -41,6 +38,7 @@ import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { InfoOutlined } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { IconTrash } from '@tabler/icons-react';
 
 const schema = Yup.object().shape({
   maxReceiverStepNumber: Yup.number()
@@ -76,7 +74,6 @@ export default function LabelBottomNavigation(props) {
   const [workNameError, setWorkNameError] = useState('');
   const [cabinetNoError, setCabinetNoError] = useState('');
   const [fileInputError, setFileInputError] = useState('');
-  const [fileData, setFileData] = useState([]);
   const [workName, setWorkName] = useState('');
   const [cabinetNo, setCabinetNo] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -89,20 +86,10 @@ export default function LabelBottomNavigation(props) {
   const decodedObject = decodeURIComponent(urlData);
   const [pathList, setPathList] = useState([]);
   const [remarks, setRemarks] = useState();
-  const [loading, setLoading] = useState(false);
   const [initiateProcessLoading, setInitiateProcessLoading] = useState(false);
   const [pathDetails, setPathDetails] = useState({ path: '', folderName: '' });
-  // const [selectedDepartment, setSelectedDepartment] = useState(
-  //   JSON.parse(decodedObject)
-  // );
-  // const {
-  //   selectedDepartment,
-  //   workFlow,
-  //   connectors,
-  //   setSelectedDepartment,
-  //   setWorkFlow,
-  //   setConnectors,
-  // } = sessionData();
+  var path;
+  const [path2, setPath2] = useState();
   const handleFileSelect = (e) => {
     const selected = e.target.files[0];
     if (selected && selected.type !== 'application/pdf') {
@@ -114,37 +101,6 @@ export default function LabelBottomNavigation(props) {
     }
   };
 
-  const handleFileAdd = () => {
-    setWorkNameError('');
-    setCabinetNoError('');
-    setFileInputError('');
-
-    if (workName.trim() === '') {
-      setWorkNameError('Work Name is required');
-    }
-
-    if (cabinetNo.trim() === '') {
-      setCabinetNoError('Cabinet Number is required');
-    }
-
-    if (!fileInputRef?.current?.files?.length) {
-      setFileInputError('Please select a file');
-      fileInputRef.current.value = null;
-    }
-    if (workName && cabinetNo && selectedFile) {
-      const newFile = {
-        file: selectedFile,
-        workName: workName,
-        cabinetNo: cabinetNo,
-      };
-      setFileData([...fileData, newFile]);
-
-      setWorkName('');
-      setCabinetNo('');
-      setSelectedFile(null);
-      fileInputRef.current.value = null;
-    }
-  };
   const navigate = useNavigate();
 
   const addProcess = async (
@@ -198,17 +154,11 @@ export default function LabelBottomNavigation(props) {
 
   const createFolder = async (department) => {
     try {
-      // let path = pathDetails.path
-      //   ? pathDetails.folderName
-      //     ? `${pathDetails.path}/${pathDetails.folderName}`
-      //     : pathDetails.path
-      //   : `../${department}`;
-
-      let path = `${pathDetails.path}/${pathDetails.folderName}`;
+      let folderPath = `${pathDetails.path}/${pathDetails.folderName}`;
       const response = await axios.post(
         backendUrl + '/createFolder',
         {
-          path: path,
+          path: folderPath,
         },
         {
           headers: {
@@ -216,107 +166,137 @@ export default function LabelBottomNavigation(props) {
           },
         },
       );
-      return path;
+      return folderPath;
     } catch (error) {
       console.error('unable to create folder at given path');
     }
   };
 
-  const setLoadingTrue = () => {
-    setLoading(true);
-  };
+  const [finalData, setFinalData] = useState([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const uploadDoc = async () => {
+    setUploadLoading(false);
+    // Clear previous errors
+    setWorkNameError('');
+    setCabinetNoError('');
+    setFileInputError('');
 
-  const setLoadingFalse = () => {
-    setLoading(false);
-  };
+    // Validate inputs
+    if (workName.trim() === '') {
+      setWorkNameError('Work Name is required');
+      setUploadLoading(false); // Stop loading
 
-  const handleInitiat = async (data) => {
-    setInitiateProcessLoading(true);
-    const url = backendUrl + '/getProcessDocumentName';
-    const filelist = fileData.map((item) => item.file);
-    const dummy = () => {};
-    let finalData = [];
+      return;
+    }
+    if (cabinetNo.trim() === '') {
+      setCabinetNoError('Cabinet Number is required');
+      setUploadLoading(false); // Stop loading
+      return;
+    }
+    if (!fileInputRef?.current?.files?.length) {
+      setFileInputError('Please select a file');
+      fileInputRef.current.value = null;
+      setUploadLoading(false); // Stop loading
+      return;
+    }
+
     try {
+      // Prepare necessary variables
       let department;
-      if (props.selectedDepartment.branch === 'headOffice') {
-        const [, outputString] =
-          props.selectedDepartment.department.split('headOffice_');
+      const { branch, department: deptName } = props.selectedDepartment;
+
+      if (branch === 'headOffice') {
+        const [, outputString] = deptName.split('headOffice_');
         department = outputString;
       } else {
-        department = props.selectedDepartment.branch;
+        department = branch;
       }
-      let path = `../${department}`;
+
+      // Determine the path
+      path = `../${department}`;
+      let ResPath;
       if (pathDetails.path && pathDetails.folderName) {
         path = await createFolder();
       } else if (pathDetails.path) {
         path = pathDetails.path;
-      } else {
-        path = `../${department}`;
       }
-      for (let i = 0; i < fileData.length; i++) {
-        let res = await axios.post(
-          url,
-          {
-            department: department,
-            workName: fileData[i].workName,
-            cabinetNo: fileData[i].cabinetNo,
+      setPath2(path)
+      // API call to generate document name
+      const url = `${backendUrl}/getProcessDocumentName`;
+      const response = await axios.post(
+        url,
+        {
+          department,
+          workName,
+          cabinetNo,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-            },
-          },
-        );
-        if (res.status !== 200) {
-          setInitiateProcessLoading(false);
-          toast.error('Not able to generate document name');
-          return;
-        }
-
-        let ext = filelist[i].name.split('.').pop();
-        // console.log(path + " path after all");
-        // return
-        try {
-          let data = await upload(
-            [filelist[i]],
-            `${path}`,
-            dummy,
-            `${res.data.name}.${ext}`,
-            true,
-          );
-          data = data[0];
-          if (data && typeof fileData[i] === 'object') {
-            const updatedFileItem = {
-              ...fileData[i],
-              documentId: data,
-            };
-            delete updatedFileItem.file;
-            finalData.push(updatedFileItem);
-          } else {
-            console.log('Error: data.id or filelist[i] is missing or invalid.');
-          }
-        } catch (error) {
-          console.log(error);
-          // console.error(error);
-          toast.error(
-            error?.response?.data?.message || 'Document upload error',
-          );
-          setInitiateProcessLoading(false);
-          return;
-        }
-      }
-      await addProcess(
-        finalData,
-        path,
-        data.remarks,
-        data.selectedStep,
-        data.maxReceiverStepNumber,
+        },
       );
-      setFileData([]);
+
+      if (response.status !== 200) {
+        toast.error('Unable to generate document name');
+        return;
+      }
+
+      // Upload the file
+      const ext = selectedFile.name.split('.').pop();
+      const uploadResult = await upload(
+        [selectedFile],
+        path,
+        () => {}, // Dummy callback
+        `${response.data.name}.${ext}`,
+        true,
+      );
+
+      if (uploadResult?.[0]) {
+        const uploadedData = uploadResult[0];
+
+        // Update finalData
+        setFinalData((prevData) => [
+          ...prevData,
+          {
+            workName,
+            path,
+            name: response.data.name,
+            cabinetNo,
+            documentId: uploadedData,
+          },
+        ]);
+
+        // Reset form
+        setWorkName('');
+        setCabinetNo('');
+        setSelectedFile(null);
+        fileInputRef.current.value = null;
+        toast.success('Document uploaded successfully');
+      } else {
+        throw new Error('File upload failed');
+      }
     } catch (error) {
-      toast.error('Unable to initiate process');
+      console.error(error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Error uploading document',
+      );
+    } finally {
+      setUploadLoading(false); // Stop loading
     }
-    setLoadingFalse();
+  };
+
+  const handleInitiat = async (data) => {
+    setInitiateProcessLoading(true);
+    await addProcess(
+      finalData,
+      path2,
+      data.remarks,
+      data.selectedStep,
+      data.maxReceiverStepNumber,
+    );
   };
   // modal for skip
   const openModal = () => {
@@ -335,10 +315,10 @@ export default function LabelBottomNavigation(props) {
   };
 
   const handleDeleteFile = (index) => {
-    if (index >= 0 && index < fileData.length) {
-      const updatedFileData = [...fileData];
+    if (index >= 0 && index < finalData.length) {
+      const updatedFileData = [...finalData];
       updatedFileData.splice(index, 1);
-      setFileData(updatedFileData);
+      setFinalData(updatedFileData);
     } else {
       console.log('Invalid index provided');
     }
@@ -400,6 +380,7 @@ export default function LabelBottomNavigation(props) {
                   fullWidth
                   variant="outlined"
                   label="File Path"
+                  disabled={uploadLoading}
                   name="path"
                   select
                   value={pathDetails.path}
@@ -420,7 +401,7 @@ export default function LabelBottomNavigation(props) {
                   label="Folder Name"
                   name="folderName"
                   value={pathDetails.folderName}
-                  disabled={!pathDetails.path}
+                  disabled={!pathDetails.path || uploadLoading}
                   onChange={(e) => {
                     const inputValue = e.target.value;
                     const isValidInput = /^[a-zA-Z0-9_\-()\[\]\s]*$/.test(
@@ -458,6 +439,7 @@ export default function LabelBottomNavigation(props) {
               fullWidth
               variant="outlined"
               label="Work Name"
+              disabled={uploadLoading}
               value={workName}
               error={!!workNameError}
               // helperText={workNameError}
@@ -479,6 +461,7 @@ export default function LabelBottomNavigation(props) {
               type="number"
               value={cabinetNo}
               error={!!cabinetNoError}
+              disabled={uploadLoading}
               inputProps={{ min: 1 }}
               onKeyDown={(e) => {
                 (e.key === 'e' ||
@@ -497,6 +480,7 @@ export default function LabelBottomNavigation(props) {
               id="fileInput"
               accept=".pdf" // Restrict to only accept PDF files
               onChange={handleFileSelect}
+              disabled={uploadLoading}
               style={{
                 border: `1px solid ${!fileInputError ? 'lightgray' : 'red'}`,
                 padding: '10px',
@@ -529,8 +513,13 @@ export default function LabelBottomNavigation(props) {
               </Alert>
             </div>
             <Box sx={{ alignSelf: 'center' }}>
-              <Button variant="outlined" onClick={handleFileAdd} sx={{ mt: 2 }}>
-                Add File
+              <Button
+                disabled={uploadLoading}
+                variant="outlined"
+                onClick={uploadDoc}
+                sx={{ mt: 2 }}
+              >
+                {uploadLoading ? <CircularProgress size={22} /> : 'Upload File'}
               </Button>
             </Box>
           </Box>
@@ -545,6 +534,7 @@ export default function LabelBottomNavigation(props) {
                   <TableCell className={styles.tableHeaderCell}>
                     File Name
                   </TableCell>
+                  <TableCell className={styles.tableHeaderCell}>Path</TableCell>
                   <TableCell className={styles.tableHeaderCell}>
                     Work Name
                   </TableCell>
@@ -557,21 +547,22 @@ export default function LabelBottomNavigation(props) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {fileData.length === 0 ? (
+                {finalData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
+                    <TableCell colSpan={5} align="center">
                       No data available
                     </TableCell>
                   </TableRow>
                 ) : (
-                  fileData.map((file, index) => (
+                  finalData.map((file, index) => (
                     <TableRow key={index}>
-                      <TableCell>{file.file.name}</TableCell>
-                      <TableCell>{file.workName}</TableCell>
-                      <TableCell>{file.cabinetNo}</TableCell>
+                      <TableCell>{file?.name}</TableCell>
+                      <TableCell>{file?.path}</TableCell>
+                      <TableCell>{file?.workName}</TableCell>
+                      <TableCell>{file?.cabinetNo}</TableCell>
                       <TableCell>
                         <IconButton onClick={() => handleDeleteFile(index)}>
-                          <DeleteOutlineIcon />
+                          <IconTrash color="red" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -596,9 +587,9 @@ export default function LabelBottomNavigation(props) {
                 <Typography
                   variant="h5"
                   sx={{
-                    color: '#333',
+                    color: 'white',
                     marginBottom: '10px',
-                    background: 'lightblue',
+                    background: 'var(--themeColor)',
                     width: '100%',
                     textAlign: 'center',
                     borderRadius: '5px',
@@ -850,7 +841,7 @@ export default function LabelBottomNavigation(props) {
               </Box>
             </div>
           </Modal>
-          {fileData.length > 0 && (
+          {finalData.length > 0 && (
             <Button
               variant="contained"
               onClick={
@@ -875,19 +866,6 @@ export default function LabelBottomNavigation(props) {
           )}
         </Stack>
         {/* </Paper> */}
-        {loading && (
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%,-50%)',
-              zIndex: '500',
-            }}
-          >
-            <CircularProgress color="inherit" size={30} />
-          </div>
-        )}
       </div>
     </Stack>
   );
