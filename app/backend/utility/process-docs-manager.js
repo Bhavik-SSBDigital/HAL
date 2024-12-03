@@ -53,19 +53,24 @@ export const get_documents_with_replacements = async (documents) => {
   const transformReplacements = transform_replacements(related_docs);
 
   const transformedActiveDocs = await Promise.all(
-    latestDocs.map((doc) => ({
-      workName: doc.workName,
-      cabinetNo: doc.cabinetNo,
-      rejection: doc.rejection || null, // Assuming rejection might not always exist
-      signedBy: doc.signedBy,
-      details: {
-        name: doc.details.name,
-        createdOn: doc.details.createdOn,
-        path: `..${doc.details.path.substring(19)}`,
-        _id: doc.details._id,
-        file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
-      },
-    }))
+    latestDocs.map(async (doc) => {
+      let path = doc.details.path.substring(19);
+      path = path.slice(0, path.lastIndexOf("/"));
+
+      return {
+        workName: doc.workName,
+        cabinetNo: doc.cabinetNo,
+        rejection: doc.rejection || null, // Assuming rejection might not always exist
+        signedBy: doc.signedBy,
+        details: {
+          name: doc.details.name,
+          createdOn: doc.details.createdOn,
+          path: path,
+          _id: doc.details._id,
+          file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
+        },
+      };
+    })
   );
 
   return {
@@ -88,34 +93,46 @@ const transform_replacements = (replacements) => {
       (doc) => doc.details._id.toString() !== latestDoc.details._id.toString()
     );
 
+    let latestDocPath = latestDoc.details.path.substring(19);
+    latestDocPath = latestDocPath.slice(0, latestDocPath.lastIndexOf("/"));
+
+    if (remainingDocs.length > 0) {
+      return {
+        ref: {
+          workName: latestDoc.workName,
+          cabinetNo: latestDoc.cabinetNo,
+          rejection: latestDoc.rejection || null,
+          signedBy: latestDoc.signedBy || [],
+          details: {
+            name: latestDoc.details.name,
+            path: latestDocPath,
+            createdOn: latestDoc.details.createdOn,
+            _id: latestDoc.details._id,
+            file_name: latestDoc.details.name,
+          },
+        },
+        replacements: remainingDocs.map((doc) => {
+
+           let path = doc.details.path.substring(19);
+          path = path.slice(0, path.lastIndexOf("/"));
+         return {
+          workName: doc.workName,
+          cabinetNo: doc.cabinetNo,
+          rejection: doc.rejection || null,
+          signedBy: doc.signedBy || [],
+          details: {
+            name: doc.details.name,
+            path: path,
+            createdOn: doc.details.createdOn,
+            _id: doc.details._id,
+            file_name: doc.details.name,
+          }
+          },
+        }),
+      };
+    } else {
+      return null;
+    }
     // Format the latest document (ref) and remaining documents (replacements)
-    return {
-      ref: {
-        workName: latestDoc.workName,
-        cabinetNo: latestDoc.cabinetNo,
-        rejection: latestDoc.rejection || null,
-        signedBy: latestDoc.signedBy || [],
-        details: {
-          name: latestDoc.details.name,
-          path: `..${latestDoc.details.path.substring(19)}`,
-          createdOn: latestDoc.details.createdOn,
-          _id: latestDoc.details._id,
-          file_name: latestDoc.details.name,
-        },
-      },
-      replacements: remainingDocs.map((doc) => ({
-        workName: doc.workName,
-        cabinetNo: doc.cabinetNo,
-        rejection: doc.rejection || null,
-        signedBy: doc.signedBy || [],
-        details: {
-          name: doc.details.name,
-          path: `..${doc.details.path.substring(19)}`,
-          createdOn: doc.details.createdOn,
-          _id: doc.details._id,
-          file_name: doc.details.name,
-        },
-      })),
-    };
   });
 };
