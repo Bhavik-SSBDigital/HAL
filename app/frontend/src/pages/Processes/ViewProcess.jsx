@@ -1603,7 +1603,10 @@ export default function ViewProcess(props) {
                       </Stack>
                     </Box>
                   </Box>
-                  <Replacements data={processData?.replacementsWithRef} />
+                  <Replacements
+                    data={processData?.replacementsWithRef}
+                    handleView={handleView}
+                  />
                   {(work === 'publish' ||
                     (work === '' && upload_Work?.work === 'publish')) &&
                     !processData.isInterBranchProcess &&

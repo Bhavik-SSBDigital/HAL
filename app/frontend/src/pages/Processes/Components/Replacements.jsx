@@ -12,13 +12,14 @@ import {
   IconButton,
   Collapse,
   Tooltip,
+  Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-export default function Replacements({ data }) {
+export default function Replacements({ data, handleView }) {
   const [openRows, setOpenRows] = React.useState({});
 
   const toggleRow = (index) => {
@@ -71,6 +72,13 @@ export default function Replacements({ data }) {
                   <IconButton onClick={() => toggleRow(index)}>
                     {openRows[index] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </IconButton>
+                  <Button
+                    onClick={() =>
+                      handleView(item.ref.details.path, item.ref.details.name)
+                    }
+                  >
+                    View
+                  </Button>
                 </TableCell>
               </TableRow>
 
