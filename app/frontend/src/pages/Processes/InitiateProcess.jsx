@@ -32,13 +32,17 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Typography } from '@mui/material';
 import { useState } from 'react';
 import { useRef } from 'react';
-import { upload } from '../../components/drop-file-input/FileUploadDownload';
+import {
+  download,
+  upload,
+} from '../../components/drop-file-input/FileUploadDownload';
 import { useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { InfoOutlined } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { IconTrash } from '@tabler/icons-react';
+import View from '../view/View';
 
 const schema = Yup.object().shape({
   maxReceiverStepNumber: Yup.number()
@@ -220,7 +224,7 @@ export default function LabelBottomNavigation(props) {
       } else if (pathDetails.path) {
         path = pathDetails.path;
       }
-      setPath2(path)
+      setPath2(path);
       // API call to generate document name
       const url = `${backendUrl}/getProcessDocumentName`;
       const response = await axios.post(
@@ -261,7 +265,7 @@ export default function LabelBottomNavigation(props) {
           {
             workName,
             path,
-            name: response.data.name,
+            name: `${response.data.name}.${ext}`,
             cabinetNo,
             documentId: uploadedData,
           },
@@ -361,6 +365,29 @@ export default function LabelBottomNavigation(props) {
   }, []);
   const username = sessionStorage.getItem('username');
 
+  // view file
+  const [fileView, setFileView] = useState();
+  const handleView = async (path, name, id) => {
+    try {
+      const fileData = await download(name, path, true);
+      if (fileData) {
+        setFileView({
+          url: fileData.data,
+          type: fileData.fileType,
+          fileId: id,
+        });
+      } else {
+        console.error('Invalid fileData:', fileData);
+        toast.error('Invalid file data.');
+      }
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      toast.error('Unable to view the file.');
+    }
+  };
+  const handleViewClose = () => {
+    setFileView(null);
+  };
   return (
     <Stack>
       <div style={{ width: '100%' }}>
@@ -541,6 +568,7 @@ export default function LabelBottomNavigation(props) {
                   <TableCell className={styles.tableHeaderCell}>
                     Cabinet Name
                   </TableCell>
+                  <TableCell className={styles.tableHeaderCell}>View</TableCell>
                   <TableCell className={styles.tableHeaderCell}>
                     Remove
                   </TableCell>
@@ -560,6 +588,15 @@ export default function LabelBottomNavigation(props) {
                       <TableCell>{file?.path}</TableCell>
                       <TableCell>{file?.workName}</TableCell>
                       <TableCell>{file?.cabinetNo}</TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() =>
+                            handleView(file?.path, file?.name, file?.documentId)
+                          }
+                        >
+                          View
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         <IconButton onClick={() => handleDeleteFile(index)}>
                           <IconTrash color="red" />
@@ -867,6 +904,17 @@ export default function LabelBottomNavigation(props) {
         </Stack>
         {/* </Paper> */}
       </div>
+      {fileView && (
+        <View
+          docu={fileView}
+          workflow={props.selectedDepartment.workFlow}
+          setFileView={setFileView}
+          handleViewClose={handleViewClose}
+          // maxReceiverStepNumber={processData?.maxReceiverStepNumber}
+          processId={''}
+          currentStep={1}
+        />
+      )}
     </Stack>
   );
 }
