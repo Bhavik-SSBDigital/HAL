@@ -52,18 +52,21 @@ export const get_documents_with_replacements = async (documents) => {
 
   const transformReplacements = transform_replacements(related_docs);
 
-  const transformedActiveDocs = latestDocs.map((doc) => ({
-    workName: doc.workName,
-    cabinetNo: doc.cabinetNo,
-    rejection: doc.rejection || null, // Assuming rejection might not always exist
-    signedBy: doc.signedBy,
-    details: {
-      name: doc.details.name,
-      createdOn: doc.details.createdOn,
-      _id: doc.details._id,
-      file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
-    },
-  }));
+  const transformedActiveDocs = await Promise.all(
+    latestDocs.map((doc) => ({
+      workName: doc.workName,
+      cabinetNo: doc.cabinetNo,
+      rejection: doc.rejection || null, // Assuming rejection might not always exist
+      signedBy: doc.signedBy,
+      details: {
+        name: doc.details.name,
+        createdOn: doc.details.createdOn,
+        path: `..${doc.details.path.substring(19)}`,
+        _id: doc.details._id,
+        file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
+      },
+    }))
+  );
 
   return {
     replacementsWithRef: transformReplacements,
@@ -94,6 +97,7 @@ const transform_replacements = (replacements) => {
         signedBy: latestDoc.signedBy || [],
         details: {
           name: latestDoc.details.name,
+          path: `..${latestDoc.details.path.substring(19)}`,
           createdOn: latestDoc.details.createdOn,
           _id: latestDoc.details._id,
           file_name: latestDoc.details.name,
@@ -106,6 +110,7 @@ const transform_replacements = (replacements) => {
         signedBy: doc.signedBy || [],
         details: {
           name: doc.details.name,
+          path: `..${doc.details.path.substring(19)}`,
           createdOn: doc.details.createdOn,
           _id: doc.details._id,
           file_name: doc.details.name,
