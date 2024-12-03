@@ -910,7 +910,7 @@ export default function LabelBottomNavigation(props) {
           workflow={props.selectedDepartment.workFlow}
           setFileView={setFileView}
           handleViewClose={handleViewClose}
-          // maxReceiverStepNumber={processData?.maxReceiverStepNumber}
+          maxReceiverStepNumber={props?.selectedDepartment?.workFlow?.length}
           processId={''}
           currentStep={1}
         />

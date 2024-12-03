@@ -31,6 +31,7 @@ function PdfContainer({
   processId,
   currentStep,
 }) {
+  console.log(workflow);
   const username = sessionStorage.getItem('username');
   const initiator = sessionStorage.getItem('initiator') == 'true';
   const [numPages, setNumPages] = useState(null);
