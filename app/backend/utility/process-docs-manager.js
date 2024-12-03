@@ -112,22 +112,21 @@ const transform_replacements = (replacements) => {
           },
         },
         replacements: remainingDocs.map((doc) => {
-
-           let path = doc.details.path.substring(19);
+          let path = doc.details.path.substring(19);
           path = path.slice(0, path.lastIndexOf("/"));
-         return {
-          workName: doc.workName,
-          cabinetNo: doc.cabinetNo,
-          rejection: doc.rejection || null,
-          signedBy: doc.signedBy || [],
-          details: {
-            name: doc.details.name,
-            path: path,
-            createdOn: doc.details.createdOn,
-            _id: doc.details._id,
-            file_name: doc.details.name,
-          }
-          },
+          return {
+            workName: doc.workName,
+            cabinetNo: doc.cabinetNo,
+            rejection: doc.rejection || null,
+            signedBy: doc.signedBy || [],
+            details: {
+              name: doc.details.name,
+              path: path,
+              createdOn: doc.details.createdOn,
+              _id: doc.details._id,
+              file_name: doc.details.name,
+            },
+          };
         }),
       };
     } else {
