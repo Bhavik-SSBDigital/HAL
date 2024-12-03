@@ -54,10 +54,10 @@ export default function Replacements({ data, handleView }) {
           {data.map((item, index) => (
             <React.Fragment key={index}>
               <TableRow>
-                <TableCell>{item.ref.details.name}</TableCell>
-                <TableCell>{item.ref.cabinetNo}</TableCell>
+                <TableCell>{item?.ref?.details?.name}</TableCell>
+                <TableCell>{item?.ref?.cabinetNo}</TableCell>
                 <TableCell>
-                  {item.ref.rejection ? (
+                  {item?.ref?.rejection ? (
                     <Tooltip title="Rejected">
                       <ReportProblemIcon color="error" />
                     </Tooltip>
@@ -67,14 +67,17 @@ export default function Replacements({ data, handleView }) {
                     </Tooltip>
                   )}
                 </TableCell>
-                <TableCell>{item.ref.rejection?.reason || '-'}</TableCell>
+                <TableCell>{item?.ref?.rejection?.reason || '-'}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => toggleRow(index)}>
                     {openRows[index] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </IconButton>
                   <Button
                     onClick={() =>
-                      handleView(item.ref.details.path, item.ref.details.name)
+                      handleView(
+                        item?.ref?.details?.path,
+                        item?.ref?.details?.name,
+                      )
                     }
                   >
                     View
@@ -94,9 +97,9 @@ export default function Replacements({ data, handleView }) {
                         gutterBottom
                         component="div"
                       >
-                        Replacements
+                        Old Versions
                       </Typography>
-                      {item.replacements.length > 0 ? (
+                      {item?.replacements?.length > 0 ? (
                         <Table
                           size="small"
                           aria-label="replacements"
@@ -110,6 +113,9 @@ export default function Replacements({ data, handleView }) {
                               <TableCell>
                                 <b>Cabinet No</b>
                               </TableCell>
+                              <TableCell>
+                                <b>Actions</b>
+                              </TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -119,6 +125,18 @@ export default function Replacements({ data, handleView }) {
                                   {replacement.details.name}
                                 </TableCell>
                                 <TableCell>{replacement.cabinetNo}</TableCell>
+                                <TableCell>
+                                  <Button
+                                    onClick={() =>
+                                      handleView(
+                                        replacement?.details?.path,
+                                        replacement?.details?.name,
+                                      )
+                                    }
+                                  >
+                                    View
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
