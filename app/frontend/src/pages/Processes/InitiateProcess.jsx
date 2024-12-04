@@ -179,7 +179,7 @@ export default function LabelBottomNavigation(props) {
   const [finalData, setFinalData] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
   const uploadDoc = async () => {
-    setUploadLoading(false);
+    setUploadLoading(true);
     // Clear previous errors
     setWorkNameError('');
     setCabinetNoError('');
