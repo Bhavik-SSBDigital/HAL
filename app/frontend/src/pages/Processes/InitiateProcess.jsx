@@ -913,6 +913,7 @@ export default function LabelBottomNavigation(props) {
           maxReceiverStepNumber={props?.selectedDepartment?.workFlow?.length}
           processId={''}
           currentStep={1}
+          controls={true}
         />
       )}
     </Stack>
