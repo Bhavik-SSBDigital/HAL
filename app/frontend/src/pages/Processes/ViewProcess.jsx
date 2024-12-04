@@ -2488,7 +2488,7 @@ export default function ViewProcess(props) {
                       USERNAMES
                     </Typography>
                     {signedBy?.length ? (
-                      <Typography textAlign="center" variant="h6">
+                      <Typography textAlign="center" variant="body2">
                         {signedBy.map((item) => item.username).join(', ')}
                       </Typography>
                     ) : (
