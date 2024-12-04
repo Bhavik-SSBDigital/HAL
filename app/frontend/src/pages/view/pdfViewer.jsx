@@ -30,8 +30,8 @@ function PdfContainer({
   maxReceiverStepNumber,
   processId,
   currentStep,
+  controls,
 }) {
-  console.log(workflow);
   const username = sessionStorage.getItem('username');
   const initiator = sessionStorage.getItem('initiator') == 'true';
   const [numPages, setNumPages] = useState(null);
@@ -458,39 +458,41 @@ function PdfContainer({
         userSelect: mode === 'signSelection' ? 'none' : 'auto',
       }}
     >
-      <Box
-        sx={{
-          background: 'white',
-          position: 'sticky',
-          top: '2px',
-          zIndex: 999,
-          padding: '10px',
-          mb: 1,
-        }}
-      >
+      {controls ? (
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
+            background: 'white',
+            position: 'sticky',
+            top: '2px',
+            zIndex: 999,
+            padding: '10px',
+            mb: 1,
           }}
         >
-          <Button
-            variant={mode === 'textSelection' ? 'contained' : 'outlined'}
-            onClick={() => setMode('textSelection')}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
           >
-            Text Selection Mode
-          </Button>
-
-          {initiator && documentId ? (
             <Button
-              variant={mode === 'signSelection' ? 'contained' : 'outlined'}
-              onClick={() => setMode('signSelection')}
+              variant={mode === 'textSelection' ? 'contained' : 'outlined'}
+              onClick={() => setMode('textSelection')}
             >
-              Sign Selection Mode
+              Text Selection Mode
             </Button>
-          ) : null}
+
+            {initiator && documentId ? (
+              <Button
+                variant={mode === 'signSelection' ? 'contained' : 'outlined'}
+                onClick={() => setMode('signSelection')}
+              >
+                Sign Selection Mode
+              </Button>
+            ) : null}
+          </Box>
         </Box>
-      </Box>
+      ) : null}
       <Document
         file={url}
         onLoadSuccess={onDocumentLoadSuccess}

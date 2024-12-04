@@ -1339,6 +1339,7 @@ export default function ShowFolder(props) {
                   docu={fileView}
                   setFileView={setFileView}
                   handleViewClose={handleViewClose}
+                  controls={false}
                 />
               )}
             </Stack>

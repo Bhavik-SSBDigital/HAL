@@ -3081,6 +3081,7 @@ export default function ViewProcess(props) {
               maxReceiverStepNumber={processData?.maxReceiverStepNumber}
               processId={processData?._id}
               currentStep={processData?.currentStepNumber}
+              controls={true}
             />
           )}
           {signLoading ? <TopLoader /> : null}
