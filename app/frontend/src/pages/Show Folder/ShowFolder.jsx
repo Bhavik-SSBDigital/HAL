@@ -1396,15 +1396,7 @@ export default function ShowFolder(props) {
           <IconScissors />
           cut
         </MenuItem>
-        {/* <hr /> */}
-        {/* <MenuItem
-                                        sx={{ gap: '5px' }}
-                                        onClick={deleteModalOpen}
-                                        disabled={properties?.isInvolvedInProcess}
-                                    >
-                                        <IconTrash />
-                                        delete
-                                    </MenuItem> */}
+
         {/* <hr /> */}
         <MenuItem
           sx={{ gap: '5px', width: '250px' }}
