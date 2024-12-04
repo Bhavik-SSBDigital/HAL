@@ -37,7 +37,6 @@ function PdfContainer({
   const [numPages, setNumPages] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [coordinates, setCoordinates] = useState([]);
-  const [userSign, setUserSign] = useState();
   const [openRemarksMenu, setOpenRemarksMenu] = useState(false);
   const [remark, setRemark] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -319,11 +318,6 @@ function PdfContainer({
                   backgroundColor: 'rgba(255, 0, 0, 0.3)',
                 }}
               >
-                <img
-                  src={userSign}
-                  style={{ objectFit: 'fill', height: '100%', width: '100%' }}
-                  alt="signature"
-                />
                 {initiator ? (
                   <Button
                     onClick={() => removeSignArea(index)}
@@ -390,34 +384,10 @@ function PdfContainer({
       console.log(error?.response?.data?.message || error?.message);
     }
   };
-  const fetchSingature = async () => {
-    try {
-      const url = backendUrl + '/getUserSignature';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: ` Bearer ${accessToken}`,
-        },
-        responseType: 'blob',
-      });
 
-      if (response.status === 200) {
-        const blob = new Blob([response.data], {
-          type: response.headers['content-type'],
-        });
-        const objectURL = URL.createObjectURL(blob);
-        setUserSign(objectURL);
-      } else {
-        console.error('Error fetching profile picture:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching profile picture:', error.message);
-    }
-  };
   useEffect(() => {
     getFileHighlights();
     getSignCoordinates();
-    fetchSingature();
   }, []);
   const submitRemarks = async () => {
     if (!remark) {
