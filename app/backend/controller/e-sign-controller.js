@@ -17,6 +17,7 @@ import sharp from "sharp";
 import LogWork from "../models/logWork.js";
 import { promisify } from "util";
 import { is_process_forwardable } from "./process-utility-controller.js";
+import { get_sign_coordinates_for_specific_step_in_process } from "./sign-handlers/sign-coordinates-handler.js";
 const execPromise = promisify(exec);
 
 const envVariables = process.env;
@@ -72,6 +73,7 @@ function formatDate(timestamp) {
 }
 export const sign_document = async (req, res, next) => {
   try {
+    // getting the token to authorize the user
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
     if (userData === "Unauthorized") {
@@ -138,6 +140,7 @@ export const sign_document = async (req, res, next) => {
     const process = await Process.findById({ _id: processId });
 
     let noOfSigns = 0;
+    let currentStepNumber;
 
     let foundDocument;
     if (process) {
@@ -155,6 +158,8 @@ export const sign_document = async (req, res, next) => {
           const ids = process.documents.map((item) =>
             item.documentId.toString()
           );
+
+          currentStepNumber = process.currentStepNumber;
         } else {
           if (connectorIndex === -1) {
             throw new Error("error finding connector");
@@ -162,12 +167,15 @@ export const sign_document = async (req, res, next) => {
             foundDocument = process.connectors[connectorIndex].documents.find(
               (doc) => doc.documentId.toString() === documentId
             );
+            currentStepNumber =
+              process.connectors[connectorIndex].currentStepNumber;
           }
         }
       } else {
         foundDocument = process.documents.find(
           (doc) => doc.documentId.toString() === documentId
         );
+        currentStepNumber = process.currentStepNumber;
       }
 
       if (foundDocument) {
@@ -175,12 +183,13 @@ export const sign_document = async (req, res, next) => {
         noOfSigns = foundDocument.signedBy.length;
         // Save the updated process document
       } else {
-        return res.status(400).json({
-          message: "error signing document as document doesn't exist",
+        return res.status(404).json({
+          message:
+            "error signing document as document doesn't exist in process",
         });
       }
     } else {
-      return res.status(400).json({
+      return res.status(404).json({
         message:
           "error signing document as process containing document doesn't exist",
       });
@@ -224,6 +233,85 @@ export const sign_document = async (req, res, next) => {
     const lastPage = pages[lastPageIndex];
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
+    console.log("found document", foundDocument);
+
+    const coordinates = await get_sign_coordinates_for_specific_step_in_process(
+      foundDocument.documentId,
+      currentStepNumber
+    );
+
+    console.log("coordinates", coordinates);
+
+    if (coordinates.length > 0) {
+      const absDocumentPath = path.join(__dirname, documentPath);
+      await print_signature_at_coordinates(
+        pdfDoc,
+        coordinates,
+        jpegImagePath,
+        signature,
+        helveticaFont,
+        absDocumentPath
+      );
+    } else {
+      console.log("reached wrong");
+
+      await print_signature_after_content_on_the_last_page(
+        pdfDoc,
+        lastPage,
+        documentPath,
+        jpegImagePath,
+        signature,
+        helveticaFont
+      );
+    }
+
+    await process.save();
+
+    const logWork = await LogWork.findOne({
+      user: new ObjectId(userData._id),
+      process: new ObjectId(processId),
+    });
+
+    if (logWork) {
+      const signedDocuments = logWork.signedDocuments || [];
+      logWork.signedDocuments = [...signedDocuments, new ObjectId(documentId)];
+      await logWork.save();
+    } else {
+      const logWorkData = {
+        process: new ObjectId(processId),
+        user: new ObjectId(userData._id),
+        signedDocuments: [new ObjectId(documentId)],
+      };
+
+      const logWorkDataObj = new LogWork(logWorkData);
+      await logWorkDataObj.save();
+    }
+
+    const process_result = await is_process_forwardable(process, userData._id);
+
+    return res.status(200).json({
+      message: "document signed successfully",
+      isForwardable: process_result.isForwardable,
+      isRevertable: process_result.isRevertable,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+};
+
+async function print_signature_after_content_on_the_last_page(
+  pdfDoc,
+  lastPage,
+  documentPath,
+  jpegImagePath,
+  signature,
+  helveticaFont
+) {
+  try {
+    // Added code block at the start
     const pythonScriptPath = path.join(
       __dirname,
       "../../",
@@ -236,7 +324,7 @@ export const sign_document = async (req, res, next) => {
       __dirname,
       "../../",
       "support",
-      "newenv",
+      "venv",
       "bin",
       "python"
     );
@@ -257,6 +345,8 @@ export const sign_document = async (req, res, next) => {
 
     let num = Number(scriptOutput.last_y);
 
+    console.log("num", num);
+
     let page_height = Number(scriptOutput.height);
 
     page_height =
@@ -264,16 +354,14 @@ export const sign_document = async (req, res, next) => {
         ? page_height
         : lastPage.getHeight();
 
-    // num = (lastPage.getHeight() * num) / 100;
-
     const bottomMargin =
-      // typeof Number(scriptOutput) === "number"
       typeof num === "number" && !isNaN(num)
         ? num > page_height
           ? 0
           : page_height - num - 70
         : 0;
 
+    // Original code block (slightly adjusted)
     const availableSpace = bottomMargin;
 
     const signatureImagePath = jpegImagePath;
@@ -285,7 +373,7 @@ export const sign_document = async (req, res, next) => {
       signedByTitleFontSize
     );
     const signatureImageWidth = 200;
-    const distanceFromSignedByTitle = 10; // Reduced the gap
+    const distanceFromSignedByTitle = 10;
     const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
 
     const splitText = (text, font, fontSize, maxWidth) => {
@@ -357,7 +445,7 @@ export const sign_document = async (req, res, next) => {
         drawTextWithUnderline(
           newPage,
           line,
-          50, // Adjusted the x-coordinate to start from the left margin
+          50,
           yCoordinate - 15 - (index + 1) * 20,
           helveticaFont,
           12
@@ -383,7 +471,7 @@ export const sign_document = async (req, res, next) => {
         drawTextWithUnderline(
           lastPage,
           line,
-          50, // Adjusted the x-coordinate to start from the left margin
+          50,
           yCoordinate - 15 - (index + 1) * 20,
           helveticaFont,
           12
@@ -393,43 +481,123 @@ export const sign_document = async (req, res, next) => {
 
     const pdfBytes = await pdfDoc.save();
     await fs.writeFile(absDocumentPath, pdfBytes);
+  } catch (error) {
+    console.error(
+      "Error in print_signature_after_content_on_the_last_page:",
+      error.message
+    );
+    throw error; // Re-throw the error for higher-level handling
+  }
+}
 
-    await process.save();
+async function print_signature_at_coordinates(
+  pdfDoc,
+  coordinates, // Array of coordinate objects { page, x, y, width, height }
+  jpegImagePath,
+  signature,
+  helveticaFont,
+  absDocumentPath
+) {
+  try {
+    const signatureImagePath = jpegImagePath;
+    const signatureImageBytes = await fs.readFile(signatureImagePath);
+    const signedByTitle = "Signed By :";
+    const signedByTitleFontSize = 12;
+    const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
 
-    const logWork = await LogWork.findOne({
-      user: new ObjectId(userData._id),
-      process: new ObjectId(processId),
-    });
+    const drawTextWithUnderline = (page, text, x, y, font, fontSize) => {
+      page.drawText(text, {
+        x: x,
+        y: y,
+        size: fontSize,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawLine({
+        start: { x: x, y: y - 5 },
+        end: { x: x + font.widthOfTextAtSize(text, fontSize), y: y - 5 },
+        color: rgb(0, 0, 0),
+        thickness: 1,
+      });
+    };
 
-    if (logWork) {
-      const signedDocuments = logWork.signedDocuments || [];
-      logWork.signedDocuments = [...signedDocuments, new ObjectId(documentId)];
-      await logWork.save();
-    } else {
-      const logWorkData = {
-        process: new ObjectId(processId),
-        user: new ObjectId(userData._id),
-        signedDocuments: [new ObjectId(documentId)],
+    for (const coord of coordinates) {
+      const page = pdfDoc.getPage(coord.page - 1); // Convert 1-based index to 0-based
+      const { x, y, width, height } = coord;
+      console.log("x", x, "y", y, "width", width, "height", height);
+
+      // Draw "Signed By:" title
+      const signedByTitleWidth = helveticaFont.widthOfTextAtSize(
+        signedByTitle,
+        signedByTitleFontSize
+      );
+
+      // page.drawText(signedByTitle, {
+      //   x: x,
+      //   y: y + height + 15,
+      //   size: signedByTitleFontSize,
+      //   font: helveticaFont,
+      //   color: rgb(0, 0, 0),
+      // });
+
+      // Draw signature image
+      page.drawImage(signatureImage, {
+        x: x,
+        y: page.getHeight() - y - height,
+        width: width,
+        height: height,
+      });
+
+      // Split the signature text into lines to fit the width of the page
+      const splitText = (text, font, fontSize, maxWidth) => {
+        const words = text.split(" ");
+        let lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+          const word = words[i];
+          const lineWidth = font.widthOfTextAtSize(
+            currentLine + " " + word,
+            fontSize
+          );
+          if (lineWidth < maxWidth) {
+            currentLine += " " + word;
+          } else {
+            lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+        lines.push(currentLine);
+        return lines;
       };
 
-      const logWorkDataObj = new LogWork(logWorkData);
-      await logWorkDataObj.save();
+      const textLines = splitText(
+        signature,
+        helveticaFont,
+        12,
+        page.getWidth() - x - 50
+      );
+
+      // Draw the text lines with underline
+      // textLines.forEach((line, index) => {
+      //   drawTextWithUnderline(
+      //     page,
+      //     line,
+      //     x,
+      //     y - (index + 1) * 20,
+      //     helveticaFont,
+      //     12
+      //   );
+      // });
     }
 
-    const process_result = await is_process_forwardable(process, userData._id);
-
-    return res.status(200).json({
-      message: "document signed successfully",
-      isForwardable: process_result.isForwardable,
-      isRevertable: process_result.isRevertable,
-    });
+    const pdfBytes = await pdfDoc.save();
+    await fs.writeFile(absDocumentPath, pdfBytes);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Internal Server Error",
-    });
+    console.error("Error in print_signature_at_coordinates:", error.message);
+    throw error; // Re-throw the error for higher-level handling
   }
-};
+}
 
 export const reject_document = async (req, res, next) => {
   try {
