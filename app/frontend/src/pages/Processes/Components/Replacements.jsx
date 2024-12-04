@@ -40,7 +40,7 @@ export default function Replacements({ data, handleView }) {
               <b>Cabinet No</b>
             </TableCell>
             <TableCell>
-              <b>Rejected</b>
+              <b>Status</b>
             </TableCell>
             <TableCell>
               <b>Rejection Reason</b>
