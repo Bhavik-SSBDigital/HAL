@@ -2414,8 +2414,26 @@ export const get_process_document_name = async (req, res, next) => {
       });
     }
 
-    const currentYear = new Date().getFullYear();
-    let name = `${req.body.department}_${req.body.workName}_${currentYear}_CB${req.body.cabinetNo}`;
+    const { cabinetNo, workName, fileName } = req.body;
+    const year = req.body.year || new Date().getFullYear();
+    let name = `${req.body.department}`;
+
+    if (fileName) {
+      name += `_${fileName}`;
+    }
+
+    if (workName) {
+      name += `_${workName}`;
+    }
+
+    if (year) {
+      name += `_${year}`;
+    }
+
+    if (cabinetNo) {
+      name += `_CB${cabinetNo}`;
+    }
+
     name = name.toLowerCase();
 
     const regexPattern = new RegExp(`^${name}`);
@@ -2431,6 +2449,7 @@ export const get_process_document_name = async (req, res, next) => {
       name: name,
     });
   } catch (error) {
+    console.log("error getting name of the document", error);
     return res.status(500).json({
       message: "error getting name of the document",
     });

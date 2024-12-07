@@ -15,6 +15,7 @@ import archiver from "archiver";
 import { promisify } from "util";
 import { pipeline } from "stream";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import Department from "../models/department.js";
 
 const pipelineAsync = promisify(pipeline);
 // Now you can access the desired functions
@@ -67,6 +68,10 @@ export const file_upload = async (req, res) => {
     const totalChunks = parseInt(req.headers["x-total-chunks"]);
     const chunkSize = parseInt(req.headers["x-chunk-size"]);
     let isInvolvedInProcess = req.headers["x-involved-in-process"];
+    let departmentName = req.headers["x-department-name"];
+    let workName = req.headers["x-work-name"];
+    let cabinetNo = req.headers["x-cabinet-no"];
+    let year = req.headers["x-year"];
 
     isInvolvedInProcess =
       isInvolvedInProcess === "undefined" || undefined
@@ -114,7 +119,11 @@ export const file_upload = async (req, res) => {
             relativePath,
             userData,
             false,
-            isInvolvedInProcess
+            isInvolvedInProcess,
+            cabinetNo,
+            workName,
+            year,
+            departmentName
           );
           await createUserPermissions(newDocumentId, userData.username, true);
           const parts = relativePath.split("/");
@@ -805,13 +814,26 @@ const storeDocumentDetailsToDatabase = async (
   path,
   userData,
   isProject,
-  isInvolvedInProcess
+  isInvolvedInProcess,
+  cabinetNo,
+  workName,
+  year,
+  departmentName
 ) => {
   try {
     // Create a new document instance
     const foundUser = await User.findOne({
       username: userData.username,
     }).exec();
+
+    let department;
+
+    if (departmentName) {
+      department = await Department.findOne({ name: departmentName }).select(
+        "_id"
+      );
+      department = department._id;
+    }
     const newDocument = isProject
       ? new Document({
           name: name,
@@ -822,6 +844,10 @@ const storeDocumentDetailsToDatabase = async (
           isProject: isProject,
           isInvolvedInProcess:
             isInvolvedInProcess === undefined ? false : isInvolvedInProcess,
+          cabinetNo: cabinetNo,
+          workName: workName,
+          year: year,
+          department: department,
         })
       : new Document({
           name: name,
@@ -832,6 +858,10 @@ const storeDocumentDetailsToDatabase = async (
           isProject: isProject,
           isInvolvedInProcess:
             isInvolvedInProcess === undefined ? false : isInvolvedInProcess,
+          cabinetNo: cabinetNo,
+          workName: workName,
+          year: year,
+          department: department,
         });
     const savedDocument = await newDocument.save();
 
@@ -844,6 +874,7 @@ const storeDocumentDetailsToDatabase = async (
 
 export const createUserPermissions = async (documentId, username, writable) => {
   try {
+    console.log("reached create_user permission funciton");
     const updatedUser = writable
       ? await User.findOneAndUpdate(
           { username: username },
@@ -865,7 +896,7 @@ export const createUserPermissions = async (documentId, username, writable) => {
   }
 };
 
-const storeChildIdInParentDocument = async (parentPath, childId) => {
+export const storeChildIdInParentDocument = async (parentPath, childId) => {
   try {
     const updatedDocument = await Document.findOneAndUpdate(
       { path: parentPath },

@@ -295,10 +295,38 @@ export const get_users = async (req, res) => {
 
 export const get_usernames = async (req, res) => {
   try {
-    const users = await User.find({}, "username"); // Fetch all users and only return the 'username' field
-    const usernames = users.map((user) => user.username); // Extract usernames from the user objects
+    let users = await User.find({}, "username role branch"); // Fetch all users and only return the 'username' field
 
-    res.status(200).json({ usernames });
+    users = await Promise.all(
+      users.map(async (user) => {
+        let role = user.role;
+
+        role = await Role.findOne({ _id: role }).select("role");
+
+        if (user.username === "admin") {
+          role = "admin";
+        } else {
+          role = role.role;
+        }
+
+        let branch = user.branch;
+        branch = await Branch.findOne({ _id: branch }).select("name");
+
+        if (user.username === "admin") {
+          branch = "headOffice";
+        } else {
+          branch = branch.name;
+        }
+
+        return {
+          role: role,
+          branch: branch,
+          username: user.username,
+        };
+      })
+    ); // Extract usernames from the user objects
+
+    res.status(200).json({ users: users });
   } catch (error) {
     console.error("Error fetching usernames:", error);
     res.status(500).json({ error: "Internal server error" });
