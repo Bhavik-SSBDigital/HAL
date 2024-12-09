@@ -21,9 +21,13 @@ import {
   Tab,
   Divider,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Autocomplete,
 } from '@mui/material';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DropFileInput from '../../components/drop-file-input/DropFileInput';
@@ -41,7 +45,10 @@ import {
 
 import imageSrc from '../../assets/images/folder.png';
 
-import { download } from '../../components/drop-file-input/FileUploadDownload';
+import {
+  download,
+  upload,
+} from '../../components/drop-file-input/FileUploadDownload';
 import styles from './ShowFolder.module.css';
 import moment from 'moment';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
@@ -66,14 +73,17 @@ import {
   IconTrash,
   IconTool,
   IconTransfer,
+  IconCircleCheck,
 } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IconFolderPlus } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import { IconUpload } from '@tabler/icons-react';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import { Controller, useForm } from 'react-hook-form';
 
 export default function ShowFolder(props) {
+  const token = sessionStorage.getItem('accessToken');
   const isKeeperOfPhysicalDocs =
     sessionStorage.getItem('isKeeperOfPhysicalDocs') == 'true';
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -121,7 +131,6 @@ export default function ShowFolder(props) {
   const [openTooltip, setOpenToolTip] = useState(false);
 
   const getData = async () => {
-    const accessToken = sessionStorage.getItem('accessToken');
     try {
       const { data } = await axios.post(
         url,
@@ -130,7 +139,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
             // 'Content-Type': 'multipart/form-data'
           },
         },
@@ -147,13 +156,7 @@ export default function ShowFolder(props) {
       setError(error?.response?.data?.message);
     }
   };
-  useEffect(() => {
-    const checkPath = sessionStorage.getItem('path');
-    if (checkPath && checkPath !== pathValue) {
-      dispatch(onReload(checkPath));
-    }
-    setLoaded(true);
-  }, []);
+
   useEffect(() => {
     if (loaded && pathValue !== '..') {
       getData();
@@ -165,7 +168,6 @@ export default function ShowFolder(props) {
   const createFolder = async () => {
     setOpen(false);
     setLoading(true);
-    const accessToken = sessionStorage.getItem('accessToken');
 
     const response = await axios.post(
       backendUrl + '/createFolder',
@@ -174,7 +176,7 @@ export default function ShowFolder(props) {
       },
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
@@ -184,7 +186,7 @@ export default function ShowFolder(props) {
       setFileFolders((prev) => [
         ...prev,
         {
-          createdBy: accessToken,
+          createdBy: token,
           createdOn: currentDateTimeString,
           name: folderName,
           type: 'folder',
@@ -259,7 +261,6 @@ export default function ShowFolder(props) {
   };
   const handleDownloadFolder = async (path, name) => {
     const urlDownload = `${backendUrl}/downloadFolder`;
-    const accessToken = sessionStorage.getItem('accessToken');
 
     try {
       const response = await axios.post(
@@ -271,7 +272,7 @@ export default function ShowFolder(props) {
         {
           responseType: 'arraybuffer',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -348,7 +349,6 @@ export default function ShowFolder(props) {
   };
   const handleDelete = async (name) => {
     setLoading(true);
-    const accessToken = sessionStorage.getItem('accessToken');
     try {
       const res = await axios.post(
         `${backendUrl}/deleteFile`,
@@ -357,7 +357,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -384,7 +384,6 @@ export default function ShowFolder(props) {
     setIsContextMenuOpen(false);
     setLoading(true);
     try {
-      const accessToken = sessionStorage.getItem('accessToken');
       const copyCutUrl = `${backendUrl}/${
         method === 'copy' ? 'copyFile' : 'cutFile'
       }`;
@@ -397,7 +396,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -465,10 +464,9 @@ export default function ShowFolder(props) {
   const getBranches = async () => {
     try {
       const url = backendUrl + '/getAllBranches';
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(url, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setBranches(data.branches);
@@ -477,17 +475,13 @@ export default function ShowFolder(props) {
       console.error('unable to fetch branches');
     }
   };
-  useEffect(() => {
-    getBranches();
-  }, []);
   const getRoles = async (id) => {
     setFieldsLoading(true);
     const urlRole = backendUrl + '/getRolesInBranch/';
     try {
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(urlRole + `${id}`, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setRoles(data.roles);
@@ -501,7 +495,6 @@ export default function ShowFolder(props) {
     setFieldsLoading(true);
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
-      const accessToken = sessionStorage.getItem('accessToken');
       const { _id } = branches.find((item) => item.name === branchValue);
       const id = roles.find((item) => item.role === roleValue);
       const { data } = await axios.post(
@@ -512,7 +505,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -576,21 +569,24 @@ export default function ShowFolder(props) {
     setFieldsLoading('save');
     try {
       const url = backendUrl + '/borrowDocument';
-      const accessToken = sessionStorage.getItem('accessToken');
 
       const { data } = await axios.post(
         url,
         { ...transferData, documentId: properties.id },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
       setFileFolders((prev) =>
         prev.map((item) =>
           item.id == properties.id
-            ? { ...item, physicalHolder: transferData?.borrower }
+            ? {
+                ...item,
+                physicalHolder: transferData?.borrower,
+                isTransferable: false,
+              }
             : item,
         ),
       );
@@ -638,11 +634,11 @@ export default function ShowFolder(props) {
           },
           ['', ''],
         );
-        const truncatedName = `${baseName.slice(0, 5)}...${baseName.slice(-3)}`;
+        const truncatedName = `${baseName.slice(0, 8)}...${baseName.slice(-3)}`;
         return `${truncatedName}.${extension}`;
       } else {
         // Handle folder names
-        const truncatedName = `${fname.slice(0, 5)}...${fname.slice(-3)}`;
+        const truncatedName = `${fname.slice(0, 8)}...${fname.slice(-3)}`;
         return truncatedName;
       }
     }
@@ -660,7 +656,6 @@ export default function ShowFolder(props) {
             display: 'flex',
             gap: '3px',
             alignItems: 'center',
-            padding: '10px',
             justifyContent: 'center',
             borderRadius: '5px',
             background: '#4E327E',
@@ -706,21 +701,19 @@ export default function ShowFolder(props) {
               size="small"
               color="success"
               onClick={createFolder}
-              disabled={loading}
               sx={{
                 '&:hover': {
                   backgroundColor: '#0056b3',
                 },
               }}
             >
-              {loading ? <CircularProgress size={22} /> : 'Create'}
+              Create
             </Button>
             <Button
               variant="contained"
               size="small"
               onClick={() => setOpen(false)}
               color="error"
-              disabled={loading}
               sx={{
                 color: 'white',
                 '&:hover': {
@@ -845,6 +838,88 @@ export default function ShowFolder(props) {
       return true;
     }
   };
+
+  // render transfer and submit
+  const [userList, setUserList] = useState([]);
+  const [submitDocumentLoading, setSubmitDocumentLoading] = useState(false);
+  const [openSubmit, setOpenSubmit] = useState(false);
+  const [borrower, setBorrower] = useState('');
+  const returnDocument = async () => {
+    setSubmitDocumentLoading(true);
+    const url = backendUrl + '/returnDocument';
+    try {
+      const res = await axios.post(
+        url,
+        { documentId: properties?.id, borrower },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setFileFolders((prev) =>
+        prev.map((item) =>
+          item.id === properties.id
+            ? { ...item, isTransferable: true, physicalHolder: borrower }
+            : item,
+        ),
+      );
+
+      toast.success(res.data.message);
+      setOpenSubmit(false);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSubmitDocumentLoading(false);
+    }
+  };
+  const RenderActions = () => {
+    if (isKeeperOfPhysicalDocs) {
+      if (properties?.isTransferable) {
+        return (
+          <MenuItem
+            sx={{ gap: '5px', width: '250px' }}
+            onClick={() => {
+              setTransfer(true);
+              handleClose();
+            }}
+          >
+            <IconTransfer />
+            transfer
+          </MenuItem>
+        );
+      } else if (!properties?.physicalHolder) {
+        return (
+          <MenuItem
+            sx={{ gap: '5px', width: '250px' }}
+            onClick={() => {
+              setOpenSubmit(true);
+              handleClose();
+            }}
+          >
+            <IconCircleCheck />
+            Submit
+          </MenuItem>
+        );
+      }
+    } else {
+      return null;
+    }
+  };
+  // ------------------------
+
+  // useEffects
+  useEffect(() => {
+    const url = backendUrl + '/getUsernames';
+    const fetchData = async () => {
+      const { data } = await axios.get(url);
+      // console.log(data.usernames)
+      setUserList(data.users);
+    };
+    const checkPath = sessionStorage.getItem('path');
+    if (checkPath && checkPath !== pathValue) {
+      dispatch(onReload(checkPath));
+    }
+    setLoaded(true);
+    fetchData();
+    getBranches();
+  }, []);
   return (
     <>
       {loading ? (
@@ -965,11 +1040,11 @@ export default function ShowFolder(props) {
                         <Stack
                           flexWrap="wrap"
                           position="relative"
-                          minWidth="130px"
+                          minWidth="150px"
+                          height="130px"
                           mr={'10px'}
-                          maxWidth="160px"
+                          maxWidth="200px"
                           flex={1}
-                          height="120px"
                           key={index}
                         >
                           {/* <Tooltip title={item.name} enterDelay={2000} disableInteractive> */}
@@ -999,17 +1074,21 @@ export default function ShowFolder(props) {
                                   item.name.length >= 10 ? item.name : null
                                 }
                               >
-                                <div>
+                                <Box
+                                  sx={{
+                                    height: '60px',
+                                    width: '60px',
+                                  }}
+                                >
                                   <img
-                                    className={styles.responsive}
-                                    src={imageSrc}
                                     style={{
-                                      marginLeft: 'auto',
-                                      marginRight: 'auto',
+                                      height: '100%',
+                                      width: '100%',
                                     }}
+                                    src={imageSrc}
                                     alt="im"
                                   />
-                                </div>
+                                </Box>
                                 <p
                                   style={{
                                     color: 'black',
@@ -1040,11 +1119,11 @@ export default function ShowFolder(props) {
                       ) : (
                         <Stack
                           flexWrap="wrap"
-                          minWidth="130px"
+                          minWidth="150px"
                           mr={'10px'}
-                          maxWidth="160px"
+                          maxWidth="200px"
                           flex={1}
-                          height="120px"
+                          height="130px"
                           position="relative"
                           key={index}
                         >
@@ -1056,6 +1135,7 @@ export default function ShowFolder(props) {
                                   setOpenToolTip(null);
                                 }, 1500);
                               }}
+                              disabled={item.onlyMetaData}
                               sx={{
                                 // border: '1px solid lightgray',
                                 flexDirection: 'column',
@@ -1355,9 +1435,11 @@ export default function ShowFolder(props) {
         // PaperProps={{ elevation: 1 }}
       >
         <MenuItem
-          disabled={checkDownloadable(
-            properties?.isDownloadable || properties?.isInvolvedInProcess,
-          )}
+          disabled={
+            checkDownloadable(
+              properties?.isDownloadable || properties?.isInvolvedInProcess,
+            ) || properties?.onlyMetaData
+          }
           sx={{ gap: '5px' }}
           onClick={() => {
             handleDownload(pathValue, itemName);
@@ -1368,7 +1450,10 @@ export default function ShowFolder(props) {
         </MenuItem>
         {/* <hr /> */}
         <MenuItem
-          disabled={itemName.split('.').pop().trim() === 'zip'}
+          disabled={
+            itemName.split('.').pop().trim() === 'zip' ||
+            properties?.onlyMetaData
+          }
           sx={{ gap: '5px' }}
           onClick={() => {
             handleView(pathValue, itemName, properties.id);
@@ -1382,7 +1467,7 @@ export default function ShowFolder(props) {
         <MenuItem
           sx={{ gap: '5px' }}
           onClick={() => handleCopy(itemName)}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconClipboard />
           copy
@@ -1391,12 +1476,11 @@ export default function ShowFolder(props) {
         <MenuItem
           sx={{ gap: '5px' }}
           onClick={() => handleCut(itemName)}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconScissors />
           cut
         </MenuItem>
-
         {/* <hr /> */}
         <MenuItem
           sx={{ gap: '5px', width: '250px' }}
@@ -1408,18 +1492,7 @@ export default function ShowFolder(props) {
           <IconTool />
           propterties
         </MenuItem>
-        {isKeeperOfPhysicalDocs && !properties?.physicalHolder && (
-          <MenuItem
-            sx={{ gap: '5px', width: '250px' }}
-            onClick={() => {
-              setTransfer(true);
-              handleClose();
-            }}
-          >
-            <IconTransfer />
-            transfer
-          </MenuItem>
-        )}
+        {RenderActions()}
         <Divider />
         <MenuItem
           sx={{ color: 'red' }}
@@ -1535,7 +1608,7 @@ export default function ShowFolder(props) {
 
       {/* create folder */}
       {open && (
-        <Modal open={open} className="create-folder-modal">
+        <Modal open={open} onClose={closeModal} className="create-folder-modal">
           <div
             style={{
               gap: '10px',
@@ -1768,6 +1841,59 @@ export default function ShowFolder(props) {
           </Fab>
         </Stack>
       )}
+
+      {/* submit document to document keeper */}
+      <Dialog
+        open={openSubmit}
+        onClose={() => (!submitDocumentLoading ? setOpenSubmit(false) : null)}
+      >
+        <form>
+          <DialogTitle
+            sx={{
+              background: 'var(--themeColor)',
+              margin: '5px',
+              color: ' white',
+            }}
+          >
+            Select Document Submitter
+          </DialogTitle>
+          <DialogContent sx={{ padding: '10px' }}>
+            <Autocomplete
+              onChange={(event, newValue) => setBorrower(newValue.username)}
+              options={userList || []}
+              sx={{ margin: '5px' }}
+              getOptionLabel={(option) =>
+                `${option.username} (Role-${option.role}, Branch-${option.branch})`
+              }
+              isOptionEqualToValue={(option, value) =>
+                option.username === value
+              }
+              renderInput={(params) => (
+                <TextField {...params} label="Select User" required fullWidth />
+              )}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              disabled={submitDocumentLoading}
+              onClick={returnDocument}
+            >
+              {submitDocumentLoading ? (
+                <CircularProgress size={22} />
+              ) : (
+                'Submit'
+              )}
+            </Button>
+            <Button
+              onClick={() => setOpenSubmit(false)}
+              disabled={submitDocumentLoading}
+            >
+              Cancel
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </>
   );
 }

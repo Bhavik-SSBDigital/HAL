@@ -95,7 +95,7 @@ const PhysicalDocuments = () => {
       setAdvancedDetails((prev) =>
         prev.map((item, i) =>
           i == index
-            ? { ...item, reternedAt: Date.now(), isRetirned: true }
+            ? { ...item, returnedAt: Date.now(), isReturned: true }
             : item,
         ),
       );
@@ -170,9 +170,9 @@ const PhysicalDocuments = () => {
     // Add "../" at the start
     const finalPath = `..${pathWithoutFile}`;
 
-    sessionStorage.setItem('path', finalPath)
+    sessionStorage.setItem('path', finalPath);
     // navigate(`/files/pathWithoutFile`)
-  }
+  };
 
   const handleViewClose = () => {
     setFileView(null);
@@ -228,8 +228,15 @@ const PhysicalDocuments = () => {
                             </>
                           )}
                         </IconButton>
-                        <IconButton onClick={() => handleView(doc.name, doc._id, doc.path)} color='secondary'>
-                          <IconEye /><Typography>View File</Typography>
+                        <IconButton
+                          disabled={doc?.onlyMetaData}
+                          onClick={() =>
+                            handleView(doc.name, doc._id, doc.path)
+                          }
+                          color="secondary"
+                        >
+                          <IconEye />
+                          <Typography>View File</Typography>
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -273,7 +280,6 @@ const PhysicalDocuments = () => {
               {advancedDetails?.map((detail, index) => (
                 <VerticalTimelineElement
                   key={index}
-                  date={moment(detail.time).format('DD-MM-YYYY hh:mm')}
                   contentStyle={{
                     padding: '10px 20px',
                     border: '1px solid lightgray',
@@ -285,60 +291,76 @@ const PhysicalDocuments = () => {
                     height: '12px',
                   }}
                   iconStyle={{
-                    background: detail.isRetirned ? 'green' : 'blue',
+                    background: detail?.isReturned ? 'green' : 'blue',
                     color: '#fff',
                   }}
                   style={{ boxShadow: 'none', padding: '0px' }}
-                  icon={detail.isRetirned ? <IconChecklist /> : <IconFileInfo />}
+                  icon={
+                    detail?.isReturned ? <IconChecklist /> : <IconFileInfo />
+                  }
                 >
                   <Typography variant="subtitle1" textAlign="left">
-                    <strong>Borrower</strong> : {detail.borrower}
+                    <strong>{index == 0 ? 'Received By' : 'Borrower'}</strong> :{' '}
+                    {detail.borrower}
                   </Typography>
                   <Typography variant="subtitle1" textAlign="left">
-                    <strong>Date</strong> :{' '}
-                    {moment(detail.Time).format('DD-MM-YYYY')}
+                    <strong>{index == 0 ? 'Submitter' : 'Lender'}</strong> :{' '}
+                    {detail.lender}
                   </Typography>
                   <Typography variant="subtitle1" textAlign="left">
-                    <strong>Purpose</strong> : {detail.purpose}
+                    <strong>
+                      {index == 0 ? 'Submission Date' : 'Borrow Date'}
+                    </strong>{' '}
+                    : {moment(detail.time).format('DD-MM-YYYY / hh:mm')}
                   </Typography>
-                  <Typography variant="subtitle1" textAlign="left">
-                    <strong>Returned Date</strong> :{' '}
-                    {moment(detail.reternedAt).format('DD-MM-YYYY hh:mm') ||
-                      'N/A'}
-                  </Typography>
-
-                  {detail.isRetirned ? (
+                  {index !== 0 ? (
                     <>
                       <Typography variant="subtitle1" textAlign="left">
-                        <strong>Returned :</strong> Yes{' '}
+                        <strong>Purpose</strong> : {detail.purpose}
                       </Typography>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={() => returnDocument(index, detail.borrower)}
-                      sx={{ marginLeft: 'auto', display: 'block' }}
-                      variant="contained"
-                      size="small"
-                      disabled={returnDocumentLoading}
-                    >
-                      {returnDocumentLoading ? (
-                        <CircularProgress size={22} />
+
+                      <Typography variant="subtitle1" textAlign="left">
+                        <strong>Returned Date</strong> :
+                        {detail.returnedAt
+                          ? moment(detail.returnedAt).format('DD-MM-YYYY hh:mm')
+                          : 'N/A'}
+                      </Typography>
+                      {detail?.isReturned ? (
+                        <>
+                          <Typography variant="subtitle1" textAlign="left">
+                            <strong>Returned :</strong> Yes{' '}
+                          </Typography>
+                        </>
                       ) : (
-                        'Return'
+                        <Button
+                          onClick={() => returnDocument(index, detail.borrower)}
+                          sx={{ marginLeft: 'auto', display: 'block' }}
+                          variant="contained"
+                          size="small"
+                          disabled={returnDocumentLoading}
+                        >
+                          {returnDocumentLoading ? (
+                            <CircularProgress size={22} />
+                          ) : (
+                            'Return'
+                          )}
+                        </Button>
                       )}
-                    </Button>
-                  )}
+                    </>
+                  ) : null}
                 </VerticalTimelineElement>
               ))}
             </VerticalTimeline>
           </DialogContent>
         </Dialog>
       </div>
-      {fileView ? <View
-        docu={fileView}
-        setFileView={setFileView}
-        handleViewClose={handleViewClose}
-      /> : null}
+      {fileView ? (
+        <View
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={handleViewClose}
+        />
+      ) : null}
     </>
   );
 };

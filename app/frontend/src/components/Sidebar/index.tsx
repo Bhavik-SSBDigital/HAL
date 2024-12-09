@@ -4,7 +4,20 @@ import SidebarLinkGroup from './SidebarLinkGroup';
 // import Logo from '../../assets/images/kdccLogo1.png';
 import { Button, Stack, Tooltip } from '@mui/material';
 import sessionData from '../../Store';
-import { IconCornerDownRight, IconUserCircle } from '@tabler/icons-react';
+import {
+  IconBrandSpeedtest,
+  IconCaretDown,
+  IconCornerDownRight,
+  IconChartHistogram,
+  IconFolderOpen,
+  IconFolderSearch,
+  IconUserCircle,
+  IconSitemap,
+  IconBuildingEstate,
+  IconUser,
+  IconUserSquareRounded,
+  IconDatabaseCog,
+} from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
 
@@ -18,9 +31,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const location = useLocation();
   const { pathname } = location;
   const username = sessionStorage.getItem('username');
-  const isPhysicalDocumentKeeper = sessionStorage.getItem(
-    'isKeeperOfPhysicalDocs',
-  );
+  const isPhysicalDocumentKeeper =
+    sessionStorage.getItem('isKeeperOfPhysicalDocs') == 'true';
 
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
@@ -74,9 +86,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         width: '280px',
         zIndex: 21,
         // background: 'linear-gradient(63deg, #08203e, #557c93)',
-        // background: 'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
-        // background: 'linear-gradient(360deg, rgb(0, 0, 0), rgb(78 57 116))',
-        background: 'linear-gradient(360deg, rgb(0, 0, 0), rgb(87 0 149))',
+        background: 'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
       }}
       className={`absolute left-0 top-0 z-10 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -102,10 +112,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
+          stroke-width="2"
+          stroke-linecap="round"
           color="white"
-          strokeLinejoin="round"
+          stroke-linejoin="round"
         >
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2  0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
@@ -176,43 +186,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             : setSidebarExpanded(true);
                         }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="28"
-                          height="28"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        <IconBrandSpeedtest
+                          size={26}
                           className="duration-300 ease-in-out transform group-hover:scale-105"
-                        >
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                          <path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                          <path d="M13.45 11.55l2.05 -2.05" />
-                          <path d="M6.4 20a9 9 0 1 1 11.2 0z" />
-                        </svg>
+                        />
                         <span className="duration-300 ease-in-out transform group-hover:scale-105">
                           Dashboard
                         </span>
-                        <svg
+                        <IconCaretDown
+                          size={18}
                           className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                             open === 'dashboard' ? 'rotate-180' : 'rotate-0'
                           }`}
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                            fill="currentColor"
-                          />
-                        </svg>
+                        />
                       </NavLink>
 
                       {/* <!-- Dropdown Menu Start --> */}
@@ -275,23 +261,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   'bg-indigo-400 text-white'
                 }`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                <IconFolderOpen
+                  size={26}
                   className="duration-300 ease-in-out transform group-hover:scale-105"
-                >
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
-                  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
-                  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
-                </svg>
+                />
                 <span className="duration-300 ease-in-out transform group-hover:scale-105">
                   File System
                 </span>
@@ -310,65 +283,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   'bg-indigo-400 text-white'
                 }`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                <IconFolderSearch
+                  size={26}
                   className="duration-300 ease-in-out transform group-hover:scale-105"
-                >
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                  <path d="M12 21h-5a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v4.5" />
-                  <path d="M16.5 17.5m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" />
-                  <path d="M18.5 19.5l2.5 2.5" />
-                </svg>
+                />
 
                 <span className="duration-300 ease-in-out transform group-hover:scale-105">
                   Search Document
-                </span>
-              </NavLink>
-              <NavLink
-                to="/meeting"
-                style={{
-                  fontWeight: 700,
-                  marginRight: '2px',
-                  borderRadius: '8px',
-                  fontSize: 16,
-                  letterSpacing: '0.5px',
-                }}
-                className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                  (pathname === '/meeting' || pathname.includes('meeting')) &&
-                  'bg-indigo-400 text-white'
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="duration-300 ease-in-out transform group-hover:scale-105"
-                >
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
-                  <path d="M18 18m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
-                  <path d="M15 3v4" />
-                  <path d="M7 3v4" />
-                  <path d="M3 11h16" />
-                  <path d="M18 16.496v1.504l1 1" />
-                </svg>
-                <span className="duration-300 ease-in-out transform group-hover:scale-105">
-                  Meeting Manager
                 </span>
               </NavLink>
 
@@ -386,28 +307,39 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   'bg-indigo-400 text-white'
                 }`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                <IconChartHistogram
+                  size={26}
                   className="duration-300 ease-in-out transform group-hover:scale-105"
-                >
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10z" />
-                  <path d="M7 20h10" />
-                  <path d="M9 16v4" />
-                  <path d="M15 16v4" />
-                </svg>
+                />
                 <span className="duration-300 ease-in-out transform group-hover:scale-105">
                   Monitor Processes
                 </span>
               </NavLink>
+              {isPhysicalDocumentKeeper ? (
+                <NavLink
+                  to="/meta-data"
+                  style={{
+                    fontWeight: 700,
+                    marginRight: '2px',
+                    borderRadius: '8px',
+                    fontSize: 16,
+                    letterSpacing: '0.5px',
+                  }}
+                  className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
+                    (pathname === '/meta-data' ||
+                      pathname.includes('meta-data')) &&
+                    'bg-indigo-400 text-white'
+                  }`}
+                >
+                  <IconDatabaseCog
+                    size={26}
+                    className="duration-300 ease-in-out transform group-hover:scale-105"
+                  />
+                  <span className="duration-300 ease-in-out transform group-hover:scale-105">
+                    Meta Data Form
+                  </span>
+                </NavLink>
+              ) : null}
 
               {show && (
                 <>
@@ -442,53 +374,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                                 : setSidebarExpanded(true);
                             }}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="28"
-                              height="28"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="duration-300 ease-in-out transform group-hover:scale-105"
-                            >
-                              <path
-                                stroke="none"
-                                d="M0 0h24v24H0z"
-                                fill="none"
-                              />
-                              <path d="M6 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" />
-                              <path d="M16 4a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" />
-                              <path d="M16 20a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" />
-                              <path d="M11 12a2 2 0 1 0 -4 0a2 2 0 1 0 4 0z" />
-                              <path d="M21 12a2 2 0 1 0 -4 0a2 2 0 0 0 4 0z" />
-                              <path d="M5.058 18.306l2.88 -4.606" />
-                              <path d="M10.061 10.303l2.877 -4.604" />
-                              <path d="M10.065 13.705l2.876 4.6" />
-                              <path d="M15.063 5.7l2.881 4.61" />
-                            </svg>
+                            <IconSitemap className="duration-300 ease-in-out transform group-hover:scale-105" />
                             <span className="duration-300 ease-in-out transform group-hover:scale-105">
                               Branches
                             </span>
-                            <svg
+                            <IconCaretDown
+                              size={18}
                               className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                                 open === 'branches' ? 'rotate-180' : 'rotate-0'
                               }`}
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                                fill="currentColor"
-                              />
-                            </svg>
+                            />
                           </NavLink>
 
                           {/* <!-- Dropdown Menu Start --> */}
@@ -564,46 +459,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                                 : setSidebarExpanded(true);
                             }}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="28"
-                              height="28"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                            <IconUser
+                              size={26}
                               className="duration-300 ease-in-out transform group-hover:scale-105"
-                            >
-                              <path
-                                stroke="none"
-                                d="M0 0h24v24H0z"
-                                fill="none"
-                              />
-                              <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                              <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                            </svg>
+                            />
                             <span className="duration-300 ease-in-out transform group-hover:scale-105">
                               Users
                             </span>
-                            <svg
+                            <IconCaretDown
+                              size={18}
                               className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                                 open === 'users' ? 'rotate-180' : 'rotate-0'
                               }`}
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                                fill="currentColor"
-                              />
-                            </svg>
+                            />
                           </NavLink>
 
                           {/* <!-- Dropdown Menu Start --> */}
@@ -679,47 +547,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                                 : setSidebarExpanded(true);
                             }}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="28"
-                              height="28"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="duration-300 ease-in-out transform group-hover:scale-105"
-                            >
-                              <path
-                                stroke="none"
-                                d="M0 0h24v24H0z"
-                                fill="none"
-                              />
-                              <path d="M9 10a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-                              <path d="M6 21v-1a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v1" />
-                              <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
-                            </svg>
+                            <IconUserSquareRounded className="duration-300 ease-in-out transform group-hover:scale-105" />
                             <span className="duration-300 ease-in-out transform group-hover:scale-105">
                               Roles
                             </span>
-                            <svg
+                            <IconCaretDown
+                              size={18}
                               className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                                 open === 'roles' ? 'rotate-180' : 'rotate-0'
                               }`}
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                                fill="currentColor"
-                              />
-                            </svg>
+                            />
                           </NavLink>
 
                           {/* <!-- Dropdown Menu Start --> */}
@@ -796,48 +633,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                                 : setSidebarExpanded(true);
                             }}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="28"
-                              height="28"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                            <IconBuildingEstate
+                              size={26}
                               className="duration-300 ease-in-out transform group-hover:scale-105"
-                            >
-                              <path
-                                stroke="none"
-                                d="M0 0h24v24H0z"
-                                fill="none"
-                              />
-                              <path d="M9 12l-2 -2v-2a1 1 0 0 1 1 -1h8a1 1 0 0 1 1 1v2l-2 2m-6 0l2 2l2 -2" />
-                              <path d="M7 21h10v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4z" />
-                            </svg>
+                            />
                             <span className="duration-300 ease-in-out transform group-hover:scale-105">
                               Departments
                             </span>
-                            <svg
+                            <IconCaretDown
+                              size={18}
                               className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                                 open === 'department'
                                   ? 'rotate-180'
                                   : 'rotate-0'
                               }`}
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                                fill="currentColor"
-                              />
-                            </svg>
+                            />
                           </NavLink>
 
                           {/* <!-- Dropdown Menu Start --> */}
@@ -929,23 +739,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                         <span className="duration-300 ease-in-out transform group-hover:scale-105">
                           Processes
                         </span>
-                        <svg
+                        <IconCaretDown
+                          size={18}
                           className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
                             open === 'processes' ? 'rotate-180' : 'rotate-0'
                           }`}
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
-                            fill="currentColor"
-                          />
-                        </svg>
+                        />
                       </NavLink>
 
                       {/* <!-- Dropdown Menu Start --> */}
@@ -1010,7 +809,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   );
                 }}
               </SidebarLinkGroup>
-              {isPhysicalDocumentKeeper == 'true' ? (
+              {isPhysicalDocumentKeeper ? (
                 <NavLink
                   to="/physicalDocuments"
                   onClick={() => {
