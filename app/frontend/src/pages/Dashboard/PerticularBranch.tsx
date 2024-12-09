@@ -13,7 +13,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  Grid,
+  Grid2,
   IconButton,
   Stack,
   Table,
@@ -772,38 +772,32 @@ const PerticularBranch = () => {
           </Stack>
         ) : null}
         {Object.keys(mainChartOption).length > 0 ? (
-          <Grid container spacing={2}>
-            <Grid item xs={12} lg={12}>
+          <Grid2 container spacing={2}>
+            <Grid2 size={{ xs: 12 }}>
               <ChartOne data={mainChartOption} loading={mainChartLoading} />
-            </Grid>
-            <Grid item xs={12} lg={6}>
+            </Grid2>
+            <Grid2 size={{ xs: 12, lg: 6 }}>
               <ChartTwo
                 data={rejectedProcessChart}
                 loading={mainChartLoading}
               />
-            </Grid>
-            <Grid item xs={12} lg={6}>
+            </Grid2>
+            <Grid2 size={{ xs: 12, lg: 6 }}>
               <ChartThree
                 data={documentsDetailsChart}
                 loading={mainChartLoading}
               />
-            </Grid>
-            <Grid item xs={12}>
+            </Grid2>
+            <Grid2 size={{ xs: 12 }}>
               <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
-            </Grid>
-            <Grid item xs={12}>
+            </Grid2>
+            <Grid2 size={{ xs: 12 }}>
               <ChartFive
                 data={stepWiseChartOptions}
                 loading={stepWiseChartLoading}
               />
-            </Grid>
-
-            {/* <MapOne /> */}
-            {/* <div className="col-span-12 xl:col-span-8">
-          <TableOne />
-        </div>
-        <ChatCard /> */}
-          </Grid>
+            </Grid2>
+          </Grid2>
         ) : null}
         <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
           <Stack

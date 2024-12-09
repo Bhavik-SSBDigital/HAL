@@ -6,7 +6,7 @@ import ChartTwo from '../../components/Charts/ChartTwo';
 import moment from 'moment';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import { Button, Dialog, DialogTitle, Grid, Stack } from '@mui/material';
+import { Button, Dialog, DialogTitle, Grid2, Stack } from '@mui/material';
 import ChartFour from '../../components/Charts/ChartFour';
 
 const Overall = () => {
@@ -38,6 +38,16 @@ const Overall = () => {
     chart: {
       type: 'bar',
       height: 350,
+      zoom: { enabled: false },
+      animations: { enabled: false },
+      // toolbar: { show: false },
+      beforeMount: (_, config) => {
+        if (config?.el) {
+          config.el.addEventListener('touchstart', (e) => {
+            e.stopPropagation(); // Prevent touch capture
+          });
+        }
+      },
     },
     plotOptions: {
       bar: {
@@ -309,6 +319,15 @@ const Overall = () => {
           chart: {
             type: 'bar',
             height: 350,
+            zoom: { enabled: false },
+            animations: { enabled: false },
+            beforeMount: (_, config) => {
+              if (config?.el) {
+                config.el.addEventListener('touchstart', (e) => {
+                  e.stopPropagation(); // Prevent touch capture
+                });
+              }
+            },
           },
           plotOptions: {
             bar: {
@@ -562,26 +581,20 @@ const Overall = () => {
           filter
         </Button>
       </Stack>
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={12}>
+      <Grid2 container spacing={2}>
+        <Grid2 size={{ xs: 12 }}>
           <ChartOne data={mainChartOption} loading={mainChartLoading} />
-        </Grid>
-        <Grid item xs={12} lg={6}>
+        </Grid2>
+        <Grid2 size={{ xs: 12, lg: 6 }}>
           <ChartTwo data={rejectedProcessChart} loading={mainChartLoading} />
-        </Grid>
-        <Grid item xs={12} lg={6}>
+        </Grid2>
+        <Grid2 size={{ xs: 12, lg: 6 }}>
           <ChartThree data={documentsDetailsChart} loading={mainChartLoading} />
-        </Grid>
-        <Grid item xs={12}>
+        </Grid2>
+        <Grid2 size={{ xs: 12 }}>
           <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
-        </Grid>
-
-        {/* <MapOne /> */}
-        {/* <div className="col-span-12 xl:col-span-8">
-          <TableOne />
-        </div>
-        <ChatCard /> */}
-      </Grid>
+        </Grid2>
+      </Grid2>
       <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
         <DialogTitle sx={{ textAlign: 'center' }}>Filters</DialogTitle>
         <Stack
