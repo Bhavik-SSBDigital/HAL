@@ -11,7 +11,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import styles from './MetaData.module.css';
-import Grid2 from '@mui/material/Unstable_Grid2';
+import Grid2 from '@mui/material/Grid2';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
@@ -203,7 +203,7 @@ export default function MetaData() {
         </Typography>
         <Grid2 container spacing={2}>
           {/* Department Name */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <FormControl
               fullWidth
               margin="normal"
@@ -241,7 +241,7 @@ export default function MetaData() {
           </Grid2>
 
           {/* File Path */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel>File Path</InputLabel>
               <Controller
@@ -264,7 +264,7 @@ export default function MetaData() {
             </FormControl>
           </Grid2>
           {/* Folder Name */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Controller
               name="folderName"
               control={control}
@@ -281,7 +281,7 @@ export default function MetaData() {
           </Grid2>
 
           {/* Work Name */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Controller
               name="workName"
               control={control}
@@ -296,7 +296,7 @@ export default function MetaData() {
             />
           </Grid2>
           {/* Cabinet No */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Controller
               name="cabinetNo"
               control={control}
@@ -324,7 +324,7 @@ export default function MetaData() {
             />
           </Grid2>
           {/* File Name */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Controller
               name="name"
               control={control}
@@ -342,7 +342,7 @@ export default function MetaData() {
             />
           </Grid2>
           {/* Year */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth margin="normal" error={!!errors.year}>
               <InputLabel>Year</InputLabel>
               <Controller
@@ -362,7 +362,7 @@ export default function MetaData() {
             </FormControl>
           </Grid2>
           {/* File Upload */}
-          <Grid2 xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Controller
               name="file"
               control={control}
@@ -384,7 +384,7 @@ export default function MetaData() {
               )}
             />
           </Grid2>
-          <Grid2 xs={12}>
+          <Grid2 size={{ xs: 12 }}>
             <Button
               disabled={isSubmitting}
               type="submit"
