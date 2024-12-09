@@ -102,7 +102,7 @@ export default function History({ joinMeet }) {
   return (
     <>
       <div className={styles.container}>
-        <Stack justifyContent="space-between" flexDirection={'row'}>
+        <Stack justifyContent="space-between" flexDirection={'row'} flexWrap={"wrap"} gap={1}>
           <Stack
             gap={1}
             sx={{

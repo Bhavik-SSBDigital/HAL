@@ -17,6 +17,7 @@ import {
   IconUser,
   IconUserSquareRounded,
   IconDatabaseCog,
+  IconCalendarStats,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -292,7 +293,25 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   Search Document
                 </span>
               </NavLink>
-
+              <NavLink
+                to="/meeting"
+                style={{
+                  fontWeight: 700,
+                  marginRight: '2px',
+                  borderRadius: '8px',
+                  fontSize: 16,
+                  letterSpacing: '0.5px',
+                }}
+                className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
+                  (pathname === '/meeting' || pathname.includes('meeting')) &&
+                  'bg-indigo-400 text-white'
+                }`}
+              >
+                <IconCalendarStats />
+                <span className="duration-300 ease-in-out transform group-hover:scale-105">
+                  Meeting Manager
+                </span>
+              </NavLink>
               <NavLink
                 to="/monitor"
                 style={{
