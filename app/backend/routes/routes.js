@@ -130,6 +130,7 @@ import {
   is_user_an_attendee,
 } from "../controller/meeting-controller.js";
 import { compare_documents } from "../controller/compare-documents.js";
+import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
 // const upload = multer();
 
 const router = express.Router();

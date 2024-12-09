@@ -13,6 +13,7 @@ import {
   getParents,
 } from "../utility/accessFunction.js";
 import DocHistory from "../models/doc-tracking.js";
+import { add_doc_meta_data } from "./file-meta-data-controller.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
