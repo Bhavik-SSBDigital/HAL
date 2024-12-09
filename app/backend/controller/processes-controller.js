@@ -139,16 +139,28 @@ export const add_process = async (req, res, next) => {
       document had been added for this specific work
       EX. 6 document related to LOAN work was added on 6th of DEC.
     */
-    let workNameCounts = {};
+    let workNameGroups = {};
 
     req.body.documents.forEach((obj) => {
       const workName = obj.workName;
-      workNameCounts[workName] = (workNameCounts[workName] || 0) + 1;
+      // Initialize the array if it doesn't exist
+      if (!workNameGroups[workName]) {
+        workNameGroups[workName] = [];
+      }
+      // Add the current document to the array
+      workNameGroups[workName].push(obj.documentId);
     });
 
-    workNameCounts = Object.entries(workNameCounts).map(([workName, count]) => {
-      return { workName: workName, documentCount: count };
-    });
+    // Convert the object into an array of objects
+    workNameGroups = Object.entries(workNameGroups).map(
+      ([workName, documents]) => {
+        return {
+          workName: workName,
+          documentsUploaded: documents,
+          documentsRejected: [],
+        };
+      }
+    );
 
     /* getting the document ids (as per Document collection entries) representing any document added in 
     file system */
@@ -382,26 +394,31 @@ export const add_process = async (req, res, next) => {
         date: currentDate,
       });
 
+      console.log("work name groups", workNameGroups);
+
       try {
         if (processAnalytics) {
-          processAnalytics.noOfPendingProcess =
-            (processAnalytics.noOfPendingProcess || 0) + 1;
+          processAnalytics.pendingProcesses.push(process._id);
           let documentDetailsOfOverallBank = processAnalytics.documentDetails;
           if (documentDetailsOfOverallBank) {
-            for (let i = 0; i < workNameCounts.length; i++) {
+            for (let i = 0; i < workNameGroups.length; i++) {
               const workNameIndex = documentDetailsOfOverallBank.findIndex(
-                (work) => work.workName === workNameCounts[i].workName
+                (work) => work.workName === workNameGroups[i].workName
               );
               if (workNameIndex !== -1) {
-                documentDetailsOfOverallBank[workNameIndex].documentCount +=
-                  workNameCounts[i].documentCount;
+                documentDetailsOfOverallBank[workNameIndex].documentsUploaded =
+                  [
+                    ...(documentDetailsOfOverallBank[workNameIndex]
+                      .documentsUploaded || []),
+                    ...workNameGroups[i].documentsUploaded,
+                  ];
               } else {
-                documentDetailsOfOverallBank.push(workNameCounts[i]);
+                documentDetailsOfOverallBank.push(workNameGroups[i]);
               }
             }
             processAnalytics.documentDetails = documentDetailsOfOverallBank;
           } else {
-            processAnalytics.documentDetails = workNameCounts;
+            processAnalytics.documentDetails = workNameGroups;
           }
 
           if (!ifProcessContainsCustomWorkFlow) {
@@ -423,22 +440,30 @@ export const add_process = async (req, res, next) => {
               // ].noOfPendingProcess += 1;
               processAnalytics.departmentsPendingProcess[
                 departmentIndex
-              ].noOfPendingProcess =
-                (processAnalytics.departmentsPendingProcess[departmentIndex]
-                  .noOfPendingProcess || 0) + 1;
+              ].pendingProcesses = [
+                ...(
+                  processAnalytics.departmentsPendingProcess[departmentIndex]
+                    .pendingProcesses || []
+                ).push(Process._id),
+              ];
               let documentDetailsOfDepartment =
                 processAnalytics.departmentsPendingProcess[departmentIndex]
                   .documentDetails;
               if (documentDetailsOfDepartment) {
-                for (let i = 0; i < workNameCounts.length; i++) {
+                for (let i = 0; i < workNameGroups.length; i++) {
                   const workNameIndex = documentDetailsOfDepartment.findIndex(
-                    (work) => work.workName === workNameCounts[i].workName
+                    (work) => work.workName === workNameGroups[i].workName
                   );
                   if (workNameIndex !== -1) {
-                    documentDetailsOfDepartment[workNameIndex].documentCount +=
-                      workNameCounts[i].documentCount;
+                    documentDetailsOfDepartment[
+                      workNameIndex
+                    ].documentCount.documentsUploaded = [
+                      ...(documentDetailsOfOverallBank[workNameIndex]
+                        .documentsUploaded || []),
+                      ...workNameGroups[i].documentsUploaded,
+                    ];
                   } else {
-                    documentDetailsOfDepartment.push(workNameCounts[i]);
+                    documentDetailsOfDepartment.push(workNameGroups[i]);
                   }
                 }
                 processAnalytics.departmentsPendingProcess[
@@ -447,15 +472,15 @@ export const add_process = async (req, res, next) => {
               } else {
                 processAnalytics.departmentsPendingProcess[
                   departmentIndex
-                ].documentDetails = workNameCounts;
+                ].documentDetails = workNameGroups;
               }
             } else {
               // If the department is not found, add it with an initial count of 1
               // processAnalytics.noOfPendingProcess += 1;
               processAnalytics.departmentsPendingProcess.push({
                 department: new ObjectId(req.body.workFlow),
-                noOfPendingProcess: 1,
-                documentDetails: workNameCounts,
+                pendingProcesses: [Process._id],
+                documentDetails: workNameGroups,
               });
             }
           }
@@ -463,28 +488,37 @@ export const add_process = async (req, res, next) => {
           // Save the updated document back to the database
           await processAnalytics.save();
         } else {
+          console.log("reached right places");
           let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
             ? {
                 date: new Date(),
-                noOfPendingProcess: 1,
-                noOfRevertedProcess: 0,
-                documentDetails: workNameCounts,
+                pendingProcesses: [process._id],
+                revertedProcesses: [],
+                documentDetails: workNameGroups,
                 departmentsPendingProcess: [
                   {
                     department: new ObjectId(req.body.workFlow),
-                    noOfPendingProcess: 1,
-                    noOfRevertedProcess: 0,
-                    documentDetails: workNameCounts,
+                    pendingProcesses: [process._id],
+                    revertedProcesses: [],
+                    documentDetails: workNameGroups,
                   },
                 ],
               }
             : {
                 date: new Date(),
-                noOfPendingProcess: 1,
-                noOfRevertedProcess: 0,
-                documentDetails: workNameCounts,
+                pendingProcesses: [process._id],
+                revertedProcesses: [],
+                documentDetails: workNameGroups,
               };
 
+          console.log(
+            "department pending details: document details",
+            newProcessAnalyticsData.departmentsPendingProcess[0].documentDetails
+          );
+          console.log(
+            "process document details",
+            newProcessAnalyticsData.documentDetails
+          );
           let newProcessAnalytics = new ProcessAnalytics(
             newProcessAnalyticsData
           );
@@ -628,105 +662,6 @@ const sendProcessToHeadDeptClerkForMonitoring = async (
     );
     return;
   }
-};
-
-export const add_process_analytics_data = async (workNameCounts) => {
-  try {
-    let currentDate = new Date();
-
-    currentDate.setHours(0, 0, 0, 0);
-
-    // Check if the document exists
-    let processAnalytics = await ProcessAnalytics.findOne({
-      date: currentDate,
-    });
-
-    if (processAnalytics) {
-      processAnalytics.noOfPendingProcess += 1;
-      let documentDetailsOfOverallBank = processAnalytics.documentDetails;
-      if (documentDetailsOfOverallBank) {
-        for (let i = 0; i < workNameCounts.length; i++) {
-          const workNameIndex = documentDetailsOfOverallBank.findIndex(
-            (work) => work.workName === workNameCounts[i].workName
-          );
-          if (workNameIndex !== -1) {
-            documentDetailsOfOverallBank[workNameIndex].documentCount +=
-              workNameCounts[i].documentCount;
-          } else {
-            documentDetailsOfOverallBank.push(workNameCounts[i]);
-          }
-        }
-        processAnalytics.documentDetails = documentDetailsOfOverallBank;
-      } else {
-        processAnalytics.documentDetails = workNameCounts;
-      }
-
-      // Document found, update the counts
-      const departmentIndex =
-        processAnalytics.departmentsPendingProcess.findIndex((department) =>
-          department.department.equals(new ObjectId(req.body.workFlow))
-        );
-
-      if (departmentIndex !== -1) {
-        // If the department is found, increment its count
-        // processAnalytics.noOfPendingProcess += 1;
-        processAnalytics.departmentsPendingProcess[
-          departmentIndex
-        ].noOfPendingProcess += 1;
-        let documentDetailsOfDepartment =
-          processAnalytics.departmentsPendingProcess[departmentIndex]
-            .documentDetails;
-        if (documentDetailsOfDepartment) {
-          for (let i = 0; i < workNameCounts.length; i++) {
-            const workNameIndex = documentDetailsOfDepartment.findIndex(
-              (work) => work.workName === workNameCounts[i].workName
-            );
-            if (workNameIndex !== -1) {
-              documentDetailsOfDepartment[workNameIndex].documentCount +=
-                workNameCounts[i].documentCount;
-            } else {
-              documentDetailsOfDepartment.push(workNameCounts[i]);
-            }
-          }
-          processAnalytics.departmentsPendingProcess[
-            departmentIndex
-          ].documentDetails = documentDetailsOfDepartment;
-        } else {
-          processAnalytics.departmentsPendingProcess[
-            departmentIndex
-          ].documentDetails = workNameCounts;
-        }
-      } else {
-        // If the department is not found, add it with an initial count of 1
-        // processAnalytics.noOfPendingProcess += 1;
-        processAnalytics.departmentsPendingProcess.push({
-          department: req.body.workFlow,
-          noOfPendingProcess: 1,
-          documentDetails: workNameCounts,
-        });
-      }
-
-      // Save the updated document back to the database
-      await processAnalytics.save();
-    } else {
-      let newProcessAnalytics = new ProcessAnalytics({
-        date: new Date(),
-        noOfPendingProcess: 1,
-        noOfRevertedProcess: 0,
-        documentDetails: workNameCounts,
-        departmentsPendingProcess: [
-          {
-            department: req.body.workFlow,
-            noOfPendingProcess: 1,
-            noOfRevertedProcess: 0,
-            documentDetails: workNameCounts,
-          },
-        ],
-      });
-
-      await newProcessAnalytics.save();
-    }
-  } catch (error) {}
 };
 
 export const publish_process = async (req, res, next) => {
@@ -1086,15 +1021,10 @@ export const forwardProcess = async (
     let workflow;
     let departmentName;
 
-    console.log("process.steps", process.steps);
-    console.log("process steps length", process.steps.length);
-    console.log("condn", process.steps && process.steps.length > 0);
     let isCustomProcess =
       process.steps && process.steps.length > 0 ? true : false;
 
     let steps = [];
-
-    console.log("is custom process", isCustomProcess);
 
     if (isCustomProcess) {
       steps = process.steps;
@@ -1107,8 +1037,6 @@ export const forwardProcess = async (
       departmentName = workflow.name;
       steps = workflow.steps;
     }
-
-    console.log("steps", steps);
 
     let nextStepNumber;
 
@@ -2852,16 +2780,24 @@ export const upload_documents_in_process = async (req, res, next) => {
 
     await process.save();
 
-    let workNameCounts = {};
+    let workNameGroups = {};
 
     req.body.documents.forEach((obj) => {
       const workName = obj.workName;
-      workNameCounts[workName] = (workNameCounts[workName] || 0) + 1;
+      // Initialize the array if it doesn't exist
+      if (!workNameGroups[workName]) {
+        workNameGroups[workName] = [];
+      }
+      // Add the current document to the array
+      workNameGroups[workName].push(obj);
     });
 
-    workNameCounts = Object.entries(workNameCounts).map(([workName, count]) => {
-      return { workName: workName, documentCount: count };
-    });
+    // Convert the object into an array of objects
+    workNameGroups = Object.entries(workNameGroups).map(
+      ([workName, documents]) => {
+        return { workName: workName, documentsUploaded: documents };
+      }
+    );
 
     const logWork = await LogWork.findOne({
       user: new ObjectId(userData._id),
@@ -2901,20 +2837,23 @@ export const upload_documents_in_process = async (req, res, next) => {
       if (processAnalytics) {
         let documentDetailsOfOverallBank = processAnalytics.documentDetails;
         if (documentDetailsOfOverallBank) {
-          for (let i = 0; i < workNameCounts.length; i++) {
+          for (let i = 0; i < workNameGroups.length; i++) {
             const workNameIndex = documentDetailsOfOverallBank.findIndex(
-              (work) => work.workName === workNameCounts[i].workName
+              (work) => work.workName === workNameGroups[i].workName
             );
             if (workNameIndex !== -1) {
-              documentDetailsOfOverallBank[workNameIndex].documentCount +=
-                workNameCounts[i].documentCount;
+              documentDetailsOfOverallBank[workNameIndex].documentsUploaded += [
+                ...(documentDetailsOfOverallBank[workNameIndex]
+                  .documentsUploaded || []),
+                ...workNameGroups[i].documentsUploaded,
+              ];
             } else {
-              documentDetailsOfOverallBank.push(workNameCounts[i]);
+              documentDetailsOfOverallBank.push(workNameGroups[i]);
             }
           }
           processAnalytics.documentDetails = documentDetailsOfOverallBank;
         } else {
-          processAnalytics.documentDetails = workNameCounts;
+          processAnalytics.documentDetails = workNameGroups;
         }
 
         // Document found, update the counts
@@ -2935,15 +2874,19 @@ export const upload_documents_in_process = async (req, res, next) => {
               processAnalytics.departmentsPendingProcess[departmentIndex]
                 .documentDetails;
             if (documentDetailsOfDepartment) {
-              for (let i = 0; i < workNameCounts.length; i++) {
+              for (let i = 0; i < workNameGroups.length; i++) {
                 const workNameIndex = documentDetailsOfDepartment.findIndex(
-                  (work) => work.workName === workNameCounts[i].workName
+                  (work) => work.workName === workNameGroups[i].workName
                 );
                 if (workNameIndex !== -1) {
-                  documentDetailsOfDepartment[workNameIndex].documentCount +=
-                    workNameCounts[i].documentCount;
+                  documentDetailsOfDepartment[workNameIndex].documentsUploaded =
+                    [
+                      ...(documentDetailsOfDepartment[workNameIndex]
+                        .documentsUploaded || []),
+                      ...workNameGroups[i].documentsUploaded,
+                    ];
                 } else {
-                  documentDetailsOfDepartment.push(workNameCounts[i]);
+                  documentDetailsOfDepartment.push(workNameGroups[i]);
                 }
               }
               processAnalytics.departmentsPendingProcess[
@@ -2952,14 +2895,14 @@ export const upload_documents_in_process = async (req, res, next) => {
             } else {
               processAnalytics.departmentsPendingProcess[
                 departmentIndex
-              ].documentDetails = workNameCounts;
+              ].documentDetails = workNameGroups;
             }
           } else {
             // If the department is not found, add it with an initial count of 1
             // processAnalytics.noOfPendingProcess += 1;
             processAnalytics.departmentsPendingProcess.push({
               department: new ObjectId(req.body.workFlow),
-              documentDetails: workNameCounts,
+              documentDetails: workNameGroups,
             });
           }
         }
@@ -2971,15 +2914,15 @@ export const upload_documents_in_process = async (req, res, next) => {
           process.steps && process.steps.length > 0
             ? {
                 date: new Date(),
-                documentDetails: workNameCounts,
+                documentDetails: workNameGroups,
               }
             : {
                 date: new Date(),
-                documentDetails: workNameCounts,
+                documentDetails: workNameGroups,
                 departmentsPendingProcess: [
                   {
                     department: new ObjectId(req.body.workFlow),
-                    documentDetails: workNameCounts,
+                    documentDetails: workNameGroups,
                   },
                 ],
               };

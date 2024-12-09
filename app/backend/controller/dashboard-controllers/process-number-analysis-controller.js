@@ -90,10 +90,10 @@ export const get_process_number_weekly = async (department) => {
               completedAt: { $lte: endOfRequiredDate, $gte: requiredDate }, // completedAt > requiredDate
             }).select("_id");
 
-      let pendingProcessCount;
-      let revertedProcessCount;
+      let pendingProcessDetails;
+      let revertedProcessDetails;
 
-      if (pendingProcesses !== null) {
+      if (pendingProcesses) {
         let wantedProcessNumberData;
 
         if (department !== undefined) {
@@ -106,27 +106,27 @@ export const get_process_number_weekly = async (department) => {
             );
         }
 
-        pendingProcessCount =
+        pendingProcessDetails =
           department === undefined
-            ? pendingProcesses.noOfPendingProcess
+            ? pendingProcesses.pendingProcesses
             : wantedProcessNumberData === undefined
             ? 0
-            : wantedProcessNumberData.noOfPendingProcess;
+            : wantedProcessNumberData.pendingProcesses;
 
-        revertedProcessCount =
+        revertedProcessDetails =
           department === undefined
-            ? pendingProcesses.noOfRevertedProcess
+            ? pendingProcesses.revertedProcesses
             : wantedProcessNumberData === undefined
             ? 0
-            : wantedProcessNumberData.noOfRevertedProcess;
+            : wantedProcessNumberData.revertedProcesses;
       } else {
-        pendingProcessCount = 0;
-        revertedProcessCount = 0;
+        pendingProcessDetails = [];
+        revertedProcessDetails = [];
       }
       processes_per_day.push({
         time: new Date(requiredDate),
-        pendingProcessNumber: pendingProcessCount,
-        revertedProcessNumber: revertedProcessCount,
+        pendingProcessNumber: pendingProcessDetails.length,
+        revertedProcessNumber: revertedProcessDetails.length,
         completedProcessNumber: completedProcesses.length,
         documentDetails: documentDetails,
       });

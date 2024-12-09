@@ -7,11 +7,11 @@ const processAnalyticsSchema = new mongoose.Schema({
     get: (val) => val.toISOString().split("T")[0],
     required: true,
   },
-  noOfPendingProcess: {
-    type: Number,
+  pendingProcesses: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Process" }],
   },
-  noOfRevertedProcess: {
-    type: Number,
+  revertedProcesses: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Process" }],
   },
   departmentsPendingProcess: [
     {
@@ -19,22 +19,22 @@ const processAnalyticsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Department",
       },
-      noOfPendingProcess: {
-        type: Number,
+      pendingProcesses: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Process" }],
       },
-      noOfRevertedProcess: {
-        type: Number,
+      revertedProcesses: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Process" }],
       },
       documentDetails: [
         {
           workName: {
             type: String,
           },
-          documentCount: {
-            type: Number,
+          documentsUploaded: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
           },
-          noOfRejectedDocuments: {
-            type: Number,
+          documentsRejected: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
           },
         },
       ],
@@ -45,11 +45,11 @@ const processAnalyticsSchema = new mongoose.Schema({
       workName: {
         type: String,
       },
-      documentCount: {
-        type: Number,
+      documentsUploaded: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
       },
-      noOfRejectedDocuments: {
-        type: Number,
+      documentsRejected: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
       },
     },
   ],
