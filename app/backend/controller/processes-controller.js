@@ -438,14 +438,19 @@ export const add_process = async (req, res, next) => {
               // processAnalytics.departmentsPendingProcess[
               //   departmentIndex
               // ].noOfPendingProcess += 1;
+
               processAnalytics.departmentsPendingProcess[
                 departmentIndex
-              ].pendingProcesses = [
-                ...(
-                  processAnalytics.departmentsPendingProcess[departmentIndex]
-                    .pendingProcesses || []
-                ).push(Process._id),
-              ];
+              ].pendingProcesses =
+                processAnalytics.departmentsPendingProcess[departmentIndex]
+                  .pendingProcesses || [];
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].pendingProcesses.push(Process._id);
+              console.log(
+                "processAnalytics.departmentsPendingProcess[departmentIndex]",
+                processAnalytics.departmentsPendingProcess[departmentIndex]
+              );
               let documentDetailsOfDepartment =
                 processAnalytics.departmentsPendingProcess[departmentIndex]
                   .documentDetails;
@@ -457,7 +462,7 @@ export const add_process = async (req, res, next) => {
                   if (workNameIndex !== -1) {
                     documentDetailsOfDepartment[
                       workNameIndex
-                    ].documentCount.documentsUploaded = [
+                    ].documentsUploaded = [
                       ...(documentDetailsOfOverallBank[workNameIndex]
                         .documentsUploaded || []),
                       ...workNameGroups[i].documentsUploaded,
@@ -492,13 +497,13 @@ export const add_process = async (req, res, next) => {
           let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
             ? {
                 date: new Date(),
-                pendingProcesses: [process._id],
+                pendingProcesses: [Process._id],
                 revertedProcesses: [],
                 documentDetails: workNameGroups,
                 departmentsPendingProcess: [
                   {
                     department: new ObjectId(req.body.workFlow),
-                    pendingProcesses: [process._id],
+                    pendingProcesses: [Process._id],
                     revertedProcesses: [],
                     documentDetails: workNameGroups,
                   },
@@ -506,7 +511,7 @@ export const add_process = async (req, res, next) => {
               }
             : {
                 date: new Date(),
-                pendingProcesses: [process._id],
+                pendingProcesses: [Process._id],
                 revertedProcesses: [],
                 documentDetails: workNameGroups,
               };
@@ -526,7 +531,7 @@ export const add_process = async (req, res, next) => {
           await newProcessAnalytics.save();
         }
       } catch (error) {
-        console.log("error adding process analytics data");
+        console.log("error adding process analytics data", error);
       }
     } catch (error) {
       console.log("error adding process analytics data", error);
@@ -2653,57 +2658,74 @@ export const revertProcess = async (
 
     try {
       if (processAnalytics) {
-        // Document found, update the counts
-        const departmentIndex = processAnalytics.departmentsPendingProcess
-          ? processAnalytics.departmentsPendingProcess.findIndex((department) =>
-              department.department.equals(new ObjectId(process.workFlow))
-            )
-          : -1;
+        processAnalytics.revertedProcesses = (
+          processAnalytics.revertedProcesses || []
+        ).push(process._id);
+        if (process.steps && process.steps.length > 0) {
+          // Document found, update the counts
+          const departmentIndex = processAnalytics.departmentsPendingProcess
+            ? processAnalytics.departmentsPendingProcess.findIndex(
+                (department) =>
+                  department.department.equals(new ObjectId(process.workFlow))
+              )
+            : -1;
 
-        if (departmentIndex !== -1) {
-          // If the department is found, increment its count
-          processAnalytics.noOfRevertedProcess += 1;
-          if (
-            processAnalytics.departmentsPendingProcess[departmentIndex]
-              .noOfRevertedProcess
-          ) {
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].noOfRevertedProcess += 1;
+          if (departmentIndex !== -1) {
+            // If the department is found, increment its count
+
+            if (
+              processAnalytics.departmentsPendingProcess[departmentIndex]
+                .revertedProcesses &&
+              processAnalytics.departmentsPendingProcess[departmentIndex]
+                .revertedProcesses.length > 0
+            ) {
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].revertedProcesses.push(process._id);
+            } else {
+              processAnalytics.departmentsPendingProcess[
+                departmentIndex
+              ].revertedProcesses = [process._id];
+            }
           } else {
-            processAnalytics.departmentsPendingProcess[
-              departmentIndex
-            ].noOfRevertedProcess = 1;
+            // If the department is not found, add it with an initial count of 1
+            processAnalytics.departmentsPendingProcess.push({
+              department: new ObjectId(process.workFlow),
+              revertedProcesses: [process._id],
+            });
           }
-        } else {
-          // If the department is not found, add it with an initial count of 1
-          processAnalytics.noOfRevertedProcess += 1;
-          processAnalytics.departmentsPendingProcess.push({
-            department: new ObjectId(process.workFlow),
-            noOfRevertedProcess: 1,
-          });
         }
 
         // Save the updated document back to the database
         await processAnalytics.save();
       } else {
-        let newProcessAnalytics = new ProcessAnalytics({
-          date: new Date(),
-          noOfPendingProcess: 0,
-          noOfRevertedProcess: 1,
-          departmentsPendingProcess: [
-            {
-              department: new ObjectId(process.workFlow),
-              noOfPendingProcess: 0,
-              noOfRevertedProcess: 1,
-            },
-          ],
-        });
+        let newAnalyticsData =
+          process.steps && process.steps.length > 0
+            ? {
+                date: new Date(),
+                pendingProcesses: [],
+                revertedProcesses: [process._id],
+              }
+            : {
+                date: new Date(),
+                pendingProcesses: [],
+                revertedProcesses: [process._id],
+                departmentsPendingProcess: [
+                  {
+                    department: new ObjectId(process.workFlow),
+                    pendingProcesses: [],
+                    revertedProcesses: [process._id],
+                  },
+                ],
+              };
+
+        console.log("new analytics", newAnalyticsData);
+        let newProcessAnalytics = new ProcessAnalytics(newAnalyticsData);
         // newProcessAnalytics = new ProcessAnalytics(newProcessAnalytics);
         await newProcessAnalytics.save();
       }
     } catch (error) {
-      console.log("error updating pocess analytics");
+      console.log("error updating pocess analytics", error);
     }
 
     delete nextStep.users;
