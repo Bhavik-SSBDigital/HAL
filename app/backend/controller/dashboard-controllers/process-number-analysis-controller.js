@@ -57,6 +57,8 @@ export const format_document_details = async (documentDetails) => {
         workName: documentDetails[i].workName,
         documentsUploaded: documentsUploaded,
         documentsReverted: documentsReverted,
+        documentCount: documentsUploaded.length,
+        noOfRejectedDocuments: documentsReverted.length,
       });
     }
 
