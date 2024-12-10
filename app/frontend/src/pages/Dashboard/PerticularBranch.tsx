@@ -51,7 +51,7 @@ const PerticularBranch = () => {
   // charts option
   const [mainChartOption, setMainChartOption] = useState({});
   const [stepWiseChartOptions, setStepWiseChartOptions] = useState({});
-  const [rejectedProcessChart, setRejectedProocessChart] = useState({});
+  const [rejectedProcessChart, setRejectedProocessChart] = useState();
   const [documentsDetailsChart, setDocumentDetailsChart] = useState({
     series: [],
     chart: {
@@ -196,6 +196,9 @@ const PerticularBranch = () => {
     } finally {
       setFileListLoading(false);
     }
+  };
+  const handleView = () => {
+    console.log('data');
   };
 
   // show timeline
@@ -407,121 +410,20 @@ const PerticularBranch = () => {
         },
       );
       if (res.status === 200) {
-        setMainChartOption({
-          series: [
-            {
-              name: 'Pending',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.pendingProcessNumber,
-              ),
-            },
-            {
-              name: 'Completed',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.completedProcessNumber,
-              ),
-            },
-          ],
-          title: {
-            text: 'Pending & Completed Processes',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '15px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-          },
-          plotOptions: {
-            bar: {
-              horizontal: true,
-              columnWidth: '55%',
-              endingShape: 'rounded',
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          stroke: {
-            show: true,
-            width: 2,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          fill: {
-            opacity: 1,
-          },
-          tooltip: {
-            y: {
-              formatter: function (val) {
-                return val;
-              },
-            },
-          },
-        });
-        setRejectedProocessChart({
-          series: [
-            {
-              data:
-                res.data?.processNumberWithDuration?.map(
-                  (item: any) => item.revertedProcessNumber || 0,
-                ) || [],
-            },
-          ],
-          title: {
-            text: 'Rejected Processes Numbers',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '15px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-          },
-          plotOptions: {
-            bar: {
-              borderRadius: 4,
-              horizontal: false,
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-        });
+        setMainChartOption(
+          res?.data?.processNumberWithDuration.map((item: any) => ({
+            completed: item.completedProcessNumber || 0,
+            pending: item.pendingProcessNumber || 0,
+            time: moment(item.time).format('DD-MM-YYY'),
+            pendingProcesses: item.pendingProcesses || [],
+          })),
+        );
+        setRejectedProocessChart(
+          res.data?.processNumberWithDuration?.map((item: any) => ({
+            pending: item?.revertedProcessNumber || 0,
+            time: moment(item.time).format('DD-MM-YYYY'),
+          })),
+        );
         setDocumentDetailsChart({
           series: Array.from(
             new Set(
@@ -544,14 +446,6 @@ const PerticularBranch = () => {
           chart: {
             height: 350,
             type: 'line',
-            // dropShadow: {
-            //   enabled: true,
-            //   color: '#000',
-            //   top: 18,
-            //   left: 7,
-            //   blur: 10,
-            //   opacity: 0.2,
-            // },
             toolbar: {
               show: false,
             },
@@ -759,7 +653,7 @@ const PerticularBranch = () => {
         </Button>
       </Stack>
       <>
-        {Object.keys(mainChartOption).length > 0 ? (
+        {Object.keys(mainChartOption)?.length ? (
           <Stack alignItems="flex-end">
             <Button
               variant="contained"
@@ -771,10 +665,15 @@ const PerticularBranch = () => {
             </Button>
           </Stack>
         ) : null}
-        {Object.keys(mainChartOption).length > 0 ? (
+
+        {Object.keys(mainChartOption).length ? (
           <Grid2 container spacing={2}>
             <Grid2 size={{ xs: 12 }}>
-              <ChartOne data={mainChartOption} loading={mainChartLoading} />
+              <ChartOne
+                data={mainChartOption}
+                loading={mainChartLoading}
+                handleView={handleView}
+              />
             </Grid2>
             <Grid2 size={{ xs: 12, lg: 6 }}>
               <ChartTwo

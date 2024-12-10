@@ -13,112 +13,8 @@ const Overall = () => {
   // ------------------states-----------------------------
 
   // charts option
-  const [mainChartOption, setMainChartOption] = useState({
-    series: [
-      {
-        name: 'Pending',
-        data: [0, 0, 0, 0, 0, 0, 0],
-      },
-      {
-        name: 'Completed',
-        data: [0, 0, 0, 0, 0, 0, 0],
-      },
-    ],
-    title: {
-      text: 'Pending & Completed Processes',
-      align: 'center',
-      margin: 5,
-      offsetY: 20,
-      style: {
-        fontSize: '14px',
-        fontWeight: 'bold',
-        color: '#333',
-      },
-    },
-    chart: {
-      type: 'bar',
-      height: 350,
-      zoom: { enabled: false },
-      animations: { enabled: false },
-      // toolbar: { show: false },
-      beforeMount: (_, config) => {
-        if (config?.el) {
-          config.el.addEventListener('touchstart', (e) => {
-            e.stopPropagation(); // Prevent touch capture
-          });
-        }
-      },
-    },
-    plotOptions: {
-      bar: {
-        horizontal: true,
-        columnWidth: '55%',
-        endingShape: 'rounded',
-      },
-    },
-    dataLabels: {
-      enabled: false,
-    },
-    stroke: {
-      show: true,
-      width: 2,
-    },
-    xaxis: {
-      categories: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
-    },
-    fill: {
-      opacity: 1,
-    },
-    tooltip: {
-      y: {
-        formatter: function (val) {
-          return val;
-        },
-      },
-    },
-  });
-  // const [stepWiseChartOptions, setStepWiseChartOptions] = useState({});
-  const [rejectedProcessChart, setRejectedProocessChart] = useState({
-    series: [
-      {
-        data: [0, 0, 0, 0, 0, 0, 0],
-      },
-    ],
-    title: {
-      text: 'Reject Processes Numbers',
-      align: 'center',
-      margin: 5,
-      offsetY: 20,
-      style: {
-        fontSize: '14px',
-        fontWeight: 'bold',
-        color: '#333',
-      },
-    },
-    chart: {
-      type: 'bar',
-      height: 350,
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 4,
-        horizontal: false,
-      },
-    },
-    dataLabels: {
-      enabled: false,
-    },
-    xaxis: {
-      categories: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'right',
-      floating: true,
-      offsetY: -25,
-      offsetX: -5,
-    },
-  });
+  const [mainChartOption, setMainChartOption] = useState();
+  const [rejectedProcessChart, setRejectedProocessChart] = useState();
   const [documentsDetailsChart, setDocumentDetailsChart] = useState({
     series: [],
     chart: {
@@ -239,7 +135,9 @@ const Overall = () => {
     const { name, value } = e.target;
     setMainChartDateRange((prev) => ({ ...prev, [name]: value }));
   };
-
+  const handleView = () => {
+    console.log('asd');
+  };
   // get dashboard data
   const getMainChartData = async () => {
     setMainChartLoading(true);
@@ -290,132 +188,20 @@ const Overall = () => {
         },
       );
       if (res.status === 200) {
-        setMainChartOption({
-          series: [
-            {
-              name: 'Pending',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.pendingProcessNumber,
-              ),
-            },
-            {
-              name: 'Completed',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.completedProcessNumber,
-              ),
-            },
-          ],
-          title: {
-            text: 'Pending & Completed Processes',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-            zoom: { enabled: false },
-            animations: { enabled: false },
-            beforeMount: (_, config) => {
-              if (config?.el) {
-                config.el.addEventListener('touchstart', (e) => {
-                  e.stopPropagation(); // Prevent touch capture
-                });
-              }
-            },
-          },
-          plotOptions: {
-            bar: {
-              horizontal: true,
-              columnWidth: '55%',
-              endingShape: 'rounded',
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          stroke: {
-            show: true,
-            width: 2,
-          },
-          xaxis: {
-            categories: res.data.processNumberWithDuration?.map((item: any) => {
-              const isDate = moment(item.time, moment.ISO_8601, true).isValid();
-              return isDate && selectedMainChartType !== 'yearly'
-                ? moment(item.time).format('DD-MM-YYYY')
-                : item.time;
-            }),
-          },
-          fill: {
-            opacity: 1,
-          },
-          tooltip: {
-            y: {
-              formatter: function (val) {
-                return val;
-              },
-            },
-          },
-        });
-        setRejectedProocessChart({
-          series: [
-            {
-              data:
-                res.data?.processNumberWithDuration?.map(
-                  (item: any) => item.revertedProcessNumber || 0,
-                ) || [],
-            },
-          ],
-          title: {
-            text: 'Reject Processes Numbers',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-          },
-          plotOptions: {
-            bar: {
-              borderRadius: 4,
-              horizontal: false,
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          legend: {
-            position: 'top',
-            horizontalAlign: 'right',
-            floating: true,
-            offsetY: -25,
-            offsetX: -5,
-          },
-        });
+        setMainChartOption(
+          res.data.processNumberWithDuration.map((item: any) => ({
+            completed: item.completedProcessNumber || 0,
+            pending: item.pendingProcessNumber || 0,
+            time: moment(item.time).format('DD-MM-YYY'),
+            pendingProcesses: item.pendingProcesses || [],
+          })),
+        );
+        setRejectedProocessChart(
+          res.data.processNumberWithDuration.map((item: any) => ({
+            pending: item.pendingProcessNumber || 0,
+            time: moment(item.time).format('DD-MM-YYY'),
+          })),
+        );
         setDocumentDetailsChart({
           series: Array.from(
             new Set(
@@ -583,7 +369,11 @@ const Overall = () => {
       </Stack>
       <Grid2 container spacing={2}>
         <Grid2 size={{ xs: 12 }}>
-          <ChartOne data={mainChartOption} loading={mainChartLoading} />
+          <ChartOne
+            data={mainChartOption}
+            loading={mainChartLoading}
+            handleView={handleView}
+          />
         </Grid2>
         <Grid2 size={{ xs: 12, lg: 6 }}>
           <ChartTwo data={rejectedProcessChart} loading={mainChartLoading} />
