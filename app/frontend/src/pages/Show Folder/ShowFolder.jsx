@@ -620,27 +620,27 @@ export default function ShowFolder(props) {
   const truncateFileName = (fname, maxLength = 10) => {
     if (fname.length <= maxLength) {
       return fname;
+    }
+
+    const lastDotIndex = fname.lastIndexOf('.');
+
+    if (lastDotIndex > 0 && lastDotIndex < fname.length - 1) {
+      // Handle filenames with extensions
+      const baseName = fname.slice(0, lastDotIndex);
+      const extension = fname.slice(lastDotIndex + 1);
+
+      const truncatedBase =
+        baseName.length > maxLength - 5
+          ? `${baseName.slice(0, maxLength / 2 - 2)}...${baseName.slice(-3)}`
+          : baseName;
+
+      const truncatedExtension =
+        extension.length > 10 ? `${extension.slice(0, 7)}...` : extension;
+
+      return `${truncatedBase}.${truncatedExtension}`;
     } else {
-      if (fname.includes('.')) {
-        // Handle file names
-        const [baseName, extension] = fname.split('.').reduce(
-          (result, part, index, array) => {
-            if (index === array.length - 1) {
-              result[1] = part;
-            } else {
-              result[0] += part;
-            }
-            return result;
-          },
-          ['', ''],
-        );
-        const truncatedName = `${baseName.slice(0, 8)}...${baseName.slice(-3)}`;
-        return `${truncatedName}.${extension}`;
-      } else {
-        // Handle folder names
-        const truncatedName = `${fname.slice(0, 8)}...${fname.slice(-3)}`;
-        return truncatedName;
-      }
+      // Handle filenames or folder names without extensions
+      return `${fname.slice(0, maxLength / 2 - 2)}...${fname.slice(-3)}`;
     }
   };
 
@@ -1135,7 +1135,6 @@ export default function ShowFolder(props) {
                                   setOpenToolTip(null);
                                 }, 1500);
                               }}
-                              disabled={item.onlyMetaData}
                               sx={{
                                 // border: '1px solid lightgray',
                                 flexDirection: 'column',
@@ -1159,7 +1158,9 @@ export default function ShowFolder(props) {
                               variant="text"
                               color="primary"
                               onDoubleClick={() =>
-                                handleView(pathValue, item.name, item?.id)
+                                item.onlyMetaData
+                                  ? null
+                                  : handleView(pathValue, item.name, item?.id)
                               }
                               size="medium"
                             >
@@ -1497,7 +1498,7 @@ export default function ShowFolder(props) {
         <MenuItem
           sx={{ color: 'red' }}
           onClick={deleteModalOpen}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconTrash color="red" />
           delete
