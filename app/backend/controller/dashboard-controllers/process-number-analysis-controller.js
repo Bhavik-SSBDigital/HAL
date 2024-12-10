@@ -1,5 +1,6 @@
 import { verifyUser } from "../../utility/verifyUser.js";
 import Process from "../../models/process.js";
+import Document from "../../models/document.js";
 import ProcessAnalytics from "../../models/analytics/process-analytics.js";
 import { ObjectId } from "mongodb";
 
@@ -17,6 +18,77 @@ const monthNames = [
   "November",
   "December",
 ];
+
+export const get_process_details = async (pendingProcessDetails_) => {
+  try {
+    let pendingProcessDetails = await Promise.all(
+      pendingProcessDetails_.map(async (item) => {
+        let process = await Process.findOne({ _id: item }).select("name");
+        return {
+          name: process.name,
+          processId: process._id,
+        };
+      })
+    );
+
+    return pendingProcessDetails;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const format_document_details = async (documentDetails) => {
+  try {
+    let formattedDocumentDetails = [];
+    console.log("document details", documentDetails);
+    for (let i = 0; i < documentDetails.length; i++) {
+      console.log("document details[i]", documentDetails[i]);
+      let documentsUploaded =
+        documentDetails[i].documentsUploaded &&
+        documentDetails[i].documentsUploaded.length > 0
+          ? await get_document_details(documentDetails[i].documentsUploaded)
+          : [];
+      let documentsReverted =
+        documentDetails[i].documentsReverted &&
+        documentDetails[i].documentsReverted.length > 0
+          ? await get_document_details(documentDetails[i].documentsReverted)
+          : [];
+      formattedDocumentDetails.push({
+        workName: documentDetails[i].workName,
+        documentsUploaded: documentsUploaded,
+        documentsReverted: documentsReverted,
+      });
+    }
+
+    return formattedDocumentDetails;
+  } catch (error) {
+    console.log("error formatting document details", error);
+    throw new Error(error);
+  }
+};
+
+export const get_document_details = async (docs) => {
+  try {
+    console.log("docs", docs);
+    let finalDocs = await Promise.all(
+      docs.map(async (item) => {
+        let document = await Document.findOne({ _id: item }).select(
+          "name path"
+        );
+        return {
+          documentId: document._id,
+          path: document.path,
+          name: document.name,
+        };
+      })
+    );
+
+    return finalDocs;
+  } catch (error) {
+    console.log("Error getting document details", error);
+    throw new Error(error);
+  }
+};
 
 export const get_process_number_weekly = async (department) => {
   try {
@@ -37,23 +109,6 @@ export const get_process_number_weekly = async (department) => {
       });
 
       let documentDetails = [];
-
-      // if (pendingProcesses !== null) {
-      //   documentDetails =
-      //     department === undefined
-      //       ? pendingProcesses.documentDetails
-      //       : pendingProcesses.departmentsPendingProcess.find((item) =>
-      //           item.department.equals(new ObjectId(department))
-      //         ) === undefined
-      //       ? []
-      //       : pendingProcesses.departmentsPendingProcess.find((item) =>
-      //           item.department.equals(new ObjectId(department))
-      //         ).documentDetails;
-
-      //   if (documentDetails === null) {
-      //     documentDetails = [];
-      //   }
-      // }
 
       if (pendingProcesses !== null) {
         documentDetails =
@@ -123,12 +178,25 @@ export const get_process_number_weekly = async (department) => {
         pendingProcessDetails = [];
         revertedProcessDetails = [];
       }
+
+      let finalPendingProcessDetails = await get_process_details(
+        pendingProcessDetails
+      );
+
+      console.log("document details", documentDetails);
+
+      let finalFormattedDocumentDetails =
+        documentDetails && documentDetails.length > 0
+          ? await format_document_details(documentDetails)
+          : [];
+
       processes_per_day.push({
         time: new Date(requiredDate),
         pendingProcessNumber: pendingProcessDetails.length,
+        pendingProcesses: finalPendingProcessDetails,
         revertedProcessNumber: revertedProcessDetails.length,
         completedProcessNumber: completedProcesses.length,
-        documentDetails: documentDetails,
+        documentDetails: finalFormattedDocumentDetails,
       });
     }
 
