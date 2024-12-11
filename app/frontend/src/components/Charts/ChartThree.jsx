@@ -2,7 +2,6 @@ import { Card } from '@mui/material';
 import ReactApexChart from 'react-apexcharts';
 
 const ChartThree = ({ data, loading, handleView }) => {
-  console.log(data);
   const chartOption = {
     series: data?.series,
     chart: {

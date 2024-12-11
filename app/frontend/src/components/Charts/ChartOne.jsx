@@ -52,7 +52,6 @@ const ChartOne = ({ data, loading, handleView }) => {
           const processes = data[opts.dataPointIndex].pendingProcesses;
           if (processes?.length) {
             setSelectedProcesses(processes);
-            console.log(processes);
           }
         },
       },

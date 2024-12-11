@@ -16,7 +16,6 @@ const Overall = () => {
   const [mainChartOption, setMainChartOption] = useState();
   const [rejectedProcessChart, setRejectedProocessChart] = useState();
   const [documentsDetailsChart, setDocumentDetailsChart] = useState();
-  console.log(documentsDetailsChart);
   const [rejectedDocCatWise, setRejectedDocCatWise] = useState({
     title: {
       text: 'Rejected Documents Category Wise',
@@ -142,6 +141,7 @@ const Overall = () => {
           res.data.processNumberWithDuration.map((item) => ({
             pending: item.pendingProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
+            rejectedProcesses: item.revertedProcesses,
           })),
         );
         setDocumentDetailsChart({
@@ -233,7 +233,11 @@ const Overall = () => {
           />
         </Grid2>
         <Grid2 size={{ xs: 12, lg: 6 }}>
-          <ChartTwo data={rejectedProcessChart} loading={mainChartLoading} />
+          <ChartTwo
+            data={rejectedProcessChart}
+            loading={mainChartLoading}
+            handleView={handleView}
+          />
         </Grid2>
         <Grid2 size={{ xs: 12, lg: 6 }}>
           <ChartThree
