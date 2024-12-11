@@ -442,7 +442,7 @@ export const add_process = async (req, res, next) => {
                   .pendingProcesses || [];
               processAnalytics.departmentsPendingProcess[
                 departmentIndex
-              ].pendingProcesses.push(Process._id);
+              ].pendingProcesses.push(process._id);
 
               let documentDetailsOfDepartment =
                 processAnalytics.departmentsPendingProcess[departmentIndex]
@@ -489,13 +489,13 @@ export const add_process = async (req, res, next) => {
           let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
             ? {
                 date: new Date(),
-                pendingProcesses: [Process._id],
+                pendingProcesses: [process._id],
                 revertedProcesses: [],
                 documentDetails: workNameGroups,
                 departmentsPendingProcess: [
                   {
                     department: new ObjectId(req.body.workFlow),
-                    pendingProcesses: [Process._id],
+                    pendingProcesses: [process._id],
                     revertedProcesses: [],
                     documentDetails: workNameGroups,
                   },
@@ -503,7 +503,7 @@ export const add_process = async (req, res, next) => {
               }
             : {
                 date: new Date(),
-                pendingProcesses: [Process._id],
+                pendingProcesses: [process._id],
                 revertedProcesses: [],
                 documentDetails: workNameGroups,
               };
