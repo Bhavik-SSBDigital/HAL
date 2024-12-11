@@ -11,6 +11,16 @@ const ChartThree = ({ data, loading, handleView }) => {
       toolbar: {
         show: false,
       },
+      events: {
+        markerClick: function (chartContext, seriesIndex, opts) {
+          const processes = data[opts.dataPointIndex];
+          console.log(opts);
+          // if (processes?.length) {
+          //   setSelectedProcesses(processes);
+          //   console.log(processes);
+          // }
+        },
+      },
     },
     dataLabels: {
       enabled: true,

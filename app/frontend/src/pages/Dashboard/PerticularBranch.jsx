@@ -454,60 +454,33 @@ const PerticularBranch = () => {
         });
 
         setRejectedDocCatWise({
-          title: {
-            text: 'Rejected Documents Category Wise',
-            left: 'center', // align center
-            top: 5, // margin from top
-            textStyle: {
-              fontSize: 14,
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          tooltip: {
-            trigger: 'axis',
-          },
-          grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true,
-          },
-          toolbox: {
-            feature: {
-              saveAsImage: {},
-            },
-          },
-          xAxis: {
-            type: 'category',
-            data: res.data.processNumberWithDuration.map((item) => {
-              const isDate = moment(item.time, moment.ISO_8601, true).isValid();
-              return isDate && selectedMainChartType !== 'yearly'
-                ? moment(item.time).format('DD-MM-YYYY')
-                : item.time;
-            }),
-          },
-          yAxis: {
-            type: 'value',
-          },
           series: Array.from(
             new Set(
-              res.data.processNumberWithDuration
-                .flatMap((item) =>
+              res?.data?.processNumberWithDuration
+                ?.flatMap((item) =>
                   item.documentDetails.map((doc) => doc.workName),
                 )
                 .filter(Boolean),
             ),
           ).map((docName) => ({
             name: docName,
-            type: 'line',
-            data: res.data.processNumberWithDuration.map((item) => {
-              return (
-                item.documentDetails.find((doc) => doc.workName === docName)
-                  ?.noOfRejectedDocuments || 0
+            type: 'bar',
+            data: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
               );
+              return doc ? doc.noOfRejectedDocuments : 0; // Set to 0 if documentCount not found
+            }),
+            documents: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.documentsReverted : []; // Return documentsUploaded or empty array
             }),
           })),
+          time: res.data.processNumberWithDuration?.map((item) =>
+            item.time ? moment(item.time).format('DD-MM-YYYY') : 0,
+          ),
         });
       }
     } catch (error) {
