@@ -8,10 +8,11 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { Button, Dialog, DialogTitle, Grid2, Stack } from '@mui/material';
 import ChartFour from '../../components/Charts/ChartFour';
+import { useNavigate } from 'react-router-dom';
 
 const Overall = () => {
   // ------------------states-----------------------------
-
+  const navigate = useNavigate();
   // charts option
   const [mainChartOption, setMainChartOption] = useState();
   const [rejectedProcessChart, setRejectedProocessChart] = useState();
@@ -76,8 +77,9 @@ const Overall = () => {
     const { name, value } = e.target;
     setMainChartDateRange((prev) => ({ ...prev, [name]: value }));
   };
-  const handleView = () => {
-    console.log('asd');
+  const handleView = (name) => {
+    const url = `/dashboard/timeLine?data=${name}`;
+    navigate(url);
   };
 
   // get dashboard data

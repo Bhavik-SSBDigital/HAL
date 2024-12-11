@@ -196,8 +196,9 @@ const PerticularBranch = () => {
       setFileListLoading(false);
     }
   };
-  const handleView = () => {
-    console.log('data');
+  const handleView = (name) => {
+    const url = `/dashboard/timeLine?data=${name}`;
+    navigate(url);
   };
 
   // show timeline
