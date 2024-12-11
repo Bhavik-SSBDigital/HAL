@@ -408,7 +408,7 @@ const PerticularBranch = () => {
             pending: item.pendingProcessNumber || 0,
             time:
               selectedMainChartType == 'weekly'
-                ? moment(item.time).format('DD-MM-YYY')
+                ? moment(item.time).format('D-M-Y')
                 : item.time,
             pendingProcesses: item.pendingProcesses || [],
           })),
@@ -418,7 +418,7 @@ const PerticularBranch = () => {
             pending: item.revertedProcessNumber || 0,
             time:
               selectedMainChartType == 'weekly'
-                ? moment(item.time).format('DD-MM-YYY')
+                ? moment(item.time).format('D-M-Y')
                 : item.time,
             rejectedProcesses: item.revertedProcesses,
           })),
@@ -449,7 +449,7 @@ const PerticularBranch = () => {
           })),
           time: res.data.processNumberWithDuration?.map((item) =>
             selectedMainChartType == 'weekly'
-              ? moment(item.time).format('DD-MM-YYY')
+              ? moment(item.time).format('D-M-Y')
               : item.time,
           ),
         });
@@ -481,7 +481,7 @@ const PerticularBranch = () => {
           })),
           time: res.data.processNumberWithDuration?.map((item) =>
             selectedMainChartType == 'weekly'
-              ? moment(item.time).format('DD-MM-YYY')
+              ? moment(item.time).format('D-M-Y')
               : item.time,
           ),
         });
