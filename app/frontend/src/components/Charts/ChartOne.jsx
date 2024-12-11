@@ -18,7 +18,7 @@ import { useState } from 'react';
 import ReactApexChart from 'react-apexcharts';
 
 const ChartOne = ({ data, loading, handleView }) => {
-  console.log(data);
+  // console.log(data);
   const [selectedProcesses, setSelectedProcesses] = useState([]);
   const chartData = {
     series: [

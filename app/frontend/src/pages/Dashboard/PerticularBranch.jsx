@@ -411,7 +411,7 @@ const PerticularBranch = () => {
       );
       if (res.status === 200) {
         setMainChartOption(
-          res?.data?.processNumberWithDuration.map((item: any) => ({
+          res?.data?.processNumberWithDuration.map((item) => ({
             completed: item.completedProcessNumber || 0,
             pending: item.pendingProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
@@ -419,7 +419,7 @@ const PerticularBranch = () => {
           })),
         );
         setRejectedProocessChart(
-          res.data?.processNumberWithDuration?.map((item: any) => ({
+          res.data?.processNumberWithDuration?.map((item) => ({
             pending: item?.revertedProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYYY'),
           })),
@@ -427,82 +427,32 @@ const PerticularBranch = () => {
         setDocumentDetailsChart({
           series: Array.from(
             new Set(
-              res.data.processNumberWithDuration
-                .flatMap((item: any) =>
-                  item.documentDetails.map((doc: any) => doc.workName),
+              res?.data?.processNumberWithDuration
+                ?.flatMap((item) =>
+                  item.documentDetails.map((doc) => doc.workName),
                 )
-                .filter(Boolean), // Remove any falsy values
+                .filter(Boolean),
             ),
           ).map((docName) => ({
             name: docName,
-            data: res.data.processNumberWithDuration.map((item: any) => {
-              return (
-                item.documentDetails.find(
-                  (doc: any) => doc.workName === docName,
-                )?.documentCount || 0
+            data: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
               );
+              return doc ? doc.documentCount : 0; // Set to 0 if documentCount not found
+            }),
+            documents: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.documentsUploaded : []; // Return documentsUploaded or empty array
             }),
           })),
-          chart: {
-            height: 350,
-            type: 'line',
-            toolbar: {
-              show: false,
-            },
-          },
-          dataLabels: {
-            enabled: true,
-          },
-          stroke: {
-            curve: 'smooth',
-          },
-          title: {
-            text: 'Documents Counts Category Wise',
-            align: 'center',
-            margin: 5,
-            offsetY: -3,
-            style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          grid: {
-            borderColor: '#e7e7e7',
-            row: {
-              colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
-              opacity: 0.5,
-            },
-          },
-          markers: {
-            size: 1,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          yaxis: {
-            title: {
-              text: 'Documents Count',
-            },
-          },
-          legend: {
-            position: 'top',
-            horizontalAlign: 'center',
-            floating: true,
-            offsetY: -15,
-            offsetX: -5,
-          },
+          time: res.data.processNumberWithDuration?.map((item) =>
+            item.time ? moment(item.time).format('DD-MM-YYYY') : 0,
+          ),
         });
+
         setRejectedDocCatWise({
           title: {
             text: 'Rejected Documents Category Wise',
@@ -530,7 +480,7 @@ const PerticularBranch = () => {
           },
           xAxis: {
             type: 'category',
-            data: res.data.processNumberWithDuration.map((item: any) => {
+            data: res.data.processNumberWithDuration.map((item) => {
               const isDate = moment(item.time, moment.ISO_8601, true).isValid();
               return isDate && selectedMainChartType !== 'yearly'
                 ? moment(item.time).format('DD-MM-YYYY')
@@ -685,10 +635,15 @@ const PerticularBranch = () => {
               <ChartThree
                 data={documentsDetailsChart}
                 loading={mainChartLoading}
+                handleView={handleView}
               />
             </Grid2>
             <Grid2 size={{ xs: 12 }}>
-              <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
+              <ChartFour
+                data={rejectedDocCatWise}
+                loading={mainChartLoading}
+                handleView={handleView}
+              />
             </Grid2>
             <Grid2 size={{ xs: 12 }}>
               <ChartFive

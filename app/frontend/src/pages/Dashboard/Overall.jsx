@@ -15,66 +15,8 @@ const Overall = () => {
   // charts option
   const [mainChartOption, setMainChartOption] = useState();
   const [rejectedProcessChart, setRejectedProocessChart] = useState();
-  const [documentsDetailsChart, setDocumentDetailsChart] = useState({
-    series: [],
-    chart: {
-      height: 350,
-      type: 'line',
-      // dropShadow: {
-      //   enabled: true,
-      //   color: '#000',
-      //   top: 18,
-      //   left: 7,
-      //   blur: 10,
-      //   opacity: 0.2,
-      // },
-      toolbar: {
-        show: false,
-      },
-    },
-    dataLabels: {
-      enabled: true,
-    },
-    stroke: {
-      curve: 'smooth',
-    },
-    title: {
-      text: 'Documents Count Category Wise',
-      align: 'center',
-      margin: 5,
-      offsetY: 20,
-      style: {
-        fontSize: '14px',
-        fontWeight: 'bold',
-        color: '#333',
-      },
-    },
-    grid: {
-      borderColor: '#e7e7e7',
-      row: {
-        colors: ['#f3f3f3', 'transparent'],
-        opacity: 0.5,
-      },
-    },
-    markers: {
-      size: 1,
-    },
-    xaxis: {
-      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-    },
-    yaxis: {
-      title: {
-        text: 'Temperature',
-      },
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'right',
-      floating: true,
-      offsetY: -25,
-      offsetX: -5,
-    },
-  });
+  const [documentsDetailsChart, setDocumentDetailsChart] = useState();
+  console.log(documentsDetailsChart);
   const [rejectedDocCatWise, setRejectedDocCatWise] = useState({
     title: {
       text: 'Rejected Documents Category Wise',
@@ -138,12 +80,13 @@ const Overall = () => {
   const handleView = () => {
     console.log('asd');
   };
+
   // get dashboard data
   const getMainChartData = async () => {
     setMainChartLoading(true);
     // setRejectedProcessesLoading(true);
     try {
-      let sendData: any = {};
+      let sendData = {};
       if (
         selectedMainChartType === 'weekly' ||
         selectedMainChartType === 'yearly'
@@ -176,8 +119,7 @@ const Overall = () => {
         // setRejectedProcessesLoading(false);
         return;
       }
-      const dateUrl: string =
-        import.meta.env.VITE_BACKEND_URL + '/getProcessNumber';
+      const dateUrl = import.meta.env.VITE_BACKEND_URL + '/getProcessNumber';
       const res = await axios.post(
         dateUrl,
         { ...sendData },
@@ -189,7 +131,7 @@ const Overall = () => {
       );
       if (res.status === 200) {
         setMainChartOption(
-          res.data.processNumberWithDuration.map((item: any) => ({
+          res.data.processNumberWithDuration.map((item) => ({
             completed: item.completedProcessNumber || 0,
             pending: item.pendingProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
@@ -197,7 +139,7 @@ const Overall = () => {
           })),
         );
         setRejectedProocessChart(
-          res.data.processNumberWithDuration.map((item: any) => ({
+          res.data.processNumberWithDuration.map((item) => ({
             pending: item.pendingProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
           })),
@@ -205,90 +147,32 @@ const Overall = () => {
         setDocumentDetailsChart({
           series: Array.from(
             new Set(
-              res.data.processNumberWithDuration
-                .flatMap((item: any) =>
-                  item.documentDetails.map((doc: any) => doc.workName),
+              res?.data?.processNumberWithDuration
+                ?.flatMap((item) =>
+                  item.documentDetails.map((doc) => doc.workName),
                 )
-                .filter(Boolean), // Remove any falsy values
+                .filter(Boolean),
             ),
           ).map((docName) => ({
             name: docName,
-            data: res.data.processNumberWithDuration.map((item: any) => {
-              return (
-                item.documentDetails.find(
-                  (doc: any) => doc.workName === docName,
-                )?.documentCount || 0
+            data: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
               );
+              return doc ? doc.documentCount : 0; // Set to 0 if documentCount not found
+            }),
+            documents: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.documentsUploaded : []; // Return documentsUploaded or empty array
             }),
           })),
-          chart: {
-            height: 350,
-            type: 'line',
-            // dropShadow: {
-            //   enabled: true,
-            //   color: '#000',
-            //   top: 18,
-            //   left: 7,
-            //   blur: 10,
-            //   opacity: 0.2,
-            // },
-            toolbar: {
-              show: false,
-            },
-          },
-          dataLabels: {
-            enabled: true,
-          },
-          stroke: {
-            curve: 'smooth',
-          },
-          title: {
-            text: 'Documents Counts Category Wise',
-            align: 'center',
-            margin: 5,
-            offsetY: -3,
-            style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          grid: {
-            borderColor: '#e7e7e7',
-            row: {
-              colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
-              opacity: 0.5,
-            },
-          },
-          markers: {
-            size: 1,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          yaxis: {
-            title: {
-              text: 'Documents Count',
-            },
-          },
-          legend: {
-            position: 'top',
-            horizontalAlign: 'center',
-            floating: true,
-            offsetY: -15,
-            offsetX: -5,
-          },
+          time: res.data.processNumberWithDuration?.map((item) =>
+            item.time ? moment(item.time).format('DD-MM-YYYY') : 0,
+          ),
         });
+
         setRejectedDocCatWise({
           title: {
             text: 'Rejected Documents Category Wise',
@@ -316,7 +200,7 @@ const Overall = () => {
           },
           xAxis: {
             type: 'category',
-            data: res.data.processNumberWithDuration.map((item: any) => {
+            data: res.data.processNumberWithDuration.map((item) => {
               const isDate = moment(item.time, moment.ISO_8601, true).isValid();
               return isDate && selectedMainChartType !== 'yearly'
                 ? moment(item.time).format('DD-MM-YYYY')
@@ -346,7 +230,7 @@ const Overall = () => {
           })),
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error('something is wrong');
     }
     // setSelectedMainChartType("");
@@ -379,10 +263,18 @@ const Overall = () => {
           <ChartTwo data={rejectedProcessChart} loading={mainChartLoading} />
         </Grid2>
         <Grid2 size={{ xs: 12, lg: 6 }}>
-          <ChartThree data={documentsDetailsChart} loading={mainChartLoading} />
+          <ChartThree
+            data={documentsDetailsChart}
+            loading={mainChartLoading}
+            handleView={handleView}
+          />
         </Grid2>
         <Grid2 size={{ xs: 12 }}>
-          <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
+          <ChartFour
+            data={rejectedDocCatWise}
+            loading={mainChartLoading}
+            handleView={handleView}
+          />
         </Grid2>
       </Grid2>
       <Dialog onClose={closeFilterDialog} open={isFilterOpen}>

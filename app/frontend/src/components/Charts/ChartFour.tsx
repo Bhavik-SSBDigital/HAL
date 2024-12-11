@@ -2,7 +2,8 @@ import { Card } from '@mui/material';
 // import ReactApexChart from 'react-apexcharts';
 import ReactECharts from 'echarts-for-react';
 
-const ChartFour = ({ data, loading }) => {
+const ChartFour = ({ data, loading, handleView }) => {
+  // console.log(handleView);
   return (
     <Card sx={{ height: '450px', p: 2 }}>
       {!loading ? (

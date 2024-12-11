@@ -1,48 +1,57 @@
-// import { ApexOptions } from 'apexcharts';
-// import React, { useState } from 'react';
 import { Card } from '@mui/material';
 import ReactApexChart from 'react-apexcharts';
 
-const ChartTwo = ({ data, loading }) => {
-  // console.log(data);
+const ChartThree = ({ data, loading, handleView }) => {
+  console.log(data);
   const chartOption = {
-    series: [
-      {
-        data: data?.map((item) => item?.pending),
+    series: data?.series,
+    chart: {
+      height: 350,
+      type: 'line',
+      toolbar: {
+        show: false,
       },
-    ],
+    },
+    dataLabels: {
+      enabled: true,
+    },
+    stroke: {
+      curve: 'smooth',
+    },
     title: {
-      text: 'Reject Processes Numbers',
+      text: 'Documents Counts Category Wise',
       align: 'center',
       margin: 5,
-      offsetY: 20,
+      offsetY: -3,
       style: {
         fontSize: '14px',
         fontWeight: 'bold',
         color: '#333',
       },
     },
-    chart: {
-      type: 'bar',
-      height: 350,
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 4,
-        horizontal: false,
+    grid: {
+      borderColor: '#e7e7e7',
+      row: {
+        colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
+        opacity: 0.5,
       },
     },
-    dataLabels: {
-      enabled: false,
+    markers: {
+      size: 1,
     },
     xaxis: {
-      categories: data?.map((item) => item.time),
+      categories: data?.time,
+    },
+    yaxis: {
+      title: {
+        text: 'Documents Count',
+      },
     },
     legend: {
       position: 'top',
-      horizontalAlign: 'right',
+      horizontalAlign: 'center',
       floating: true,
-      offsetY: -25,
+      offsetY: -15,
       offsetX: -5,
     },
   };
@@ -52,7 +61,7 @@ const ChartTwo = ({ data, loading }) => {
         <ReactApexChart
           options={chartOption}
           series={chartOption?.series}
-          type="bar"
+          type="line"
           height={'100%'}
         />
       ) : (
@@ -72,4 +81,4 @@ const ChartTwo = ({ data, loading }) => {
   );
 };
 
-export default ChartTwo;
+export default ChartThree;
