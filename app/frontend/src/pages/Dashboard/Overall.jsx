@@ -139,7 +139,7 @@ const Overall = () => {
         );
         setRejectedProocessChart(
           res.data.processNumberWithDuration.map((item) => ({
-            pending: item.pendingProcessNumber || 0,
+            pending: item.revertedProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
             rejectedProcesses: item.revertedProcesses,
           })),

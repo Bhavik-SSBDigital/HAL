@@ -38,7 +38,6 @@ const PerticularBranch = () => {
     dashId,
     setDashId,
   } = sessionData();
-  console.log(dashId);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const accessToken = sessionStorage.getItem('accessToken');
   // ------------------states-----------------------------
@@ -264,7 +263,6 @@ const PerticularBranch = () => {
           },
           { headers: { Authorization: `Bearer ${accessToken}` } },
         );
-        console.log('step asas');
         if (res.status === 200) {
           setStepWiseChartOptions({
             title: {
@@ -325,18 +323,12 @@ const PerticularBranch = () => {
             ],
           });
           setProcessNameList(res?.data?.pendingProcessNames);
-          console.log('step 2');
         }
-        console.log('step 3');
       } catch (error) {
         console.error(error, 'error');
       } finally {
-        console.log('step 4');
         setStepWiseChartLoading(false);
       }
-      console.log('step last');
-      // setStepWiseLoading(false);
-      console.log(id + ' id');
       setDashId(id);
     }
   };
@@ -420,7 +412,7 @@ const PerticularBranch = () => {
         );
         setRejectedProocessChart(
           res.data.processNumberWithDuration.map((item) => ({
-            pending: item.pendingProcessNumber || 0,
+            pending: item.revertedProcessNumber || 0,
             time: moment(item.time).format('DD-MM-YYY'),
             rejectedProcesses: item.revertedProcesses,
           })),
