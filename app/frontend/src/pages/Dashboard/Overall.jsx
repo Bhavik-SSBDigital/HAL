@@ -133,14 +133,20 @@ const Overall = () => {
           res.data.processNumberWithDuration.map((item) => ({
             completed: item.completedProcessNumber || 0,
             pending: item.pendingProcessNumber || 0,
-            time: moment(item.time).format('DD-MM-YYY'),
+            time:
+              selectedMainChartType == 'weekly'
+                ? moment(item.time).format('DD-MM-YYY')
+                : item.time,
             pendingProcesses: item.pendingProcesses || [],
           })),
         );
         setRejectedProocessChart(
           res.data.processNumberWithDuration.map((item) => ({
             pending: item.revertedProcessNumber || 0,
-            time: moment(item.time).format('DD-MM-YYY'),
+            time:
+              selectedMainChartType == 'weekly'
+                ? moment(item.time).format('DD-MM-YYY')
+                : item.time,
             rejectedProcesses: item.revertedProcesses,
           })),
         );
@@ -169,7 +175,9 @@ const Overall = () => {
             }),
           })),
           time: res.data.processNumberWithDuration?.map((item) =>
-            item.time ? moment(item.time).format('DD-MM-YYYY') : 0,
+            selectedMainChartType == 'weekly'
+              ? moment(item.time).format('DD-MM-YYY')
+              : item.time,
           ),
         });
 
@@ -199,7 +207,9 @@ const Overall = () => {
             }),
           })),
           time: res.data.processNumberWithDuration?.map((item) =>
-            item.time ? moment(item.time).format('DD-MM-YYYY') : 0,
+            selectedMainChartType == 'weekly'
+              ? moment(item.time).format('DD-MM-YYY')
+              : item.time,
           ),
         });
       }
