@@ -52,8 +52,6 @@ export const get_documents_with_replacements = async (documents) => {
 
   let transformReplacements = transform_replacements(related_docs);
 
-  console.log("transform replacements", transformReplacements);
-
   const transformedActiveDocs = await Promise.all(
     latestDocs.map(async (doc) => {
       let path = `..${doc.details.path.substring(19)}`;

@@ -307,8 +307,6 @@ export const add_process = async (req, res, next) => {
       process.steps = updatedSteps;
     }
 
-    console.log("process.steps", process.steps || []);
-
     process.name = processName;
 
     if (req.body.meetingId) {
@@ -394,8 +392,6 @@ export const add_process = async (req, res, next) => {
         date: currentDate,
       });
 
-      console.log("work name groups", workNameGroups);
-
       try {
         if (processAnalytics) {
           processAnalytics.pendingProcesses.push(process._id);
@@ -447,10 +443,7 @@ export const add_process = async (req, res, next) => {
               processAnalytics.departmentsPendingProcess[
                 departmentIndex
               ].pendingProcesses.push(Process._id);
-              console.log(
-                "processAnalytics.departmentsPendingProcess[departmentIndex]",
-                processAnalytics.departmentsPendingProcess[departmentIndex]
-              );
+
               let documentDetailsOfDepartment =
                 processAnalytics.departmentsPendingProcess[departmentIndex]
                   .documentDetails;
@@ -493,7 +486,6 @@ export const add_process = async (req, res, next) => {
           // Save the updated document back to the database
           await processAnalytics.save();
         } else {
-          console.log("reached right places");
           let newProcessAnalyticsData = !ifProcessContainsCustomWorkFlow
             ? {
                 date: new Date(),
@@ -516,14 +508,6 @@ export const add_process = async (req, res, next) => {
                 documentDetails: workNameGroups,
               };
 
-          console.log(
-            "department pending details: document details",
-            newProcessAnalyticsData.departmentsPendingProcess[0].documentDetails
-          );
-          console.log(
-            "process document details",
-            newProcessAnalyticsData.documentDetails
-          );
           let newProcessAnalytics = new ProcessAnalytics(
             newProcessAnalyticsData
           );
@@ -1140,8 +1124,6 @@ export const forwardProcess = async (
           process.documents
         );
 
-        console.log("is custom workflow", isCustomProcess);
-
         if (isCustomProcess) {
           await addLog(
             processId,
@@ -1324,7 +1306,6 @@ export const forwardProcess = async (
       : await get_log_docs(processId, currentUserId, documents);
 
     if (!isCustomProcess) {
-      console.log("in right");
       await addLog(
         processId,
         false,
@@ -2658,9 +2639,10 @@ export const revertProcess = async (
 
     try {
       if (processAnalytics) {
-        processAnalytics.revertedProcesses = (
-          processAnalytics.revertedProcesses || []
-        ).push(process._id);
+        processAnalytics.revertedProcesses =
+          processAnalytics.revertedProcesses || [];
+
+        processAnalytics.revertedProcesses.push(process._id);
         if (process.steps && process.steps.length > 0) {
           // Document found, update the counts
           const departmentIndex = processAnalytics.departmentsPendingProcess
@@ -2719,7 +2701,6 @@ export const revertProcess = async (
                 ],
               };
 
-        console.log("new analytics", newAnalyticsData);
         let newProcessAnalytics = new ProcessAnalytics(newAnalyticsData);
         // newProcessAnalytics = new ProcessAnalytics(newProcessAnalytics);
         await newProcessAnalytics.save();

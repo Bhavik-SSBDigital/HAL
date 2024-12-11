@@ -719,7 +719,7 @@ export const reject_document = async (req, res, next) => {
 
         documentDetailsIfAddedForTheFirstTime.push({
           workName: foundDocument.workName,
-          noOfRejectedDocuments: 1,
+          documentsReverted: [documentId],
         });
 
         try {
@@ -729,22 +729,19 @@ export const reject_document = async (req, res, next) => {
                 (work) => work.workName === foundDocument.workName
               );
               if (workNameIndex !== -1) {
-                if (
+                processAnalytics.documentDetails[
+                  workNameIndex
+                ].documentsReverted =
                   processAnalytics.documentDetails[workNameIndex]
-                    .noOfRejectedDocuments
-                ) {
-                  processAnalytics.documentDetails[
-                    workNameIndex
-                  ].noOfRejectedDocuments += 1;
-                } else {
-                  processAnalytics.documentDetails[
-                    workNameIndex
-                  ].noOfRejectedDocuments = 1;
-                }
+                    .documentsReverted || [];
+
+                processAnalytics.documentDetails[
+                  workNameIndex
+                ].documentsReverted.push(documentId);
               } else {
                 processAnalytics.documentDetails.push({
                   workName: foundDocument.workName,
-                  noOfRejectedDocuments: 1,
+                  documentsReverted: [documentId],
                 });
               }
               // processAnalytics.documentDetails = processAnalytics.documentDetails;
@@ -769,22 +766,17 @@ export const reject_document = async (req, res, next) => {
                   (work) => work.workName === foundDocument.workName
                 );
                 if (workNameIndex !== -1) {
-                  if (
-                    documentDetailsOfDepartment[workNameIndex]
-                      .noOfRejectedDocuments
-                  ) {
-                    documentDetailsOfDepartment[
-                      workNameIndex
-                    ].noOfRejectedDocuments += 1;
-                  } else {
-                    documentDetailsOfDepartment[
-                      workNameIndex
-                    ].noOfRejectedDocuments = 1;
-                  }
+                  documentDetailsOfDepartment[workNameIndex].documentsReverted =
+                    processAnalytics.documentDetails[workNameIndex]
+                      .documentsReverted || [];
+
+                  processAnalytics.documentDetails[
+                    workNameIndex
+                  ].documentsReverted.push(documentId);
                 } else {
                   documentDetailsOfDepartment.push({
                     workName: foundDocument.workName,
-                    noOfRejectedDocuments: 1,
+                    documentsReverted: [documentId],
                   });
                 }
                 processAnalytics.departmentsPendingProcess[

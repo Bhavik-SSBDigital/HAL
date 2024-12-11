@@ -33,7 +33,7 @@ const processAnalyticsSchema = new mongoose.Schema({
           documentsUploaded: {
             type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
           },
-          documentsRejected: {
+          documentsReverted: {
             type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
           },
         },
@@ -48,7 +48,7 @@ const processAnalyticsSchema = new mongoose.Schema({
       documentsUploaded: {
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
       },
-      documentsRejected: {
+      documentsReverted: {
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Document" }],
       },
     },
