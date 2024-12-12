@@ -754,7 +754,7 @@ const PerticularBranch = () => {
         >
           <DialogTitle
             fontWeight={700}
-            sx={{ background: '#4E327E', color: 'white' }}
+            sx={{ background: 'var(--themeColor)', color: 'white', m: 1 }}
           >
             Files List
             <IconButton
