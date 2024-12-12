@@ -163,6 +163,8 @@ const Overall = () => {
             ),
           ).map((docName) => ({
             name: docName,
+            type: 'line',
+            smooth: true,
             data: res?.data?.processNumberWithDuration?.map((item) => {
               const doc = item.documentDetails.find(
                 (doc) => doc.workName === docName,
@@ -179,7 +181,7 @@ const Overall = () => {
           time: res.data.processNumberWithDuration?.map((item) =>
             selectedMainChartType == 'weekly'
               ? moment(item.time).format('D-M-Y')
-              : item.time,
+              : item?.time,
           ),
         });
 
@@ -208,7 +210,7 @@ const Overall = () => {
               return doc ? doc.documentsReverted : []; // Return documentsUploaded or empty array
             }),
           })),
-          time: res.data.processNumberWithDuration?.map((item) =>
+          time: res?.data?.processNumberWithDuration?.map((item) =>
             selectedMainChartType == 'weekly'
               ? moment(item.time).format('D-M-Y')
               : item.time,
@@ -252,18 +254,10 @@ const Overall = () => {
           />
         </Grid2>
         <Grid2 size={{ xs: 12, lg: 6 }}>
-          <ChartThree
-            data={documentsDetailsChart}
-            loading={mainChartLoading}
-            handleView={handleView}
-          />
+          <ChartThree data={documentsDetailsChart} loading={mainChartLoading} />
         </Grid2>
         <Grid2 size={{ xs: 12 }}>
-          <ChartFour
-            data={rejectedDocCatWise}
-            loading={mainChartLoading}
-            handleView={handleView}
-          />
+          <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
         </Grid2>
       </Grid2>
       <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
