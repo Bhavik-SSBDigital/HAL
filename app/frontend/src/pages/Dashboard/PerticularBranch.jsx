@@ -435,6 +435,8 @@ const PerticularBranch = () => {
             ),
           ).map((docName) => ({
             name: docName,
+            type: 'line',
+            smooth: true,
             data: res?.data?.processNumberWithDuration?.map((item) => {
               const doc = item.documentDetails.find(
                 (doc) => doc.workName === docName,
@@ -451,7 +453,7 @@ const PerticularBranch = () => {
           time: res.data.processNumberWithDuration?.map((item) =>
             selectedMainChartType == 'weekly'
               ? moment(item.time).format('D-M-Y')
-              : item.time,
+              : item?.time,
           ),
         });
 
