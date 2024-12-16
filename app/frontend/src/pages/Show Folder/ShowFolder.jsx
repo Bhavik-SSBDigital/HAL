@@ -1359,41 +1359,13 @@ export default function ShowFolder(props) {
                   ))}
               {/* file system texts start */}
               {loading === false &&
-                selectedTab == 0 &&
-                normalFiles?.length == 0 &&
                 !error &&
-                searchQuery && (
+                ((selectedTab === 0 && normalFiles?.length === 0) ||
+                (selectedTab === 1 && rejectedFiles?.length === 0) ? (
                   <Stack
                     justifyContent="center"
                     width="100%"
-                    height="100%"
-                    alignItems="center"
-                  >
-                    No item found
-                  </Stack>
-                )}
-              {loading === false &&
-                selectedTab == 1 &&
-                rejectedFiles?.length == 0 &&
-                !error &&
-                searchQuery && (
-                  <Stack
-                    justifyContent="center"
-                    width="100%"
-                    height="100%"
-                    alignItems="center"
-                  >
-                    No item found
-                  </Stack>
-                )}
-              {loading === false &&
-                fileFolders.length === 0 &&
-                !error &&
-                !searchQuery && (
-                  <Stack
-                    justifyContent="center"
-                    width="100%"
-                    height="40vh"
+                    height={'40vh'}
                     sx={{
                       backgroundColor: 'white',
                       borderRadius: '15px',
@@ -1402,10 +1374,16 @@ export default function ShowFolder(props) {
                     alignItems="center"
                   >
                     <Typography>
-                      There is no Files and folders in current directory
-                    </Typography>{' '}
+                      {selectedTab === 0
+                        ? searchQuery
+                          ? 'No item found'
+                          : 'There is no Files and folders in current directory'
+                        : searchQuery
+                        ? 'No item found'
+                        : 'There is no rejected files'}
+                    </Typography>
                   </Stack>
-                )}
+                ) : null)}
               {error && (
                 <Stack
                   justifyContent="center"
@@ -1416,6 +1394,7 @@ export default function ShowFolder(props) {
                   {error}
                 </Stack>
               )}
+
               {/* file system texts end */}
               {fileView && !loading && (
                 <View
