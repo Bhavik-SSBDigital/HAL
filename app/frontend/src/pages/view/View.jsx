@@ -28,6 +28,7 @@ const PdfViewer = ({
   };
 
   useEffect(() => {
+    const supportedTypes = ['xlsx', 'xls', 'pdf'];
     if (docu.type === 'xlsx' || docu.type === 'xls') {
       fetch(docu.url)
         .then((response) => response.blob())
@@ -62,7 +63,7 @@ const PdfViewer = ({
         })
         .catch((error) => console.error('Error reading Excel file:', error));
     }
-    if (docu.type !== 'pdf' || docu.type !== 'xlsx' || docu.type !== 'xls') {
+    if (!supportedTypes.includes(docu.type)) {
       toast.warn('Unsupported file type');
       handleViewClose();
       return;
