@@ -6,6 +6,7 @@ import PdfContainer from './pdfViewer';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
@@ -60,6 +61,11 @@ const PdfViewer = ({
           reader.readAsBinaryString(blob);
         })
         .catch((error) => console.error('Error reading Excel file:', error));
+    }
+    if (docu.type !== 'pdf' || docu.type !== 'xlsx' || docu.type !== 'xls') {
+      toast.warn('Unsupported file type');
+      handleViewClose();
+      return;
     }
   }, [docu]);
 
