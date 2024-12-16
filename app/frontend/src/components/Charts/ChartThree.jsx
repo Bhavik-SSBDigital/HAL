@@ -19,9 +19,10 @@ import { toast } from 'react-toastify';
 import { download } from '../drop-file-input/FileUploadDownload';
 
 const ChartThree = ({ data, loading }) => {
+  const [selectedDocuments, setSelectedDocuments] = useState([]);
   const chartOptions = {
     title: {
-      text: 'Rejected Documents Category Wise',
+      text: 'Uploaded Documents Category Wise',
       left: 'center', // align center
       top: 5, // margin from top
       textStyle: {
