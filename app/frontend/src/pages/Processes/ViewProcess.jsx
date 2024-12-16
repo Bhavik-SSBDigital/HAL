@@ -2636,13 +2636,14 @@ export default function ViewProcess(props) {
                 </Stack>
               </>
             )}
-            <Dialog open={openC} sx={{ backdropFilter: 'blur(4px)' }}>
+            <Dialog open={openC}>
               <Typography
                 variant="h6"
                 sx={{
                   textAlign: 'center',
                   padding: '10px',
-                  backgroundColor: 'lightblue',
+                  backgroundColor: 'var(--themeColor)',
+                  color:"white",
                   margin: '10px',
                   borderRadius: '5px',
                 }}

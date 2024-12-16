@@ -175,7 +175,7 @@ const DropdownNotification = () => {
       </div>
       {dropdownOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-0"
+          className="fixed inset-0 bg-black opacity-0 z-9"
           onClick={() => setDropdownOpen(false)}
           style={{ height: '100vh', width: '100vw' }}
         ></div>
