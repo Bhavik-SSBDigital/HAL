@@ -1365,7 +1365,7 @@ export default function ShowFolder(props) {
                   <Stack
                     justifyContent="center"
                     width="100%"
-                    height={'40vh'}
+                    height={'50vh'}
                     sx={{
                       backgroundColor: 'white',
                       borderRadius: '15px',

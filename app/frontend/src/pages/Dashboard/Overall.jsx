@@ -360,6 +360,7 @@ const Overall = () => {
             size="small"
             variant="contained"
             sx={{ mt: 2 }}
+            disabled={mainChartLoading}
             onClick={() => {
               getMainChartData();
               setIsFilterOpen(false);

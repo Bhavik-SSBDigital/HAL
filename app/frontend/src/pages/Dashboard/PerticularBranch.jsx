@@ -732,6 +732,7 @@ const PerticularBranch = () => {
               size="small"
               variant="contained"
               sx={{ mt: 2 }}
+              disabled={mainChartLoading}
               onClick={() => {
                 getPerticularBranchData();
                 getStepWisePendingProcesses();
@@ -747,7 +748,6 @@ const PerticularBranch = () => {
           open={fileListOpen}
           sx={{
             '& .MuiPaper-root': { maxWidth: '600px', width: '100%' },
-            backdropFilter: 'blur(4px)',
             zIndex: 99999,
           }}
           onClose={() => (fileListLoading ? null : setFileListOpen(false))}
