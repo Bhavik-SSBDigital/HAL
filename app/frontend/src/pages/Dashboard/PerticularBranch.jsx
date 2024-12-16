@@ -649,11 +649,11 @@ const PerticularBranch = () => {
             <TextField
               id="mainChartOptions"
               fullWidth
+              label="Type"
               select
               value={selectedMainChartType}
               onChange={handleMainChartType}
             >
-              <MenuItem value="">select</MenuItem>
               <MenuItem value="weekly">Weekly</MenuItem>
               <MenuItem value="monthly">Monthly</MenuItem>
               <MenuItem value="yearly">Yearly</MenuItem>
@@ -663,13 +663,11 @@ const PerticularBranch = () => {
               <TextField
                 select
                 id="yearOptions"
+                label="Year"
                 fullWidth
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
               >
-                <MenuItem value="" disabled>
-                  select
-                </MenuItem>
                 {yearList.map((year) => (
                   <MenuItem value={year} key={year}>
                     {year}

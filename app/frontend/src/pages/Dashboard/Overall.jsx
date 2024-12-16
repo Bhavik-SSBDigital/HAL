@@ -278,23 +278,14 @@ const Overall = () => {
           gap={1}
           sx={{ minWidth: '200px' }}
         >
-          {/* <Typography variant="h6" sx={{ textAlign: 'center' }}>
-            Apply filters
-          </Typography> */}
           <TextField
             select
+            label="Type"
             id="mainChartOptions"
             fullWidth
-            // sx={{
-            //   width: '100%',
-            //   height: '40px',
-            //   borderRadius: '8px',
-            //   border: '1px solid',
-            // }}
             value={selectedMainChartType}
             onChange={handleMainChartType}
           >
-            <MenuItem value="">select</MenuItem>
             <MenuItem value="weekly">Weekly</MenuItem>
             <MenuItem value="monthly">Monthly</MenuItem>
             <MenuItem value="yearly">Yearly</MenuItem>
@@ -306,11 +297,9 @@ const Overall = () => {
               id="yearOptions"
               fullWidth
               value={selectedYear}
+              label="Year"
               onChange={(e) => setSelectedYear(e.target.value)}
             >
-              <MenuItem value="" disabled>
-                select
-              </MenuItem>
               {yearList.map((year) => (
                 <MenuItem value={year} key={year}>
                   {year}
