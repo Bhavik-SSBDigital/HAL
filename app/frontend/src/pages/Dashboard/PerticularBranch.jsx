@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Grid2,
   IconButton,
+  MenuItem,
   Stack,
   Table,
   TableCell,
@@ -645,44 +646,36 @@ const PerticularBranch = () => {
             <Typography variant="h6" sx={{ textAlign: 'center' }}>
               Apply filters
             </Typography>
-            <select
+            <TextField
               id="mainChartOptions"
-              style={{
-                width: '100%',
-                height: '40px',
-                borderRadius: '8px',
-                border: '1px solid',
-              }}
+              fullWidth
+              select
               value={selectedMainChartType}
               onChange={handleMainChartType}
             >
-              <option value="">select</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="custom">Custom</option>
-            </select>
+              <MenuItem value="">select</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </TextField>
             {selectedMainChartType === 'monthly' && (
-              <select
+              <TextField
+                select
                 id="yearOptions"
-                style={{
-                  width: '100%',
-                  height: '40px',
-                  borderRadius: '8px',
-                  border: '1px solid',
-                }}
+                fullWidth
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
               >
-                <option value="" disabled>
+                <MenuItem value="" disabled>
                   select
-                </option>
+                </MenuItem>
                 {yearList.map((year) => (
-                  <option value={year} key={year}>
+                  <MenuItem value={year} key={year}>
                     {year}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
+              </TextField>
             )}
             {selectedMainChartType === 'custom' && (
               <Stack spacing={2} alignItems="center">
@@ -694,15 +687,11 @@ const PerticularBranch = () => {
                   alignItems="center"
                 >
                   <h4>Select Start Date:</h4>
-                  <input
+                  <TextField
                     type="date"
                     name="startDate"
                     // className={styles.dateInputs}
-                    style={{
-                      border: '1px solid',
-                      borderRadius: '6px',
-                      padding: '4px',
-                    }}
+
                     onChange={handleMainChartDateChange}
                   />
                 </Stack>
@@ -714,14 +703,9 @@ const PerticularBranch = () => {
                   alignItems="center"
                 >
                   <h4>Select End Date:</h4>
-                  <input
+                  <TextField
                     type="date"
                     name="endDate"
-                    style={{
-                      border: '1px solid',
-                      borderRadius: '6px',
-                      padding: '4px',
-                    }}
                     // className={styles.dateInputs}
                     onChange={handleMainChartDateChange}
                   />

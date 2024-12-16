@@ -71,10 +71,7 @@ const ChartOne = ({ data, loading, handleView }) => {
       width: 2,
     },
     xaxis: {
-      categories: data?.map((item) => {
-        const isDate = moment(item.time, moment.ISO_8601, true).isValid();
-        return isDate ? moment(item.time).format('DD-MM-YYYY') : item.time;
-      }),
+      categories: data?.map((item) => item.time),
     },
     fill: {
       opacity: 1,

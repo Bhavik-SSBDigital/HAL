@@ -87,7 +87,7 @@ const ChartFive = ({ data, loading }) => {
                 )}
             </Card>
             <Dialog open={open} onClose={handleClose} sx={{ "& .MuiPaper-root": { maxWidth: "600px", width: "100%" }, zIndex: 99999 }}>
-                <DialogTitle fontWeight={700} sx={{ background: '#4E327E', color: 'white' }}>
+                <DialogTitle fontWeight={700} sx={{ background: 'var(--themeColor)', color: 'white' }}>
                     Processes List
                     <IconButton
                         aria-label="close"
@@ -128,7 +128,7 @@ const ChartFive = ({ data, loading }) => {
             >
                 <DialogTitle
                     fontWeight={700}
-                    sx={{ background: '#4E327E', color: 'white' }}
+                    sx={{ background: 'var(--themeColor)', color: 'white' }}
                 >
                     Files List
                     <IconButton
