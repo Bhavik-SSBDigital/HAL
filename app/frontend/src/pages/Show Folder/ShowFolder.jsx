@@ -74,6 +74,8 @@ import {
   IconTool,
   IconTransfer,
   IconCircleCheck,
+  IconChevronLeftPipe,
+  IconChevronsLeft,
 } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IconFolderPlus } from '@tabler/icons-react';
@@ -1765,81 +1767,91 @@ export default function ShowFolder(props) {
 
       {/* color for plus background background: 'linear-gradient(to right, #3E5151 , #DECBA4)' */}
       {isUploadable && (
-        <Stack position="relative">
-          <Fab
-            color="primary"
-            onClick={handlePlus}
-            aria-label="add"
-            sx={{ position: 'fixed', bottom: '5%', right: '5%' }}
+        <Stack
+          position="fixed"
+          flexDirection={'row'}
+          alignItems={'center'}
+          sx={{
+            bottom: '25px',
+            right: '-325px',
+            transition: 'right 0.3s ease-in-out',
+            '&:hover': {
+              right: '10px',
+            },
+          }}
+        >
+          <IconChevronsLeft
+            size={57}
+            // color="purple"
+            style={{
+              background: 'white',
+              color: 'var(--themeColor)',
+              padding: '10px',
+              borderRight: 0,
+              border: '1px solid lightgray',
+              borderRadius: '50% 0 0 50%',
+            }}
+          />
+          <Stack
+            flexDirection={'row'}
+            gap={1}
+            padding={1}
+            sx={{
+              boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
+              backgroundColor: 'white',
+              border: '1px solid lightgray',
+              borderRadius: '0 8px 8px 0',
+            }}
           >
-            <AddIcon />
-            {showButtons && (
-              <Box
-                gap="10px"
-                flexDirection="column"
-                display="flex"
-                sx={{
-                  width: '150px',
-                  borderRadius: '15px',
-                  padding: '15px',
-                  position: 'absolute',
-                  top: '-220%',
-                  right: '0%',
+            <Button
+              sx={{
+                flexDirection: 'row',
+                width: '150px',
+                padding: '10px',
+                height: '40px',
+                alignItems: 'center',
+              }}
+              // color='info'
+              size="medium"
+              variant="contained"
+              onClick={() => openModal('createFolder')}
+            >
+              <IconFolderPlus size={17} style={{ marginRight: '3px' }} />
+              {/* <img src={imageSrc} alt="image" /> */}
+              <p
+                style={{
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  color: 'white',
                 }}
               >
-                <Button
-                  sx={{
-                    flexDirection: 'row',
-                    marginBottom: '5px',
-                    width: '150px',
-                    padding: '10px',
-                    height: '40px',
-                    alignItems: 'center',
-                  }}
-                  // color='info'
-                  size="medium"
-                  variant="contained"
-                  onClick={() => openModal('createFolder')}
-                >
-                  <IconFolderPlus size={17} style={{ marginRight: '3px' }} />
-                  {/* <img src={imageSrc} alt="image" /> */}
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    NEW FOLDER
-                  </p>
-                </Button>
-                <Button
-                  sx={{
-                    flexDirection: 'row',
-                    marginBottom: '5px',
-                    width: '150px',
-                    padding: '10px',
-                    height: '40px',
-                    alignItems: 'center',
-                  }}
-                  variant="contained"
-                  size="medium"
-                  onClick={() => openModal('uploadFiles')}
-                >
-                  <IconUpload size={16} style={{ marginRight: '3px' }} />
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    UPLOAD FILE
-                  </p>
-                </Button>
-              </Box>
-            )}
-          </Fab>
+                NEW FOLDER
+              </p>
+            </Button>
+            <Button
+              sx={{
+                flexDirection: 'row',
+                width: '150px',
+                padding: '10px',
+                height: '40px',
+                alignItems: 'center',
+              }}
+              variant="contained"
+              size="medium"
+              onClick={() => openModal('uploadFiles')}
+            >
+              <IconUpload size={16} style={{ marginRight: '3px' }} />
+              <p
+                style={{
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  color: 'white',
+                }}
+              >
+                UPLOAD FILE
+              </p>
+            </Button>
+          </Stack>
         </Stack>
       )}
 

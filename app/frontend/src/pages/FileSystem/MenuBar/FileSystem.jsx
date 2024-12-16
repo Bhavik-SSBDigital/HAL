@@ -18,7 +18,7 @@ import { setPath } from '../../../Slices/PathSlice';
 import DropFileInput from '../../../components/drop-file-input/DropFileInput';
 import ComponentLoader from '../../../common/Loader/ComponentLoader';
 import Path from '../../../components/path/PathBar';
-import { IconFolderPlus } from '@tabler/icons-react';
+import { IconChevronsLeft, IconFolderPlus } from '@tabler/icons-react';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import AddIcon from '@mui/icons-material/Add';
 import imageSrc from '../../../assets/images/folder.png';
@@ -266,29 +266,60 @@ const FileSystem = () => {
             </Dialog>
           </Stack>
           {isAdmin && (
-            <Fab
-              color="primary"
-              onClick={handlePlus}
-              aria-label="add"
-              sx={{ position: 'fixed', bottom: '5%', right: '5%' }}
+            <Stack
+              position="fixed"
+              flexDirection={'row'}
+              alignItems={'center'}
+              sx={{
+                bottom: '25px',
+                right: '-175px',
+                transition: 'right 0.3s ease-in-out',
+                '&:hover': {
+                  right: '10px',
+                },
+              }}
             >
-              <AddIcon />
-              {showButtons && (
-                <Box sx={{ position: 'absolute', top: '-130%', right: 0 }}>
-                  <Button
-                    variant="contained"
-                    color="info"
-                    onClick={() => openModal('createFolder')}
-                    sx={{ mb: 1 }}
-                  >
-                    <CreateNewFolderIcon sx={{ mr: 1 }} />
-                    <Typography variant="caption" color="white">
-                      New Project
-                    </Typography>
-                  </Button>
-                </Box>
-              )}
-            </Fab>
+              <IconChevronsLeft
+                size={57}
+                // color="purple"
+                style={{
+                  background: 'white',
+                  color: 'var(--themeColor)',
+                  padding: '10px',
+                  borderRight: 0,
+                  border: '1px solid lightgray',
+                  borderRadius: '50% 0 0 50%',
+                }}
+              />
+
+              <Stack
+                flexDirection={'row'}
+                gap={1}
+                padding={1}
+                sx={{
+                  boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
+                  backgroundColor: 'white',
+                  border: '1px solid lightgray',
+                  borderRadius: '0 8px 8px 0',
+                }}
+              >
+                <Button
+                  variant="contained"
+                  color="info"
+                  onClick={() => openModal('createFolder')}
+                  sx={{
+                    minWidth: 'fit-content',
+                    padding: '10px',
+                    height: '40px',
+                  }}
+                >
+                  <CreateNewFolderIcon sx={{ mr: 1 }} />
+                  <Typography variant="caption" color="white">
+                    New Project
+                  </Typography>
+                </Button>
+              </Stack>
+            </Stack>
           )}
         </>
       )}
