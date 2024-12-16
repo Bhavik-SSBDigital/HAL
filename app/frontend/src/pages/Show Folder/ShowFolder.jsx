@@ -805,12 +805,12 @@ export default function ShowFolder(props) {
     .sort((a, b) => {
       if (sortBy === 'name') {
         const compareResult = b.name.localeCompare(a.name);
-        return sortOrder === 'asc' ? compareResult : -compareResult;
+        return sortOrder === 'asc' ? -compareResult : compareResult;
       } else if (sortBy === 'date') {
         const dateA = new Date(a.createdOn);
         const dateB = new Date(b.createdOn);
         const dateCompareResult = dateB - dateA;
-        return sortOrder === 'asc' ? dateCompareResult : -dateCompareResult;
+        return sortOrder === 'asc' ? -dateCompareResult : dateCompareResult;
       } else if (sortBy === 'size') {
         const sizeCompareResult = b.size - a.size;
         return sortOrder === 'asc' ? sizeCompareResult : -sizeCompareResult;
