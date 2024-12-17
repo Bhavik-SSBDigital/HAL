@@ -767,10 +767,10 @@ export const reject_document = async (req, res, next) => {
                 );
                 if (workNameIndex !== -1) {
                   documentDetailsOfDepartment[workNameIndex].documentsReverted =
-                    processAnalytics.documentDetails[workNameIndex]
+                    documentDetailsOfDepartment[workNameIndex]
                       .documentsReverted || [];
 
-                  processAnalytics.documentDetails[
+                  documentDetailsOfDepartment[
                     workNameIndex
                   ].documentsReverted.push(documentId);
                 } else {
