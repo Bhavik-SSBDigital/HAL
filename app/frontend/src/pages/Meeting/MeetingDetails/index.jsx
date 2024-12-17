@@ -46,6 +46,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const username = sessionStorage.getItem('username');
   const token = sessionStorage.getItem('accessToken');
   const [meetingDetails, setMeetingDetails] = useState({});
+  const isInitiator = sessionStorage.getItem('initiator') == 'true';
   const formatDateTime = (dateString) => new Date(dateString).toLocaleString();
 
   const getDetails = async () => {
@@ -105,6 +106,49 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
     const url = `/dashboard/timeLine?data=${process}`;
     navigate(url);
   };
+
+  // minutes of meeting
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+  const handleUploadMoM = async (event) => {
+    event.preventDefault();
+
+    if (!selectedFile) {
+      alert('Please select a file before uploading.');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Simulate a file upload
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // Example upload logic
+      await fetch('/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setUploadedFileName(selectedFile.name);
+      alert('File uploaded successfully!');
+      setSelectedFile(null); // Clear file input after successful upload
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Failed to upload file.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
@@ -174,163 +218,276 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                 </Typography>
               </Box>
             </Stack>
-
-            <Typography variant="h6" gutterBottom>
-              Attendees :
-            </Typography>
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                flexWrap: 'wrap',
-                mb: 2,
-                p: 2,
-                bgcolor: '#EEEEEE',
-                borderRadius: '8px',
-              }}
-            >
-              {meetingDetails?.attendees?.length ? (
-                meetingDetails?.attendees?.map((attendee, index) => (
-                  <Chip key={index} label={attendee} color="primary" />
-                ))
-              ) : (
-                <Typography color="textSecondary" variant="body2">
-                  No Attendees.
+            <Stack gap={5}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                }}
+              >
+                <Typography variant="h6" gutterBottom>
+                  Attendees :
                 </Typography>
-              )}
-            </Stack>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  gap={1}
+                  sx={{
+                    flexWrap: 'wrap',
+                    p: 2,
+                    bgcolor: '#EEEEEE',
+                    borderRadius: '8px',
+                  }}
+                >
+                  {meetingDetails?.attendees?.length ? (
+                    meetingDetails?.attendees?.map((attendee, index) => (
+                      <Chip key={index} label={attendee} color="primary" />
+                    ))
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No Attendees.
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
 
-            <Typography variant="h6" gutterBottom>
-              Logs :
-            </Typography>
-            <List
-              dense
-              sx={{
-                bgcolor: '#EEEEEE',
-                mb: 2,
-                p: '10px',
-                borderRadius: '8px',
-                maxHeight: '350px',
-                overflow: 'auto',
-              }}
-            >
-              {meetingDetails?.logs?.length > 0 ? (
-                meetingDetails?.logs.map((log, index) => (
-                  <ListItem key={index}>
-                    <ListItemText
-                      primary={`${log.attendee} joined at ${formatDateTime(
-                        log.joinedAt,
-                      )}`}
-                      secondary={
-                        log.leftAt
-                          ? `Left at ${formatDateTime(log.leftAt)}`
-                          : 'Currently in meeting'
-                      }
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                }}
+              >
+                <Typography variant="h6" gutterBottom>
+                  Logs :
+                </Typography>
+                <List
+                  dense
+                  sx={{
+                    bgcolor: '#EEEEEE',
+                    p: '10px',
+                    borderRadius: '8px',
+                    maxHeight: '350px',
+                    overflow: 'auto',
+                  }}
+                >
+                  {meetingDetails?.logs?.length > 0 ? (
+                    meetingDetails?.logs.map((log, index) => (
+                      <ListItem key={index}>
+                        <ListItemText
+                          primary={`${log.attendee} joined at ${formatDateTime(
+                            log.joinedAt,
+                          )}`}
+                          secondary={
+                            log.leftAt
+                              ? `Left at ${formatDateTime(log.leftAt)}`
+                              : 'Currently in meeting'
+                          }
+                        />
+                      </ListItem>
+                    ))
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No logs available.
+                    </Typography>
+                  )}
+                </List>
+              </Box>
+
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                }}
+              >
+                <Typography variant="h6" gutterBottom>
+                  Comments :
+                </Typography>
+                <List
+                  dense
+                  sx={{
+                    bgcolor: '#EEEEEE',
+                    p: '10px',
+                    mb: 1,
+                    borderRadius: '8px',
+                    maxHeight: '350px',
+                    overflow: 'auto',
+                  }}
+                >
+                  {meetingDetails?.comments?.length > 0 ? (
+                    meetingDetails?.comments.map((comment, index) => (
+                      <ListItem key={index} alignItems="flex-start">
+                        <Avatar>{comment.commentor[0]}</Avatar>
+                        <Box sx={{ ml: 2 }}>
+                          <Typography variant="subtitle2" color="textSecondary">
+                            {comment.commentor} -{' '}
+                            {formatDateTime(comment.timestamp)}
+                          </Typography>
+                          <Typography variant="body2">
+                            {comment.comment}
+                          </Typography>
+                        </Box>
+                      </ListItem>
+                    ))
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No comments yet.
+                    </Typography>
+                  )}
+                </List>
+                <form onSubmit={handleSubmit(postComment)}>
+                  <Stack flexDirection={'row'} gap={1}>
+                    <TextField
+                      {...register('comment', { required: true })}
+                      name="comment"
+                      fullWidth
+                      label="Write Comment"
+                      size="small"
                     />
-                  </ListItem>
-                ))
-              ) : (
-                <Typography color="textSecondary" variant="body2">
-                  No logs available.
-                </Typography>
-              )}
-            </List>
+                    <Button variant="contained" type="submit">
+                      {isSubmitting ? <CircularProgress size={22} /> : 'Post'}
+                    </Button>
+                  </Stack>
+                </form>
+              </Box>
 
-            <Typography variant="h6" gutterBottom>
-              Comments :
-            </Typography>
-            <List
-              dense
-              sx={{
-                bgcolor: '#EEEEEE',
-                p: '10px',
-                borderRadius: '8px',
-                maxHeight: '350px',
-                mb: 2,
-                overflow: 'auto',
-              }}
-            >
-              {meetingDetails?.comments?.length > 0 ? (
-                meetingDetails?.comments.map((comment, index) => (
-                  <ListItem key={index} alignItems="flex-start">
-                    <Avatar>{comment.commentor[0]}</Avatar>
-                    <Box sx={{ ml: 2 }}>
-                      <Typography variant="subtitle2" color="textSecondary">
-                        {comment.commentor} -{' '}
-                        {formatDateTime(comment.timestamp)}
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                }}
+              >
+                <Typography variant="h6" mb={1}>
+                  Associate Processes :
+                </Typography>
+                <List
+                  dense
+                  sx={{
+                    bgcolor: '#EEEEEE',
+                    p: '10px',
+                    borderRadius: '8px',
+                    maxHeight: '350px',
+                    mb: 3,
+                    overflow: 'auto',
+                  }}
+                >
+                  {meetingDetails?.associatedProcesses?.length > 0 ? (
+                    meetingDetails?.associatedProcesses?.map(
+                      (process, index) => (
+                        <ListItem key={index} alignItems="flex-start">
+                          <ListItemText
+                            sx={{ flex: 10 }}
+                            primary={process?.processName}
+                          />
+                          <ListItemButton
+                            sx={{ flex: 2, color: 'blue' }}
+                            onClick={() =>
+                              handleViewTimeline(process?.processName)
+                            }
+                          >
+                            View Timeline
+                          </ListItemButton>
+                        </ListItem>
+                      ),
+                    )
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No processes initiated yet.
+                    </Typography>
+                  )}
+                  {isInitiator ? (
+                    <>
+                      <Divider sx={{ my: 1 }} />
+                      <Typography
+                        variant="subtitle1"
+                        color="textSecondary"
+                        sx={{ display: 'inline-block' }}
+                      >
+                        Initiate new process in context of this meeting :
                       </Typography>
-                      <Typography variant="body2">{comment.comment}</Typography>
-                    </Box>
-                  </ListItem>
-                ))
-              ) : (
-                <Typography color="textSecondary" variant="body2">
-                  No comments yet.
-                </Typography>
-              )}
-            </List>
-            <Typography variant="h6">Associate Processes :</Typography>
-            <List
-              dense
-              sx={{
-                bgcolor: '#EEEEEE',
-                p: '10px',
-                borderRadius: '8px',
-                maxHeight: '350px',
-                mb: 3,
-                overflow: 'auto',
-              }}
-            >
-              {meetingDetails?.associatedProcesses?.length > 0 ? (
-                meetingDetails?.associatedProcesses?.map((process, index) => (
-                  <ListItem key={index} alignItems="flex-start">
-                    <ListItemText
-                      sx={{ flex: 10 }}
-                      primary={process?.processName}
-                    />
-                    <ListItemButton
-                      sx={{ flex: 2, color: 'blue' }}
-                      onClick={() => handleViewTimeline(process?.processName)}
-                    >
-                      View Timeline
-                    </ListItemButton>
-                  </ListItem>
-                ))
-              ) : (
-                <Typography color="textSecondary" variant="body2">
-                  No processes initiated yet.
-                </Typography>
-              )}
-              <Divider sx={{ my: 1 }} />
-              <Typography
-                variant="subtitle1"
-                color="textSecondary"
-                sx={{ display: 'inline-block' }}
+                      <Button
+                        variant="outlined"
+                        sx={{ ml: 2, display: 'inline-block' }}
+                        onClick={handleInitiate}
+                      >
+                        Initiate
+                      </Button>
+                    </>
+                  ) : null}
+                </List>
+              </Box>
+
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '8px',
+                  boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                }}
               >
-                Initiate new process in context of this meeting :
-              </Typography>
-              <Button
-                variant="outlined"
-                sx={{ ml: 2, display: 'inline-block' }}
-                onClick={handleInitiate}
-              >
-                Initiate
-              </Button>
-            </List>
-            <form onSubmit={handleSubmit(postComment)}>
-              <Stack flexDirection={'row'} mt={2} gap={1}>
-                <TextField
-                  {...register('comment', { required: true })}
-                  name="comment"
-                  fullWidth
-                  label="Write Comment"
-                  size="small"
-                />
-                <Button variant="contained" type="submit">
-                  {isSubmitting ? <CircularProgress size={22} /> : 'Post'}
-                </Button>
-              </Stack>
-            </form>
+                <Typography variant="h6" gutterBottom>
+                  Minutes of Meeting (MoM) :
+                </Typography>
+                <List
+                  dense
+                  sx={{
+                    bgcolor: '#EEEEEE',
+                    p: '10px',
+                    borderRadius: '8px',
+                    maxHeight: '350px',
+                    mb: 1,
+                    overflow: 'auto',
+                  }}
+                >
+                  {meetingDetails?.comments?.length > 0 ? (
+                    meetingDetails?.comments.map((comment, index) => (
+                      <ListItem key={index} alignItems="flex-start">
+                        <Avatar>{comment.commentor[0]}</Avatar>
+                        <Box sx={{ ml: 2 }}>
+                          <Typography variant="subtitle2" color="textSecondary">
+                            {comment.commentor} -{' '}
+                            {formatDateTime(comment.timestamp)}
+                          </Typography>
+                          <Typography variant="body2">
+                            {comment.comment}
+                          </Typography>
+                        </Box>
+                      </ListItem>
+                    ))
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No Files.
+                    </Typography>
+                  )}
+                </List>
+                <Box
+                  component="form"
+                  onSubmit={handleUploadMoM}
+                  sx={{
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                  }}
+                >
+                  <TextField
+                    type="file"
+                    fullWidth
+                    inputProps={{ accept: '.pdf,.doc,.docx,.txt' }}
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={!selectedFile || isUploading}
+                  >
+                    {isUploading ? <CircularProgress size={22} /> : 'Upload'}
+                  </Button>
+                </Box>
+              </Box>
+            </Stack>
           </Box>
         )}
       </DialogContent>
