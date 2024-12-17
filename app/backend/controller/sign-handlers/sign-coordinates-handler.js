@@ -16,7 +16,7 @@ export const add_sign_coordinates = async (req, res, next) => {
     const coordinates = req.body.coordinates;
 
     const signCoordinates = await SignCoordinate.findOne({
-      processId: processId,
+      // processId: processId,
       docId: docId,
     });
 
@@ -33,7 +33,10 @@ export const add_sign_coordinates = async (req, res, next) => {
         });
       }
     } else {
-      const newCoordinate = new SignCoordinate(req.body);
+      const newCoordinate = new SignCoordinate({
+        docId: docId,
+        coordinates: coordinates,
+      });
 
       await newCoordinate.save();
 
@@ -68,10 +71,33 @@ export const get_sign_coordinates_for_specific_step = async (
     const processId = req.body.processId;
     const stepNo = req.body.stepNo;
 
+    const coordinates = await get_sign_coordinates_for_specific_step_in_process(
+      docId,
+      // processId,
+      stepNo
+    );
+
+    return res.status(200).json({
+      coordinates: coordinates,
+    });
+  } catch (error) {
+    console.log("Error finding coordinates for given context", error);
+    return res.status(500).json({
+      message: "Error finding coordinates for given context",
+    });
+  }
+};
+
+export const get_sign_coordinates_for_specific_step_in_process = async (
+  docId,
+  // processId,
+  stepNo
+) => {
+  try {
     let coordinates = [];
 
     const signCoordinates = await SignCoordinate.findOne({
-      processId: processId,
+      // processId: processId,
       docId: docId,
     }).lean();
 
@@ -83,13 +109,8 @@ export const get_sign_coordinates_for_specific_step = async (
       }
     }
 
-    return res.status(200).json({
-      coordinates: coordinates,
-    });
+    return coordinates;
   } catch (error) {
-    console.log("Error finding coordinates for given context", error);
-    return res.status(500).json({
-      message: "Error finding coordinates for given context",
-    });
+    throw new Error(error);
   }
 };

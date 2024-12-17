@@ -130,6 +130,7 @@ import {
   is_user_an_attendee,
 } from "../controller/meeting-controller.js";
 import { compare_documents } from "../controller/compare-documents.js";
+import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
 // const upload = multer();
 
 const router = express.Router();
@@ -162,7 +163,7 @@ router.post("/accessFolder", getDocumentDetailsOnTheBasisOfPath);
 router.post("/getProjects", getRootDocumentsWithAccess);
 
 // gettting usernames to display
-router.post("/getUsernames", get_usernames);
+router.get("/getUsernames", get_usernames);
 router.post("/getUsers", get_users);
 router.post("/deleteUser/:userId", delete_user);
 router.post("/getUsersByRoleInBranch", get_users_by_role_of_branch);
@@ -296,5 +297,7 @@ router.post(
   "/getSignCoordinatesForCurrentStep",
   get_sign_coordinates_for_specific_step
 );
+
+router.post("/storeDocMetaData", add_doc_meta_data);
 
 export default router;

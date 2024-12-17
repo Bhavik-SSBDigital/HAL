@@ -1,0 +1,19 @@
+.topLoader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 5px;
+  background-color: var(--themeColor);
+  width: 100%; /* Fixed width of the moving line */
+  animation: moveLoader 1.5s linear infinite; /* Infinite animation */
+  z-index: 9999;
+}
+
+@keyframes moveLoader {
+  0% {
+    transform: translateX(-100%); /* Start outside the viewport */
+  }
+  100% {
+    transform: translateX(100%); /* End outside the viewport */
+  }
+}

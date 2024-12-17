@@ -23,7 +23,7 @@ export const borrow_document = async (req, res, next) => {
     const docUpdated = await Document.findOneAndUpdate(
       { _id: req.body.documentId },
       {
-        physicalKeeper: userData._id,
+        physicalKeeper: user._id,
       },
       {
         new: true,
@@ -36,6 +36,7 @@ export const borrow_document = async (req, res, next) => {
 
     const doc_log = new DocHistory({
       borrower: user._id,
+      lender: userData._id,
       time: new Date(),
       documentId: req.body.documentId,
       purpose: req.body.purpose,
@@ -69,9 +70,12 @@ export const return_document = async (req, res, next) => {
       "_id"
     );
 
+    const docId = req.body.documentId;
+
     let doc_log = await DocHistory.findOneAndUpdate(
       {
-        documentId: new ObjectId(req.body.documentId),
+        documentId: new ObjectId(docId),
+        lender: userData._id,
         borrower: user._id,
         isReturned: false,
       },
@@ -83,16 +87,25 @@ export const return_document = async (req, res, next) => {
     );
 
     // Check if the document log was found
+
+    // there must be no
     if (!doc_log) {
-      return res.status(404).json({
-        message: "Document log not found or already returned",
+      const newDocLog = new DocHistory({
+        borrower: userData._id,
+        lender: user._id,
+        time: Date.now(),
+        documentId: new ObjectId(docId),
+        isReturned: true,
+        returnedAt: Date.now(),
       });
+
+      await newDocLog.save();
     }
 
     await Document.findOneAndUpdate(
-      { documentId: req.body.documentId },
+      { _id: new ObjectId(req.body.documentId) },
       {
-        physicalKeeper: null,
+        physicalKeeper: new ObjectId(userData._id),
       }
     );
 
@@ -129,12 +142,17 @@ export const get_document_history = async (req, res, next) => {
         "username"
       );
       borrower = borrower.username;
+
+      let lender = await User.findOne({ _id: log.lender }).select("username");
+      lender = lender.username;
+
       history_details.push({
         borrower: borrower,
         purpose: log.purpose,
+        lender: lender,
         time: log.time,
-        isRetirned: log.isReturned,
-        reternedAt: log.returnedAt,
+        isReturned: log.isReturned,
+        returnedAt: log.returnedAt,
       });
     }
 
@@ -159,10 +177,10 @@ export const get_borrowed_document_list = async (req, res, next) => {
     ];
 
     // Find documents by their documentIds
-    const documents = await Document.find({
+    let documents = await Document.find({
       _id: { $in: uniqueDocumentIds },
     })
-      .select("name path")
+      .select("name path onlyMetaData")
       .lean();
 
     // Return the documents' name and path
@@ -356,15 +374,14 @@ export const search_document = async (req, res) => {
       .map((docDetail) => {
         const { documentId } = docDetail; // Extract documentId from document details
 
-        if (allowedDocuments.has(String(documentId))) {
+        if (allowedDocuments.has(documentId.toString())) {
           // If documentId is found in the user's permissions, include it in the result
           return processName
             ? {
                 name: docDetail.name,
                 path: docDetail.path,
-                documentId: docDetail.documentId,
                 type: docDetail.type,
-                documentId: documentId,
+                documentId: docDetail._id,
                 signedBy: docDetail.signedBy,
                 rejectedBy: docDetail.rejectedBy,
               }
@@ -372,7 +389,7 @@ export const search_document = async (req, res) => {
                 name: docDetail.name,
                 path: docDetail.path,
                 type: docDetail.type,
-                documentId: documentId,
+                documentId: docDetail._id,
               };
         } else {
           // If documentId is not in any permission arrays, exclude it (i.e., return null)

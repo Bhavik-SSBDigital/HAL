@@ -21,9 +21,13 @@ import {
   Tab,
   Divider,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Autocomplete,
 } from '@mui/material';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DropFileInput from '../../components/drop-file-input/DropFileInput';
@@ -41,7 +45,10 @@ import {
 
 import imageSrc from '../../assets/images/folder.png';
 
-import { download } from '../../components/drop-file-input/FileUploadDownload';
+import {
+  download,
+  upload,
+} from '../../components/drop-file-input/FileUploadDownload';
 import styles from './ShowFolder.module.css';
 import moment from 'moment';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
@@ -66,14 +73,19 @@ import {
   IconTrash,
   IconTool,
   IconTransfer,
+  IconCircleCheck,
+  IconChevronLeftPipe,
+  IconChevronsLeft,
 } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IconFolderPlus } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import { IconUpload } from '@tabler/icons-react';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import { Controller, useForm } from 'react-hook-form';
 
 export default function ShowFolder(props) {
+  const token = sessionStorage.getItem('accessToken');
   const isKeeperOfPhysicalDocs =
     sessionStorage.getItem('isKeeperOfPhysicalDocs') == 'true';
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -121,7 +133,6 @@ export default function ShowFolder(props) {
   const [openTooltip, setOpenToolTip] = useState(false);
 
   const getData = async () => {
-    const accessToken = sessionStorage.getItem('accessToken');
     try {
       const { data } = await axios.post(
         url,
@@ -130,7 +141,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
             // 'Content-Type': 'multipart/form-data'
           },
         },
@@ -147,13 +158,7 @@ export default function ShowFolder(props) {
       setError(error?.response?.data?.message);
     }
   };
-  useEffect(() => {
-    const checkPath = sessionStorage.getItem('path');
-    if (checkPath && checkPath !== pathValue) {
-      dispatch(onReload(checkPath));
-    }
-    setLoaded(true);
-  }, []);
+
   useEffect(() => {
     if (loaded && pathValue !== '..') {
       getData();
@@ -165,7 +170,6 @@ export default function ShowFolder(props) {
   const createFolder = async () => {
     setOpen(false);
     setLoading(true);
-    const accessToken = sessionStorage.getItem('accessToken');
 
     const response = await axios.post(
       backendUrl + '/createFolder',
@@ -174,7 +178,7 @@ export default function ShowFolder(props) {
       },
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
@@ -184,7 +188,7 @@ export default function ShowFolder(props) {
       setFileFolders((prev) => [
         ...prev,
         {
-          createdBy: accessToken,
+          createdBy: token,
           createdOn: currentDateTimeString,
           name: folderName,
           type: 'folder',
@@ -259,7 +263,6 @@ export default function ShowFolder(props) {
   };
   const handleDownloadFolder = async (path, name) => {
     const urlDownload = `${backendUrl}/downloadFolder`;
-    const accessToken = sessionStorage.getItem('accessToken');
 
     try {
       const response = await axios.post(
@@ -271,7 +274,7 @@ export default function ShowFolder(props) {
         {
           responseType: 'arraybuffer',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -348,7 +351,6 @@ export default function ShowFolder(props) {
   };
   const handleDelete = async (name) => {
     setLoading(true);
-    const accessToken = sessionStorage.getItem('accessToken');
     try {
       const res = await axios.post(
         `${backendUrl}/deleteFile`,
@@ -357,7 +359,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -384,7 +386,6 @@ export default function ShowFolder(props) {
     setIsContextMenuOpen(false);
     setLoading(true);
     try {
-      const accessToken = sessionStorage.getItem('accessToken');
       const copyCutUrl = `${backendUrl}/${
         method === 'copy' ? 'copyFile' : 'cutFile'
       }`;
@@ -397,7 +398,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -465,10 +466,9 @@ export default function ShowFolder(props) {
   const getBranches = async () => {
     try {
       const url = backendUrl + '/getAllBranches';
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(url, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setBranches(data.branches);
@@ -477,17 +477,13 @@ export default function ShowFolder(props) {
       console.error('unable to fetch branches');
     }
   };
-  useEffect(() => {
-    getBranches();
-  }, []);
   const getRoles = async (id) => {
     setFieldsLoading(true);
     const urlRole = backendUrl + '/getRolesInBranch/';
     try {
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(urlRole + `${id}`, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setRoles(data.roles);
@@ -501,7 +497,6 @@ export default function ShowFolder(props) {
     setFieldsLoading(true);
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
-      const accessToken = sessionStorage.getItem('accessToken');
       const { _id } = branches.find((item) => item.name === branchValue);
       const id = roles.find((item) => item.role === roleValue);
       const { data } = await axios.post(
@@ -512,7 +507,7 @@ export default function ShowFolder(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -576,21 +571,24 @@ export default function ShowFolder(props) {
     setFieldsLoading('save');
     try {
       const url = backendUrl + '/borrowDocument';
-      const accessToken = sessionStorage.getItem('accessToken');
 
       const { data } = await axios.post(
         url,
         { ...transferData, documentId: properties.id },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
       setFileFolders((prev) =>
         prev.map((item) =>
           item.id == properties.id
-            ? { ...item, physicalHolder: transferData?.borrower }
+            ? {
+                ...item,
+                physicalHolder: transferData?.borrower,
+                isTransferable: false,
+              }
             : item,
         ),
       );
@@ -624,27 +622,27 @@ export default function ShowFolder(props) {
   const truncateFileName = (fname, maxLength = 10) => {
     if (fname.length <= maxLength) {
       return fname;
+    }
+
+    const lastDotIndex = fname.lastIndexOf('.');
+
+    if (lastDotIndex > 0 && lastDotIndex < fname.length - 1) {
+      // Handle filenames with extensions
+      const baseName = fname.slice(0, lastDotIndex);
+      const extension = fname.slice(lastDotIndex + 1);
+
+      const truncatedBase =
+        baseName.length > maxLength - 5
+          ? `${baseName.slice(0, maxLength / 2 - 2)}...${baseName.slice(-3)}`
+          : baseName;
+
+      const truncatedExtension =
+        extension.length > 10 ? `${extension.slice(0, 7)}...` : extension;
+
+      return `${truncatedBase}.${truncatedExtension}`;
     } else {
-      if (fname.includes('.')) {
-        // Handle file names
-        const [baseName, extension] = fname.split('.').reduce(
-          (result, part, index, array) => {
-            if (index === array.length - 1) {
-              result[1] = part;
-            } else {
-              result[0] += part;
-            }
-            return result;
-          },
-          ['', ''],
-        );
-        const truncatedName = `${baseName.slice(0, 5)}...${baseName.slice(-3)}`;
-        return `${truncatedName}.${extension}`;
-      } else {
-        // Handle folder names
-        const truncatedName = `${fname.slice(0, 5)}...${fname.slice(-3)}`;
-        return truncatedName;
-      }
+      // Handle filenames or folder names without extensions
+      return `${fname.slice(0, maxLength / 2 - 2)}...${fname.slice(-3)}`;
     }
   };
 
@@ -660,7 +658,6 @@ export default function ShowFolder(props) {
             display: 'flex',
             gap: '3px',
             alignItems: 'center',
-            padding: '10px',
             justifyContent: 'center',
             borderRadius: '5px',
             background: '#4E327E',
@@ -706,21 +703,19 @@ export default function ShowFolder(props) {
               size="small"
               color="success"
               onClick={createFolder}
-              disabled={loading}
               sx={{
                 '&:hover': {
                   backgroundColor: '#0056b3',
                 },
               }}
             >
-              {loading ? <CircularProgress size={22} /> : 'Create'}
+              Create
             </Button>
             <Button
               variant="contained"
               size="small"
               onClick={() => setOpen(false)}
               color="error"
-              disabled={loading}
               sx={{
                 color: 'white',
                 '&:hover': {
@@ -810,12 +805,12 @@ export default function ShowFolder(props) {
     .sort((a, b) => {
       if (sortBy === 'name') {
         const compareResult = b.name.localeCompare(a.name);
-        return sortOrder === 'asc' ? compareResult : -compareResult;
+        return sortOrder === 'asc' ? -compareResult : compareResult;
       } else if (sortBy === 'date') {
         const dateA = new Date(a.createdOn);
         const dateB = new Date(b.createdOn);
         const dateCompareResult = dateB - dateA;
-        return sortOrder === 'asc' ? dateCompareResult : -dateCompareResult;
+        return sortOrder === 'asc' ? -dateCompareResult : dateCompareResult;
       } else if (sortBy === 'size') {
         const sizeCompareResult = b.size - a.size;
         return sortOrder === 'asc' ? sizeCompareResult : -sizeCompareResult;
@@ -845,6 +840,88 @@ export default function ShowFolder(props) {
       return true;
     }
   };
+
+  // render transfer and submit
+  const [userList, setUserList] = useState([]);
+  const [submitDocumentLoading, setSubmitDocumentLoading] = useState(false);
+  const [openSubmit, setOpenSubmit] = useState(false);
+  const [borrower, setBorrower] = useState('');
+  const returnDocument = async () => {
+    setSubmitDocumentLoading(true);
+    const url = backendUrl + '/returnDocument';
+    try {
+      const res = await axios.post(
+        url,
+        { documentId: properties?.id, borrower },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setFileFolders((prev) =>
+        prev.map((item) =>
+          item.id === properties.id
+            ? { ...item, isTransferable: true, physicalHolder: borrower }
+            : item,
+        ),
+      );
+
+      toast.success(res.data.message);
+      setOpenSubmit(false);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSubmitDocumentLoading(false);
+    }
+  };
+  const RenderActions = () => {
+    if (isKeeperOfPhysicalDocs) {
+      if (properties?.isTransferable) {
+        return (
+          <MenuItem
+            sx={{ gap: '5px', width: '250px' }}
+            onClick={() => {
+              setTransfer(true);
+              handleClose();
+            }}
+          >
+            <IconTransfer />
+            transfer
+          </MenuItem>
+        );
+      } else if (!properties?.physicalHolder) {
+        return (
+          <MenuItem
+            sx={{ gap: '5px', width: '250px' }}
+            onClick={() => {
+              setOpenSubmit(true);
+              handleClose();
+            }}
+          >
+            <IconCircleCheck />
+            Submit
+          </MenuItem>
+        );
+      }
+    } else {
+      return null;
+    }
+  };
+  // ------------------------
+
+  // useEffects
+  useEffect(() => {
+    const url = backendUrl + '/getUsernames';
+    const fetchData = async () => {
+      const { data } = await axios.get(url);
+      // console.log(data.usernames)
+      setUserList(data.users);
+    };
+    const checkPath = sessionStorage.getItem('path');
+    if (checkPath && checkPath !== pathValue) {
+      dispatch(onReload(checkPath));
+    }
+    setLoaded(true);
+    fetchData();
+    getBranches();
+  }, []);
   return (
     <>
       {loading ? (
@@ -965,11 +1042,11 @@ export default function ShowFolder(props) {
                         <Stack
                           flexWrap="wrap"
                           position="relative"
-                          minWidth="130px"
+                          minWidth="150px"
+                          height="130px"
                           mr={'10px'}
-                          maxWidth="160px"
+                          maxWidth="200px"
                           flex={1}
-                          height="120px"
                           key={index}
                         >
                           {/* <Tooltip title={item.name} enterDelay={2000} disableInteractive> */}
@@ -999,17 +1076,21 @@ export default function ShowFolder(props) {
                                   item.name.length >= 10 ? item.name : null
                                 }
                               >
-                                <div>
+                                <Box
+                                  sx={{
+                                    height: '60px',
+                                    width: '60px',
+                                  }}
+                                >
                                   <img
-                                    className={styles.responsive}
-                                    src={imageSrc}
                                     style={{
-                                      marginLeft: 'auto',
-                                      marginRight: 'auto',
+                                      height: '100%',
+                                      width: '100%',
                                     }}
+                                    src={imageSrc}
                                     alt="im"
                                   />
-                                </div>
+                                </Box>
                                 <p
                                   style={{
                                     color: 'black',
@@ -1040,11 +1121,11 @@ export default function ShowFolder(props) {
                       ) : (
                         <Stack
                           flexWrap="wrap"
-                          minWidth="130px"
+                          minWidth="150px"
                           mr={'10px'}
-                          maxWidth="160px"
+                          maxWidth="200px"
                           flex={1}
-                          height="120px"
+                          height="130px"
                           position="relative"
                           key={index}
                         >
@@ -1079,7 +1160,9 @@ export default function ShowFolder(props) {
                               variant="text"
                               color="primary"
                               onDoubleClick={() =>
-                                handleView(pathValue, item.name, item?.id)
+                                item.onlyMetaData
+                                  ? null
+                                  : handleView(pathValue, item.name, item?.id)
                               }
                               size="medium"
                             >
@@ -1276,41 +1359,13 @@ export default function ShowFolder(props) {
                   ))}
               {/* file system texts start */}
               {loading === false &&
-                selectedTab == 0 &&
-                normalFiles?.length == 0 &&
                 !error &&
-                searchQuery && (
+                ((selectedTab === 0 && normalFiles?.length === 0) ||
+                (selectedTab === 1 && rejectedFiles?.length === 0) ? (
                   <Stack
                     justifyContent="center"
                     width="100%"
-                    height="100%"
-                    alignItems="center"
-                  >
-                    No item found
-                  </Stack>
-                )}
-              {loading === false &&
-                selectedTab == 1 &&
-                rejectedFiles?.length == 0 &&
-                !error &&
-                searchQuery && (
-                  <Stack
-                    justifyContent="center"
-                    width="100%"
-                    height="100%"
-                    alignItems="center"
-                  >
-                    No item found
-                  </Stack>
-                )}
-              {loading === false &&
-                fileFolders.length === 0 &&
-                !error &&
-                !searchQuery && (
-                  <Stack
-                    justifyContent="center"
-                    width="100%"
-                    height="40vh"
+                    height={'50vh'}
                     sx={{
                       backgroundColor: 'white',
                       borderRadius: '15px',
@@ -1319,10 +1374,16 @@ export default function ShowFolder(props) {
                     alignItems="center"
                   >
                     <Typography>
-                      There is no Files and folders in current directory
-                    </Typography>{' '}
+                      {selectedTab === 0
+                        ? searchQuery
+                          ? 'No item found'
+                          : 'There is no Files and folders in current directory'
+                        : searchQuery
+                        ? 'No item found'
+                        : 'There is no rejected files'}
+                    </Typography>
                   </Stack>
-                )}
+                ) : null)}
               {error && (
                 <Stack
                   justifyContent="center"
@@ -1333,12 +1394,14 @@ export default function ShowFolder(props) {
                   {error}
                 </Stack>
               )}
+
               {/* file system texts end */}
               {fileView && !loading && (
                 <View
                   docu={fileView}
                   setFileView={setFileView}
                   handleViewClose={handleViewClose}
+                  controls={false}
                 />
               )}
             </Stack>
@@ -1354,9 +1417,11 @@ export default function ShowFolder(props) {
         // PaperProps={{ elevation: 1 }}
       >
         <MenuItem
-          disabled={checkDownloadable(
-            properties?.isDownloadable || properties?.isInvolvedInProcess,
-          )}
+          disabled={
+            checkDownloadable(
+              properties?.isDownloadable || properties?.isInvolvedInProcess,
+            ) || properties?.onlyMetaData
+          }
           sx={{ gap: '5px' }}
           onClick={() => {
             handleDownload(pathValue, itemName);
@@ -1367,7 +1432,10 @@ export default function ShowFolder(props) {
         </MenuItem>
         {/* <hr /> */}
         <MenuItem
-          disabled={itemName.split('.').pop().trim() === 'zip'}
+          disabled={
+            itemName.split('.').pop().trim() === 'zip' ||
+            properties?.onlyMetaData
+          }
           sx={{ gap: '5px' }}
           onClick={() => {
             handleView(pathValue, itemName, properties.id);
@@ -1381,7 +1449,7 @@ export default function ShowFolder(props) {
         <MenuItem
           sx={{ gap: '5px' }}
           onClick={() => handleCopy(itemName)}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconClipboard />
           copy
@@ -1390,20 +1458,11 @@ export default function ShowFolder(props) {
         <MenuItem
           sx={{ gap: '5px' }}
           onClick={() => handleCut(itemName)}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconScissors />
           cut
         </MenuItem>
-        {/* <hr /> */}
-        {/* <MenuItem
-                                        sx={{ gap: '5px' }}
-                                        onClick={deleteModalOpen}
-                                        disabled={properties?.isInvolvedInProcess}
-                                    >
-                                        <IconTrash />
-                                        delete
-                                    </MenuItem> */}
         {/* <hr /> */}
         <MenuItem
           sx={{ gap: '5px', width: '250px' }}
@@ -1415,23 +1474,12 @@ export default function ShowFolder(props) {
           <IconTool />
           propterties
         </MenuItem>
-        {isKeeperOfPhysicalDocs && !properties?.physicalHolder && (
-          <MenuItem
-            sx={{ gap: '5px', width: '250px' }}
-            onClick={() => {
-              setTransfer(true);
-              handleClose();
-            }}
-          >
-            <IconTransfer />
-            transfer
-          </MenuItem>
-        )}
+        {RenderActions()}
         <Divider />
         <MenuItem
           sx={{ color: 'red' }}
           onClick={deleteModalOpen}
-          disabled={properties?.isInvolvedInProcess}
+          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
         >
           <IconTrash color="red" />
           delete
@@ -1542,7 +1590,7 @@ export default function ShowFolder(props) {
 
       {/* create folder */}
       {open && (
-        <Modal open={open} className="create-folder-modal">
+        <Modal open={open} onClose={closeModal} className="create-folder-modal">
           <div
             style={{
               gap: '10px',
@@ -1698,83 +1746,146 @@ export default function ShowFolder(props) {
 
       {/* color for plus background background: 'linear-gradient(to right, #3E5151 , #DECBA4)' */}
       {isUploadable && (
-        <Stack position="relative">
-          <Fab
-            color="primary"
-            onClick={handlePlus}
-            aria-label="add"
-            sx={{ position: 'fixed', bottom: '5%', right: '5%' }}
+        <Stack
+          position="fixed"
+          flexDirection={'row'}
+          alignItems={'center'}
+          sx={{
+            bottom: '25px',
+            right: '-325px',
+            transition: 'right 0.3s ease-in-out',
+            '&:hover': {
+              right: '10px',
+            },
+          }}
+        >
+          <IconChevronsLeft
+            size={57}
+            // color="purple"
+            style={{
+              background: 'white',
+              color: 'var(--themeColor)',
+              padding: '10px',
+              borderRight: 0,
+              border: '1px solid lightgray',
+              borderRadius: '50% 0 0 50%',
+            }}
+          />
+          <Stack
+            flexDirection={'row'}
+            gap={1}
+            padding={1}
+            sx={{
+              boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
+              backgroundColor: 'white',
+              border: '1px solid lightgray',
+              borderRadius: '0 8px 8px 0',
+            }}
           >
-            <AddIcon />
-            {showButtons && (
-              <Box
-                gap="10px"
-                flexDirection="column"
-                display="flex"
-                sx={{
-                  width: '150px',
-                  borderRadius: '15px',
-                  padding: '15px',
-                  position: 'absolute',
-                  top: '-220%',
-                  right: '0%',
+            <Button
+              sx={{
+                flexDirection: 'row',
+                width: '150px',
+                padding: '10px',
+                height: '40px',
+                alignItems: 'center',
+              }}
+              // color='info'
+              size="medium"
+              variant="contained"
+              onClick={() => openModal('createFolder')}
+            >
+              <IconFolderPlus size={17} style={{ marginRight: '3px' }} />
+              {/* <img src={imageSrc} alt="image" /> */}
+              <p
+                style={{
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  color: 'white',
                 }}
               >
-                <Button
-                  sx={{
-                    flexDirection: 'row',
-                    marginBottom: '5px',
-                    width: '150px',
-                    padding: '10px',
-                    height: '40px',
-                    alignItems: 'center',
-                  }}
-                  // color='info'
-                  size="medium"
-                  variant="contained"
-                  onClick={() => openModal('createFolder')}
-                >
-                  <IconFolderPlus size={17} style={{ marginRight: '3px' }} />
-                  {/* <img src={imageSrc} alt="image" /> */}
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    NEW FOLDER
-                  </p>
-                </Button>
-                <Button
-                  sx={{
-                    flexDirection: 'row',
-                    marginBottom: '5px',
-                    width: '150px',
-                    padding: '10px',
-                    height: '40px',
-                    alignItems: 'center',
-                  }}
-                  variant="contained"
-                  size="medium"
-                  onClick={() => openModal('uploadFiles')}
-                >
-                  <IconUpload size={16} style={{ marginRight: '3px' }} />
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    UPLOAD FILE
-                  </p>
-                </Button>
-              </Box>
-            )}
-          </Fab>
+                NEW FOLDER
+              </p>
+            </Button>
+            <Button
+              sx={{
+                flexDirection: 'row',
+                width: '150px',
+                padding: '10px',
+                height: '40px',
+                alignItems: 'center',
+              }}
+              variant="contained"
+              size="medium"
+              onClick={() => openModal('uploadFiles')}
+            >
+              <IconUpload size={16} style={{ marginRight: '3px' }} />
+              <p
+                style={{
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  color: 'white',
+                }}
+              >
+                UPLOAD FILE
+              </p>
+            </Button>
+          </Stack>
         </Stack>
       )}
+
+      {/* submit document to document keeper */}
+      <Dialog
+        open={openSubmit}
+        onClose={() => (!submitDocumentLoading ? setOpenSubmit(false) : null)}
+      >
+        <form>
+          <DialogTitle
+            sx={{
+              background: 'var(--themeColor)',
+              margin: '5px',
+              color: ' white',
+            }}
+          >
+            Select Document Submitter
+          </DialogTitle>
+          <DialogContent sx={{ padding: '10px' }}>
+            <Autocomplete
+              onChange={(event, newValue) => setBorrower(newValue.username)}
+              options={userList || []}
+              sx={{ margin: '5px' }}
+              getOptionLabel={(option) =>
+                `${option.username} (Role-${option.role}, Branch-${option.branch})`
+              }
+              isOptionEqualToValue={(option, value) =>
+                option.username === value
+              }
+              renderInput={(params) => (
+                <TextField {...params} label="Select User" required fullWidth />
+              )}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              disabled={submitDocumentLoading}
+              onClick={returnDocument}
+            >
+              {submitDocumentLoading ? (
+                <CircularProgress size={22} />
+              ) : (
+                'Submit'
+              )}
+            </Button>
+            <Button
+              onClick={() => setOpenSubmit(false)}
+              disabled={submitDocumentLoading}
+            >
+              Cancel
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </>
   );
 }

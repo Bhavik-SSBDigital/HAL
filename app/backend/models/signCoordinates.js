@@ -4,14 +4,13 @@ export const signCoordinate = new mongoose.Schema({
   processId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Process",
-    required: true,
+    required: false,
   },
   docId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Document",
     required: true,
   },
-
   coordinates: {
     type: [
       {

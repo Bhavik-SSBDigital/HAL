@@ -12,6 +12,8 @@ import {
   getChildrenForFullAccess,
   getParents,
 } from "../utility/accessFunction.js";
+import DocHistory from "../models/doc-tracking.js";
+import { add_doc_meta_data } from "./file-meta-data-controller.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -215,8 +217,20 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   "username"
                 )
               : null;
+
+            let keepers = await User.find({
+              isKeeperOfPhysicalDocs: true,
+            }).select("username");
+
+            keepers = keepers.map((item) => item.username);
+
+            //submit -> null
+            // after submit -> [holder1, holder2]
+            // transfer (holder1) ->
             try {
-              const fileStats = await fs.stat(fileAbsolutePath);
+              const fileStats = !child.onlyMetaData
+                ? await fs.stat(fileAbsolutePath)
+                : null;
               return {
                 id: child._id,
                 path: `..${child.path.substring(19)}`,
@@ -229,14 +243,18 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                     ? false
                     : child.isInvolvedInProcess,
                 createdBy: createdBy.username,
-                lastUpdated: fileStats.mtime,
-                lastAccessed: fileStats.atime,
-                size: fileStats.size,
+                lastUpdated: fileStats ? fileStats.mtime : null,
+                lastAccessed: fileStats ? fileStats.atime : null,
+                size: fileStats ? fileStats.size : null,
                 isUploadable: true,
                 isDownloadable: true,
                 isRejected: child.isRejected || false,
-                physicalHolder: physicalKeeper,
+                physicalHolder: physicalKeeper ? physicalKeeper.username : null,
+                isTransferable: physicalKeeper
+                  ? keepers.includes(physicalKeeper.username)
+                  : false,
                 children: [],
+                onlyMetaData: child.onlyMetaData,
               };
             } catch (error) {
               return null;
@@ -263,7 +281,9 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   }).select("username")
                 : null;
               try {
-                const fileStats = await fs.stat(fileAbsolutePath);
+                const fileStats = !child.onlyMetaData
+                  ? await fs.stat(fileAbsolutePath)
+                  : null;
                 return {
                   id: child._id,
                   path: `..${child.path.substring(19)}`,
@@ -276,9 +296,9 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                       ? false
                       : child.isInvolvedInProcess,
                   createdBy: createdBy.username,
-                  lastUpdated: fileStats.mtime,
-                  lastAccessed: fileStats.atime,
-                  size: fileStats.size,
+                  lastUpdated: fileStats ? fileStats.mtime : null,
+                  lastAccessed: fileStats ? fileStats.atime : null,
+                  size: fileStats ? fileStats.size : null,
                   isRejected: child.isRejected || false,
                   physicalHolder: physicalKeeper,
                   // isUploadable: uploadableArray.includes(child._id),
@@ -287,6 +307,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                       ? true
                       : downloadableArray.includes(child._id),
                   children: [],
+                  onlyMetaData: child.onlyMetaData,
                 };
               } catch (error) {
                 return null;
@@ -337,16 +358,14 @@ export const create_permissions = async (req, res) => {
       const pathSegments = path.split("/").filter((segment) => segment !== "");
       const permissionedUsers = [...obj.read, ...obj.write];
       for (let m = 0; m < permissionedUsers.length; m++) {
-        let id_ = "../../../../storage";
-        for (let p = 1; p < pathSegments.length; p++) {
-          //   if (id_ === "") {
-          //     id_ = "/" + pathSegments[p];
-          //   } else {
-          //     id_ = id_ + "/" + pathSegments[p];
-          //   }
-          id_ = id_ + `/${pathSegments[p]}`;
+        let id_ = "..";
+        for (let p = 1; p < pathSegments.length - 1; p++) {
+          if (id_ === "") {
+            id_ = "/" + pathSegments[p];
+          } else {
+            id_ = id_ + "/" + pathSegments[p];
+          }
           const documentID = await Document.findOne({ path: id_ }).exec();
-          console.log("nested", id_);
           await createUserPermissions(documentID, permissionedUsers[m], false);
         }
       }

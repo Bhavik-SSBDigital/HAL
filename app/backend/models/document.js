@@ -30,9 +30,30 @@ const documentSchema = new mongoose.Schema({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Highlight" }],
     default: [],
   },
+  department: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Department",
+    default: null,
+  },
+  workName: {
+    type: String,
+    default: null,
+  },
+  cabinetNo: {
+    type: Number,
+    default: null,
+  },
+  year: {
+    type: Number,
+    default: null,
+  },
   physicalKeeper: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+  },
+  onlyMetaData: {
+    type: Boolean,
+    default: false,
   },
 });
 

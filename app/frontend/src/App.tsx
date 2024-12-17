@@ -34,6 +34,7 @@ import ForgotPass from './pages/Authentication/ForgotPass';
 import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
+import MetaData from './pages/MetaData';
 // import History from './pages/Meeting/History';
 
 function App() {
@@ -350,6 +351,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Meeting" />
               <MeetingManager />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/meta-data"
+          element={
+            <DefaultLayout>
+              <PageTitle title="meta-data" />
+              <MetaData />
             </DefaultLayout>
           }
         />

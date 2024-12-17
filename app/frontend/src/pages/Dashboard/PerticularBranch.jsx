@@ -13,8 +13,9 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  Grid,
+  Grid2,
   IconButton,
+  MenuItem,
   Stack,
   Table,
   TableCell,
@@ -38,7 +39,6 @@ const PerticularBranch = () => {
     dashId,
     setDashId,
   } = sessionData();
-  console.log(dashId);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const accessToken = sessionStorage.getItem('accessToken');
   // ------------------states-----------------------------
@@ -51,7 +51,7 @@ const PerticularBranch = () => {
   // charts option
   const [mainChartOption, setMainChartOption] = useState({});
   const [stepWiseChartOptions, setStepWiseChartOptions] = useState({});
-  const [rejectedProcessChart, setRejectedProocessChart] = useState({});
+  const [rejectedProcessChart, setRejectedProocessChart] = useState();
   const [documentsDetailsChart, setDocumentDetailsChart] = useState({
     series: [],
     chart: {
@@ -197,6 +197,10 @@ const PerticularBranch = () => {
       setFileListLoading(false);
     }
   };
+  const handleView = (name) => {
+    const url = `/dashboard/timeLine?data=${name}`;
+    navigate(url);
+  };
 
   // show timeline
   const navigate = useNavigate();
@@ -261,7 +265,6 @@ const PerticularBranch = () => {
           },
           { headers: { Authorization: `Bearer ${accessToken}` } },
         );
-        console.log('step asas');
         if (res.status === 200) {
           setStepWiseChartOptions({
             title: {
@@ -322,18 +325,12 @@ const PerticularBranch = () => {
             ],
           });
           setProcessNameList(res?.data?.pendingProcessNames);
-          console.log('step 2');
         }
-        console.log('step 3');
       } catch (error) {
         console.error(error, 'error');
       } finally {
-        console.log('step 4');
         setStepWiseChartLoading(false);
       }
-      console.log('step last');
-      // setStepWiseLoading(false);
-      console.log(id + ' id');
       setDashId(id);
     }
   };
@@ -407,249 +404,32 @@ const PerticularBranch = () => {
         },
       );
       if (res.status === 200) {
-        setMainChartOption({
-          series: [
-            {
-              name: 'Pending',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.pendingProcessNumber,
-              ),
-            },
-            {
-              name: 'Completed',
-              data: res.data?.processNumberWithDuration?.map(
-                (item: any) => item.completedProcessNumber,
-              ),
-            },
-          ],
-          title: {
-            text: 'Pending & Completed Processes',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '15px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-          },
-          plotOptions: {
-            bar: {
-              horizontal: true,
-              columnWidth: '55%',
-              endingShape: 'rounded',
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          stroke: {
-            show: true,
-            width: 2,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          fill: {
-            opacity: 1,
-          },
-          tooltip: {
-            y: {
-              formatter: function (val) {
-                return val;
-              },
-            },
-          },
-        });
-        setRejectedProocessChart({
-          series: [
-            {
-              data:
-                res.data?.processNumberWithDuration?.map(
-                  (item: any) => item.revertedProcessNumber || 0,
-                ) || [],
-            },
-          ],
-          title: {
-            text: 'Rejected Processes Numbers',
-            align: 'center',
-            margin: 5,
-            offsetY: 20,
-            style: {
-              fontSize: '15px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          chart: {
-            type: 'bar',
-            height: 350,
-          },
-          plotOptions: {
-            bar: {
-              borderRadius: 4,
-              horizontal: false,
-            },
-          },
-          dataLabels: {
-            enabled: false,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-        });
+        setMainChartOption(
+          res?.data?.processNumberWithDuration.map((item) => ({
+            completed: item.completedProcessNumber || 0,
+            pending: item.pendingProcessNumber || 0,
+            time:
+              selectedMainChartType == 'weekly'
+                ? moment(item.time).format('D-M-Y')
+                : item.time,
+            pendingProcesses: item.pendingProcesses || [],
+          })),
+        );
+        setRejectedProocessChart(
+          res.data.processNumberWithDuration.map((item) => ({
+            pending: item.revertedProcessNumber || 0,
+            time:
+              selectedMainChartType == 'weekly'
+                ? moment(item.time).format('D-M-Y')
+                : item.time,
+            rejectedProcesses: item.revertedProcesses,
+          })),
+        );
         setDocumentDetailsChart({
           series: Array.from(
             new Set(
-              res.data.processNumberWithDuration
-                .flatMap((item: any) =>
-                  item.documentDetails.map((doc: any) => doc.workName),
-                )
-                .filter(Boolean), // Remove any falsy values
-            ),
-          ).map((docName) => ({
-            name: docName,
-            data: res.data.processNumberWithDuration.map((item: any) => {
-              return (
-                item.documentDetails.find(
-                  (doc: any) => doc.workName === docName,
-                )?.documentCount || 0
-              );
-            }),
-          })),
-          chart: {
-            height: 350,
-            type: 'line',
-            // dropShadow: {
-            //   enabled: true,
-            //   color: '#000',
-            //   top: 18,
-            //   left: 7,
-            //   blur: 10,
-            //   opacity: 0.2,
-            // },
-            toolbar: {
-              show: false,
-            },
-          },
-          dataLabels: {
-            enabled: true,
-          },
-          stroke: {
-            curve: 'smooth',
-          },
-          title: {
-            text: 'Documents Counts Category Wise',
-            align: 'center',
-            margin: 5,
-            offsetY: -3,
-            style: {
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          grid: {
-            borderColor: '#e7e7e7',
-            row: {
-              colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
-              opacity: 0.5,
-            },
-          },
-          markers: {
-            size: 1,
-          },
-          xaxis: {
-            categories:
-              res.data.processNumberWithDuration?.map((item: any) => {
-                const isDate = moment(
-                  item.time,
-                  moment.ISO_8601,
-                  true,
-                ).isValid();
-                return isDate && selectedMainChartType !== 'yearly'
-                  ? moment(item.time).format('DD-MM-YYYY')
-                  : item.time;
-              }) || [],
-          },
-          yaxis: {
-            title: {
-              text: 'Documents Count',
-            },
-          },
-          legend: {
-            position: 'top',
-            horizontalAlign: 'center',
-            floating: true,
-            offsetY: -15,
-            offsetX: -5,
-          },
-        });
-        setRejectedDocCatWise({
-          title: {
-            text: 'Rejected Documents Category Wise',
-            left: 'center', // align center
-            top: 5, // margin from top
-            textStyle: {
-              fontSize: 14,
-              fontWeight: 'bold',
-              color: '#333',
-            },
-          },
-          tooltip: {
-            trigger: 'axis',
-          },
-          grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '3%',
-            containLabel: true,
-          },
-          toolbox: {
-            feature: {
-              saveAsImage: {},
-            },
-          },
-          xAxis: {
-            type: 'category',
-            data: res.data.processNumberWithDuration.map((item: any) => {
-              const isDate = moment(item.time, moment.ISO_8601, true).isValid();
-              return isDate && selectedMainChartType !== 'yearly'
-                ? moment(item.time).format('DD-MM-YYYY')
-                : item.time;
-            }),
-          },
-          yAxis: {
-            type: 'value',
-          },
-          series: Array.from(
-            new Set(
-              res.data.processNumberWithDuration
-                .flatMap((item) =>
+              res?.data?.processNumberWithDuration
+                ?.flatMap((item) =>
                   item.documentDetails.map((doc) => doc.workName),
                 )
                 .filter(Boolean),
@@ -657,13 +437,57 @@ const PerticularBranch = () => {
           ).map((docName) => ({
             name: docName,
             type: 'line',
-            data: res.data.processNumberWithDuration.map((item) => {
-              return (
-                item.documentDetails.find((doc) => doc.workName === docName)
-                  ?.noOfRejectedDocuments || 0
+            smooth: true,
+            data: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
               );
+              return doc ? doc.documentCount : 0; // Set to 0 if documentCount not found
+            }),
+            documents: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.documentsUploaded : []; // Return documentsUploaded or empty array
             }),
           })),
+          time: res.data.processNumberWithDuration?.map((item) =>
+            selectedMainChartType == 'weekly'
+              ? moment(item.time).format('D-M-Y')
+              : item?.time,
+          ),
+        });
+
+        setRejectedDocCatWise({
+          series: Array.from(
+            new Set(
+              res?.data?.processNumberWithDuration
+                ?.flatMap((item) =>
+                  item.documentDetails.map((doc) => doc.workName),
+                )
+                .filter(Boolean),
+            ),
+          ).map((docName) => ({
+            name: docName,
+            type: 'bar',
+            data: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.noOfRejectedDocuments : 0; // Set to 0 if documentCount not found
+            }),
+            documents: res?.data?.processNumberWithDuration?.map((item) => {
+              const doc = item.documentDetails.find(
+                (doc) => doc.workName === docName,
+              );
+              return doc ? doc.documentsReverted : []; // Return documentsUploaded or empty array
+            }),
+          })),
+          time: res.data.processNumberWithDuration?.map((item) =>
+            selectedMainChartType == 'weekly'
+              ? moment(item.time).format('D-M-Y')
+              : item.time,
+          ),
         });
       }
     } catch (error) {
@@ -759,7 +583,7 @@ const PerticularBranch = () => {
         </Button>
       </Stack>
       <>
-        {Object.keys(mainChartOption).length > 0 ? (
+        {Object.keys(mainChartOption)?.length ? (
           <Stack alignItems="flex-end">
             <Button
               variant="contained"
@@ -771,39 +595,44 @@ const PerticularBranch = () => {
             </Button>
           </Stack>
         ) : null}
-        {Object.keys(mainChartOption).length > 0 ? (
-          <Grid container spacing={2}>
-            <Grid item xs={12} lg={12}>
-              <ChartOne data={mainChartOption} loading={mainChartLoading} />
-            </Grid>
-            <Grid item xs={12} lg={6}>
+
+        {Object.keys(mainChartOption).length ? (
+          <Grid2 container spacing={2}>
+            <Grid2 size={{ xs: 12 }}>
+              <ChartOne
+                data={mainChartOption}
+                loading={mainChartLoading}
+                handleView={handleView}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, lg: 6 }}>
               <ChartTwo
                 data={rejectedProcessChart}
                 loading={mainChartLoading}
+                handleView={handleView}
               />
-            </Grid>
-            <Grid item xs={12} lg={6}>
+            </Grid2>
+            <Grid2 size={{ xs: 12, lg: 6 }}>
               <ChartThree
                 data={documentsDetailsChart}
                 loading={mainChartLoading}
+                handleView={handleView}
               />
-            </Grid>
-            <Grid item xs={12}>
-              <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
-            </Grid>
-            <Grid item xs={12}>
+            </Grid2>
+            <Grid2 size={{ xs: 12 }}>
+              <ChartFour
+                data={rejectedDocCatWise}
+                loading={mainChartLoading}
+                handleView={handleView}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12 }}>
               <ChartFive
                 data={stepWiseChartOptions}
                 loading={stepWiseChartLoading}
               />
-            </Grid>
-
-            {/* <MapOne /> */}
-            {/* <div className="col-span-12 xl:col-span-8">
-          <TableOne />
-        </div>
-        <ChatCard /> */}
-          </Grid>
+            </Grid2>
+          </Grid2>
         ) : null}
         <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
           <Stack
@@ -817,44 +646,34 @@ const PerticularBranch = () => {
             <Typography variant="h6" sx={{ textAlign: 'center' }}>
               Apply filters
             </Typography>
-            <select
+            <TextField
               id="mainChartOptions"
-              style={{
-                width: '100%',
-                height: '40px',
-                borderRadius: '8px',
-                border: '1px solid',
-              }}
+              fullWidth
+              label="Type"
+              select
               value={selectedMainChartType}
               onChange={handleMainChartType}
             >
-              <option value="">select</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="custom">Custom</option>
-            </select>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </TextField>
             {selectedMainChartType === 'monthly' && (
-              <select
+              <TextField
+                select
                 id="yearOptions"
-                style={{
-                  width: '100%',
-                  height: '40px',
-                  borderRadius: '8px',
-                  border: '1px solid',
-                }}
+                label="Year"
+                fullWidth
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
               >
-                <option value="" disabled>
-                  select
-                </option>
                 {yearList.map((year) => (
-                  <option value={year} key={year}>
+                  <MenuItem value={year} key={year}>
                     {year}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
+              </TextField>
             )}
             {selectedMainChartType === 'custom' && (
               <Stack spacing={2} alignItems="center">
@@ -866,15 +685,11 @@ const PerticularBranch = () => {
                   alignItems="center"
                 >
                   <h4>Select Start Date:</h4>
-                  <input
+                  <TextField
                     type="date"
                     name="startDate"
                     // className={styles.dateInputs}
-                    style={{
-                      border: '1px solid',
-                      borderRadius: '6px',
-                      padding: '4px',
-                    }}
+
                     onChange={handleMainChartDateChange}
                   />
                 </Stack>
@@ -886,14 +701,9 @@ const PerticularBranch = () => {
                   alignItems="center"
                 >
                   <h4>Select End Date:</h4>
-                  <input
+                  <TextField
                     type="date"
                     name="endDate"
-                    style={{
-                      border: '1px solid',
-                      borderRadius: '6px',
-                      padding: '4px',
-                    }}
                     // className={styles.dateInputs}
                     onChange={handleMainChartDateChange}
                   />
@@ -904,6 +714,7 @@ const PerticularBranch = () => {
               size="small"
               variant="contained"
               sx={{ mt: 2 }}
+              disabled={mainChartLoading}
               onClick={() => {
                 getPerticularBranchData();
                 getStepWisePendingProcesses();
@@ -919,14 +730,13 @@ const PerticularBranch = () => {
           open={fileListOpen}
           sx={{
             '& .MuiPaper-root': { maxWidth: '600px', width: '100%' },
-            backdropFilter: 'blur(4px)',
             zIndex: 99999,
           }}
           onClose={() => (fileListLoading ? null : setFileListOpen(false))}
         >
           <DialogTitle
             fontWeight={700}
-            sx={{ background: '#4E327E', color: 'white' }}
+            sx={{ background: 'var(--themeColor)', color: 'white', m: 1 }}
           >
             Files List
             <IconButton

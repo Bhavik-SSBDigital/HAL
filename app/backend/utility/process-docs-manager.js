@@ -50,22 +50,27 @@ export const get_documents_with_replacements = async (documents) => {
     }, null);
   });
 
-  const transformReplacements = transform_replacements(related_docs);
+  let transformReplacements = transform_replacements(related_docs);
 
   const transformedActiveDocs = await Promise.all(
-    latestDocs.map((doc) => ({
-      workName: doc.workName,
-      cabinetNo: doc.cabinetNo,
-      rejection: doc.rejection || null, // Assuming rejection might not always exist
-      signedBy: doc.signedBy,
-      details: {
-        name: doc.details.name,
-        createdOn: doc.details.createdOn,
-        path: `..${doc.details.path.substring(19)}`,
-        _id: doc.details._id,
-        file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
-      },
-    }))
+    latestDocs.map(async (doc) => {
+      let path = `..${doc.details.path.substring(19)}`;
+      path = path.slice(0, path.lastIndexOf("/"));
+
+      return {
+        workName: doc.workName,
+        cabinetNo: doc.cabinetNo,
+        rejection: doc.rejection || null, // Assuming rejection might not always exist
+        signedBy: doc.signedBy,
+        details: {
+          name: doc.details.name,
+          createdOn: doc.details.createdOn,
+          path: path,
+          _id: doc.details._id,
+          file_name: doc.details.name, // Mapping "file_name" to the same "name" field in details
+        },
+      };
+    })
   );
 
   return {
@@ -75,47 +80,62 @@ export const get_documents_with_replacements = async (documents) => {
 };
 
 const transform_replacements = (replacements) => {
-  return replacements.map((array) => {
-    // Find the latest document
-    const latestDoc = array.reduce((latest, doc) =>
-      new Date(doc.details.createdOn) > new Date(latest.details.createdOn)
-        ? doc
-        : latest
-    );
+  return replacements
+    .map((array) => {
+      if (array.length === 0) return null; // Ensure null for empty input arrays
 
-    // Filter out the latest document from the array
-    const remainingDocs = array.filter(
-      (doc) => doc.details._id.toString() !== latestDoc.details._id.toString()
-    );
+      // Find the latest document
+      const latestDoc = array.reduce((latest, doc) =>
+        new Date(doc.details.createdOn) > new Date(latest.details.createdOn)
+          ? doc
+          : latest
+      );
 
-    // Format the latest document (ref) and remaining documents (replacements)
-    return {
-      ref: {
-        workName: latestDoc.workName,
-        cabinetNo: latestDoc.cabinetNo,
-        rejection: latestDoc.rejection || null,
-        signedBy: latestDoc.signedBy || [],
-        details: {
-          name: latestDoc.details.name,
-          path: `..${latestDoc.details.path.substring(19)}`,
-          createdOn: latestDoc.details.createdOn,
-          _id: latestDoc.details._id,
-          file_name: latestDoc.details.name,
-        },
-      },
-      replacements: remainingDocs.map((doc) => ({
-        workName: doc.workName,
-        cabinetNo: doc.cabinetNo,
-        rejection: doc.rejection || null,
-        signedBy: doc.signedBy || [],
-        details: {
-          name: doc.details.name,
-          path: `..${doc.details.path.substring(19)}`,
-          createdOn: doc.details.createdOn,
-          _id: doc.details._id,
-          file_name: doc.details.name,
-        },
-      })),
-    };
-  });
+      // Filter out the latest document from the array
+      const remainingDocs = array.filter(
+        (doc) => doc.details._id.toString() !== latestDoc.details._id.toString()
+      );
+
+      let latestDocPath = `..${latestDoc.details.path.substring(19)}`;
+      latestDocPath = latestDocPath.slice(0, latestDocPath.lastIndexOf("/"));
+
+      if (remainingDocs.length > 0) {
+        return {
+          ref: {
+            workName: latestDoc.workName,
+            cabinetNo: latestDoc.cabinetNo,
+            rejection: latestDoc.rejection || null,
+            signedBy: latestDoc.signedBy || [],
+            details: {
+              name: latestDoc.details.name,
+              path: latestDocPath,
+              createdOn: latestDoc.details.createdOn,
+              _id: latestDoc.details._id,
+              file_name: latestDoc.details.name,
+            },
+          },
+          replacements: remainingDocs.map((doc) => {
+            let path = `..${doc.details.path.substring(19)}`;
+            path = path.slice(0, path.lastIndexOf("/"));
+            return {
+              workName: doc.workName,
+              cabinetNo: doc.cabinetNo,
+              rejection: doc.rejection || null,
+              signedBy: doc.signedBy || [],
+              details: {
+                name: doc.details.name,
+                path: path,
+                createdOn: doc.details.createdOn,
+                _id: doc.details._id,
+                file_name: doc.details.name,
+              },
+            };
+          }),
+        };
+      }
+
+      // If no remaining docs, return null for this map iteration
+      return null;
+    })
+    .filter(Boolean); // Remove null values to return a clean array
 };

@@ -5,6 +5,10 @@ const docTrackingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
+  lender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   time: {
     type: Date,
     required: true,
@@ -16,7 +20,7 @@ const docTrackingSchema = new mongoose.Schema({
   },
   purpose: {
     type: String,
-    required: true,
+    required: false,
   },
   isReturned: {
     type: Boolean,

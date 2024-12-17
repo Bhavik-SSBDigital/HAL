@@ -246,3 +246,6 @@ span.flatpickr-weekday,
   scrollbar-width: thin; /* Set width to thin */
   scrollbar-color: #001f6e #f0f0f0; /* Thumb color and track color */
 }
+svg{
+  touch-action: auto !important;
+}

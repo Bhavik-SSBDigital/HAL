@@ -12,13 +12,14 @@ import {
   IconButton,
   Collapse,
   Tooltip,
+  Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-export default function Replacements({ data }) {
+export default function Replacements({ data, handleView }) {
   const [openRows, setOpenRows] = React.useState({});
 
   const toggleRow = (index) => {
@@ -39,7 +40,7 @@ export default function Replacements({ data }) {
               <b>Cabinet No</b>
             </TableCell>
             <TableCell>
-              <b>Rejected</b>
+              <b>Status</b>
             </TableCell>
             <TableCell>
               <b>Rejection Reason</b>
@@ -53,10 +54,10 @@ export default function Replacements({ data }) {
           {data.map((item, index) => (
             <React.Fragment key={index}>
               <TableRow>
-                <TableCell>{item.ref.details.name}</TableCell>
-                <TableCell>{item.ref.cabinetNo}</TableCell>
+                <TableCell>{item?.ref?.details?.name}</TableCell>
+                <TableCell>{item?.ref?.cabinetNo}</TableCell>
                 <TableCell>
-                  {item.ref.rejection ? (
+                  {item?.ref?.rejection ? (
                     <Tooltip title="Rejected">
                       <ReportProblemIcon color="error" />
                     </Tooltip>
@@ -66,11 +67,21 @@ export default function Replacements({ data }) {
                     </Tooltip>
                   )}
                 </TableCell>
-                <TableCell>{item.ref.rejection?.reason || '-'}</TableCell>
+                <TableCell>{item?.ref?.rejection?.reason || '-'}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => toggleRow(index)}>
                     {openRows[index] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   </IconButton>
+                  <Button
+                    onClick={() =>
+                      handleView(
+                        item?.ref?.details?.path,
+                        item?.ref?.details?.name,
+                      )
+                    }
+                  >
+                    View
+                  </Button>
                 </TableCell>
               </TableRow>
 
@@ -86,9 +97,9 @@ export default function Replacements({ data }) {
                         gutterBottom
                         component="div"
                       >
-                        Replacements
+                        Old Versions
                       </Typography>
-                      {item.replacements.length > 0 ? (
+                      {item?.replacements?.length > 0 ? (
                         <Table
                           size="small"
                           aria-label="replacements"
@@ -102,6 +113,9 @@ export default function Replacements({ data }) {
                               <TableCell>
                                 <b>Cabinet No</b>
                               </TableCell>
+                              <TableCell>
+                                <b>Actions</b>
+                              </TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -111,6 +125,18 @@ export default function Replacements({ data }) {
                                   {replacement.details.name}
                                 </TableCell>
                                 <TableCell>{replacement.cabinetNo}</TableCell>
+                                <TableCell>
+                                  <Button
+                                    onClick={() =>
+                                      handleView(
+                                        replacement?.details?.path,
+                                        replacement?.details?.name,
+                                      )
+                                    }
+                                  >
+                                    View
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>

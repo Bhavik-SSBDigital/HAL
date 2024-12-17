@@ -311,9 +311,9 @@ export async function upload(
   customName,
   isInvolvedInProcess,
 ) {
-  console.log('path in upload', path);
-  console.log('function we need is called');
-  console.log('filelist length is', fileList);
+  // console.log('path in upload', path);
+  // console.log('function we need is called');
+  // console.log('filelist length is', fileList);
   if (fileList.length === 0) {
     return;
   }
@@ -336,16 +336,16 @@ export async function upload(
               isInvolvedInProcess,
             );
         
-            console.log("res", res)
+            // console.log("res", res)
       documentIds.push(res.documentId);
-      console.log("document ids", documentIds)
+      // console.log("document ids", documentIds)
       // console.log(path)
       getData();
       
 
       return documentIds;
     }
-    console.log('document ids', documentIds);
+    // console.log('document ids', documentIds);
   } catch (error) {
     console.log("error", error)
     throw new Error(error);

@@ -6,6 +6,7 @@ import PdfContainer from './pdfViewer';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
@@ -16,6 +17,7 @@ const PdfViewer = ({
   maxReceiverStepNumber,
   processId,
   currentStep,
+  controls,
 }) => {
   const [excelData, setExcelData] = useState([]);
   const closeIconStyle = {
@@ -26,6 +28,7 @@ const PdfViewer = ({
   };
 
   useEffect(() => {
+    const supportedTypes = ['xlsx', 'xls', 'pdf'];
     if (docu.type === 'xlsx' || docu.type === 'xls') {
       fetch(docu.url)
         .then((response) => response.blob())
@@ -59,6 +62,11 @@ const PdfViewer = ({
           reader.readAsBinaryString(blob);
         })
         .catch((error) => console.error('Error reading Excel file:', error));
+    }
+    if (!supportedTypes.includes(docu.type)) {
+      toast.warn('Unsupported file type');
+      handleViewClose();
+      return;
     }
   }, [docu]);
 
@@ -96,6 +104,7 @@ const PdfViewer = ({
                 maxReceiverStepNumber={maxReceiverStepNumber}
                 processId={processId}
                 currentStep={currentStep}
+                controls={controls}
               />
             </div>
           ) : docu.type === 'xls' || docu.type === 'xlsx' ? (
