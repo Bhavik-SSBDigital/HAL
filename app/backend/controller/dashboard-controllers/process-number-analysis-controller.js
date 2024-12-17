@@ -3,6 +3,7 @@ import Process from "../../models/process.js";
 import Document from "../../models/document.js";
 import ProcessAnalytics from "../../models/analytics/process-analytics.js";
 import { ObjectId } from "mongodb";
+import { revertProcess } from "../processes-controller.js";
 
 const monthNames = [
   "January",
@@ -249,47 +250,60 @@ function getMonthlyDateRanges(year_ = new Date().getFullYear()) {
 }
 
 const getAccumulatedWorkNameCount = (workNameUnOrganized) => {
-  let workNameCounts = {};
+  try {
+    let workNameCounts = {};
 
-  let documentDetails = [];
+    let documentDetails = [];
 
-  for (let i = 0; i < workNameUnOrganized.length; i++) {
-    if (workNameUnOrganized[i].documentDetails) {
-      workNameUnOrganized[i].documentDetails.forEach((item) => {
-        if (workNameCounts[item.workName]) {
-          if (workNameCounts[item.workName].noOfRejectedDocuments) {
-            workNameCounts[item.workName].noOfRejectedDocuments +=
-              item.noOfRejectedDocuments;
+    for (let i = 0; i < workNameUnOrganized.length; i++) {
+      if (workNameUnOrganized[i].documentDetails) {
+        workNameUnOrganized[i].documentDetails.forEach((item) => {
+          if (workNameCounts[item.workName]) {
+            if (item.documentsRejected && item.documentsRejected.length) {
+              workNameCounts[item.workName].documentsRejected = [
+                ...item.noOfRejectedDocuments,
+                ...workNameCounts[item.workName].documentsRejected,
+              ];
+            } else {
+              workNameCounts[item.workName].documentsRejected = [
+                ...item.documentsRejected,
+              ];
+            }
+            if (item.documentsUploaded) {
+              workNameCounts[item.workName].documentsUploaded = [
+                ...workNameCounts[item.workName].documentsUploaded,
+                ,
+                ...item.documentsUploaded,
+              ];
+            } else {
+              workNameCounts[item.workName].documentsUploaded =
+                item.documentsUploaded;
+
+              //////
+            }
+            // workNameCounts[item.workName] =
+            //   workNameCounts[item.workName] + item.documentCount;
           } else {
-            workNameCounts[item.workName].noOfRejectedDocuments =
-              item.noOfRejectedDocuments;
+            workNameCounts[item.workName] = {
+              documentCount: item.documentsUploaded
+                ? item.documentsUploaded.length
+                : 0,
+              documentsUploaded: item.documentsUploaded,
+              documentsRjected: item.documentsRejected,
+              noOfRejectedDocuments: item.documentsRejected
+                ? item.documentsRejected.length
+                : 0,
+            };
           }
-          if (workNameCounts[item.workName].documentCount) {
-            workNameCounts[item.workName].documentCount += item.documentCount;
-          } else {
-            workNameCounts[item.workName].documentCount = item.documentCount;
-          }
-          // workNameCounts[item.workName] =
-          //   workNameCounts[item.workName] + item.documentCount;
-        } else {
-          workNameCounts[item.workName] = {
-            documentCount: item.documentCount,
-            noOfRejectedDocuments: item.noOfRejectedDocuments,
-          };
-        }
-      });
+        });
+      }
     }
+
+    return workNameCounts;
+  } catch (error) {
+    console.log("Error in organising document details", error);
+    throw new Error(error);
   }
-
-  workNameCounts = Object.entries(workNameCounts).map(([workName, count]) => {
-    return {
-      workName: workName,
-      documentCount: count.documentCount,
-      noOfRejectedDocuments: count.noOfRejectedDocuments,
-    };
-  });
-
-  return workNameCounts;
 };
 
 export const get_process_number_monthly = async (year, department) => {
@@ -312,6 +326,9 @@ export const get_process_number_monthly = async (year, department) => {
         },
       });
 
+      console.log("pending process bnumbers", pendingProcessNumbers);
+      let pendingProcesses = [];
+      let revrtedProcesses = [];
       if (department !== undefined) {
         pendingProcessNumbers = pendingProcessNumbers.map((item) => {
           let item_ = item;
@@ -326,27 +343,16 @@ export const get_process_number_monthly = async (year, department) => {
         });
       }
 
-      let pendingProcessesNumbers_ = pendingProcessNumbers.map((item) =>
-        item !== undefined ? item.noOfPendingProcess : 0
+      pendingProcessNumbers.forEach(
+        (item) =>
+          (pendingProcesses = [...pendingProcesses, ...item.pendingProcesses])
       );
 
-      const pedingProcessCount = pendingProcessesNumbers_.reduce(
-        (acc, value) => acc + value,
-        0
-      );
-
-      let revertedProcessNumbers_ = pendingProcessNumbers.map((item) => {
+      pendingProcessNumbers.forEach((item) => {
         if (item !== undefined) {
-          return item.noOfRevertedProcess;
-        } else {
-          return 0;
+          revrtedProcesses = [...revrtedProcesses, ...item.revertedProcesses];
         }
       });
-
-      const revertedProcessCount = revertedProcessNumbers_.reduce(
-        (acc, value) => acc + value,
-        0
-      );
 
       let workNameCounts = getAccumulatedWorkNameCount(pendingProcessNumbers);
 
@@ -356,17 +362,20 @@ export const get_process_number_monthly = async (year, department) => {
               // createdAt: { $lte: requiredDate }, // startedAt < requiredDate
               workFlow: department,
               completedAt: { $lte: endDate, $gte: startDate }, // completedAt > requiredDate
-            }).select("_id")
+            }).select("_id name")
           : await Process.find({
               // createdAt: { $lte: requiredDate }, // startedAt < requiredDate
               completedAt: { $lte: endDate, $gte: startDate }, // completedAt > requiredDate
-            }).select("_id");
+            }).select("_id name");
 
       processes_per_month.push({
         time: monthNames[startDate.getMonth()],
-        pendingProcessNumber: pedingProcessCount,
-        revertedProcessNumber: revertedProcessCount,
+        pendingProcessNumber: pendingProcesses.length,
+        pendingProcess: pendingProcesses,
+        revertedProcessNumber: revrtedProcesses.length,
+        revrtedProcesses: revrtedProcesses,
         completedProcessNumber: completedProcesses.length,
+        completedProcesses: completedProcesses,
         documentDetails: workNameCounts,
       });
     }
