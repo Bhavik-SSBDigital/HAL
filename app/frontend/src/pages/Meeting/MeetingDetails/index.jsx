@@ -370,7 +370,6 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                     p: '10px',
                     borderRadius: '8px',
                     maxHeight: '350px',
-                    mb: 3,
                     overflow: 'auto',
                   }}
                 >
