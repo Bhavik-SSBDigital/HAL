@@ -91,6 +91,8 @@ const ChartTwo = ({ data, loading, handleView }) => {
       </Card>
       <Dialog
         open={selectedProcesses.length}
+        maxWidth="md"
+        fullWidth
         onClose={() => setSelectedProcesses([])}
       >
         <DialogTitle
@@ -109,7 +111,7 @@ const ChartTwo = ({ data, loading, handleView }) => {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600 }}>Process Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>View</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>View Timeline</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
