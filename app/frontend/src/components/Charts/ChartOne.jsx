@@ -130,7 +130,7 @@ const ChartOne = ({ data, loading, handleView }) => {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600 }}>Process Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>View Process</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>View Timeline</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
