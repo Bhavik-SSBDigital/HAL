@@ -111,7 +111,7 @@ const DropdownNotification = () => {
   }, []);
 
   return (
-    <li className="relative">
+    <li className="relative z-10">
       <div
         style={{
           display: 'flex',
@@ -150,7 +150,7 @@ const DropdownNotification = () => {
       </div>
       {dropdownOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-0 z-9"
+          className="fixed inset-0 bg-black opacity-0 z-1"
           onClick={() => setDropdownOpen(false)}
           style={{ height: '100vh', width: '100vw' }}
         ></div>
@@ -159,7 +159,7 @@ const DropdownNotification = () => {
         ref={dropdown}
         onFocus={() => setDropdownOpen(true)}
         onBlur={() => setDropdownOpen(false)}
-        className={`absolute -right-27 mt-2.5 flex h-90 w-75 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark sm:right-0 sm:w-80 ${
+        className={`absolute -right-27 mt-2.5 flex h-90 w-75 flex-col z-9 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark sm:right-0 sm:w-80 ${
           dropdownOpen === true ? 'block' : 'hidden'
         }`}
       >
