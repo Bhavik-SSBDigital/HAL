@@ -118,6 +118,7 @@ const Header = (props: {
             <li>
               <DropdownUser />
             </li>
+            {/* <DarkModeSwitcher /> */}
           </ul>
         </div>
       </div>

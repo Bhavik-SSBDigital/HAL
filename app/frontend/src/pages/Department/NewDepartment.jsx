@@ -463,6 +463,7 @@ export default function NewDepartment(props) {
               </DialogActions>
             </Dialog>
           </Grid2>
+          <Divider sx={{mb: 2}}/>
           <Typography
             variant="h6"
             sx={{ textAlign: 'center', mb: 4 }}
