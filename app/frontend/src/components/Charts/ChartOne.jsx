@@ -110,6 +110,8 @@ const ChartOne = ({ data, loading, handleView }) => {
       </Card>
       <Dialog
         open={selectedProcesses.length}
+        maxWidth="md"
+        fullWidth
         onClose={() => setSelectedProcesses([])}
       >
         <DialogTitle

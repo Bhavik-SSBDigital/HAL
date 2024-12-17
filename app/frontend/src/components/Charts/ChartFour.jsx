@@ -115,7 +115,8 @@ const ChartFour = ({ data, loading }) => {
       </Card>
       <Dialog
         open={selectedDocuments.length}
-        maxWidth="lg"
+        maxWidth="md"
+        fullWidth
         onClose={() => setSelectedDocuments([])}
       >
         <DialogTitle
