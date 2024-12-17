@@ -109,7 +109,7 @@ const ChartTwo = ({ data, loading, handleView }) => {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600 }}>Process Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>View</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>View Process</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

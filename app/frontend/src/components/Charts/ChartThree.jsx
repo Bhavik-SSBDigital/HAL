@@ -115,6 +115,7 @@ const ChartThree = ({ data, loading }) => {
       </Card>
       <Dialog
         open={selectedDocuments.length}
+        maxWidth="lg"
         onClose={() => setSelectedDocuments([])}
       >
         <DialogTitle
