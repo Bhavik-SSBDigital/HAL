@@ -7,7 +7,6 @@ import { getSocketInstance } from "../socketHandler.js";
 import moment from "moment";
 import Process from "../models/process.js";
 import Document from "../models/document.js";
-import User from "../models/user.js";
 
 const checkIfRoomHasParticipants = (roomId) => {
   const io = getSocketInstance(); // Get the Socket.io instance
@@ -502,13 +501,13 @@ export const get_meeting_details = async (req, res, next) => {
     );
 
     momUploadedBy = momUploadedBy.username;
-
+    console.log(momUploadedBy);
     meet.momUploadedBy = momUploadedBy;
 
     let mom = meet.mom;
 
     mom = Document.findOne({ _id: mom }).select("_id name path");
-
+console.log(mom);
     mom = {
       docId: mom._id,
       path: mom.path,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -32,6 +32,7 @@ import { useForm } from 'react-hook-form';
 import Loader from '../../../common/Loader';
 import FormSkeleton from '../../../common/Skeletons/FormSkeleton';
 import { useNavigate } from 'react-router-dom';
+import { upload } from '../../../components/drop-file-input/FileUploadDownload';
 
 const MeetingDetailsDialog = ({ open, onClose, id }) => {
   const {
@@ -108,6 +109,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
   };
 
   // minutes of meeting
+  const fileInputRef = useRef(null); // Create file input ref
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -121,29 +123,62 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
     event.preventDefault();
 
     if (!selectedFile) {
-      alert('Please select a file before uploading.');
+      toast.warn('Please select a file before uploading.');
       return;
     }
 
     setIsUploading(true);
 
     try {
-      // Simulate a file upload
+      // Extract file name and extension
+      const fileName = selectedFile.name.split('.').slice(0, -1).join('.');
+      const fileExt = selectedFile.name.split('.').pop();
+
+      // Prepare form data for upload
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      // Example upload logic
-      await fetch('/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      // Simulate file upload
+      const uploadResult = await upload(
+        [selectedFile],
+        '../moms',
+        () => {}, // Dummy callback
+        `${fileName}.${fileExt}`,
+        true,
+      );
 
-      setUploadedFileName(selectedFile.name);
-      alert('File uploaded successfully!');
-      setSelectedFile(null); // Clear file input after successful upload
+      if (!uploadResult?.[0]) {
+        throw new Error('File upload failed. Please try again.');
+      }
+
+      const docId = uploadResult[0];
+
+      // API request to link uploaded file with meeting
+      const response = await axios.post(
+        backendUrl + '/uploadMomInMeet',
+        {
+          meetingId: id,
+          mom: docId,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (response.status !== 200) {
+        throw new Error('Failed to save uploaded file. Please try again.');
+      }
+
+      fileInputRef.current.value = ''; // Clear file input
+      toast.success('File uploaded successfully!');
+      setSelectedFile(null);
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('Failed to upload file.');
+      toast.error(
+        error?.response?.data?.message ||
+          error.message ||
+          'An unexpected error occurred.',
+      );
     } finally {
       setIsUploading(false);
     }
@@ -474,12 +509,14 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                   <TextField
                     type="file"
                     fullWidth
+                    ref={fileInputRef}
                     inputProps={{ accept: '.pdf,.doc,.docx,.txt' }}
                     onChange={handleFileChange}
                   />
                   <Button
                     type="submit"
                     variant="contained"
+                    sx={{ height: '55px' }}
                     disabled={!selectedFile || isUploading}
                   >
                     {isUploading ? <CircularProgress size={22} /> : 'Upload'}
