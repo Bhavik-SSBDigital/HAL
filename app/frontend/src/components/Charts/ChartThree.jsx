@@ -67,12 +67,8 @@ const ChartThree = ({ data, loading }) => {
 
   const [viewFileDetails, setViewFileDetails] = useState(null);
   const handleView = async (path, name, id) => {
-    const fullPath = path.substring(19);
-    const joint = '..' + fullPath;
-    const filepath = joint.substring(0, joint.lastIndexOf('/'));
-
     try {
-      const fileData = await download(name, filepath, true);
+      const fileData = await download(name, path, true);
       setSelectedDocuments([]);
       if (fileData) {
         setViewFileDetails({

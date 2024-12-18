@@ -217,44 +217,71 @@ const FileSystem = () => {
               ) : (
                 <Stack direction="row" flexWrap="wrap" gap={1}>
                   {fileFolders.map((item, index) => (
-                    <Button
+                    <Stack
+                      flexWrap="wrap"
+                      position="relative"
+                      minWidth="150px"
+                      height="130px"
+                      mr={'10px'}
+                      maxWidth="200px"
+                      flex={1}
                       key={index}
-                      onClick={() => handleFolderClick(item.name)}
-                      sx={{
-                        flexDirection: 'column',
-                        backgroundColor: 'white',
-                        border: '1px solid lightgray',
-                        flex: 1,
-                        borderRadius: '15px',
-                        height: { xs: '90px', md: '110px' },
-                        maxWidth: { xs: '100px', md: '150px' },
-                        minWidth: { xs: '90px', md: '110px' },
-                        textTransform: 'none',
-                        '&:hover': {
-                          border: '1px solid blue',
-                          background: 'white',
-                        },
-                      }}
                     >
-                      <Tooltip title={item.name.length >= 10 ? item.name : ''}>
-                        <Box
+                      {/* <Tooltip title={item.name} enterDelay={2000} disableInteractive> */}
+                      <Link to={item.name} style={{ height: '100%' }}>
+                        <Button
+                          onClick={() => handleFolderClick(item.name)}
                           sx={{
-                            height: { xs: 45, md: 60 },
-                            width: { xs: 45, md: 60 },
+                            flexDirection: 'column',
+                            backgroundColor: 'white',
+                            borderRadius: '15px',
+                            border: '1px solid lightgray',
+                            width: '100%',
+                            padding: '5px',
+                            height: '100%',
+                            '&:hover': {
+                              border: '1px solid blue',
+                              background: 'white',
+                            },
+                            textTransform: 'none',
                           }}
+                          variant="text"
+                          color="primary"
+                          size="medium"
                         >
-                          <img
-                            src={imageSrc}
-                            alt="Folder"
-                            width="100%"
-                            height="100%"
-                          />
-                        </Box>
-                        <Typography variant="body2">
-                          {truncateFileName(item.name)}
-                        </Typography>
-                      </Tooltip>
-                    </Button>
+                          <Tooltip
+                            title={item.name.length >= 10 ? item.name : null}
+                          >
+                            <Box
+                              sx={{
+                                height: '60px',
+                                width: '60px',
+                              }}
+                            >
+                              <img
+                                style={{
+                                  height: '100%',
+                                  width: '100%',
+                                }}
+                                src={imageSrc}
+                                alt="im"
+                              />
+                            </Box>
+                            <p
+                              style={{
+                                color: 'black',
+                                textAlign: 'center',
+                                margin: 0,
+                              }}
+                            >
+                              {item.name.length >= 10
+                                ? truncateFileName(item.name)
+                                : item.name}
+                            </p>
+                          </Tooltip>
+                        </Button>
+                      </Link>
+                    </Stack>
                   ))}
                 </Stack>
               )}

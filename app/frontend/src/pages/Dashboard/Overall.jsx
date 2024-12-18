@@ -7,20 +7,27 @@ import moment from 'moment';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import {
+  Box,
   Button,
+  Card,
   Dialog,
   DialogTitle,
+  Divider,
   Grid2,
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from '@mui/material';
 import ChartFour from '../../components/Charts/ChartFour';
 import { useNavigate } from 'react-router-dom';
+import { IconClock, IconClockCog, IconFilesOff, IconFileUpload } from '@tabler/icons-react';
 
 const Overall = () => {
   // ------------------states-----------------------------
   const navigate = useNavigate();
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const token = sessionStorage.getItem('accessToken');
   // charts option
   const [mainChartOption, setMainChartOption] = useState();
   const [rejectedProcessChart, setRejectedProocessChart] = useState();
@@ -128,7 +135,7 @@ const Overall = () => {
         // setRejectedProcessesLoading(false);
         return;
       }
-      const dateUrl = import.meta.env.VITE_BACKEND_URL + '/getProcessNumber';
+      const dateUrl = backendUrl + '/getProcessNumber';
       const res = await axios.post(
         dateUrl,
         { ...sendData },
@@ -232,11 +239,178 @@ const Overall = () => {
     setMainChartLoading(false);
     // setRejectedProcessesLoading(false);
   };
+  const [statistics, setStatistics] = useState({
+    Tat: 0,
+    PendingProcesses: 0,
+    docsUploaded: 0,
+    rejectionPercentage: 0,
+  });
+  const getStatistics = async () => {
+    const url = backendUrl + '/getProcessStatistics';
+    try {
+      const response = await axios.post(url, null, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStatistics({
+        Tat: response.data.average_TAT_to_complete_the_process,
+        PendingProcesses: response.data.total_pending_processes,
+        docsUploaded: response.data.docsUploaded,
+        rejectionPercentage: response.data.rejectionPercentage,
+      });
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
   useEffect(() => {
     getMainChartData();
+    getStatistics();
   }, []);
   return (
     <>
+      <Grid2 container spacing={2} my={2}>
+        {/* Pending Processes Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <IconClockCog size={48} color="#999999" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Pending Processes
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                {statistics.PendingProcesses}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+
+        {/* Turn Around Time Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <IconClock size={48} color="#999999" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Turn Around Time
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                {statistics.Tat}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+
+        {/* documents count Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
+
+              gap: 2,
+            }}
+          >
+            <Box>
+              <IconFileUpload size={48} color="#999999" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Documents Uploaded
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                {statistics.docsUploaded}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+
+        {/* documents rejected percentage Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
+
+              gap: 2,
+            }}
+          >
+            <Box>
+              <IconFilesOff size={48} color="#999999" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Documents Rejection Percentage
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                {statistics.rejectionPercentage}%
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+      </Grid2>
+
       <Stack alignItems="flex-end" my={1}>
         <Button
           variant="contained"
