@@ -260,67 +260,79 @@ const Overall = () => {
   }, []);
   return (
     <>
-      <Stack gap={2} my={2} flexDirection="row" justifyContent="flex-start">
-        <Card
-          sx={{
-            height: '120px',
-            width: '250px',
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            borderRadius: '10px',
-          }}
-        >
-          <Box>
-            <IconClockCog size={40} color="gray" />
-          </Box>
-          <Divider flexItem orientation="vertical" />
-          <Box
+      <Grid2 container spacing={2} my={2}>
+        {/* Pending Processes Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
             sx={{
               display: 'flex',
-              flexDirection: 'column',
-              width: '80%',
+              flexDirection: 'row',
               alignItems: 'center',
-            }}
-          >
-            <Typography variant="body1">Pending Processes</Typography>
-            <Typography variant="h5">{statistics.PendingProcesses}</Typography>
-          </Box>
-        </Card>
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
 
-        <Card
-          sx={{
-            height: '120px',
-            width: '250px',
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            borderRadius: '10px',
-          }}
-        >
-          <Box>
-            <IconClock size={40} color="gray" />
-          </Box>
-          <Divider flexItem orientation="vertical" />
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              width: '80%',
-              alignItems: 'center',
+              gap: 2,
             }}
           >
-            <Typography variant="body1">Turn Around Time</Typography>
-            <Typography variant="h5">{statistics.Tat}</Typography>
-          </Box>
-        </Card>
-      </Stack>
+            <Box>
+              <IconClockCog size={48} color="#5C6BC0" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Pending Processes
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" color="primary">
+                {statistics.PendingProcesses}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+
+        {/* Turn Around Time Card */}
+        <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+          <Card
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: 2,
+              height: '100%',
+              borderRadius: '12px',
+
+              gap: 2,
+            }}
+          >
+            <Box>
+              <IconClock size={48} color="#66BB6A" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Typography variant="body1" color="textSecondary">
+                Turn Around Time
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" color="primary">
+                {statistics.Tat}
+              </Typography>
+            </Box>
+          </Card>
+        </Grid2>
+      </Grid2>
 
       <Stack alignItems="flex-end" my={1}>
         <Button
