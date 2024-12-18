@@ -10,6 +10,14 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  mom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Document",
+  },
+  momUploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   endTime: {
     type: Date,
     required: true,

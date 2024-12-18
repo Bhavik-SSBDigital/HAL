@@ -495,6 +495,26 @@ export const get_meeting_details = async (req, res, next) => {
 
     meet.associatedProcesses = associatedProcesses;
 
+    let momUploadedBy = User.findOne({ _id: meet.momUploadedBy }).select(
+      "username"
+    );
+
+    momUploadedBy = momUploadedBy.username;
+
+    meet.momUploadedBy = momUploadedBy;
+
+    let mom = meet.mom;
+
+    mom = Document.findOne({ _id: mom }).select("_id name path");
+
+    mom = {
+      docId: mom._id,
+      path: mom.path,
+      name: mom.name,
+    };
+
+    meet.mom = mom;
+
     return res.status(200).json({
       meetingDetails: meet,
     });
@@ -532,5 +552,45 @@ export const get_attendees_list = async (meetingId) => {
   } catch (error) {
     console.log("Error getting meeting participant", error);
     return [];
+  }
+};
+
+// PUT endpoint to update MOM using meetingId
+export const upload_mom_in_meeting = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+    const { meetingId, mom } = req.body;
+
+    // Validate input
+    if (!meetingId || !mom) {
+      return res
+        .status(400)
+        .json({ message: "meetingId and mom are required" });
+    }
+
+    // Find and update the meeting
+    const updatedMeeting = await Meeting.findOneAndUpdate(
+      { meetingId }, // Filter to find the meeting by meetingId
+      { $set: { mom: mom, momUploadedBy: userData._id } }, // Update the mom field
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedMeeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    return res.status(200).json({
+      message: "MOM updated successfully",
+      meeting: updatedMeeting,
+    });
+  } catch (error) {
+    console.error("Error updating MOM:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
