@@ -507,11 +507,19 @@ export const get_meeting_details = async (req, res, next) => {
     const mom = await Document.findOne({ _id: meet.mom }).select(
       "_id name path"
     );
+
+    const parts = mom.path.split("/"); // Split the path by "/"
+
+    // Remove the last part (whether it’s a file name or folder name)
+    parts.pop();
+
+    const updatedPath = parts.join("/"); // Join the remaining parts back
+
     meet.mom = mom
       ? {
           docId: mom._id,
           name: mom.name,
-          path: mom.path,
+          path: `..${updatedPath.substring(19)}`,
         }
       : null;
 
