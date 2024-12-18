@@ -8,11 +8,14 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import {
   Autocomplete,
+  Box,
   Button,
+  Card,
   CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid2,
   IconButton,
   MenuItem,
@@ -29,7 +32,7 @@ import ChartFive from '../../components/Charts/ChartFive';
 import { useNavigate } from 'react-router-dom';
 import ChartFour from '../../components/Charts/ChartFour';
 import sessionData from '../../Store';
-import { IconX } from '@tabler/icons-react';
+import { IconClock, IconClockCog, IconX } from '@tabler/icons-react';
 const PerticularBranch = () => {
   const {
     dashBranch,
@@ -505,6 +508,7 @@ const PerticularBranch = () => {
         setLoaded(true);
       }
     };
+    getStatistics();
     getBranchList();
   }, []);
   useEffect(() => {
@@ -513,6 +517,24 @@ const PerticularBranch = () => {
       getStepWisePendingProcesses();
     }
   }, [loaded]);
+
+  // statistics
+  const [statistics, setStatistics] = useState({ Tat: 0, PendingProcesses: 0 });
+  const getStatistics = async () => {
+    const url = backendUrl + '/getProcessStatistics';
+    try {
+      const response = await axios.post(url, null, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStatistics({
+        Tat: response.data.average_TAT_to_complete_the_process,
+        PendingProcesses: response.data.total_pending_processes,
+      });
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+
   return (
     <>
       <Stack
@@ -581,6 +603,67 @@ const PerticularBranch = () => {
         >
           {mainChartLoading ? <CircularProgress size={30} /> : 'Get'}
         </Button>
+      </Stack>
+      <Stack gap={2} my={2} flexDirection="row" justifyContent="flex-start">
+        <Card
+          sx={{
+            height: '120px',
+            width: '250px',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: '10px',
+          }}
+        >
+          <Box>
+            <IconClockCog size={40} color="gray" />
+          </Box>
+          <Divider flexItem orientation="vertical" />
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '80%',
+              alignItems: 'center',
+            }}
+          >
+            <Typography variant="body1">Pending Processes</Typography>
+            <Typography variant="h5">{statistics.PendingProcesses}</Typography>
+          </Box>
+        </Card>
+
+        <Card
+          sx={{
+            height: '120px',
+            width: '250px',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: '10px',
+          }}
+        >
+          <Box>
+            <IconClock size={40} color="gray" />
+          </Box>
+          <Divider flexItem orientation="vertical" />
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '80%',
+              alignItems: 'center',
+            }}
+          >
+            <Typography variant="body1">Turn Around Time</Typography>
+            <Typography variant="h5">{statistics.Tat}</Typography>
+          </Box>
+        </Card>
       </Stack>
       <>
         {Object.keys(mainChartOption)?.length ? (

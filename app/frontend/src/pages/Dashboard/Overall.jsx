@@ -7,20 +7,27 @@ import moment from 'moment';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import {
+  Box,
   Button,
+  Card,
   Dialog,
   DialogTitle,
+  Divider,
   Grid2,
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from '@mui/material';
 import ChartFour from '../../components/Charts/ChartFour';
 import { useNavigate } from 'react-router-dom';
+import { IconClock, IconClockCog } from '@tabler/icons-react';
 
 const Overall = () => {
   // ------------------states-----------------------------
   const navigate = useNavigate();
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const token = sessionStorage.getItem('accessToken');
   // charts option
   const [mainChartOption, setMainChartOption] = useState();
   const [rejectedProcessChart, setRejectedProocessChart] = useState();
@@ -128,7 +135,7 @@ const Overall = () => {
         // setRejectedProcessesLoading(false);
         return;
       }
-      const dateUrl = import.meta.env.VITE_BACKEND_URL + '/getProcessNumber';
+      const dateUrl = backendUrl + '/getProcessNumber';
       const res = await axios.post(
         dateUrl,
         { ...sendData },
@@ -232,11 +239,89 @@ const Overall = () => {
     setMainChartLoading(false);
     // setRejectedProcessesLoading(false);
   };
+  const [statistics, setStatistics] = useState({ Tat: 0, PendingProcesses: 0 });
+  const getStatistics = async () => {
+    const url = backendUrl + '/getProcessStatistics';
+    try {
+      const response = await axios.post(url, null, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStatistics({
+        Tat: response.data.average_TAT_to_complete_the_process,
+        PendingProcesses: response.data.total_pending_processes,
+      });
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
   useEffect(() => {
     getMainChartData();
+    getStatistics();
   }, []);
   return (
     <>
+      <Stack gap={2} my={2} flexDirection="row" justifyContent="flex-start">
+        <Card
+          sx={{
+            height: '120px',
+            width: '250px',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: '10px',
+          }}
+        >
+          <Box>
+            <IconClockCog size={40} color="gray" />
+          </Box>
+          <Divider flexItem orientation="vertical" />
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '80%',
+              alignItems: 'center',
+            }}
+          >
+            <Typography variant="body1">Pending Processes</Typography>
+            <Typography variant="h5">{statistics.PendingProcesses}</Typography>
+          </Box>
+        </Card>
+
+        <Card
+          sx={{
+            height: '120px',
+            width: '250px',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: '10px',
+          }}
+        >
+          <Box>
+            <IconClock size={40} color="gray" />
+          </Box>
+          <Divider flexItem orientation="vertical" />
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '80%',
+              alignItems: 'center',
+            }}
+          >
+            <Typography variant="body1">Turn Around Time</Typography>
+            <Typography variant="h5">{statistics.Tat}</Typography>
+          </Box>
+        </Card>
+      </Stack>
+
       <Stack alignItems="flex-end" my={1}>
         <Button
           variant="contained"
