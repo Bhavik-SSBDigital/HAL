@@ -78,9 +78,16 @@ export const get_document_details = async (docs) => {
         let document = await Document.findOne({ _id: item }).select(
           "name path"
         );
+
+        const parts = document.path.split("/"); // Split the path by "/"
+
+        // Remove the last part (whether it’s a file name or folder name)
+        parts.pop();
+
+        const updatedPath = parts.join("/"); // Join the remaining parts back
         return {
           documentId: document._id,
-          path: document.path,
+          path: `..${updatedPath.substring(19)}`,
           name: document.name,
         };
       })
