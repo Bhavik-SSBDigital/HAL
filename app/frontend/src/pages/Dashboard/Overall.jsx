@@ -272,7 +272,6 @@ const Overall = () => {
               padding: 2,
               height: '100%',
               borderRadius: '12px',
-
               gap: 2,
             }}
           >
@@ -290,7 +289,7 @@ const Overall = () => {
               <Typography variant="body1" color="textSecondary">
                 Pending Processes
               </Typography>
-              <Typography variant="h4" fontWeight="bold" color="primary">
+              <Typography variant="h5" fontWeight="bold" color="primary">
                 {statistics.PendingProcesses}
               </Typography>
             </Box>
@@ -308,7 +307,6 @@ const Overall = () => {
               padding: 2,
               height: '100%',
               borderRadius: '12px',
-
               gap: 2,
             }}
           >
@@ -326,7 +324,7 @@ const Overall = () => {
               <Typography variant="body1" color="textSecondary">
                 Turn Around Time
               </Typography>
-              <Typography variant="h4" fontWeight="bold" color="primary">
+              <Typography variant="h5" fontWeight="bold" color="primary">
                 {statistics.Tat}
               </Typography>
             </Box>
