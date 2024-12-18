@@ -495,6 +495,26 @@ export const get_meeting_details = async (req, res, next) => {
 
     meet.associatedProcesses = associatedProcesses;
 
+    let momUploadedBy = User.findOne({ _id: meet.momUploadedBy }).select(
+      "username"
+    );
+
+    momUploadedBy = momUploadedBy.username;
+
+    meet.momUploadedBy = momUploadedBy;
+
+    let mom = meet.mom;
+
+    mom = Document.findOne({ _id: mom }).select("_id name path");
+
+    mom = {
+      docId: mom._id,
+      path: mom.path,
+      name: mom.name,
+    };
+
+    meet.mom = mom;
+
     return res.status(200).json({
       meetingDetails: meet,
     });
