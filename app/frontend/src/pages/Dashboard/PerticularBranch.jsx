@@ -32,7 +32,7 @@ import ChartFive from '../../components/Charts/ChartFive';
 import { useNavigate } from 'react-router-dom';
 import ChartFour from '../../components/Charts/ChartFour';
 import sessionData from '../../Store';
-import { IconClock, IconClockCog, IconX } from '@tabler/icons-react';
+import { IconClock, IconClockCog, IconFilesOff, IconFileUpload, IconX } from '@tabler/icons-react';
 const PerticularBranch = () => {
   const {
     dashBranch,
@@ -519,7 +519,12 @@ const PerticularBranch = () => {
   }, [loaded]);
 
   // statistics
-  const [statistics, setStatistics] = useState({ Tat: 0, PendingProcesses: 0 });
+  const [statistics, setStatistics] = useState({
+    Tat: 0,
+    PendingProcesses: 0,
+    docsUploaded: 0,
+    rejectionPercentage: 0,
+  });
   const getStatistics = async () => {
     const url = backendUrl + '/getProcessStatistics';
     try {
@@ -529,6 +534,8 @@ const PerticularBranch = () => {
       setStatistics({
         Tat: response.data.average_TAT_to_complete_the_process,
         PendingProcesses: response.data.total_pending_processes,
+        docsUploaded: response.data.docsUploaded,
+        rejectionPercentage: response.data.rejectionPercentage,
       });
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
@@ -622,7 +629,7 @@ const PerticularBranch = () => {
               }}
             >
               <Box>
-                <IconClockCog size={48} color="#5C6BC0" />
+                <IconClockCog size={48} color="#999999" />
               </Box>
               <Divider flexItem orientation="vertical" />
               <Box
@@ -658,7 +665,7 @@ const PerticularBranch = () => {
               }}
             >
               <Box>
-                <IconClock size={48} color="#5C6BC0" />
+                <IconClock size={48} color="#999999" />
               </Box>
               <Divider flexItem orientation="vertical" />
               <Box
@@ -673,6 +680,78 @@ const PerticularBranch = () => {
                 </Typography>
                 <Typography variant="h5" fontWeight="bold" color="primary">
                   {statistics.Tat}
+                </Typography>
+              </Box>
+            </Card>
+          </Grid2>
+
+          {/* documents count Card */}
+          <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+            <Card
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                padding: 2,
+                height: '100%',
+                borderRadius: '12px',
+
+                gap: 2,
+              }}
+            >
+              <Box>
+                <IconFileUpload size={48} color="#999999" />
+              </Box>
+              <Divider flexItem orientation="vertical" />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Typography variant="body1" color="textSecondary">
+                  Documents Uploaded
+                </Typography>
+                <Typography variant="h5" fontWeight="bold" color="primary">
+                  {statistics.docsUploaded}
+                </Typography>
+              </Box>
+            </Card>
+          </Grid2>
+
+          {/* documents rejected percentage Card */}
+          <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+            <Card
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                padding: 2,
+                height: '100%',
+                borderRadius: '12px',
+
+                gap: 2,
+              }}
+            >
+              <Box>
+                <IconFilesOff size={48} color="#999999" />
+              </Box>
+              <Divider flexItem orientation="vertical" />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Typography variant="body1" color="textSecondary">
+                  Documents Rejection Percentage
+                </Typography>
+                <Typography variant="h5" fontWeight="bold" color="primary">
+                  {statistics.rejectionPercentage}%
                 </Typography>
               </Box>
             </Card>
