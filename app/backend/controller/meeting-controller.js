@@ -6,6 +6,8 @@ import { ObjectId } from "mongodb";
 import { getSocketInstance } from "../socketHandler.js";
 import moment from "moment";
 import Process from "../models/process.js";
+import Document from "../models/document.js";
+import User from "../models/user.js";
 
 const checkIfRoomHasParticipants = (roomId) => {
   const io = getSocketInstance(); // Get the Socket.io instance
