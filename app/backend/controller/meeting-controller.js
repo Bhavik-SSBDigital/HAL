@@ -538,6 +538,13 @@ export const get_attendees_list = async (meetingId) => {
 // PUT endpoint to update MOM using meetingId
 export const upload_mom_in_meeting = async (req, res) => {
   try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
     const { meetingId, mom } = req.body;
 
     // Validate input
@@ -550,7 +557,7 @@ export const upload_mom_in_meeting = async (req, res) => {
     // Find and update the meeting
     const updatedMeeting = await Meeting.findOneAndUpdate(
       { meetingId }, // Filter to find the meeting by meetingId
-      { $set: { mom } }, // Update the mom field
+      { $set: { mom: mom, momUploadedBy: userData._id } }, // Update the mom field
       { new: true } // Return the updated document
     );
 
