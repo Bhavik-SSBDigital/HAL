@@ -12,6 +12,11 @@ import Log from "../models/log.js";
 import nodemailer from "nodemailer";
 import Role from "../models/role.js";
 import Work from "../models/work.js";
+import fs from "fs";
+
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import ProcessAnalytics from "../models/analytics/process-analytics.js";
 import { format_workflow_step } from "./department-controller.js";
 import { ObjectId } from "mongodb";
@@ -22,6 +27,9 @@ import LogWork from "../models/logWork.js";
 import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
 import Meeting from "../models/Meeting.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
 
@@ -883,39 +891,69 @@ export const forward_process = async (req, res, next) => {
   }
 };
 
-async function sendEmail(currentStep, nextStep, processDetails, isForwarded) {
+async function sendEmail(
+  currentStep,
+  nextStep,
+  processDetails,
+  isForwarded,
+  documents
+) {
+  console.log("Document IDs in mail:", documents);
+
+  // Fetch recipient's username
   let username = await User.findOne({ _id: nextStep.actorUser }).select(
     "username"
   );
-
   const action = isForwarded ? "forwarded" : "reverted";
-
   username = username.username;
 
-  let senderUsername = await User.findOne({
-    _id: currentStep.actorUser,
-  }).select("username email branch");
+  // Fetch sender details
+  let sender = await User.findOne({ _id: currentStep.actorUser }).select(
+    "username email branch"
+  );
 
-  let senderBranch = await Branch.findOne({
-    _id: senderUsername.branch,
-  }).select("name");
-
+  let senderBranch = await Branch.findOne({ _id: sender.branch }).select(
+    "name"
+  );
   senderBranch = senderBranch.name;
 
-  const senderEmail = senderUsername.email;
-
-  senderUsername = senderUsername.username;
+  const senderEmail = sender.email;
+  const senderUsername = sender.username;
 
   let senderRole = await Role.findOne({ _id: currentStep.actorRole }).select(
     "role"
   );
+  senderRole = senderRole.role;
 
   let receiverWork = await Work.findOne({ _id: nextStep.work });
-
   receiverWork = receiverWork.name;
 
-  senderRole = senderRole.role;
-  // Create a transporter using SMTP transport
+  // Fetch document details from MongoDB
+  const attachmentFiles = [];
+  for (const docId of documents) {
+    const document = await Document.findOne({ _id: docId });
+
+    if (document) {
+      let filePath = document.path; // File path on the file system
+      const fileName = document.name; // File name
+      filePath = path.join(__dirname, filePath, fileName);
+      console.log("document path", filePath);
+
+      // Check if the file exists in the file system
+      if (fs.existsSync(filePath)) {
+        attachmentFiles.push({
+          filename: fileName,
+          content: fs.createReadStream(filePath),
+        });
+      } else {
+        console.warn(`File not found: ${filePath}`);
+      }
+    } else {
+      console.warn(`Document not found in database: ${docId}`);
+    }
+  }
+
+  // Create transporter using SMTP
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -930,18 +968,20 @@ async function sendEmail(currentStep, nextStep, processDetails, isForwarded) {
     to: senderEmail,
     subject: `Update on ${processDetails.name}`,
     html: `
-    <p>Hello, ${username}</p>
-    <p>${processDetails.name} is ${action} to you by ${senderUsername} for ${receiverWork}</p>
-    <p>${senderUsername} holds the role ${senderRole} in branch ${senderBranch}</p>
-    <p>Thank you for choosing our service!</p>
-  `,
+      <p>Hello, ${username}</p>
+      <p>${processDetails.name} is ${action} to you by ${senderUsername} for ${receiverWork}</p>
+      <p>${senderUsername} holds the role ${senderRole} in branch ${senderBranch}</p>
+      <p>Thank you for choosing our service!</p>
+    `,
+    attachments: attachmentFiles, // Attach files dynamically
   };
 
   // Send the email
   try {
     const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully:", info.response);
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.log("Error sending email:", error);
     throw new Error("Error sending email");
   }
 }
@@ -1212,48 +1252,49 @@ export const forwardProcess = async (
           }
 
           // Send the email
-          //   try {
-          //     let deptHead = await User.findOne({ _id: head }).select(
-          //       "email username"
-          //     );
 
-          //     let userProcessIsCompletedBy = await User.findOne({
-          //       _id: currentStepObject.actorUser,
-          //     }).select("username role branch");
+          try {
+            let deptHead = await User.findOne({ _id: head }).select(
+              "email username"
+            );
 
-          //     let branchOfCompletor = await Branch.findOne({
-          //       _id: userProcessIsCompletedBy.branch,
-          //     }).select("name");
-          //     branchOfCompletor = branchOfCompletor.name;
+            let userProcessIsCompletedBy = await User.findOne({
+              _id: currentStepObject.actorUser,
+            }).select("username role branch");
 
-          //     let roleOfCompletor = await Role.findOne({
-          //       _id: userProcessIsCompletedBy.role,
-          //     }).select("role");
+            let branchOfCompletor = await Branch.findOne({
+              _id: userProcessIsCompletedBy.branch,
+            }).select("name");
+            branchOfCompletor = branchOfCompletor.name;
 
-          //     roleOfCompletor = roleOfCompletor.role;
+            let roleOfCompletor = await Role.findOne({
+              _id: userProcessIsCompletedBy.role,
+            }).select("role");
 
-          //     const transporter = nodemailer.createTransport({
-          //       service: "Gmail",
-          //       auth: {
-          //         user: systemEmail,
-          //         pass: senderPassword,
-          //       },
-          //     });
+            roleOfCompletor = roleOfCompletor.role;
 
-          //     // Email content
-          //     const mailOptions = {
-          //       from: systemEmail,
-          //       to: deptHead.email,
-          //       subject: `Update on ${process.name}`,
-          //       html: `
-          //   <p>Hello, ${deptHead.username}</p>
-          //   <p>${process.name} is completed/approved by ${userProcessIsCompletedBy.username}. ${userProcessIsCompletedBy.username} holds the role of ${roleOfCompletor} in branch ${branchOfCompletor}. </p>
-          // `,
-          //     };
-          //     const info = await transporter.sendMail(mailOptions);
-          //   } catch (error) {
-          //     console.error("Error sending email:", error);
-          //   }
+            const transporter = nodemailer.createTransport({
+              service: "Gmail",
+              auth: {
+                user: systemEmail,
+                pass: senderPassword,
+              },
+            });
+
+            // Email content
+            const mailOptions = {
+              from: systemEmail,
+              to: deptHead.email,
+              subject: `Update on ${process.name}`,
+              html: `
+            <p>Hello, ${deptHead.username}</p>
+            <p>${process.name} is completed/approved by ${userProcessIsCompletedBy.username}. ${userProcessIsCompletedBy.username} holds the role of ${roleOfCompletor} in branch ${branchOfCompletor}. </p>
+          `,
+            };
+            const info = await transporter.sendMail(mailOptions);
+          } catch (error) {
+            console.error("Error sending email:", error);
+          }
         }
 
         return {
@@ -1505,18 +1546,19 @@ export const forwardProcess = async (
 
         nextStep.actorUser = log.currentStep.actorUser;
 
-        // try {
-        //   await sendEmail(
-        //     currentStepObject,
-        //     nextStep,
-        //     {
-        //       name: process.name,
-        //     },
-        //     true
-        //   );
-        // } catch (error) {
-        //   console.log("error sending email fron sendEmail function");
-        // }
+        try {
+          await sendEmail(
+            currentStepObject,
+            nextStep,
+            {
+              name: process.name,
+            },
+            true,
+            docs
+          );
+        } catch (error) {
+          console.log("error sending email fron sendEmail function");
+        }
       } else {
         for (let k = 0; k < nextStepUsers.length; k++) {
           const recepient = nextStepUsers[k];
@@ -1534,18 +1576,19 @@ export const forwardProcess = async (
 
           nextStep.actorUser = recepient.user;
 
-          // try {
-          //   await sendEmail(
-          //     currentStepObject,
-          //     nextStep,
-          //     {
-          //       name: process.name,
-          //     },
-          //     true
-          //   );
-          // } catch (error) {
-          //   console.log("error sending mail from sendEmail");
-          // }
+          try {
+            await sendEmail(
+              currentStepObject,
+              nextStep,
+              {
+                name: process.name,
+              },
+              true,
+              docs
+            );
+          } catch (error) {
+            console.log("error sending mail from sendEmail");
+          }
         }
       }
     }
@@ -2713,18 +2756,19 @@ export const revertProcess = async (
 
     nextStep.actorUser = nextActor;
 
-    // try {
-    //   await sendEmail(
-    //     currentStepObject,
-    //     nextStep,
-    //     {
-    //       name: process.name,
-    //     },
-    //     false
-    //   );
-    // } catch (error) {
-    //   console.log("error sending email from sendEmail function");
-    // }
+    try {
+      await sendEmail(
+        currentStepObject,
+        nextStep,
+        {
+          name: process.name,
+        },
+        false,
+        docs
+      );
+    } catch (error) {
+      console.log("error sending email from sendEmail function");
+    }
 
     return {
       completed: false,
@@ -3155,35 +3199,35 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
 
         const clerk_var = clerk;
 
-        //     try {
-        //       const clerk = await User.findOne({
-        //         _id: clerk_var,
-        //       }).select("username role branch email");
+        try {
+          const clerk = await User.findOne({
+            _id: clerk_var,
+          }).select("username role branch email");
 
-        //       const transporter = nodemailer.createTransport({
-        //         service: "Gmail",
-        //         auth: {
-        //           user: systemEmail,
-        //           pass: senderPassword,
-        //         },
-        //       });
+          const transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+              user: systemEmail,
+              pass: senderPassword,
+            },
+          });
 
-        //       // Email content
-        //       const mailOptions = {
-        //         from: systemEmail,
-        //         to: clerk.email,
-        //         subject: `Update on ${process.name}`,
-        //         html: req.body.workFlowToBeFollowed
-        //           ? `<p>Hello, ${clerk.username}</p>
-        //   <p>${process.name} is forwarded to you by ${userData.username}`
-        //           : `<p>Hello, ${clerk.username}</p>
-        //   <p>${process.name} is forwarded to you by ${userData.username} for work ${req.body.work}.</p>
-        // `,
-        //       };
-        //       const info = await transporter.sendMail(mailOptions);
-        //     } catch (error) {
-        //       console.error("Error sending email:", error);
-        //     }
+          // Email content
+          const mailOptions = {
+            from: systemEmail,
+            to: clerk.email,
+            subject: `Update on ${process.name}`,
+            html: req.body.workFlowToBeFollowed
+              ? `<p>Hello, ${clerk.username}</p>
+          <p>${process.name} is forwarded to you by ${userData.username}`
+              : `<p>Hello, ${clerk.username}</p>
+          <p>${process.name} is forwarded to you by ${userData.username} for work ${req.body.work}.</p>
+        `,
+          };
+          const info = await transporter.sendMail(mailOptions);
+        } catch (error) {
+          console.error("Error sending email:", error);
+        }
 
         try {
           let usernameOfProcessIsForwardedTo = await User.findOne({
