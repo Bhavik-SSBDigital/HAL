@@ -534,3 +534,36 @@ export const get_attendees_list = async (meetingId) => {
     return [];
   }
 };
+
+// PUT endpoint to update MOM using meetingId
+export const upload_mom_in_meeting = async (req, res) => {
+  try {
+    const { meetingId, mom } = req.body;
+
+    // Validate input
+    if (!meetingId || !mom) {
+      return res
+        .status(400)
+        .json({ message: "meetingId and mom are required" });
+    }
+
+    // Find and update the meeting
+    const updatedMeeting = await Meeting.findOneAndUpdate(
+      { meetingId }, // Filter to find the meeting by meetingId
+      { $set: { mom } }, // Update the mom field
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedMeeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    return res.status(200).json({
+      message: "MOM updated successfully",
+      meeting: updatedMeeting,
+    });
+  } catch (error) {
+    console.error("Error updating MOM:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};

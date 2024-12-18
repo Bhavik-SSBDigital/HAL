@@ -10,6 +10,10 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  mom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Document",
+  },
   endTime: {
     type: Date,
     required: true,
