@@ -79,7 +79,7 @@ const PdfViewer = ({
         width: '100vw',
         height: '100vh',
         backgroundColor: 'lightgray',
-        zIndex: '99',
+        zIndex: '9999',
       }}
     >
       <IconButton sx={closeIconStyle} onClick={handleViewClose}>
