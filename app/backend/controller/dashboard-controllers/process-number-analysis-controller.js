@@ -866,8 +866,10 @@ export const get_process_statistics = async (req, res, next) => {
     const roundedAverageTAT = Math.round(averageTATInDays * 2) / 2;
 
     // Calculate rejection percentage
-    const rejectionPercentage =
+    let rejectionPercentage =
       docsUploaded > 0 ? (rejectedDocsCount / docsUploaded) * 100 : 0;
+
+    rejectionPercentage = Math.round(rejectionPercentage * 2) / 2;
 
     return res.status(200).json({
       average_TAT_to_complete_the_process: roundedAverageTAT, // in days
