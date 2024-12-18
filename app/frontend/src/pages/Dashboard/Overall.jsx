@@ -313,7 +313,7 @@ const Overall = () => {
             }}
           >
             <Box>
-              <IconClock size={48} color="#66BB6A" />
+              <IconClock size={48} color="#5C6BC0" />
             </Box>
             <Divider flexItem orientation="vertical" />
             <Box
