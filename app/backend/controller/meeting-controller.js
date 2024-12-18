@@ -483,38 +483,37 @@ export const get_meeting_details = async (req, res, next) => {
       })
     );
 
+    // Process associated processes
     let associatedProcesses = meet.associatedProcesses;
 
     associatedProcesses = await Promise.all(
       associatedProcesses.map(async (item) => {
         const process = await Process.findOne({ _id: item }).select("name");
         return {
-          processName: process.name,
+          processName: process ? process.name : null,
         };
       })
     );
 
     meet.associatedProcesses = associatedProcesses;
 
-    let momUploadedBy = User.findOne({ _id: meet.momUploadedBy }).select(
-      "username"
+    // Retrieve momUploadedBy
+    const momUploadedBy = await User.findOne({
+      _id: meet.momUploadedBy,
+    }).select("username");
+    meet.momUploadedBy = momUploadedBy ? momUploadedBy.username : null;
+
+    // Retrieve mom details
+    const mom = await Document.findOne({ _id: meet.mom }).select(
+      "_id name path"
     );
-
-    momUploadedBy = momUploadedBy.username;
-    console.log(momUploadedBy);
-    meet.momUploadedBy = momUploadedBy;
-
-    let mom = meet.mom;
-
-    mom = Document.findOne({ _id: mom }).select("_id name path");
-console.log(mom);
-    mom = {
-      docId: mom._id,
-      path: mom.path,
-      name: mom.name,
-    };
-
-    meet.mom = mom;
+    meet.mom = mom
+      ? {
+          docId: mom._id,
+          name: mom.name,
+          path: mom.path,
+        }
+      : null;
 
     return res.status(200).json({
       meetingDetails: meet,
