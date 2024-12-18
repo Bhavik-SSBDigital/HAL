@@ -604,67 +604,71 @@ const PerticularBranch = () => {
           {mainChartLoading ? <CircularProgress size={30} /> : 'Get'}
         </Button>
       </Stack>
-      <Stack gap={2} my={2} flexDirection="row" justifyContent="flex-start">
-        <Card
-          sx={{
-            height: '120px',
-            width: '250px',
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            borderRadius: '10px',
-          }}
-        >
-          <Box>
-            <IconClockCog size={40} color="gray" />
-          </Box>
-          <Divider flexItem orientation="vertical" />
-          <Box
+      {Object.keys(mainChartOption).length ? (
+        <Stack gap={2} my={2} flexDirection="row" justifyContent="flex-start">
+          <Card
             sx={{
+              height: '120px',
+              width: '250px',
               display: 'flex',
-              flexDirection: 'column',
-              width: '80%',
+              flexDirection: 'row',
+              justifyContent: 'center',
               alignItems: 'center',
+              gap: 2,
+              padding: 2,
+              borderRadius: '10px',
             }}
           >
-            <Typography variant="body1">Pending Processes</Typography>
-            <Typography variant="h5">{statistics.PendingProcesses}</Typography>
-          </Box>
-        </Card>
+            <Box>
+              <IconClockCog size={40} color="gray" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '80%',
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="body1">Pending Processes</Typography>
+              <Typography variant="h5">
+                {statistics.PendingProcesses}
+              </Typography>
+            </Box>
+          </Card>
 
-        <Card
-          sx={{
-            height: '120px',
-            width: '250px',
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            borderRadius: '10px',
-          }}
-        >
-          <Box>
-            <IconClock size={40} color="gray" />
-          </Box>
-          <Divider flexItem orientation="vertical" />
-          <Box
+          <Card
             sx={{
+              height: '120px',
+              width: '250px',
               display: 'flex',
-              flexDirection: 'column',
-              width: '80%',
+              flexDirection: 'row',
+              justifyContent: 'center',
               alignItems: 'center',
+              gap: 2,
+              padding: 2,
+              borderRadius: '10px',
             }}
           >
-            <Typography variant="body1">Turn Around Time</Typography>
-            <Typography variant="h5">{statistics.Tat}</Typography>
-          </Box>
-        </Card>
-      </Stack>
+            <Box>
+              <IconClock size={40} color="gray" />
+            </Box>
+            <Divider flexItem orientation="vertical" />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '80%',
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="body1">Turn Around Time</Typography>
+              <Typography variant="h5">{statistics.Tat}</Typography>
+            </Box>
+          </Card>
+        </Stack>
+      ) : null}
       <>
         {Object.keys(mainChartOption)?.length ? (
           <Stack alignItems="flex-end">
