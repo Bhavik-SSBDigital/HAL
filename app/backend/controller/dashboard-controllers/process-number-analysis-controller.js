@@ -840,23 +840,27 @@ export const get_process_number = async (req, res, next) => {
 
 export const get_process_statistics = async (req, res, next) => {
   try {
-    const departmentId = req.body.departmentId;
     let filter = {};
+
+    let departmentId = req.body.departmentId;
 
     // If departmentId is provided, filter by workFlow
     if (departmentId) {
-      filter.workFlow = mongoose.Schema.Types.ObjectId(departmentId);
+      filter.workFlow = mongoose.Types.ObjectId(departmentId);
     }
 
     // Get all processes based on the filter
     const processes = await Process.find(filter);
 
-    // Calculate the average TAT and total pending processes
+    // Initialize counters
     let totalTAT = 0;
     let completedProcesses = 0;
     let pendingProcesses = 0;
+    let docsUploaded = 0;
+    let rejectedDocsCount = 0;
 
     processes.forEach((process) => {
+      // Calculate TAT and process completion
       if (process.completed) {
         completedProcesses++;
         if (process.completedAt && process.createdAt) {
@@ -866,18 +870,39 @@ export const get_process_statistics = async (req, res, next) => {
       } else {
         pendingProcesses++;
       }
+
+      // Count documents in process.documents and connectors for both completed and pending processes
+      const processDocuments = [
+        ...process.documents,
+        ...process.connectors.flatMap((connector) => connector.documents),
+      ];
+
+      processDocuments.forEach((doc) => {
+        docsUploaded++; // Every document counts as uploaded
+        if (doc.rejection && doc.rejection.reason) {
+          rejectedDocsCount++; // If rejection exists, count as rejected
+        }
+      });
     });
 
-    let averageTAT =
+    // Convert total TAT to days (1 day = 86,400,000 milliseconds)
+    const averageTATInDays =
       completedProcesses > 0
         ? totalTAT / completedProcesses / (1000 * 60 * 60 * 24)
         : 0;
 
-    averageTAT = Math.round(averageTAT * 2) / 2;
+    // Round the average TAT to the nearest 0.5
+    const roundedAverageTAT = Math.round(averageTATInDays * 2) / 2;
+
+    // Calculate rejection percentage
+    const rejectionPercentage =
+      docsUploaded > 0 ? (rejectedDocsCount / docsUploaded) * 100 : 0;
 
     return res.status(200).json({
-      average_TAT_to_complete_the_process: `${averageTAT} days`, // in milliseconds
+      average_TAT_to_complete_the_process: roundedAverageTAT, // in days
       total_pending_processes: pendingProcesses,
+      docsUploaded: docsUploaded, // total uploaded documents for all processes (completed and pending)
+      rejectionPercentage: rejectionPercentage, // percentage of rejected documents
     });
   } catch (error) {
     console.log("Error returning process statistics", error);
