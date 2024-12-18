@@ -95,7 +95,10 @@ import {
   reject_document,
 } from "../controller/e-sign-controller.js";
 
-import { get_process_number } from "../controller/dashboard-controllers/process-number-analysis-controller.js";
+import {
+  get_process_number,
+  get_process_statistics,
+} from "../controller/dashboard-controllers/process-number-analysis-controller.js";
 
 import { get_current_pending_process_per_step } from "../controller/dashboard-controllers/pending-process-analysis-controller.js";
 
@@ -302,5 +305,7 @@ router.post(
 router.post("/storeDocMetaData", add_doc_meta_data);
 
 router.post("/uploadMomInMeet", upload_mom_in_meeting);
+
+router.post("/getProcessStatistics", get_process_statistics);
 
 export default router;

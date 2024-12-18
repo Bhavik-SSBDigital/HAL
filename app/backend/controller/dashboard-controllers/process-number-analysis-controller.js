@@ -4,6 +4,7 @@ import Document from "../../models/document.js";
 import ProcessAnalytics from "../../models/analytics/process-analytics.js";
 import { ObjectId } from "mongodb";
 import { revertProcess } from "../processes-controller.js";
+import mongoose from "mongoose";
 
 const monthNames = [
   "January",
@@ -833,6 +834,55 @@ export const get_process_number = async (req, res, next) => {
     console.log("error getting pending & completed process number", error);
     return res.status(500).json({
       message: "error getting pending & completed process number",
+    });
+  }
+};
+
+export const get_process_statistics = async (req, res, next) => {
+  try {
+    const departmentId = req.body.departmentId;
+    let filter = {};
+
+    // If departmentId is provided, filter by workFlow
+    if (departmentId) {
+      filter.workFlow = mongoose.Schema.Types.ObjectId(departmentId);
+    }
+
+    // Get all processes based on the filter
+    const processes = await Process.find(filter);
+
+    // Calculate the average TAT and total pending processes
+    let totalTAT = 0;
+    let completedProcesses = 0;
+    let pendingProcesses = 0;
+
+    processes.forEach((process) => {
+      if (process.completed) {
+        completedProcesses++;
+        if (process.completedAt && process.createdAt) {
+          totalTAT +=
+            new Date(process.completedAt) - new Date(process.createdAt);
+        }
+      } else {
+        pendingProcesses++;
+      }
+    });
+
+    let averageTAT =
+      completedProcesses > 0
+        ? totalTAT / completedProcesses / (1000 * 60 * 60 * 24)
+        : 0;
+
+    averageTAT = Math.round(averageTAT * 2) / 2;
+
+    return res.status(200).json({
+      average_TAT_to_complete_the_process: `${averageTAT} days`, // in milliseconds
+      total_pending_processes: pendingProcesses,
+    });
+  } catch (error) {
+    console.log("Error returning process statistics", error);
+    res.status(500).json({
+      message: "Error returning process statistics",
     });
   }
 };
