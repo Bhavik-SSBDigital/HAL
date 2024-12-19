@@ -38,13 +38,17 @@ import CheckboxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckboxIcon from '@mui/icons-material/CheckBox';
 import { IconCircle, IconGradienter, IconX } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import InitiatProcess from './InitiateProcess';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import Workflow from '../../components/Workflow';
 
 export default function InitiateForm() {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const meetingId = queryParams.get('meetingId');
+
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
@@ -340,6 +344,8 @@ export default function InitiateForm() {
     setHeadofficeInclude();
   };
 
+  // mom option
+  const [isMom, setIsMom] = useState(false);
   return (
     <>
       {loading ? (
@@ -505,6 +511,81 @@ export default function InitiateForm() {
                         </Button>
                       </div>
                     </div>
+                    {meetingId ? (
+                      <div style={{ marginBottom: '25px' }}>
+                        <Typography
+                          variant="body1"
+                          component="span"
+                          gutterBottom
+                          sx={{
+                            textAlign: 'center',
+                            width: 350,
+                            height: 50,
+                            fontWeight: 400,
+
+                            margin: '10px',
+                          }}
+                        >
+                          Initiating for Minutes of Meeting ( MoM )?
+                        </Typography>
+                        <div className={styles.processType}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setIsMom(true)}
+                            size="medium"
+                            sx={{
+                              bgcolor: isMom === true ? 'lightblue' : 'white',
+                              '&:hover': {
+                                bgcolor: '#0000FF11',
+                              },
+                              width: '197px',
+                              display: 'flex',
+                              justifyContent: 'flex-start',
+                            }}
+                          >
+                            {isMom === true ? (
+                              <IconGradienter
+                                style={{ marginRight: '5px' }}
+                                size={17}
+                              />
+                            ) : (
+                              <IconCircle
+                                style={{ marginRight: '7px' }}
+                                size={15}
+                              />
+                            )}
+                            <p style={{ fontSize: '11px' }}>Yes</p>
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            onClick={() => setIsMom(false)}
+                            size="medium"
+                            sx={{
+                              bgcolor: isMom === false ? 'lightblue' : 'white',
+                              '&:hover': {
+                                bgcolor: '#0000FF11',
+                              },
+                              width: '197px',
+                              display: 'flex',
+                              justifyContent: 'flex-start',
+                            }}
+                          >
+                            {isMom === false ? (
+                              <IconGradienter
+                                style={{ marginRight: '5px' }}
+                                size={17}
+                              />
+                            ) : (
+                              <IconCircle
+                                style={{ marginRight: '7px' }}
+                                size={15}
+                              />
+                            )}
+                            <p style={{ fontSize: '11px' }}>No</p>
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                     {!isDynamicFlow ? (
                       <>
                         <div style={{ marginBottom: '25px' }}>
@@ -1041,6 +1122,7 @@ export default function InitiateForm() {
             ) : null}
             {(isDynamicFlow ? activeStep === 2 : activeStep == 1) ? (
               <InitiatProcess
+                meetingId={meetingId}
                 workFlow={workFlow}
                 setWorkFlow={setWorkFlow}
                 connectors={connectors}
@@ -1051,6 +1133,7 @@ export default function InitiateForm() {
                 initiatorDepartment={departmentSelection}
                 setSelectedDepartment={setSelectedDepartment}
                 interBranch={processType === 'intra' ? false : true}
+                isMom={isMom}
               />
             ) : null}
           </div>

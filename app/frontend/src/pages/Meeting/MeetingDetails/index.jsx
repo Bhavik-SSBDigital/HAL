@@ -492,7 +492,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                   </List>
                 </Box>
 
-                <Box
+                {/* <Box
                   sx={{
                     p: 2,
                     borderRadius: '8px',
@@ -585,7 +585,7 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                       {isUploading ? <CircularProgress size={22} /> : 'Upload'}
                     </Button>
                   </Box>
-                </Box>
+                </Box> */}
               </Stack>
             </Box>
           )}
