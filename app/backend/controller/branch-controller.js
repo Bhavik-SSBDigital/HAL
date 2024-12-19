@@ -274,6 +274,7 @@ export const get_branch_details = async (req, res, next) => {
         status: branch.status,
         createdAt: branch.createdAt,
         updatedAt: branch.updatedAt,
+        isHeadOffice: branch.isHeadOffice,
       });
     } else {
       return res.status(404).json({
