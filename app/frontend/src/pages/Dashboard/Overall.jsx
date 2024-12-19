@@ -21,7 +21,12 @@ import {
 } from '@mui/material';
 import ChartFour from '../../components/Charts/ChartFour';
 import { useNavigate } from 'react-router-dom';
-import { IconClock, IconClockCog, IconFilesOff, IconFileUpload } from '@tabler/icons-react';
+import {
+  IconClock,
+  IconClockCog,
+  IconFilesOff,
+  IconFileUpload,
+} from '@tabler/icons-react';
 
 const Overall = () => {
   // ------------------states-----------------------------
@@ -442,11 +447,25 @@ const Overall = () => {
           <ChartFour data={rejectedDocCatWise} loading={mainChartLoading} />
         </Grid2>
       </Grid2>
-      <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
-        <DialogTitle sx={{ textAlign: 'center' }}>Filters</DialogTitle>
+      <Dialog
+        maxWidth="xs"
+        fullWidth
+        onClose={closeFilterDialog}
+        open={isFilterOpen}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: 'center',
+            background: 'var(--themeColor)',
+            margin: '10px',
+            color: 'white',
+          }}
+        >
+          Filters
+        </DialogTitle>
         <Stack
           mx={2}
-          p={1}
+          // p={1}
           justifyContent="center"
           alignItems="center"
           gap={1}

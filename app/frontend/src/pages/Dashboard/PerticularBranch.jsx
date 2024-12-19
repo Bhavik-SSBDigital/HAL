@@ -829,96 +829,104 @@ const PerticularBranch = () => {
             </Grid2>
           </Grid2>
         ) : null}
-        <Dialog onClose={closeFilterDialog} open={isFilterOpen}>
-          <Stack
-            mx={2}
-            p={1}
-            justifyContent="center"
-            alignItems="center"
-            gap={1}
-            sx={{ minWidth: '200px', minHeight: '200px' }}
+        <Dialog maxWidth="xs" fullWidth onClose={closeFilterDialog} open={isFilterOpen}>
+          <DialogTitle
+            sx={{
+              textAlign: 'center',
+              background: 'var(--themeColor)',
+              margin: '10px',
+              color: 'white',
+            }}
           >
-            <Typography variant="h6" sx={{ textAlign: 'center' }}>
-              Apply filters
-            </Typography>
-            <TextField
-              id="mainChartOptions"
-              fullWidth
-              label="Type"
-              select
-              value={selectedMainChartType}
-              onChange={handleMainChartType}
+            Filters
+          </DialogTitle>
+          <DialogContent>
+            <Stack
+              justifyContent="center"
+              alignItems="center"
+              gap={1}
+              mt={1}
+              sx={{ minWidth: '200px' }}
             >
-              <MenuItem value="weekly">Weekly</MenuItem>
-              <MenuItem value="monthly">Monthly</MenuItem>
-              <MenuItem value="yearly">Yearly</MenuItem>
-              <MenuItem value="custom">Custom</MenuItem>
-            </TextField>
-            {selectedMainChartType === 'monthly' && (
               <TextField
-                select
-                id="yearOptions"
-                label="Year"
+                id="mainChartOptions"
                 fullWidth
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
+                label="Type"
+                select
+                value={selectedMainChartType}
+                onChange={handleMainChartType}
               >
-                {yearList.map((year) => (
-                  <MenuItem value={year} key={year}>
-                    {year}
-                  </MenuItem>
-                ))}
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="yearly">Yearly</MenuItem>
+                <MenuItem value="custom">Custom</MenuItem>
               </TextField>
-            )}
-            {selectedMainChartType === 'custom' && (
-              <Stack spacing={2} alignItems="center">
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                  width={300}
-                  alignItems="center"
+              {selectedMainChartType === 'monthly' && (
+                <TextField
+                  select
+                  id="yearOptions"
+                  label="Year"
+                  fullWidth
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
                 >
-                  <h4>Select Start Date:</h4>
-                  <TextField
-                    type="date"
-                    name="startDate"
-                    // className={styles.dateInputs}
+                  {yearList.map((year) => (
+                    <MenuItem value={year} key={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {selectedMainChartType === 'custom' && (
+                <Stack spacing={2} alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    justifyContent="space-between"
+                    width={300}
+                    alignItems="center"
+                  >
+                    <h4>Select Start Date:</h4>
+                    <TextField
+                      type="date"
+                      name="startDate"
+                      // className={styles.dateInputs}
 
-                    onChange={handleMainChartDateChange}
-                  />
+                      onChange={handleMainChartDateChange}
+                    />
+                  </Stack>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    justifyContent="space-between"
+                    width={300}
+                    alignItems="center"
+                  >
+                    <h4>Select End Date:</h4>
+                    <TextField
+                      type="date"
+                      name="endDate"
+                      // className={styles.dateInputs}
+                      onChange={handleMainChartDateChange}
+                    />
+                  </Stack>
                 </Stack>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                  width={300}
-                  alignItems="center"
-                >
-                  <h4>Select End Date:</h4>
-                  <TextField
-                    type="date"
-                    name="endDate"
-                    // className={styles.dateInputs}
-                    onChange={handleMainChartDateChange}
-                  />
-                </Stack>
-              </Stack>
-            )}
-            <Button
-              size="small"
-              variant="contained"
-              sx={{ mt: 2 }}
-              disabled={mainChartLoading}
-              onClick={() => {
-                getPerticularBranchData();
-                getStepWisePendingProcesses();
-                setIsFilterOpen(false);
-              }}
-            >
-              Get
-            </Button>
-          </Stack>
+              )}
+              <Button
+                size="small"
+                variant="contained"
+                sx={{ mt: 2 }}
+                disabled={mainChartLoading}
+                onClick={() => {
+                  getPerticularBranchData();
+                  getStepWisePendingProcesses();
+                  setIsFilterOpen(false);
+                }}
+              >
+                Get
+              </Button>
+            </Stack>
+          </DialogContent>
         </Dialog>
 
         <Dialog
