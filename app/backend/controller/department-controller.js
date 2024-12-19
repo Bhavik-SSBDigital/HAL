@@ -90,7 +90,7 @@ export const add_department = async (req, res, next) => {
 
     branchId = branchId._id;
 
-    if (isHeadOffice) {
+    if (!isHeadOffice) {
       let departments = await Department.find({ branch: branchId });
       if (departments.length > 0) {
         return res.status(400).json({
