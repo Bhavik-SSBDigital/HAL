@@ -324,7 +324,7 @@ async function print_signature_after_content_on_the_last_page(
       __dirname,
       "../../",
       "support",
-      "venv",
+      "newenv",
       "bin",
       "python"
     );
