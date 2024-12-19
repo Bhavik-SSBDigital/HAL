@@ -210,9 +210,14 @@ export const add_process = async (req, res, next) => {
     */
 
     let isInitiatorDepartmentFromHeadOffice;
+
+    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+      "name"
+    );
     if (!ifProcessContainsCustomWorkFlow) {
-      isInitiatorDepartmentFromHeadOffice =
-        initiatorDepartment_.name.split("_")[0] === "headOffice";
+      isInitiatorDepartmentFromHeadOffice = headOfficeBranch
+        ? initiatorDepartment_.name.split("_")[0] === headOfficeBranch.name
+        : false;
     }
 
     if (req.body.isInterBranchProcess) {
@@ -1307,9 +1312,14 @@ export const forwardProcess = async (
 
     let isInitiatorDepartmentFromHeadOffice;
 
+    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+      "name"
+    );
+
     if (!isCustomProcess) {
-      isInitiatorDepartmentFromHeadOffice =
-        departmentName.split("_")[0] === "headOffice";
+      isInitiatorDepartmentFromHeadOffice = headOfficeBranch
+        ? departmentName.split("_")[0] === headOfficeBranch.name
+        : false;
     }
 
     if (

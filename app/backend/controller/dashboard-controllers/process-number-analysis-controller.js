@@ -36,6 +36,7 @@ export const get_process_details = async (pendingProcessDetails_) => {
 
     return pendingProcessDetails;
   } catch (error) {
+    return [];
     throw new Error(error);
   }
 };

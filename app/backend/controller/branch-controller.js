@@ -276,3 +276,19 @@ export const get_branch_details = async (req, res, next) => {
     });
   }
 };
+
+export const get_head_office_name = async (req, res, next) => {
+  try {
+    const branch = Branch.findOne({ isHeadOffice: true }).select("name");
+
+    let branchName = branch ? branch.name : "";
+    return res.status(200).json({
+      branchName: branchName,
+    });
+  } catch (error) {
+    console.log("error getting headoffice name", error);
+    return res.status(500).json({
+      message: "error getting headoffice name",
+    });
+  }
+};
