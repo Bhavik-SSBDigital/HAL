@@ -13,6 +13,7 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import fs from "fs/promises";
+import { is_branch_head_office } from "../utility/branch-handlers.js";
 export const getWorks = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -75,6 +76,8 @@ export const add_department = async (req, res, next) => {
 
     let details = req.body;
 
+    const isHeadOffice = await is_branch_head_office(details.branch);
+
     details.steps = details.workFlow;
 
     let branchId = await Branch.findOne({ name: req.body.branch });
@@ -87,7 +90,7 @@ export const add_department = async (req, res, next) => {
 
     branchId = branchId._id;
 
-    if (details.branch !== "headOffice") {
+    if (isHeadOffice) {
       let departments = await Department.find({ branch: branchId });
       if (departments.length > 0) {
         return res.status(400).json({
@@ -100,7 +103,7 @@ export const add_department = async (req, res, next) => {
     details.name = `${details.branch}_${details.department}`;
 
     let folderExists = false;
-    if (details.branch === "headOffice") {
+    if (isHeadOffice) {
       folderExists = await creatFolder(
         true,
         `../${details.department}`,
@@ -110,10 +113,9 @@ export const add_department = async (req, res, next) => {
       folderExists = await creatFolder(true, `../${details.branch}`, userData);
     }
 
-    let path_ =
-      details.branch === "headOffice"
-        ? `../${details.department}`
-        : `../${details.branch}`;
+    let path_ = isHeadOffice
+      ? `../${details.department}`
+      : `../${details.branch}`;
 
     let folderPath = path.join(
       __dirname,
@@ -122,7 +124,7 @@ export const add_department = async (req, res, next) => {
     );
     if (folderExists === 409) {
       await fs.rm(folderPath, { recursive: true });
-      if (details.branch === "headOffice") {
+      if (isHeadOffice) {
         folderExists = await creatFolder(
           true,
           `../${details.department}`,

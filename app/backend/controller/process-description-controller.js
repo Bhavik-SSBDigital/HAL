@@ -11,6 +11,7 @@ import Branch from "../models/branch.js";
 import User from "../models/user.js";
 import Role from "../models/role.js";
 import { ObjectId } from "mongodb";
+import { is_branch_head_office } from "../utility/branch-handlers.js";
 
 export const get_process_history = async (req, res, next) => {
   try {
@@ -206,7 +207,9 @@ export const get_process_history = async (req, res, next) => {
         const branch = await Branch.findOne({ _id: department.branch }).select(
           "name"
         );
-        if (branch.name === "headOffice") {
+
+        const isHeadOffice = await is_branch_head_office(branch.name);
+        if (isHeadOffice) {
           return department.name;
         } else {
           return branch.name;

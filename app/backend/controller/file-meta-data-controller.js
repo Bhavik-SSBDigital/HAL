@@ -5,6 +5,7 @@ import { createUserPermissions } from "./file-controller.js";
 import { storeChildIdInParentDocument } from "./file-controller.js";
 import { verifyUser } from "../utility/verifyUser.js";
 import { ObjectId } from "mongodb";
+import Branch from "../models/branch.js";
 
 export const add_doc_meta_data = async (req, res, next) => {
   try {
@@ -25,10 +26,15 @@ export const add_doc_meta_data = async (req, res, next) => {
       name: req.body.departmentName,
     }).select("_id");
 
-    let pathForDepartment =
-      departmentName.split("_")[0] === "headOffice"
+    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+      "name"
+    );
+
+    let pathForDepartment = headOfficeBranch
+      ? departmentName.split("_")[0] === headOfficeBranch.name
         ? `../${departmentName.substring(11)}`
-        : `../${departmentName}`;
+        : `../${departmentName}`
+      : `../${departmentName}`;
 
     console.log("path for department", pathForDepartment);
 

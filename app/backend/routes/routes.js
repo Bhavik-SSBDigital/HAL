@@ -119,6 +119,8 @@ import {
   search_document,
 } from "../controller/doc-tracking-controller.js";
 
+import { get_head_office_name } from "../controller/branch-controller.js";
+
 import multer from "multer";
 
 // Configure a Multer instance without any specific destination or filename settings
@@ -307,5 +309,7 @@ router.post("/storeDocMetaData", add_doc_meta_data);
 router.post("/uploadMomInMeet", upload_mom_in_meeting);
 
 router.post("/getProcessStatistics", get_process_statistics);
+
+router.get("/getHeadOfficeName", get_head_office_name);
 
 export default router;
