@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   Dialog,
+  DialogContent,
   DialogTitle,
   Divider,
   Grid2,
@@ -463,91 +464,93 @@ const Overall = () => {
         >
           Filters
         </DialogTitle>
-        <Stack
-          mx={2}
-          // p={1}
-          justifyContent="center"
-          alignItems="center"
-          gap={1}
-          sx={{ minWidth: '200px' }}
-        >
-          <TextField
-            select
-            label="Type"
-            id="mainChartOptions"
-            fullWidth
-            value={selectedMainChartType}
-            onChange={handleMainChartType}
+        <DialogContent>
+          <Stack
+            my={1}
+            // p={1}
+            justifyContent="center"
+            alignItems="center"
+            gap={1}
+            sx={{ minWidth: '200px' }}
           >
-            <MenuItem value="weekly">Weekly</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Yearly</MenuItem>
-            <MenuItem value="custom">Custom</MenuItem>
-          </TextField>
-          {selectedMainChartType === 'monthly' && (
             <TextField
               select
-              id="yearOptions"
+              label="Type"
+              id="mainChartOptions"
               fullWidth
-              value={selectedYear}
-              label="Year"
-              onChange={(e) => setSelectedYear(e.target.value)}
+              value={selectedMainChartType}
+              onChange={handleMainChartType}
             >
-              {yearList.map((year) => (
-                <MenuItem value={year} key={year}>
-                  {year}
-                </MenuItem>
-              ))}
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+              <MenuItem value="yearly">Yearly</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
             </TextField>
-          )}
-          {selectedMainChartType === 'custom' && (
-            <Stack spacing={2} alignItems="center">
-              <Stack
-                direction="row"
-                spacing={1}
-                justifyContent="space-between"
-                width={300}
-                alignItems="center"
+            {selectedMainChartType === 'monthly' && (
+              <TextField
+                select
+                id="yearOptions"
+                fullWidth
+                value={selectedYear}
+                label="Year"
+                onChange={(e) => setSelectedYear(e.target.value)}
               >
-                <h4>Select Start Date:</h4>
-                <TextField
-                  type="date"
-                  name="startDate"
-                  // className={styles.dateInputs}
-                  onChange={handleMainChartDateChange}
-                />
-              </Stack>
-              <Stack
-                direction="row"
-                spacing={1}
-                justifyContent="space-between"
-                width={300}
-                alignItems="center"
-              >
-                <h4>Select End Date:</h4>
-                <TextField
-                  type="date"
-                  name="endDate"
-                  // className={styles.dateInputs}
+                {yearList.map((year) => (
+                  <MenuItem value={year} key={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            {selectedMainChartType === 'custom' && (
+              <Stack spacing={2} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  justifyContent="space-between"
+                  width={300}
+                  alignItems="center"
+                >
+                  <h4>Select Start Date:</h4>
+                  <TextField
+                    type="date"
+                    name="startDate"
+                    // className={styles.dateInputs}
+                    onChange={handleMainChartDateChange}
+                  />
+                </Stack>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  justifyContent="space-between"
+                  width={300}
+                  alignItems="center"
+                >
+                  <h4>Select End Date:</h4>
+                  <TextField
+                    type="date"
+                    name="endDate"
+                    // className={styles.dateInputs}
 
-                  onChange={handleMainChartDateChange}
-                />
+                    onChange={handleMainChartDateChange}
+                  />
+                </Stack>
               </Stack>
-            </Stack>
-          )}
-          <Button
-            size="small"
-            variant="contained"
-            sx={{ mt: 2 }}
-            disabled={mainChartLoading}
-            onClick={() => {
-              getMainChartData();
-              setIsFilterOpen(false);
-            }}
-          >
-            Apply
-          </Button>
-        </Stack>
+            )}
+            <Button
+              size="small"
+              variant="contained"
+              sx={{ mt: 2 }}
+              disabled={mainChartLoading}
+              onClick={() => {
+                getMainChartData();
+                setIsFilterOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+          </Stack>
+        </DialogContent>
       </Dialog>
     </>
   );
