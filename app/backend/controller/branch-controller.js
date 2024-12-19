@@ -20,6 +20,7 @@ export const create_branch = async (req, res, next) => {
         name: req.body.name,
         status: req.body.status,
         createdAt: Date.now(),
+        isHeadOffice: req.body.isHeadOffice,
         totalCreditSourcingOfficer: parseInt(
           req.body.totalCreditSourcingOfficer
         ),
