@@ -41,9 +41,22 @@ export default function NewUser() {
   const [roles, setRoles] = useState([]);
   const [specialUserCheck, setSpecialUserCheck] = useState(false);
   // console.log(JSON.stringify(roles) + 'roles');
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const handleSelectSpecialUser = (e) => {
     if (e.target.checked) {
-      setFormData((prev) => ({ ...prev, branch: 'headOffice' }));
+      setFormData((prev) => ({ ...prev, branch: headOfficeName }));
       setSpecialUserCheck(true);
     } else {
       setSpecialUserCheck(false);
@@ -54,7 +67,6 @@ export default function NewUser() {
   const handleSelectPhysicalDocs = (e) => {
     console.log(e.target.checked);
     if (e.target.checked) {
-      //   setFormData((prev) => ({ ...prev, branch: 'headOffice' }));
       setPhysicalDocsCheck(true);
     } else {
       setPhysicalDocsCheck(false);
@@ -266,8 +278,8 @@ export default function NewUser() {
                 size="small"
                 value={formData.branch}
                 onChange={handleInputChange}
-              // disabled={specialUserCheck}
-              // label="branch"
+                // disabled={specialUserCheck}
+                // label="branch"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -288,7 +300,7 @@ export default function NewUser() {
                 sx={{ background: 'whitesmoke' }}
                 value={formData.role}
                 onChange={handleInputChange}
-              // label="Users role"
+                // label="Users role"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -309,7 +321,7 @@ export default function NewUser() {
                 sx={{ background: 'whitesmoke' }}
                 value={formData.status}
                 onChange={handleInputChange}
-              // label="Status"
+                // label="Status"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -324,7 +336,7 @@ export default function NewUser() {
               control={
                 <Checkbox
                   checked={specialUserCheck}
-                  disabled={formData.branch !== 'headOffice'}
+                  disabled={formData.branch !== headOfficeName}
                   onChange={handleSelectSpecialUser}
                   name="specialUser"
                 />
@@ -337,7 +349,6 @@ export default function NewUser() {
               control={
                 <Checkbox
                   checked={physicalDocsCheck}
-                  //   disabled={formData.branch !== 'headOffice'}
                   onChange={handleSelectPhysicalDocs}
                   name="isKeeperOfPhysicalDocs"
                 />

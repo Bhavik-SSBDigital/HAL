@@ -66,14 +66,29 @@ export default function MetaData() {
       console.error(error?.response?.data?.message || error?.message);
     }
   };
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const onSubmit = async (formData) => {
     try {
       const dummy = () => {};
       const getDocNameUrl = backendUrl + '/getProcessDocumentName';
 
       let department;
-      if (selectedDepartment.branch === 'headOffice') {
-        const [, outputString] = formData.departmentName.split('headOffice_');
+      if (selectedDepartment.branch === headOfficeName) {
+        const [, outputString] = formData.departmentName.split(
+          `${headOfficeName}_`,
+        );
         department = outputString;
       } else {
         department = formData.departmentName;
@@ -162,9 +177,10 @@ export default function MetaData() {
       const getPath = async () => {
         try {
           let department;
-          if (selectedDepartment?.branch === 'headOffice') {
-            const [, outputString] =
-              selectedDepartment?.department.split('headOffice_');
+          if (selectedDepartment?.branch === headOfficeName) {
+            const [, outputString] = selectedDepartment?.department.split(
+              `${headOfficeName}_`,
+            );
             department = outputString;
           } else {
             department = selectedDepartment?.branch;

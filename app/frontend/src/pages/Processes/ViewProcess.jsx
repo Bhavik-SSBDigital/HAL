@@ -471,10 +471,23 @@ export default function ViewProcess(props) {
     setSelectedBranches(value);
   };
   const [selectAllCheckBranches, setSelectAllCheckBranches] = useState(false);
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const handleSelectAllBranches = (e) => {
     if (e.target.checked) {
       const nonHeadOfficeBranches = branches
-        .filter((item) => item.name !== 'headOffice')
+        .filter((item) => item.name !== headOfficeName)
         .filter((item) => !processData.name.includes(item.name))
         .map((item) => item.name);
       setSelectedBranches(nonHeadOfficeBranches);
@@ -2195,7 +2208,7 @@ export default function ViewProcess(props) {
                             onChange={handleBranchChange}
                           >
                             {branches
-                              .filter((item) => item.name === 'headOffice')
+                              .filter((item) => item.name === headOfficeName)
                               ?.map((branch) => (
                                 <MenuItem
                                   value={branch.name}
@@ -2351,7 +2364,7 @@ export default function ViewProcess(props) {
                             multiple
                             id="checkboxes-tags-demo"
                             options={branches
-                              .filter((item) => item.name !== 'headOffice')
+                              .filter((item) => item.name !== headOfficeName)
                               .filter(
                                 (item) => !processData.name.includes(item.name),
                               )
@@ -2643,7 +2656,7 @@ export default function ViewProcess(props) {
                   textAlign: 'center',
                   padding: '10px',
                   backgroundColor: 'var(--themeColor)',
-                  color:"white",
+                  color: 'white',
                   margin: '10px',
                   borderRadius: '5px',
                 }}

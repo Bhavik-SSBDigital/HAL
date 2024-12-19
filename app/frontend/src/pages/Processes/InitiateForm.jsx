@@ -45,11 +45,25 @@ import { FaRegTrashAlt } from 'react-icons/fa';
 import Workflow from '../../components/Workflow';
 
 export default function InitiateForm() {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const meetingId = queryParams.get('meetingId');
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
+
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
   const [workFlow, setWorkFlow] = useState('');
@@ -59,15 +73,13 @@ export default function InitiateForm() {
   const [departments, setDepartments] = useState([]);
   const [departmentSelection, setDepartmentSelection] = useState('');
   const headOfficeDepartments = branches?.find(
-    (item) => item.name === 'headOffice',
+    (item) => item.name === headOfficeName,
   )?.departments;
   const [processType, setProcessType] = useState();
   const [headofficeInclude, setHeadofficeInclude] = useState();
   const [managerDep, setManagerDep] = useState();
   const depBelongsToHeadoffice =
-    departmentSelection.split('_')[0].toLowerCase() === 'headoffice'
-      ? true
-      : false;
+    departmentSelection.split('_')[0] === headOfficeName ? true : false;
 
   // ---------------** when deparmtent outside headoffice
   // headoffice is not included branches select
@@ -80,7 +92,7 @@ export default function InitiateForm() {
     if (e.target.checked) {
       const nonHeadOfficeBranches = branches
         ?.filter(
-          (item) => item.name !== 'headOffice' && item.departments.length > 0,
+          (item) => item.name !== headOfficeName && item.departments.length > 0,
         )
         ?.filter((item) => !departmentSelection.includes(item.name))
         .map((item) => item.name);
@@ -827,7 +839,7 @@ export default function InitiateForm() {
                                     options={branches
                                       ?.filter(
                                         (item) =>
-                                          item.name !== 'headOffice' &&
+                                          item.name !== headOfficeName &&
                                           item.departments.length > 0,
                                       )
                                       ?.filter(

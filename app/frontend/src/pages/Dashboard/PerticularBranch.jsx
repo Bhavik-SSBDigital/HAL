@@ -32,7 +32,13 @@ import ChartFive from '../../components/Charts/ChartFive';
 import { useNavigate } from 'react-router-dom';
 import ChartFour from '../../components/Charts/ChartFour';
 import sessionData from '../../Store';
-import { IconClock, IconClockCog, IconFilesOff, IconFileUpload, IconX } from '@tabler/icons-react';
+import {
+  IconClock,
+  IconClockCog,
+  IconFilesOff,
+  IconFileUpload,
+  IconX,
+} from '@tabler/icons-react';
 const PerticularBranch = () => {
   const {
     dashBranch,
@@ -236,14 +242,14 @@ const PerticularBranch = () => {
     setStepWiseChartLoading(true);
     if (
       !selectedBranch ||
-      (selectedBranch.toLowerCase() === 'headoffice' && !selectedDepartment)
+      (selectedBranch === headOfficeName && !selectedDepartment)
     ) {
       return;
     } else {
       setDashBranch(selectedBranch);
       setDashDepartment(selectedDepartment);
       let id;
-      if (selectedBranch.toLowerCase() === 'headoffice') {
+      if (selectedBranch === headOfficeName) {
         const branch = branches.find(
           (item) => item.name.toLowerCase() === selectedBranch.toLowerCase(),
         );
@@ -337,13 +343,26 @@ const PerticularBranch = () => {
       setDashId(id);
     }
   };
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const getPerticularBranchData = async () => {
     if (!selectedBranch) {
       toast.info('Please select a branch.');
       return;
     }
 
-    if (selectedBranch === 'headOffice' && !selectedDepartment) {
+    if (selectedBranch === headOfficeName && !selectedDepartment) {
       toast.info('Please select a department.');
       return;
     }
@@ -378,7 +397,7 @@ const PerticularBranch = () => {
       toast.error('Invalid selection');
       return;
     }
-    if (selectedBranch?.toLowerCase() === 'headoffice') {
+    if (selectedBranch === headOfficeName) {
       const branch = branches.find(
         (item) => item.name.toLowerCase() === selectedBranch?.toLowerCase(),
       );
@@ -576,7 +595,7 @@ const PerticularBranch = () => {
               return <option value={item.name}>{item.name}</option>;
             })}
         </select>
-        {selectedBranch?.toLowerCase() === 'headoffice' && (
+        {selectedBranch === headOfficeName && (
           <select
             id="selectDepartments"
             style={{
