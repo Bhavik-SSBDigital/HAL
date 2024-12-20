@@ -62,7 +62,7 @@ initializeSocket(server);
 //   cert: await fs.readFile('./certificate.pem')
 // };
 
-server.listen(8000, () => console.log(`Listening on port ${8000}`));
+server.listen(5000, () => console.log(`Listening on port ${5000}`));
 
 server.on("error", (error) => {
   console.error("Server error:", error);
