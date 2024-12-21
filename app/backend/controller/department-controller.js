@@ -592,12 +592,12 @@ export const get_departments_for_initiator = async (req, res, next) => {
     userId = userId._id;
 
     const departments = await Department.find({
-      steps: {
-        $elemMatch: {
-          stepNumber: 1,
-          "users.user": userId,
-        },
-      },
+      // steps: {
+      //   $elemMatch: {
+      //     stepNumber: 1,
+      //     "users.user": userId,
+      //   },
+      // },
     });
 
     let departments_ = await format_department_data(departments);
