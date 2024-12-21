@@ -1,3 +1,4 @@
+import { sign } from "crypto";
 import SignCoordinate from "../../models/signCoordinates.js";
 import { verifyUser } from "../../utility/verifyUser.js";
 export const add_sign_coordinates = async (req, res, next) => {
@@ -71,14 +72,15 @@ export const get_sign_coordinates_for_specific_step = async (
     const processId = req.body.processId;
     const stepNo = req.body.stepNo;
 
-    const coordinates = req.body.isInitiator
+    const coordinates = !req.body.initiator
       ? await get_sign_coordinates_for_specific_step_in_process(
           docId,
           // processId,
           stepNo
         )
-      : get_sign_coordinates_for_all_steps_in_process(docId);
+      : await get_sign_coordinates_for_all_steps_in_process(docId);
 
+    console.log("coordinates from controller", coordinates);
     return res.status(200).json({
       coordinates: coordinates,
     });
@@ -121,19 +123,27 @@ export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
   try {
     const coordinates = [];
 
-    const signCoordinates = await SignCoordinate.find({
+    const signCoordinates = await SignCoordinate.findOne({
       docId: docId,
     }).lean();
 
+    if (!signCoordinates) {
+      console.log("reached at right");
+      return [];
+    }
+
+    console.log("sign coordinate1", signCoordinates);
+
     let finalCoordinates = [];
-    if (signCoordinates && signCoordinates.length) {
-      for (let coord = 0; coord < signCoordinates.length; coord++) {
-        finalCoordinates.push(signCoordinates[coord].coordinates);
-      }
+
+    console.log("sign coordinates2", signCoordinates.coordinates);
+    console.log("type of sign coordinates", typeof signCoordinates.coordinates);
+    if (signCoordinates && signCoordinates.coordinates.length) {
+      finalCoordinates = signCoordinates.coordinates;
     }
 
     return finalCoordinates;
   } catch (error) {
-    throw new Error(error);
+    return [];
   }
 };
