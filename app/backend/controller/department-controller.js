@@ -658,43 +658,39 @@ export const get_merged_workflow = async (req, res, next) => {
     const approver = req.body.approver;
     const initiator = req.body.initiator;
 
-    // Fetch steps for approver and initiator departments
     let approverSteps = await Department.findOne({ name: approver }).select(
       "steps"
     );
+
     approverSteps = approverSteps.steps;
 
     let initiatorSteps = await Department.findOne({ name: initiator }).select(
       "steps"
     );
+
     initiatorSteps = initiatorSteps.steps;
 
-    // Format workflow steps
     approverSteps = await formatWorkflowSteps(approverSteps);
+
     initiatorSteps = await formatWorkflowSteps(initiatorSteps);
 
     console.log("initiator department", initiatorSteps);
     console.log("approver steps", approverSteps);
 
-    // Filter out "upload" steps from approverSteps only
-    approverSteps = approverSteps.filter((step) => step.work !== "upload");
+    approverSteps = approverSteps.map((item) => {
+      let finalObj = { ...item };
+      finalObj["step"] = finalObj["step"] + initiatorSteps.length;
 
-    // Adjust approver step numbers relative to the initiator steps
-    approverSteps = approverSteps.map((item, index) => {
-      return {
-        ...item,
-        step: index + 1 + initiatorSteps.length, // Renumber based on new position after filtering
-      };
+      console.log("final obj", finalObj);
+      return finalObj;
     });
 
-    // Merge initiator and approver steps
     let finalSteps = [...initiatorSteps, ...approverSteps];
 
     return res.status(200).json({
       steps: finalSteps,
     });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({
       message: "Error fetching merged steps",
     });
