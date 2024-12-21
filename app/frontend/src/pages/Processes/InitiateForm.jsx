@@ -190,6 +190,26 @@ export default function InitiateForm() {
         console.error('error', error);
       });
   };
+  const [allDepartments, setAllDepartments] = useState([]);
+  const getAllDepartments = async () => {
+    const url = backendUrl + '/getDepartments';
+    axios
+      .post(url, null, {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+        },
+      })
+      .then((response) => {
+        if (response.status === 200) {
+          setAllDepartments(response.data.departments);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        setLoading(false);
+        console.error('error', error);
+      });
+  };
   const navigate = useNavigate();
   const handleProceed = (type) => {
     let workFlow = '',
@@ -347,6 +367,7 @@ export default function InitiateForm() {
   useEffect(() => {
     fetchBranches();
     getDepartments();
+    getAllDepartments();
     setFlow((prevFlow) => ({
       ...prevFlow,
       step: selectedDepartment?.workFlow?.length + 1,
@@ -579,7 +600,7 @@ export default function InitiateForm() {
                               selected === '' ? 'Select Department' : selected
                             }
                           >
-                            {departments
+                            {allDepartments
                               ?.filter((dep) => dep.branch == headOfficeName)
                               ?.map((department) => (
                                 <MenuItem
