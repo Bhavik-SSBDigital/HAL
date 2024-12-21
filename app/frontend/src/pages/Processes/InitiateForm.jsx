@@ -71,7 +71,10 @@ export default function InitiateForm() {
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState([]);
   const [departments, setDepartments] = useState([]);
+  console.log(departments);
+
   const [departmentSelection, setDepartmentSelection] = useState('');
+  const [approverDepartment, setApproverDepartment] = useState('');
   const headOfficeDepartments = branches?.find(
     (item) => item.name === headOfficeName,
   )?.departments;
@@ -358,6 +361,30 @@ export default function InitiateForm() {
 
   // mom option
   const [isMom, setIsMom] = useState(false);
+
+  // approver department selection
+  const [selectApproverLoading, setSelectApproverLoading] = useState('');
+  const selectApproverDepartment = async (e) => {
+    const url = backendUrl + '/getMergedWorkFlow';
+    setApproverDepartment(e.target?.value?.department);
+    const data = {
+      approver: e.target?.value?.department,
+      initiator: departmentSelection,
+    };
+
+    setSelectApproverLoading(true);
+    try {
+      const response = await axios.post(url, data);
+      setSelectedDepartment((prev) => ({
+        ...prev,
+        workFlow: response?.data?.steps || [],
+      }));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSelectApproverLoading(false);
+    }
+  };
   return (
     <>
       {loading ? (
@@ -523,6 +550,49 @@ export default function InitiateForm() {
                         </Button>
                       </div>
                     </div>
+                    {isDynamicFlow &&
+                    selectedDepartment.branch !== headOfficeName ? (
+                      <div style={{ marginBottom: '25px' }}>
+                        <Typography
+                          variant="body1"
+                          component="span"
+                          gutterBottom
+                          sx={{
+                            textAlign: 'center',
+                            width: 350,
+                            height: 50,
+                            fontWeight: 400,
+
+                            margin: '10px',
+                          }}
+                        >
+                          Select approver department
+                        </Typography>
+                        <div className={styles.departmentList}>
+                          <Select
+                            value={approverDepartment}
+                            size="small"
+                            sx={{ maxWidth: '400px', backgroundColor: 'white' }}
+                            onChange={selectApproverDepartment}
+                            displayEmpty
+                            renderValue={(selected) =>
+                              selected === '' ? 'Select Department' : selected
+                            }
+                          >
+                            {departments
+                              ?.filter((dep) => dep.branch == headOfficeName)
+                              ?.map((department) => (
+                                <MenuItem
+                                  key={department.department}
+                                  value={department}
+                                >
+                                  {department.department}
+                                </MenuItem>
+                              ))}
+                          </Select>
+                        </div>
+                      </div>
+                    ) : null}
                     {meetingId ? (
                       <div style={{ marginBottom: '25px' }}>
                         <Typography
@@ -1063,6 +1133,7 @@ export default function InitiateForm() {
                     {(processType === 'intra' || isDynamicFlow) && (
                       <Stack alignItems="center">
                         <Button
+                          disabled={selectApproverLoading}
                           variant="contained"
                           onClick={() => handleProceed('1')}
                           sx={{ width: 'fit-content', minWidth: '200px' }}
