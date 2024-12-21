@@ -71,11 +71,13 @@ export const get_sign_coordinates_for_specific_step = async (
     const processId = req.body.processId;
     const stepNo = req.body.stepNo;
 
-    const coordinates = await get_sign_coordinates_for_specific_step_in_process(
-      docId,
-      // processId,
-      stepNo
-    );
+    const coordinates = req.body.isInitiator
+      ? await get_sign_coordinates_for_specific_step_in_process(
+          docId,
+          // processId,
+          stepNo
+        )
+      : get_sign_coordinates_for_all_steps_in_process(docId);
 
     return res.status(200).json({
       coordinates: coordinates,
@@ -107,6 +109,24 @@ export const get_sign_coordinates_for_specific_step_in_process = async (
           (item) => item.stepNo === stepNo
         );
       }
+    }
+
+    return coordinates;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
+  try {
+    const coordinates = [];
+
+    const signCoordinates = await SignCoordinate.findOne({
+      docId: docId,
+    }).lean();
+
+    if (signCoordinates && signCoordinates.coordinates.length > 0) {
+      return signCoordinates.coordinates; // Return all coordinates without filtering by stepNo
     }
 
     return coordinates;
