@@ -92,7 +92,7 @@ export default function Workflow({
       if (!userBranch) {
         setUserBranch(value);
         if (value) {
-          const { _id } = branches.find((data) => data.name === value);
+          const { _id } = allBranches.find((data) => data.name === value);
           getRoles(_id);
         }
       }
@@ -100,7 +100,8 @@ export default function Workflow({
     if (name === 'userBranch') {
       if (value) {
         console.log(branches);
-        const { _id } = branches.find((data) => data.name === value);
+        const { _id } = allBranches.find((data) => data.name === value);
+        console.log(_id + " id");
         setRoles([]);
         getRoles(_id);
       }

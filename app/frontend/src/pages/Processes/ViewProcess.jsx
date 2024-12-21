@@ -350,10 +350,16 @@ export default function ViewProcess(props) {
     try {
       const fileData = await download(name, path, true);
       if (fileData) {
+        const signed = processData?.documents
+          ?.find((item) => item.details._id == fileToBeOperated?.details?._id)
+          ?.signedBy?.map((sign) => sign.username)
+          .includes(username);
+        console.log(signed);
         setFileView({
           url: fileData.data,
           type: fileData.fileType,
           fileId: fileToBeOperated?.details?._id,
+          signed,
         });
         setLoading(false);
       } else {

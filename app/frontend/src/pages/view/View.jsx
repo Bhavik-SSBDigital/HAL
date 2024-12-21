@@ -105,6 +105,7 @@ const PdfViewer = ({
                 processId={processId}
                 currentStep={currentStep}
                 controls={controls}
+                signed={docu.signed}
               />
             </div>
           ) : docu.type === 'xls' || docu.type === 'xlsx' ? (

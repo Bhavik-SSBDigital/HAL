@@ -31,6 +31,7 @@ function PdfContainer({
   processId,
   currentStep,
   controls,
+  signed,
 }) {
   const username = sessionStorage.getItem('username');
   const initiator = sessionStorage.getItem('initiator') == 'true';
@@ -319,7 +320,7 @@ function PdfContainer({
                     width: signArea.width,
                     height: signArea.height,
                     border: '2px solid red',
-                    backgroundColor: '#FAD4D477',
+                    backgroundColor: signed ? '#FAD4D477' : null,
                     zIndex: 20,
                   }}
                 >
