@@ -72,8 +72,8 @@ function PdfContainer({
     const handleTextSelection = () => {
       if (mode !== 'textSelection') return; // Only handle text selection in text mode
       const selection = window.getSelection();
-      const selectedText = selection.toString();
-      if (selectedText.length > 0) {
+      const selectedText = selection.toString()?.trim() || '';
+      if (selectedText.length > 0 && selectedText) {
         const range = selection.getRangeAt(0);
         const rects = range.getClientRects();
         const newCoordinates = [];
@@ -231,7 +231,6 @@ function PdfContainer({
           ref={(el) => (pageRefs.current[i - 1] = el)}
           className="pdf-page"
           position="relative"
-          sx={{ zIndex: 99 }}
         >
           <Page pageNumber={i} renderTextLayer />
           {highlights.map((highlight, index1) =>
@@ -254,7 +253,6 @@ function PdfContainer({
                       padding: '2px',
                       top: coord.y + coord.height,
                       left: coord.x,
-                      zIndex: 999,
                     }}
                   >
                     <Typography fontWeight={700} fontSize={14} color="black">
@@ -280,7 +278,6 @@ function PdfContainer({
                       backgroundBlendMode: 'lighten',
                       borderRadius: '2px',
                       cursor: 'pointer',
-                      zIndex: 99,
                     }}
                   />
                 </>
@@ -298,7 +295,6 @@ function PdfContainer({
                   height: currentSignArea.height,
                   border: '2px dashed red',
                   backgroundColor: 'rgba(255, 0, 0, 0.3)',
-                  zIndex: 1000,
                 }}
               />
             )}
@@ -331,7 +327,6 @@ function PdfContainer({
                       height: '20px',
                       minWidth: '0',
                       padding: '0',
-                      zIndex: 9999,
                       border: '2px solid red',
                     }}
                   >
@@ -434,7 +429,7 @@ function PdfContainer({
             background: 'white',
             position: 'sticky',
             top: '2px',
-            zIndex: 999,
+            zIndex: 21,
             padding: '10px',
             mb: 1,
           }}
@@ -482,7 +477,6 @@ function PdfContainer({
         {renderPages()}
       </Document>
       <Dialog
-        sx={{ zIndex: '999999' }}
         open={openRemarksMenu}
         onClose={() => setOpenRemarksMenu(false)}
       >
@@ -511,7 +505,6 @@ function PdfContainer({
       </Dialog>
       <Dialog
         open={userSignDialogOpen}
-        sx={{ zIndex: '100' }}
         onClose={onSignAreaDialogClose}
       >
         <form>

@@ -24,7 +24,7 @@ const PdfViewer = ({
     position: 'absolute',
     top: '10px',
     right: '20px',
-    zIndex: '9999999',
+    zIndex: '22',
   };
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const PdfViewer = ({
         width: '100vw',
         height: '100vh',
         backgroundColor: 'lightgray',
-        zIndex: '9999',
+        zIndex: '20',
       }}
     >
       <IconButton sx={closeIconStyle} onClick={handleViewClose}>
