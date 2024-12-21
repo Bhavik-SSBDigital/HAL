@@ -308,7 +308,6 @@ function PdfContainer({
                 title={workflow[signArea.stepNo]?.users
                   ?.map((user) => user.user)
                   .join(',')}
-                  
               >
                 <Box
                   key={index}
@@ -320,7 +319,7 @@ function PdfContainer({
                     height: signArea.height,
                     border: '2px solid red',
                     backgroundColor: '#FAD4D477',
-                    zIndex: 20
+                    zIndex: 20,
                   }}
                 >
                   {initiator ? (
@@ -382,6 +381,7 @@ function PdfContainer({
           docId: documentId,
           processId: processId,
           stepNo: currentStep,
+          initiator,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
