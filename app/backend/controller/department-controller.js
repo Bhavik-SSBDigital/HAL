@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import fs from "fs/promises";
 import { is_branch_head_office } from "../utility/branch-handlers.js";
+
 export const getWorks = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -608,6 +609,90 @@ export const get_departments_for_initiator = async (req, res, next) => {
     console.log("error getting departments for given user");
     return res.status(500).json({
       message: "error getting departments for given user",
+    });
+  }
+};
+
+const formatWorkflowSteps = async (steps) => {
+  return Promise.all(
+    steps.map(async (item) => {
+      try {
+        // Fetch and extract the work name
+        const workDoc = await Work.findOne({ _id: item.work }).select("name");
+        const workName = workDoc ? workDoc.name : null;
+
+        // Process users and their roles
+        const finalUsers = await Promise.all(
+          item.users.map(async (u) => {
+            const userDoc = await User.findOne({ _id: u.user }).select(
+              "username"
+            );
+            const username = userDoc ? userDoc.username : null;
+
+            const roleDoc = await Role.findOne({ _id: u.role }).select("role");
+            const roleName = roleDoc ? roleDoc.role : null;
+
+            return {
+              user: username,
+              role: roleName,
+            };
+          })
+        );
+
+        // Return the formatted step
+        return {
+          work: workName,
+          users: finalUsers,
+          step: item.stepNumber,
+        };
+      } catch (error) {
+        console.error("Error formatting workflow step:", error);
+        return null; // Handle or log errors as needed
+      }
+    })
+  );
+};
+
+export const get_merged_workflow = async (req, res, next) => {
+  try {
+    const approver = req.body.approver;
+    const initiator = req.body.initiator;
+
+    let approverSteps = await Department.findOne({ name: approver }).select(
+      "steps"
+    );
+
+    approverSteps = approverSteps.steps;
+
+    let initiatorSteps = await Department.findOne({ name: initiator }).select(
+      "steps"
+    );
+
+    initiatorSteps = initiatorSteps.steps;
+
+    approverSteps = await formatWorkflowSteps(approverSteps);
+
+    initiatorSteps = await formatWorkflowSteps(initiatorSteps);
+
+    console.log("initiator department", initiatorSteps);
+    console.log("approver steps", approverSteps);
+
+    approverSteps = approverSteps.map((item) => {
+      let finalObj = { ...item };
+      finalObj["step"] = finalObj["step"] + initiatorSteps.length;
+
+      console.log("final obj", finalObj);
+      return finalObj;
+    });
+
+    let finalSteps = [...initiatorSteps, ...approverSteps];
+
+    return res.status(200).json({
+      steps: finalSteps,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching merged steps",
     });
   }
 };

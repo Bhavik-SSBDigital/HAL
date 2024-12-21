@@ -62,6 +62,7 @@ import {
   get_department,
   delete_department,
   get_departments_for_initiator,
+  get_merged_workflow,
 } from "../controller/department-controller.js";
 
 import {
@@ -311,5 +312,7 @@ router.post("/uploadMomInMeet", upload_mom_in_meeting);
 router.post("/getProcessStatistics", get_process_statistics);
 
 router.get("/getHeadOfficeName", get_head_office_name);
+
+router.post("/getMergedWorkFlow", get_merged_workflow);
 
 export default router;

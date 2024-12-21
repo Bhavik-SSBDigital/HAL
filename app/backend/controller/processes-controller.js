@@ -1572,11 +1572,20 @@ export const forwardProcess = async (
       } else {
         for (let k = 0; k < nextStepUsers.length; k++) {
           const recepient = nextStepUsers[k];
+
+          let notification = {
+            processId: process._id,
+            processName: process.name,
+            completed: process.completed,
+            receivedAt: Date.now(),
+            isPending: true,
+          };
           await User.updateOne(
             { _id: recepient.user },
             {
               $push: {
                 processes: newProcess,
+                notifications: notification,
                 readable: {
                   $each: docs,
                 },
@@ -2991,11 +3000,11 @@ export const upload_documents_in_process = async (req, res, next) => {
       console.log("error updating process analytics", error);
     }
 
-    const process_result = await is_process_forwardable(process, userData._id);
+    // const process_result = await is_process_forwardable(process, userData._id);
     return res.status(200).json({
       message: "added newly uploaded documents successfully",
-      isForwardable: process_result.isForwardable,
-      isRevertable: process_result.isRevertable,
+      isForwardable: true,
+      isRevertable: true,
     });
   } catch (error) {
     console.log("error", error);
