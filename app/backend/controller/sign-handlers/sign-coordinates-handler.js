@@ -121,15 +121,18 @@ export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
   try {
     const coordinates = [];
 
-    const signCoordinates = await SignCoordinate.findOne({
+    const signCoordinates = await SignCoordinate.find({
       docId: docId,
     }).lean();
 
-    if (signCoordinates && signCoordinates.coordinates.length > 0) {
-      return signCoordinates.coordinates; // Return all coordinates without filtering by stepNo
+    let finalCoordinates = [];
+    if (signCoordinates && signCoordinates.length) {
+      for (let coord = 0; coord < signCoordinates.length; coord++) {
+        finalCoordinates.push(signCoordinates[coord].coordinates);
+      }
     }
 
-    return coordinates;
+    return finalCoordinates;
   } catch (error) {
     throw new Error(error);
   }
