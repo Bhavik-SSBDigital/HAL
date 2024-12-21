@@ -319,7 +319,7 @@ function PdfContainer({
                     width: signArea.width,
                     height: signArea.height,
                     border: '2px solid red',
-                    backgroundColor: '#FAD4D4',
+                    backgroundColor: '#FAD4D477',
                     zIndex: 20
                   }}
                 >
