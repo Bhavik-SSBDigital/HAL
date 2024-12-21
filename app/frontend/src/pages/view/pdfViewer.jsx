@@ -50,6 +50,8 @@ function PdfContainer({
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
 
+  console.log(workflow);
+  console.log(signAreas);
   useEffect(() => {
     if (mode === 'signSelection') {
       document.addEventListener('dblclick', handleMouseDown);
@@ -302,38 +304,47 @@ function PdfContainer({
           {signAreas
             ?.filter((signArea) => signArea.page === i)
             ?.map((signArea, index) => (
-              <Box
-                key={index}
-                sx={{
-                  position: 'absolute',
-                  top: signArea.y,
-                  left: signArea.x,
-                  width: signArea.width,
-                  height: signArea.height,
-                  border: '2px solid red',
-                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
-                }}
+              <Tooltip
+                title={workflow[signArea.stepNo]?.users
+                  ?.map((user) => user.user)
+                  .join(',')}
+                  
               >
-                {initiator ? (
-                  <Button
-                    onClick={() => removeSignArea(index)}
-                    sx={{
-                      position: 'absolute',
-                      top: -10,
-                      right: -10,
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      width: '20px',
-                      height: '20px',
-                      minWidth: '0',
-                      padding: '0',
-                      border: '2px solid red',
-                    }}
-                  >
-                    X
-                  </Button>
-                ) : null}
-              </Box>
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'absolute',
+                    top: signArea.y,
+                    left: signArea.x,
+                    width: signArea.width,
+                    height: signArea.height,
+                    border: '2px solid red',
+                    backgroundColor: '#FAD4D4',
+                    zIndex: 20
+                  }}
+                >
+                  {initiator ? (
+                    <Button
+                      onClick={() => removeSignArea(index)}
+                      sx={{
+                        position: 'absolute',
+                        top: -10,
+                        right: -10,
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        width: '20px',
+                        height: '20px',
+                        minWidth: '0',
+                        padding: '0',
+                        border: '2px solid red',
+                        zIndex: 9,
+                      }}
+                    >
+                      X
+                    </Button>
+                  ) : null}
+                </Box>
+              </Tooltip>
             ))}
         </Box>,
       );
@@ -476,10 +487,7 @@ function PdfContainer({
       >
         {renderPages()}
       </Document>
-      <Dialog
-        open={openRemarksMenu}
-        onClose={() => setOpenRemarksMenu(false)}
-      >
+      <Dialog open={openRemarksMenu} onClose={() => setOpenRemarksMenu(false)}>
         <DialogTitle
           sx={{
             background: 'var(--themeColor)',
@@ -503,10 +511,7 @@ function PdfContainer({
           </Button>
         </Stack>
       </Dialog>
-      <Dialog
-        open={userSignDialogOpen}
-        onClose={onSignAreaDialogClose}
-      >
+      <Dialog open={userSignDialogOpen} onClose={onSignAreaDialogClose}>
         <form>
           <DialogTitle
             sx={{ bgcolor: 'var(--themeColor)', margin: 1, color: 'white' }}
@@ -529,7 +534,7 @@ function PdfContainer({
                 .filter((item) => item.step <= maxReceiverStepNumber)
                 .map((item) => (
                   <MenuItem key={item.step} value={item.step}>
-                    forward to{' '}
+                    forward to
                     <b
                       style={{
                         marginRight: '3px',
@@ -537,8 +542,8 @@ function PdfContainer({
                       }}
                     >
                       {item.users.map((user) => user.user).join(',')}
-                    </b>{' '}
-                    for work{' '}
+                    </b>
+                    for work
                     <b
                       style={{
                         marginRight: '3px',
