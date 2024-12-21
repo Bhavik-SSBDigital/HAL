@@ -306,7 +306,7 @@ function PdfContainer({
             ?.map((signArea, index) => (
               <Tooltip
                 title={workflow
-                  .find((item) => item.stepNo == signArea.stepNo)
+                  .find((item) => item.step == signArea.stepNo)
                   ?.users?.map((user) => user.user)
                   .join(',')}
               >
