@@ -80,6 +80,7 @@ export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [processData, setProcessData] = useState();
   const token = sessionStorage.getItem('accessToken');
+  const initiator = sessionStorage.getItem('initiator') == 'true';
 
   const style = {
     position: 'absolute',
@@ -2569,16 +2570,18 @@ export default function ViewProcess(props) {
                       <IconDownload />
                       Download
                     </MenuItem>
-                    <MenuItem
-                      sx={{ gap: '5px' }}
-                      onClick={() => {
-                        handleOpenReplaceDialog();
-                      }}
-                      disabled={signLoading}
-                    >
-                      <IconReplace />
-                      Replace
-                    </MenuItem>
+                    {initiator ? (
+                      <MenuItem
+                        sx={{ gap: '5px' }}
+                        onClick={() => {
+                          handleOpenReplaceDialog();
+                        }}
+                        disabled={signLoading}
+                      >
+                        <IconReplace />
+                        Replace
+                      </MenuItem>
+                    ) : null}
                     {operable &&
                       username !== 'admin' &&
                       processData.currentActorUser === username && (

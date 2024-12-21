@@ -80,6 +80,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
+  function truncateUsername(username, maxLength = 12) {
+    if (!username || typeof username !== 'string') return '';
+
+    // Check if truncation is needed
+    if (username.length <= maxLength) {
+      return username;
+    }
+
+    // Truncate and append "..."
+    return `${username.substring(0, maxLength)}...`;
+  }
   return (
     <aside
       ref={sidebar}
@@ -123,7 +134,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           <path d="M9 9l6 6m0 -6l-6 6" />
         </svg>
       </button>
-      <Tooltip title="Profile">
+      <Tooltip title={username}>
         <Button
           onClick={() => navigate('/profile')}
           sx={{
@@ -132,7 +143,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             borderRadius: '8px',
             backgroundColor: '#FFFFFF44',
             color: 'white',
-            fontSize: '22px',
+            fontSize: '20px',
             '&:hover': {
               backgroundColor: '#FFFFFF66',
             },
@@ -140,7 +151,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           }}
           startIcon={<IconUserCircle stroke={2.3} size={34} color="white" />}
         >
-          {username}
+          {truncateUsername(username)}
         </Button>
       </Tooltip>
       <div
