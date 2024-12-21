@@ -33,12 +33,12 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-};
+// const options = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+// };
 
-const server = https.createServer(app, options);
+const server = http.createServer(app);
 
 initializeSocket(server);
 
@@ -58,7 +58,7 @@ initializeSocket(server);
 
 // Start the HTTP/2 server with spdy
 
-server.listen(5000, () => console.log(`Listening on port ${5000}`));
+server.listen(8000, () => console.log(`Listening on port ${8000}`));
 
 server.on("error", (error) => {
   console.error("Server error:", error);
