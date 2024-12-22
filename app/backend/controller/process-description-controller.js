@@ -223,7 +223,7 @@ export const get_process_history = async (req, res, next) => {
           nextFormattedStep.work !== undefined
             ? `was forwarded to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}.`
             : `was completed`;
-        history.description = `process initiated by ${currentFormattedStep.user} and ${completedOrForwardedStatement}`;
+        history.description = `process initiated by ${currentFormattedStep.user}`;
         history.documentsInvolved = await Promise.all(
           documentsInvolvedInCurrentLog.map(async (item) => {
             let documentName = await Document.findOne({

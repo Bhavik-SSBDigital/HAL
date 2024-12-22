@@ -3014,6 +3014,19 @@ export const upload_documents_in_process = async (req, res, next) => {
   }
 };
 
+function removeDuplicateNotifications(notifications) {
+  const seenProcessIds = new Set();
+  const uniqueNotifications = [];
+
+  notifications.forEach((notification) => {
+    if (!seenProcessIds.has(notification.processId)) {
+      uniqueNotifications.push(notification);
+      seenProcessIds.add(notification.processId);
+    }
+  });
+
+  return uniqueNotifications;
+}
 export const get_user_notifications_for_processes = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -3050,7 +3063,7 @@ export const get_user_notifications_for_processes = async (req, res, next) => {
     }
 
     return res.status(200).json({
-      notifications: notifications,
+      notifications: removeDuplicateNotifications(notifications),
     });
   } catch (error) {
     console.log("error getting user notifications for user", error);
