@@ -273,6 +273,7 @@ function PdfContainer({
                     style={{
                       userSelect: 'none',
                       position: 'absolute',
+                      zIndex: 2,
                       top: coord.y,
                       left: coord.x,
                       width: coord.width,
