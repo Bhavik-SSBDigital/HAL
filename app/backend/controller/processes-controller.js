@@ -2705,14 +2705,27 @@ export const revertProcess = async (
           processAnalytics.revertedProcesses || [];
 
         processAnalytics.revertedProcesses.push(process._id);
+
+        console.log(
+          "process analytics reverted processes",
+          processAnalytics.revertedProcesses
+        );
         if (process.steps && process.steps.length > 0) {
           // Document found, update the counts
-          const departmentIndex = processAnalytics.departmentsPendingProcess
-            ? processAnalytics.departmentsPendingProcess.findIndex(
-                (department) =>
-                  department.department.equals(new ObjectId(process.workFlow))
-              )
-            : -1;
+          const departmentIndex = -1;
+
+          try {
+            processAnalytics.departmentsPendingProcess
+              ? processAnalytics.departmentsPendingProcess.findIndex(
+                  (department) =>
+                    department.department.equals(new ObjectId(process.workFlow))
+                )
+              : -1;
+          } catch (error) {
+            console.log(
+              "process analytics has faulty departmentsPendingProcesses"
+            );
+          }
 
           if (departmentIndex !== -1) {
             // If the department is found, increment its count
@@ -2741,6 +2754,11 @@ export const revertProcess = async (
         }
 
         // Save the updated document back to the database
+        console.log(
+          "in existing analytics object",
+          processAnalytics.revertedProcesses
+        );
+
         await processAnalytics.save();
       } else {
         let newAnalyticsData =
@@ -2749,6 +2767,13 @@ export const revertProcess = async (
                 date: new Date(),
                 pendingProcesses: [],
                 revertedProcesses: [process._id],
+                departmentsPendingProcess: [
+                  {
+                    department: new ObjectId(process.workFlow),
+                    pendingProcesses: [],
+                    revertedProcesses: [process._id],
+                  },
+                ],
               }
             : {
                 date: new Date(),
@@ -2762,6 +2787,11 @@ export const revertProcess = async (
                   },
                 ],
               };
+
+        console.log(
+          "in new analytics object",
+          newAnalyticsData.revertedProcesses
+        );
 
         let newProcessAnalytics = new ProcessAnalytics(newAnalyticsData);
         // newProcessAnalytics = new ProcessAnalytics(newProcessAnalytics);
