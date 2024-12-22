@@ -291,11 +291,11 @@ export const get_process_history = async (req, res, next) => {
           ? `${currentFormattedStep.user} reverted process to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}`
           : nextFormattedStep.work !== undefined
           ? `${currentFormattedStep.user} forwarded process to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}`
-          : "and process was completed";
+          : "";
 
         history.description = currentLog.reverted
           ? `${documentChangeStatement}. ${action}`
-          : `${currentFormattedStep.user} had work of ${currentFormattedStep.work}. ${documentChangeStatement}. ${action}`;
+          : `${documentChangeStatement}. ${action}`;
         // history.documentsInvolved = documentsInvolvedInCurrentLog;
         history.isReverted = currentLog.reverted;
         history.date = currentLog.time;
