@@ -750,22 +750,18 @@ export const reject_document = async (req, res, next) => {
                 documentDetailsIfAddedForTheFirstTime;
             }
 
-            console.log(
-              "departments pending process",
-              processAnalytics.departmentsPendingProcess
-            );
-
-            console.log(
-              "departments pending processes 1",
-              processAnalytics.departmentsPendingProcess[0]
-            );
-
             // Document found, update the counts
-            const departmentIndex =
-              processAnalytics.departmentsPendingProcess.findIndex(
-                (department) =>
-                  department.department.equals(new ObjectId(process.workFlow))
-              );
+            let departmentIndex = -1;
+
+            try {
+              departmentIndex =
+                processAnalytics.departmentsPendingProcess.findIndex(
+                  (department) =>
+                    department.department.equals(new ObjectId(process.workFlow))
+                );
+            } catch (error) {
+              console.log("faulty entry in departmentsPendingProcesses");
+            }
 
             if (departmentIndex !== -1) {
               let documentDetailsOfDepartment =
@@ -801,7 +797,7 @@ export const reject_document = async (req, res, next) => {
               // If the department is not found, add it with an initial count of 1
               // processAnalytics.noOfPendingProcess += 1;
               processAnalytics.departmentsPendingProcess.push({
-                department: req.body.workFlow,
+                department: req.body.workFlow || process.workFlow,
                 documentDetails: documentDetailsIfAddedForTheFirstTime,
               });
             }
@@ -815,7 +811,7 @@ export const reject_document = async (req, res, next) => {
               documentDetails: documentDetailsIfAddedForTheFirstTime,
               departmentsPendingProcess: [
                 {
-                  department: req.body.workFlow,
+                  department: req.body.workFlow || process.workFlow,
                   documentDetails: documentDetailsIfAddedForTheFirstTime,
                 },
               ],
