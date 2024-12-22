@@ -2874,6 +2874,15 @@ export const upload_documents_in_process = async (req, res, next) => {
       }
     }
 
+    const formattedDocuments = await format_process_documents(
+      process.documents
+    );
+    const result = await get_documents_with_replacements(formattedDocuments);
+
+    const documents = result.activeDocs;
+
+    const replacementsWithRef = result.replacementsWithRef;
+
     await process.save();
 
     let workNameGroups = {};
@@ -3033,6 +3042,8 @@ export const upload_documents_in_process = async (req, res, next) => {
     // const process_result = await is_process_forwardable(process, userData._id);
     return res.status(200).json({
       message: "added newly uploaded documents successfully",
+      documents: documents,
+      replacementsWithRef: replacementsWithRef,
       isForwardable: true,
       isRevertable: true,
     });
