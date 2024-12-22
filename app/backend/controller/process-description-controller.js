@@ -294,8 +294,8 @@ export const get_process_history = async (req, res, next) => {
           : "";
 
         history.description = currentLog.reverted
-          ? `${documentChangeStatement}. ${action}`
-          : `${documentChangeStatement}. ${action}`;
+          ? `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`
+          : `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`;
         // history.documentsInvolved = documentsInvolvedInCurrentLog;
         history.isReverted = currentLog.reverted;
         history.date = currentLog.time;

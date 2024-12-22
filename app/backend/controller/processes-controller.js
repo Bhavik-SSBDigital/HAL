@@ -3019,14 +3019,16 @@ function removeDuplicateNotifications(notifications) {
   const uniqueNotifications = [];
 
   notifications.forEach((notification) => {
-    if (!seenProcessIds.has(notification.processId)) {
+    const processIdStr = notification.processId.toString(); // Convert ObjectId to string
+    if (!seenProcessIds.has(processIdStr)) {
       uniqueNotifications.push(notification);
-      seenProcessIds.add(notification.processId);
+      seenProcessIds.add(processIdStr);
     }
   });
 
   return uniqueNotifications;
 }
+
 export const get_user_notifications_for_processes = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
