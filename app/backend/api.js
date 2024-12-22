@@ -38,7 +38,7 @@ const options = {
   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
 };
 
-const server = https.createServer(app);
+const server = https.createServer(options, app);
 
 initializeSocket(server);
 
@@ -231,6 +231,10 @@ app.listen(PORT, () => {
       const updatedProcess = await Process.findOne({
         _id: change.documentKey._id,
       });
+
+      if (updatedProcess.steps && updatedProcess.steps.length > 0) {
+        return;
+      }
 
       const updatedConnectorPaths = Object.keys(
         change.updateDescription.updatedFields
