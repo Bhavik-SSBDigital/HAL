@@ -313,7 +313,7 @@ export const get_usernames = async (req, res) => {
         branch = await Branch.findOne({ _id: branch }).select("name");
 
         if (user.username === "admin") {
-          const branch = await Branch.findOne({ isHeadOffice: true }).select(
+          let branch = await Branch.findOne({ isHeadOffice: true }).select(
             "name"
           );
 
