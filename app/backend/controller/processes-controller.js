@@ -1095,8 +1095,9 @@ export const forwardProcess = async (
         new ObjectId(workFlowToBeFollowed).equals(process.workFlow))
     ) {
       if (currentStep === steps.length || completeBeforeLastStep) {
+        console.log("process id", processId);
         await Process.findOneAndUpdate(
-          { _id: process._id },
+          { _id: processId },
           {
             completed: true,
             completedAt: Date.now(),
@@ -1542,11 +1543,19 @@ export const forwardProcess = async (
       }
 
       if (log) {
+        const notification = {
+          processId: processId,
+          processName: process.name,
+          completed: process.completed,
+          receivedAt: Date.now(),
+        };
+
         await User.updateOne(
           { _id: log.currentStep.actorUser },
           {
             $push: {
               processes: newProcess,
+              notifications: notification,
               readable: {
                 $each: docs,
               },
