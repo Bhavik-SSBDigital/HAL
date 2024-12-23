@@ -498,30 +498,30 @@ export const get_meeting_details = async (req, res, next) => {
     meet.associatedProcesses = associatedProcesses;
 
     // Retrieve momUploadedBy
-    const momUploadedBy = await User.findOne({
-      _id: meet.momUploadedBy,
-    }).select("username");
-    meet.momUploadedBy = momUploadedBy ? momUploadedBy.username : null;
+    // const momUploadedBy = await User.findOne({
+    //   _id: meet.momUploadedBy,
+    // }).select("username");
+    // meet.momUploadedBy = momUploadedBy ? momUploadedBy.username : null;
 
-    // Retrieve mom details
-    const mom = await Document.findOne({ _id: meet.mom }).select(
-      "_id name path"
-    );
+    // // Retrieve mom details
+    // const mom = await Document.findOne({ _id: meet.mom }).select(
+    //   "_id name path"
+    // );
 
-    const parts = mom.path.split("/"); // Split the path by "/"
+    // const parts = mom.path.split("/"); // Split the path by "/"
 
-    // Remove the last part (whether it’s a file name or folder name)
-    parts.pop();
+    // // Remove the last part (whether it’s a file name or folder name)
+    // parts.pop();
 
-    const updatedPath = parts.join("/"); // Join the remaining parts back
+    // const updatedPath = parts.join("/"); // Join the remaining parts back
 
-    meet.mom = mom
-      ? {
-          docId: mom._id,
-          name: mom.name,
-          path: `..${updatedPath.substring(19)}`,
-        }
-      : null;
+    // meet.mom = mom
+    //   ? {
+    //       docId: mom._id,
+    //       name: mom.name,
+    //       path: `..${updatedPath.substring(19)}`,
+    //     }
+    //   : null;
 
     return res.status(200).json({
       meetingDetails: meet,
