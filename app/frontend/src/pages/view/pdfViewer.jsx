@@ -254,6 +254,7 @@ function PdfContainer({
                       padding: '2px',
                       top: coord.y + coord.height,
                       left: coord.x,
+                      zIndex: 3,
                     }}
                   >
                     <Typography fontWeight={700} fontSize={14} color="black">
