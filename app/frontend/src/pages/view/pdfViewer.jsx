@@ -44,7 +44,7 @@ function PdfContainer({
   const [highlights, setHighlights] = useState([]);
   const [signAreas, setSignAreas] = useState([]); // NEW STATE
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState('textSelection'); // NEW STATE
+  const [mode, setMode] = useState(''); // NEW STATE
   const [drawing, setDrawing] = useState(false); // For sign area drawing
   const [currentSignArea, setCurrentSignArea] = useState(null); // For active rectangle
   const pageRefs = useRef([]);

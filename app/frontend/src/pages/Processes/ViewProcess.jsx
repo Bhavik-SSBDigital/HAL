@@ -2582,7 +2582,7 @@ export default function ViewProcess(props) {
                       <IconDownload />
                       Download
                     </MenuItem>
-                    {initiator ? (
+                    {initiator && !processData?.completed ? (
                       <MenuItem
                         sx={{ gap: '5px' }}
                         onClick={() => {
