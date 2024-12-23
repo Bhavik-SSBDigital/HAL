@@ -122,7 +122,6 @@ export default function ViewProcess(props) {
       );
       const dummy = () => {};
 
-      console.log(data);
       let ext = data.fileInput[0].name.split('.').pop();
       let fileUploaded = await upload(
         [data.fileInput[0]],
@@ -131,7 +130,7 @@ export default function ViewProcess(props) {
         `${res.data.name}.${ext}`,
         true,
       );
-      await axios.post(
+      const response = await axios.post(
         uploadUrl,
         {
           processId: viewId,
@@ -148,7 +147,14 @@ export default function ViewProcess(props) {
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      toast.success('Document Replaced');
+      setProcessData((prev) => ({
+        ...prev,
+        isRevertable: response?.data?.isRevertable,
+        isForwardable: response?.data?.isForwardable,
+        documents: response?.data?.documents,
+        replacementsWithRef: response?.data?.replacementsWithRef,
+      }));
+      toast.success(response?.data?.message);
       onClose();
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);

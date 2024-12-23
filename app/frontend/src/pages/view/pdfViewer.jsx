@@ -51,8 +51,6 @@ function PdfContainer({
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
 
-  console.log(workflow);
-  console.log(signAreas);
   useEffect(() => {
     if (mode === 'signSelection') {
       document.addEventListener('dblclick', handleMouseDown);
@@ -325,7 +323,7 @@ function PdfContainer({
                     zIndex: 20,
                   }}
                 >
-                  {initiator ? (
+                  {/* {initiator ? (
                     <Button
                       onClick={() => removeSignArea(index)}
                       sx={{
@@ -344,7 +342,7 @@ function PdfContainer({
                     >
                       X
                     </Button>
-                  ) : null}
+                  ) : null} */}
                 </Box>
               </Tooltip>
             ))}
