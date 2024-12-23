@@ -319,8 +319,9 @@ function PdfContainer({
                     left: signArea.x,
                     width: signArea.width,
                     height: signArea.height,
-                    border: '2px solid red',
-                    backgroundColor: signed ? '#FAD4D477' : null,
+                    border: workflow?.length ? '2px solid red' : null,
+                    backgroundColor:
+                      signed && workflow?.length ? '#FAD4D477' : null,
                     zIndex: 20,
                   }}
                 >
