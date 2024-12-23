@@ -2653,11 +2653,19 @@ export const revertProcess = async (
       workFlowToBeFollowed: workflow,
     };
 
+    const notification = {
+      processId: processId,
+      processName: process.name,
+      completed: process.completed,
+      receivedAt: Date.now(),
+    };
+
     await User.updateOne(
       { _id: nextActor },
       {
         $push: {
           processes: newProcess,
+          notifications: notification,
         },
       }
     );
