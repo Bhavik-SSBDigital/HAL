@@ -99,9 +99,7 @@ export default function Workflow({
     }
     if (name === 'userBranch') {
       if (value) {
-        console.log(branches);
         const { _id } = allBranches.find((data) => data.name === value);
-        console.log(_id + " id");
         setRoles([]);
         getRoles(_id);
       }
@@ -168,7 +166,7 @@ export default function Workflow({
     setFieldsLoading(true);
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
-      const { _id } = branches.find((item) => item.name === userBranch);
+      const { _id } = allBranches?.find((item) => item.name === userBranch);
       const id = roles.find((item) => item.role === role);
       const { data } = await axios.post(
         url,
