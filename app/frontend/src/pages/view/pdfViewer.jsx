@@ -488,7 +488,12 @@ function PdfContainer({
       >
         {renderPages()}
       </Document>
-      <Dialog open={openRemarksMenu} onClose={() => setOpenRemarksMenu(false)}>
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={openRemarksMenu}
+        onClose={() => setOpenRemarksMenu(false)}
+      >
         <DialogTitle
           sx={{
             background: 'var(--themeColor)',
@@ -501,6 +506,9 @@ function PdfContainer({
         <Stack spacing={2} sx={{ p: 2 }}>
           <TextField
             value={remark}
+            fullWidth
+            multiline
+            rows={3}
             onChange={(e) => setRemark(e.target.value)}
           />
           <Button
