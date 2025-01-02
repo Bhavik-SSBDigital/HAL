@@ -35,7 +35,16 @@ import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
 import MetaData from './pages/MetaData';
+import Editor from './pages/view/Editor';
 // import History from './pages/Meeting/History';
+
+// editors
+// import DraftEditor from './pages/view/Editor/DraftEditor';
+import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
+// import SlateEditor from './pages/view/Editor/SlateEditor';
+import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
+import DraftEditor from './pages/view/Editor/DraftEditor';
+import SlateEditor from './pages/view/Editor/SlateEditor';
 
 function App() {
   const dispatch = useDispatch();
@@ -363,6 +372,58 @@ function App() {
             </DefaultLayout>
           }
         />
+
+        {/* editors route */}
+        <Route
+          path="/editor"
+          element={
+            <DefaultLayout>
+              <PageTitle title="editor" />
+              <Editor />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/draft"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Draft.js Editor" />
+              <DraftEditor />
+            </DefaultLayout>
+          }
+        />
+
+        {/* Route for React Quill Editor */}
+        <Route
+          path="/react-quill"
+          element={
+            <DefaultLayout>
+              <PageTitle title="React Quill Editor" />
+              <ReactQuillEditor />
+            </DefaultLayout>
+          }
+        />
+        {/* Route for Slate Editor */}
+        <Route
+          path="/slate"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Slate Editor" />
+              <SlateEditor />
+            </DefaultLayout>
+          }
+        />
+        {/* Route for TinyMCE Editor */}
+        <Route
+          path="/tinymce"
+          element={
+            <DefaultLayout>
+              <PageTitle title="TinyMCE Editor" />
+              <TinyMCEEditor />
+            </DefaultLayout>
+          }
+        />
+
         <Route path="*" element={<NotFoundPage />} />
         {/* <Route
           path="/calendar"

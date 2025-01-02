@@ -1,0 +1,42 @@
+.Editor {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9f9f9;
+  font-family: Arial, sans-serif;
+}
+
+.Editor .ck-toolbar {
+  margin-bottom: 10px;
+}
+
+.Editor .ck-content {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  min-height: 150px;
+  background-color: white;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.Editor .ck-content h1 {
+  font-size: 24px;
+  color: #333;
+}
+
+.Editor .ck-content p {
+  margin: 10px 0;
+  color: #555;
+}
+
+button {
+  background: #4caf50;
+  margin-top: 10px;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 16px;
+}
