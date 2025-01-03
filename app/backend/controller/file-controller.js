@@ -196,71 +196,71 @@ export const file_upload = async (req, res) => {
   }
 };
 
-export const file_download = async (req, res) => {
-  try {
-    const accessToken = req.headers["x-authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+// export const file_download = async (req, res) => {
+//   try {
+//     const accessToken = req.headers["x-authorization"].substring(7);
+//     const userData = await verifyUser(accessToken);
 
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
-    let extra = decodeURIComponent(req.headers["x-file-path"]);
-    let relativePath = process.env.STORAGE_PATH + extra.substring(2);
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
+//     if (userData === "Unauthorized") {
+//       return res.status(401).json({
+//         message: "Unauthorized request",
+//       });
+//     }
+//     let extra = decodeURIComponent(req.headers["x-file-path"]);
+//     let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+//     const __filename = fileURLToPath(import.meta.url);
+//     const __dirname = dirname(__filename);
+//     const fileName = decodeURIComponent(req.headers["x-file-name"]);
+//     const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
 
-    const stat = await fs.stat(filePath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-    const fileExtension = fileName.split(".").pop();
+//     const stat = await fs.stat(filePath);
+//     const fileSize = stat.size;
+//     const range = req.headers.range;
+//     const fileExtension = fileName.split(".").pop();
 
-    if (range === "bytes=0-0") {
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      res.setHeader("access-control-expose-headers", "Content-Range");
-      return res.status(206).json({
-        fileSize: fileSize,
-        msg: "hello bro",
-      });
-    }
+//     if (range === "bytes=0-0") {
+//       res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+//       res.setHeader("access-control-expose-headers", "Content-Range");
+//       return res.status(206).json({
+//         fileSize: fileSize,
+//         msg: "hello bro",
+//       });
+//     }
 
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunkSize = end - start + 1;
+//     if (range) {
+//       const parts = range.replace(/bytes=/, "").split("-");
+//       const start = parseInt(parts[0], 10);
+//       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+//       const chunkSize = end - start + 1;
 
-      // const fileDescriptor = await fs.open(filePath, 'r')
-      const fileStream = fsCB.createReadStream(filePath, { start, end });
+//       // const fileDescriptor = await fs.open(filePath, 'r')
+//       const fileStream = fsCB.createReadStream(filePath, { start, end });
 
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      res.setHeader("access-control-expose-headers", "Content-Range");
+//       res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+//       res.setHeader("access-control-expose-headers", "Content-Range");
 
-      let bytesWritten = 0;
+//       let bytesWritten = 0;
 
-      fileStream.on("data", (chunk) => {
-        bytesWritten += chunk.length;
-      });
+//       fileStream.on("data", (chunk) => {
+//         bytesWritten += chunk.length;
+//       });
 
-      fileStream.on("end", () => {});
+//       fileStream.on("end", () => {});
 
-      fileStream.pipe(res);
-    } else {
-      res.setHeader("access-control-expose-headers", "Content-Range");
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      // const fileDescriptor = await fs.open(filePath, 'r');
-      fsCB.createReadStream(filePath).pipe(res);
-    }
-  } catch (error) {
-    console.log("error", error);
-    res.status(500).json({
-      message: "error downloading file",
-    });
-  }
-};
+//       fileStream.pipe(res);
+//     } else {
+//       res.setHeader("access-control-expose-headers", "Content-Range");
+//       res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+//       // const fileDescriptor = await fs.open(filePath, 'r');
+//       fsCB.createReadStream(filePath).pipe(res);
+//     }
+//   } catch (error) {
+//     console.log("error", error);
+//     res.status(500).json({
+//       message: "error downloading file",
+//     });
+//   }
+// };
 
 export const create_folder = async (req, res) => {
   try {
@@ -1072,5 +1072,33 @@ export const file_though_url = async (req, res) => {
   } catch (error) {
     console.error("Error serving file:", error);
     return res.status(500).json({ message: "Error serving file" });
+  }
+};
+
+export const file_download = async (req, res) => {
+  try {
+    const accessToken = req.headers["x-authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+    let extra = decodeURIComponent(req.headers["x-file-path"]);
+    let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const fileName = decodeURIComponent(req.headers["x-file-name"]);
+    const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
+
+    return res.status(200).json({
+      data: `https://dms.ssbd.in/files/${filePath}`,
+    });
+  } catch (error) {
+    console.log("error", error);
+    res.status(500).json({
+      message: "error downloading file",
+    });
   }
 };
