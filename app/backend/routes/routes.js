@@ -7,6 +7,7 @@ import {
   file_copy,
   file_cut,
   file_delete,
+  file_though_url,
 } from "../controller/file-controller.js";
 import {
   signup_POST,
@@ -314,5 +315,7 @@ router.post("/getProcessStatistics", get_process_statistics);
 router.get("/getHeadOfficeName", get_head_office_name);
 
 router.post("/getMergedWorkFlow", get_merged_workflow);
+
+router.get("/files/:filePath(*)", file_though_url);
 
 export default router;
