@@ -1021,54 +1021,21 @@ export const file_delete = async (req, res) => {
 
 export const file_though_url = async (req, res) => {
   try {
-    const STORAGE_PATH = process.env.STORAGE_PATH;
-    console.log("Route reached");
-
     // Decode the incoming filePath parameter
-    const rawFilePath = req.params.filePath;
-    if (!rawFilePath) {
+    const filePath = req.params.filePath;
+    if (!filePath) {
       return res.status(400).json({ message: "File path is missing" });
     }
 
-    const filePath = decodeURIComponent(rawFilePath);
-    console.log("Decoded filePath:", filePath);
-
-    // Prevent directory traversal attacks
-    const sanitizedFilePath = normalize(filePath).replace(
-      /^(\.\.(\/|\\|$))+/,
-      ""
-    );
-
-    console.log("sanitized path", sanitizedFilePath);
-
-    // Construct the relative path using STORAGE_PATH
-    console.log("STORAGE_PATH:", STORAGE_PATH);
-
-    console.log("Sanitized file path:", sanitizedFilePath);
-    const relativePath = path.join(STORAGE_PATH, String(sanitizedFilePath));
-    console.log("Relative path:", relativePath);
-
-    // Get the current directory of the script
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    console.log("__dirname:", __dirname);
-
-    // Construct the absolute path
-
-    const absolutePath = path.join(__dirname, relativePath);
-    console.log("Absolute path:", absolutePath);
-
-    console.log("Attempting to serve file:", absolutePath);
-
     // Check if the file exists
     try {
-      await fs.access(absolutePath);
+      await fs.access(filePath);
     } catch {
       return res.status(404).json({ message: "File not found" });
     }
 
     // Serve the file
-    return res.sendFile(absolutePath);
+    return res.sendFile(filePath);
   } catch (error) {
     console.error("Error serving file:", error);
     return res.status(500).json({ message: "Error serving file" });
