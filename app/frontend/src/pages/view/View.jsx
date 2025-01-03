@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { pdfjs } from 'react-pdf';
-import PdfContainer from './pdfViewer';
+import { toast } from 'react-toastify';
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'; // Import the library
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
-import { toast } from 'react-toastify';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import PdfContainer from './pdfViewer';
 
 const PdfViewer = ({
   docu,
@@ -28,7 +26,28 @@ const PdfViewer = ({
   };
 
   useEffect(() => {
-    const supportedTypes = ['xlsx', 'xls', 'pdf'];
+    const supportedTypes = [
+      'bmp',
+      'csv',
+      'odt',
+      'doc',
+      'docx',
+      'gif',
+      'htm',
+      'html',
+      'jpg',
+      'jpeg',
+      'pdf',
+      'png',
+      'ppt',
+      'pptx',
+      'tiff',
+      'txt',
+      'xls',
+      'xlsx',
+      'mp4',
+      'webp',
+    ];
     if (docu.type === 'xlsx' || docu.type === 'xls') {
       fetch(docu.url)
         .then((response) => response.blob())
@@ -52,8 +71,9 @@ const PdfViewer = ({
               (max, row) => Math.max(max, row.length),
               0,
             );
-            const normalizedData = jsonData.map((row) =>
-              Array.from({ length: maxLength }, (_, i) => row[i] || ''),
+            const normalizedData = jsonData.map(
+              (row) =>
+                Array.from({ length: maxLength }, (_, i) => row[i] || ''), // Normalize Excel data
             );
 
             setExcelData(normalizedData);
@@ -63,6 +83,7 @@ const PdfViewer = ({
         })
         .catch((error) => console.error('Error reading Excel file:', error));
     }
+
     if (!supportedTypes.includes(docu.type)) {
       toast.warn('Unsupported file type');
       handleViewClose();
@@ -70,6 +91,7 @@ const PdfViewer = ({
     }
   }, [docu]);
 
+  console.log(docu.url);
   return (
     <div
       style={{
@@ -123,7 +145,6 @@ const PdfViewer = ({
                 {excelData?.map((row, rowIndex) => (
                   <tr key={rowIndex}>
                     {row.map((cell, cellIndex) => {
-                      // Check if the cell value is empty or not and apply styles accordingly
                       const isEmpty = cell === '';
                       return (
                         <td
@@ -136,11 +157,10 @@ const PdfViewer = ({
                             color: rowIndex === 0 ? 'black' : '',
                             backgroundColor: isEmpty
                               ? '#f0f0f0'
-                              : 'transparent', // Highlight empty cells if needed
+                              : 'transparent',
                           }}
                         >
                           {isEmpty ? ' ' : cell}{' '}
-                          {/* Show empty string as space */}
                         </td>
                       );
                     })}
@@ -148,7 +168,20 @@ const PdfViewer = ({
                 ))}
               </table>
             </div>
-          ) : null}
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'white',
+              }}
+            >
+              <DocViewer
+                documents={[{ uri: docu.url }]}
+                pluginRenderers={DocViewerRenderers}
+              />
+            </div>
+          )}
         </>
       )}
     </div>
