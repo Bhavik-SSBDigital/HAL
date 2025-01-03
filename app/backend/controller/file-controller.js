@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import { createWriteStream, createReadStream, read } from "fs";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { dirname, join, normalize } from "path";
 import fsCB from "fs";
 import path from "path";
 import { Transform } from "stream";
@@ -52,6 +52,8 @@ function getContentTypeFromExtension(extension) {
 
   return mimeTypes[extension] || "application/octet-stream"; // Default to generic binary if extension not found
 }
+
+const STORAGE_PATH = process.env.STORAGE_PATH;
 
 export const file_upload = async (req, res) => {
   try {
@@ -1014,5 +1016,61 @@ export const file_delete = async (req, res) => {
     res.status(500).json({
       message: "Error delete file",
     });
+  }
+};
+
+export const file_though_url = async (req, res) => {
+  try {
+    const STORAGE_PATH = process.env.STORAGE_PATH;
+    console.log("Route reached");
+
+    // Decode the incoming filePath parameter
+    const rawFilePath = req.params.filePath;
+    if (!rawFilePath) {
+      return res.status(400).json({ message: "File path is missing" });
+    }
+
+    const filePath = decodeURIComponent(rawFilePath);
+    console.log("Decoded filePath:", filePath);
+
+    // Prevent directory traversal attacks
+    const sanitizedFilePath = normalize(filePath).replace(
+      /^(\.\.(\/|\\|$))+/,
+      ""
+    );
+
+    console.log("sanitized path", sanitizedFilePath);
+
+    // Construct the relative path using STORAGE_PATH
+    console.log("STORAGE_PATH:", STORAGE_PATH);
+
+    console.log("Sanitized file path:", sanitizedFilePath);
+    const relativePath = path.join(STORAGE_PATH, String(sanitizedFilePath));
+    console.log("Relative path:", relativePath);
+
+    // Get the current directory of the script
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    console.log("__dirname:", __dirname);
+
+    // Construct the absolute path
+
+    const absolutePath = path.join(__dirname, relativePath);
+    console.log("Absolute path:", absolutePath);
+
+    console.log("Attempting to serve file:", absolutePath);
+
+    // Check if the file exists
+    try {
+      await fs.access(absolutePath);
+    } catch {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // Serve the file
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    console.error("Error serving file:", error);
+    return res.status(500).json({ message: "Error serving file" });
   }
 };
