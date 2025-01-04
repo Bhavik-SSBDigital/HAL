@@ -147,32 +147,32 @@ export const getFileSize = async (fileName, path, token) => {
 //     }
 // };
 export const download = async (fileName, path, view) => {
-  let chunks = [];
+  // let chunks = [];
   const token = sessionStorage.getItem('accessToken');
-  let start = 0;
-  let chunkSize = 100 * 1024 * 1024;
-  let end = chunkSize - 1;
-  const fileExtension = fileName.split('.').pop();
-  let fileSize = await getFileSize(fileName, path, token);
+  // let start = 0;
+  // let chunkSize = 100 * 1024 * 1024;
+  // let end = chunkSize - 1;
+  // const fileExtension = fileName.split('.').pop();
+  // let fileSize = await getFileSize(fileName, path, token);
 
-  if (fileSize === undefined) {
-    // alert("File does not exist, please check file name");
-    return null; // Return null if the file doesn't exist
-  }
+  // if (fileSize === undefined) {
+  //   // alert("File does not exist, please check file name");
+  //   return null; // Return null if the file doesn't exist
+  // }
 
-  end = Math.min(end, fileSize - 1);
+  // end = Math.min(end, fileSize - 1);
 
   try {
-    while (start < fileSize) {
+    // while (start < fileSize) {
       const url = backendUrl + '/download';
       const config = {
         headers: {
-          Range: `bytes=${start}-${end}`,
+          // Range: `bytes=${start}-${end}`,
           'x-file-name': encodeURIComponent(fileName),
           'x-file-path': encodeURIComponent(path),
-          'content-type': getContentTypeFromExtension(fileExtension),
+          // 'content-type': getContentTypeFromExtension(fileExtension),
           'x-authorization': `Bearer ${token}`,
-          'access-control-expose-headers': 'Content-Range',
+          // 'access-control-expose-headers': 'Content-Range',
         },
         responseType: 'arraybuffer',
       };
@@ -180,49 +180,49 @@ export const download = async (fileName, path, view) => {
       const response = await axios.post(url, null, config);
 
       // Push the chunk to the array
-      let check = new Blob([response.data]);
-      chunks.push(new Blob([response.data]));
+      // let check = new Blob([response.data]);
+      // chunks.push(new Blob([response.data]));
 
-      // Update the byte range for the next chunk
-      start = end + 1;
-      end = Math.min(start + chunkSize - 1, fileSize - 1);
-    }
+      // // Update the byte range for the next chunk
+      // start = end + 1;
+      // end = Math.min(start + chunkSize - 1, fileSize - 1);
+    // }
 
     // Create a single Blob from the chunks
-    const combinedBlob = new Blob(chunks, {
-      type: getContentTypeFromExtension(fileExtension),
-    });
+    // const combinedBlob = new Blob(chunks, {
+    //   type: getContentTypeFromExtension(fileExtension),
+    // });
 
-    // Create a URL for the Blob
-    const blobUrl = URL.createObjectURL(combinedBlob, {
-      type: getContentTypeFromExtension(fileExtension),
-    });
+    // // Create a URL for the Blob
+    // const blobUrl = URL.createObjectURL(combinedBlob, {
+    //   type: getContentTypeFromExtension(fileExtension),
+    // });
 
     if (view) {
       // Return the document data and file type
       return {
-        data: blobUrl,
-        fileType: fileExtension,
+        data: response.data,
+        // fileType: fileExtension,
       };
     }
 
     // Create a new anchor element
-    const anchor = document.createElement('a');
-    anchor.href = blobUrl;
-    anchor.download = `${fileName}`;
+    // const anchor = document.createElement('a');
+    // anchor.href = blobUrl;
+    // anchor.download = `${fileName}`;
 
     // Attach the anchor element to the DOM temporarily
-    document.body.appendChild(anchor);
+    // document.body.appendChild(anchor);
 
     // Programmatically trigger a click event on the anchor element
-    anchor.click();
+    // anchor.click();
 
     // Clean up: revoke the URL and remove the dynamically created anchor element
-    URL.revokeObjectURL(blobUrl);
-    document.body.removeChild(anchor);
+    // URL.revokeObjectURL(blobUrl);
+    // document.body.removeChild(anchor);
 
-    chunks = [];
-    start = 0;
+    // chunks = [];
+    // start = 0;
   } catch (error) {
     alert(`Download failed for ${fileName}`);
     console.error('Error downloading file:', error);
