@@ -174,11 +174,10 @@ export const download = async (fileName, path, view) => {
           'x-authorization': `Bearer ${token}`,
           // 'access-control-expose-headers': 'Content-Range',
         },
-        responseType: 'arraybuffer',
+        // responseType: 'arraybuffer',
       };
 
       const response = await axios.post(url, null, config);
-
       // Push the chunk to the array
       // let check = new Blob([response.data]);
       // chunks.push(new Blob([response.data]));
@@ -201,7 +200,8 @@ export const download = async (fileName, path, view) => {
     if (view) {
       // Return the document data and file type
       return {
-        data: response.data,
+        data: response.data.data,
+        fileType: response.data.fileType
         // fileType: fileExtension,
       };
     }

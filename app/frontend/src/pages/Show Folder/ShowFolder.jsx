@@ -243,7 +243,6 @@ export default function ShowFolder(props) {
     setLoading(true);
     try {
       const fileData = await download(name, path, true);
-      console.log(fileData.data);
       setLoading(false);
       if (fileData) {
         setFileView({

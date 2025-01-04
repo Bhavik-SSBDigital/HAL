@@ -3,10 +3,12 @@ import { Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { toast } from 'react-toastify';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'; // Import the library
+import '@cyntler/react-doc-viewer/dist/index.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
 import PdfContainer from './pdfViewer';
+import './View.css';
 
 const PdfViewer = ({
   docu,
@@ -47,6 +49,7 @@ const PdfViewer = ({
       'xlsx',
       'mp4',
       'webp',
+      'dwg',
     ];
     if (docu.type === 'xlsx' || docu.type === 'xls') {
       fetch(docu.url)
@@ -91,7 +94,53 @@ const PdfViewer = ({
     }
   }, [docu]);
 
-  console.log(docu.url);
+  // custom excel viewer
+  // docu.type === 'xls' || docu.type === 'xlsx' ? (
+  //   <div
+  //     style={{
+  //       overflowY: 'auto',
+  //       maxHeight: '100vh',
+  //       background: 'white',
+  //     }}
+  //   >
+  //     <table
+  //       border="1"
+  //       style={{ borderCollapse: 'collapse', width: '100%' }}
+  //     >
+  //       {excelData?.map((row, rowIndex) => (
+  //         <tr key={rowIndex}>
+  //           {row.map((cell, cellIndex) => {
+  //             const isEmpty = cell === '';
+  //             return (
+  //               <td
+  //                 key={cellIndex}
+  //                 style={{
+  //                   padding: '8px',
+  //                   border: '1px solid',
+  //                   textAlign: 'left',
+  //                   fontWeight: rowIndex === 0 ? 700 : 'normal',
+  //                   color: rowIndex === 0 ? 'black' : '',
+  //                   backgroundColor: isEmpty
+  //                     ? '#f0f0f0'
+  //                     : 'transparent',
+  //                 }}
+  //               >
+  //                 {isEmpty ? ' ' : cell}{' '}
+  //               </td>
+  //             );
+  //           })}
+  //         </tr>
+  //       ))}
+  //     </table>
+  //   </div>
+  // ) :
+
+  // docViewer editor
+  const [activeDocument, setActiveDocument] = useState({ uri: docu.url });
+  const handleDocumentChange = (document) => {
+    console.log('edit called');
+    setActiveDocument(document);
+  };
   return (
     <div
       style={{
@@ -130,57 +179,15 @@ const PdfViewer = ({
                 signed={docu.signed}
               />
             </div>
-          ) : docu.type === 'xls' || docu.type === 'xlsx' ? (
-            <div
-              style={{
-                overflowY: 'auto',
-                maxHeight: '100vh',
-                background: 'white',
-              }}
-            >
-              <table
-                border="1"
-                style={{ borderCollapse: 'collapse', width: '100%' }}
-              >
-                {excelData?.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {row.map((cell, cellIndex) => {
-                      const isEmpty = cell === '';
-                      return (
-                        <td
-                          key={cellIndex}
-                          style={{
-                            padding: '8px',
-                            border: '1px solid',
-                            textAlign: 'left',
-                            fontWeight: rowIndex === 0 ? 700 : 'normal',
-                            color: rowIndex === 0 ? 'black' : '',
-                            backgroundColor: isEmpty
-                              ? '#f0f0f0'
-                              : 'transparent',
-                          }}
-                        >
-                          {isEmpty ? ' ' : cell}{' '}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </table>
-            </div>
           ) : (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                background: 'white',
-              }}
-            >
-              <DocViewer
-                documents={[{ uri: docu.url }]}
-                pluginRenderers={DocViewerRenderers}
-              />
-            </div>
+            <DocViewer
+              documents={[{ uri: docu.url }]}
+              activeDocument={activeDocument}
+              className="my-doc-viewer-style"
+              pluginRenderers={DocViewerRenderers}
+              onDocumentChange={handleDocumentChange}
+              style={{ display: 'flex', height: '100%', width: '100%' }}
+            />
           )}
         </>
       )}
