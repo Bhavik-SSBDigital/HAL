@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Box, IconButton } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import { toast } from 'react-toastify';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'; // Import the library
 import '@cyntler/react-doc-viewer/dist/index.css';
@@ -9,6 +8,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
 import PdfContainer from './pdfViewer';
 import './View.css';
+import { IconSquareRoundedX } from '@tabler/icons-react';
 
 const PdfViewer = ({
   docu,
@@ -149,12 +149,12 @@ const PdfViewer = ({
         top: '0px',
         width: '100vw',
         height: '100vh',
-        backgroundColor: 'lightgray',
+        backgroundColor: 'rgb(240 240 240)',
         zIndex: '21',
       }}
     >
       <IconButton sx={closeIconStyle} onClick={handleViewClose}>
-        <CloseIcon />
+        <IconSquareRoundedX />
       </IconButton>
       {docu && (
         <>
