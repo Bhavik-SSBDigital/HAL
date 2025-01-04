@@ -29,6 +29,8 @@ import {
   IconSend2,
   IconPin,
   IconPinnedOff,
+  IconDeviceComputerCamera,
+  IconDeviceComputerCameraOff,
 } from '@tabler/icons-react';
 import io from 'socket.io-client';
 import { useForm } from 'react-hook-form';
@@ -531,6 +533,60 @@ const MeetingManager = () => {
       getDetails();
     }
   }, [showChat]);
+
+  // screen recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [recordedChunks, setRecordedChunks] = useState([]);
+  const startRecording = async () => {
+    try {
+      // Request screen capture
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true, // Include audio if available
+      });
+
+      // Initialize MediaRecorder
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        setRecordedChunks(chunks);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting screen recording:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    // Stop all media stream tracks
+    mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+
+    // Stop the MediaRecorder
+    mediaRecorder.stop();
+    setIsRecording(false);
+    saveRecording();
+  };
+
+  const saveRecording = () => {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'screen-recording.webm';
+    a.click();
+  };
+
   return (
     <div>
       {!inRoom ? (
@@ -866,6 +922,20 @@ const MeetingManager = () => {
                   }}
                 >
                   <IconUsersGroup />
+                </IconButton>
+
+                {/* screen recording */}
+                <IconButton
+                  color={isRecording ? 'primary' : 'default'}
+                  onClick={() => {
+                    isRecording ? stopRecording() : startRecording();
+                  }}
+                >
+                  {isRecording ? (
+                    <IconDeviceComputerCameraOff />
+                  ) : (
+                    <IconDeviceComputerCamera />
+                  )}
                 </IconButton>
 
                 {/* Leave/End Button */}
