@@ -7,6 +7,7 @@ import { verifyUser } from "../utility/verifyUser.js";
 import Role from "../models/role.js";
 import { format_workflow_step } from "./department-controller.js";
 import { format_process_documents } from "./processes-controller.js";
+import Edition from "../models/process-edition.js";
 import { ObjectId } from "mongodb";
 export const addLog = async (
   processId,
@@ -425,5 +426,71 @@ export const get_user_log = async (req, res, next) => {
     return res.status(500).json({
       message: "error getting a log",
     });
+  }
+};
+
+const format_workflow_steps = async (workflow) => {
+  if (!workflow || !workflow.length) return [];
+
+  const formattedSteps = await Promise.all(
+    workflow.map(async (step) => {
+      const actorUser = await User.findOne({ _id: step.actorUser }).select(
+        "username"
+      );
+      const actorRole = await Role.findOne({ _id: step.actorRole }).select(
+        "name"
+      ); // Assuming Role model exists
+      return {
+        stepNumber: step.stepNumber,
+        actorUser: actorUser ? actorUser.username : "Unknown",
+        actorRole: actorRole ? actorRole.name : "Unknown",
+      };
+    })
+  );
+
+  return formattedSteps;
+};
+
+// Function to fetch and format edition details
+export const get_edition_details = async (processId) => {
+  try {
+    // Fetch editions for the process, sorted by time
+    const editions = await Edition.find({
+      processId: new mongoose.Types.ObjectId(processId),
+    })
+      .populate("actorUser", "username") // Populate actorUser's username
+      .sort({ time: 1 }); // Sort by time in ascending order
+
+    if (!editions || editions.length === 0) {
+      return [];
+    }
+
+    // Format edition details
+    const formattedEditions = await Promise.all(
+      editions.map(async (edition) => {
+        const previousWorkflow = edition.workflowChanges.previous
+          ? await format_workflow_steps(
+              edition.workflowChanges.previous.workflow
+            )
+          : [];
+        const updatedWorkflow = edition.workflowChanges.updated
+          ? await format_workflow_steps(
+              edition.workflowChanges.updated.workflow
+            )
+          : [];
+
+        return {
+          time: edition.time,
+          actorUser: edition.actorUser.username,
+          previousWorkflow,
+          updatedWorkflow,
+        };
+      })
+    );
+
+    return formattedEditions;
+  } catch (error) {
+    console.error("Error fetching edition details:", error);
+    throw new Error("Unable to fetch edition details");
   }
 };

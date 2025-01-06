@@ -141,6 +141,8 @@ import { compare_documents } from "../controller/compare-documents.js";
 import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
 // const upload = multer();
 
+import { update_process_workflow } from "../controller/process-edition-controller.js";
+
 const router = express.Router();
 
 //sign up and login
@@ -317,5 +319,7 @@ router.get("/getHeadOfficeName", get_head_office_name);
 router.post("/getMergedWorkFlow", get_merged_workflow);
 
 router.get("/files/:filePath(*)", file_though_url);
+
+router.post("/updateProcessWorkflow", update_process_workflow);
 
 export default router;
