@@ -537,7 +537,6 @@ const MeetingManager = () => {
   // screen recording
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [recordedChunks, setRecordedChunks] = useState([]);
   const startRecording = async () => {
     try {
       // Request screen capture
@@ -556,11 +555,11 @@ const MeetingManager = () => {
           chunks.push(event.data);
         }
       };
-
       recorder.onstop = () => {
-        setRecordedChunks(chunks);
+        if (chunks.length) {
+          saveRecording(chunks);
+        }
       };
-
       recorder.start();
       setIsRecording(true);
     } catch (error) {
@@ -575,11 +574,10 @@ const MeetingManager = () => {
     // Stop the MediaRecorder
     mediaRecorder.stop();
     setIsRecording(false);
-    saveRecording();
   };
 
-  const saveRecording = () => {
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+  const saveRecording = (chunks) => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
