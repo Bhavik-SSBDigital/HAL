@@ -75,6 +75,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { useForm } from 'react-hook-form';
 import Replacements from './Components/Replacements';
 import TopLoader from '../../common/Loader/TopLoader';
+import Workflow from '../../components/Workflow';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -1321,6 +1322,59 @@ export default function ViewProcess(props) {
     </Grid2>
   );
 
+  // workflow
+  const initialUser = {
+    department: '',
+    branch: '',
+    head: '',
+    workFlow: processData?.workFlow || [],
+  };
+  const [formData, setFormData] = useState({ ...initialUser });
+  const [flow, setFlow] = useState({ work: '', step: '' });
+  const [usersOnStep, setUsersOnStep] = useState([]);
+
+  const handleWorkFlow = () => {
+    if (formData.workFlow.length === 0 && flow.work !== 'upload') {
+      toast.info('First step should be upload');
+      return;
+    }
+    if (formData.workFlow.length === 0) {
+      setFinalBranch(formData.branch);
+    }
+    if (usersOnStep.length > 0 && flow.work) {
+      setFormData((prev) => {
+        const updatedWorkFlow = [...prev.workFlow];
+
+        if (flow.step > prev.workFlow.length) {
+          // If step is greater than the length, insert at the end
+          updatedWorkFlow.push({ ...flow, users: usersOnStep });
+        } else {
+          updatedWorkFlow.splice(flow.step - 1, 0, {
+            ...flow,
+            users: usersOnStep,
+          });
+
+          // Update step numbers for all items after the insertion point
+          for (let i = flow.step; i < updatedWorkFlow.length; i++) {
+            updatedWorkFlow[i].step++;
+          }
+        }
+
+        return {
+          ...prev,
+          workFlow: updatedWorkFlow,
+        };
+      });
+      setFlow({ work: '', step: '' });
+      // setUserBranch('');
+      setUsersOnStep([]);
+    } else {
+      toast.info('Please provide all inputs!');
+    }
+  };
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, workFlow: processData?.workFlow }));
+  }, [processData?.workFlow]);
   return (
     <>
       {loading ? (
@@ -2935,6 +2989,21 @@ export default function ViewProcess(props) {
                 )}
               </div>
             )}
+            {false ? (
+              <Workflow
+                workFlow={formData?.workFlow}
+                workFlowLength={formData?.workFlow?.length || 0}
+                handleWorkFlow={handleWorkFlow}
+                setWorkFLow={setFormData}
+                flow={flow}
+                setFlow={setFlow}
+                usersOnStep={usersOnStep}
+                setUsersOnStep={setUsersOnStep}
+                branches={branches}
+                setBranches={setBranches}
+                fullState={formData}
+              />
+            ) : null}
           </div>
           <Dialog
             maxWidth="md"
