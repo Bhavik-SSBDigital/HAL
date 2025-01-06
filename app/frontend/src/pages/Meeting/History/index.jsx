@@ -216,6 +216,7 @@ export default function History({ joinMeet }) {
                           sx={{
                             marginLeft: 'auto',
                             gap: 1,
+                            minWidth: 'fit-content',
                             flexDirection: 'row',
                             flexWrap: 'wrap',
                           }}
