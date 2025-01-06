@@ -203,11 +203,14 @@ export default function History({ joinMeet }) {
                               <strong>Duration :</strong>
                               {item.duration}
                             </Typography>
+                            <Typography
+                              variant="subtitle1"
+                              className={styles.info}
+                            >
+                              <strong>Description :</strong>
+                              {item.agenda}
+                            </Typography>
                           </div>
-                          <Typography className={styles.info}>
-                            <strong>Description :</strong>
-                            {item.agenda}
-                          </Typography>
                         </div>
                         <Stack
                           sx={{
