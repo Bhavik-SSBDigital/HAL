@@ -277,6 +277,20 @@ export const format_workflow_step = async (step, forLog) => {
   }
 };
 
+export const format_workflow_steps = async (steps) => {
+  try {
+    let finalSteps = [];
+    for (let i = 0; i < steps.length; i++) {
+      let formattedStep = await format_workflow_step(steps[i]);
+      finalSteps.push(formattedStep);
+      return finalSteps;
+    }
+  } catch (error) {
+    console.log("error", error);
+    return null;
+  }
+};
+
 export const format_department_data = async (departments) => {
   let departments_ = [];
   for (let i = 0; i < departments.length; i++) {

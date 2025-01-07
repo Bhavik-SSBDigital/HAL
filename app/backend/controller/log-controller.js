@@ -5,7 +5,11 @@ import Work from "../models/work.js";
 import mongoose from "mongoose";
 import { verifyUser } from "../utility/verifyUser.js";
 import Role from "../models/role.js";
-import { format_workflow_step } from "./department-controller.js";
+import {
+  format_workflow_steps,
+  format_workflow_step,
+} from "./department-controller.js";
+
 import { format_process_documents } from "./processes-controller.js";
 import Edition from "../models/process-edition.js";
 import { ObjectId } from "mongodb";
@@ -429,28 +433,6 @@ export const get_user_log = async (req, res, next) => {
   }
 };
 
-const format_workflow_steps = async (workflow) => {
-  if (!workflow || !workflow.length) return [];
-
-  const formattedSteps = await Promise.all(
-    workflow.map(async (step) => {
-      const actorUser = await User.findOne({ _id: step.actorUser }).select(
-        "username"
-      );
-      const actorRole = await Role.findOne({ _id: step.actorRole }).select(
-        "name"
-      ); // Assuming Role model exists
-      return {
-        stepNumber: step.stepNumber,
-        actorUser: actorUser ? actorUser.username : "Unknown",
-        actorRole: actorRole ? actorRole.name : "Unknown",
-      };
-    })
-  );
-
-  return formattedSteps;
-};
-
 // Function to fetch and format edition details
 export const get_edition_details = async (processId) => {
   try {
@@ -458,8 +440,12 @@ export const get_edition_details = async (processId) => {
     const editions = await Edition.find({
       processId: new mongoose.Types.ObjectId(processId),
     })
-      .populate("actorUser", "username") // Populate actorUser's username
+      // .populate("actorUser", "username") // Populate actorUser's username
       .sort({ time: 1 }); // Sort by time in ascending order
+
+    const actorUser = await User.findOne({ _id: editions[0].actorUser }).select(
+      "username"
+    );
 
     if (!editions || editions.length === 0) {
       return [];
@@ -468,6 +454,7 @@ export const get_edition_details = async (processId) => {
     // Format edition details
     const formattedEditions = await Promise.all(
       editions.map(async (edition) => {
+        console.log("edition", edition);
         const previousWorkflow = edition.workflowChanges.previous
           ? await format_workflow_steps(
               edition.workflowChanges.previous.workflow
@@ -479,11 +466,16 @@ export const get_edition_details = async (processId) => {
             )
           : [];
 
+        console.log("prev", previousWorkflow);
+        console.log("updated", updatedWorkflow);
+
         return {
           time: edition.time,
-          actorUser: edition.actorUser.username,
+          actorUser: actorUser.username,
           previousWorkflow,
           updatedWorkflow,
+          isEdition: true,
+          isWorkFlowChange: true,
         };
       })
     );

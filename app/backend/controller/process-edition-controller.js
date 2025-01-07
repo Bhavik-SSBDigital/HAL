@@ -4,6 +4,8 @@ import Work from "../models/work.js"; // Adjust to the actual path of your model
 import User from "../models/user.js"; // Adjust to the actual path of your model
 import Role from "../models/role.js"; // Adjust to the actual path of your model
 import Edition from "../models/process-edition.js"; // Adjust to the actual path of your model
+import { verifyUser } from "../utility/verifyUser.js";
+import Department from "../models/department.js";
 
 export const update_process_workflow = async (req, res) => {
   try {
@@ -34,7 +36,7 @@ export const update_process_workflow = async (req, res) => {
     }
 
     // Fetch the process
-    const process = await Process.findById(processId);
+    const process = await Process.findById(processId).select("workFlow steps");
     if (!process) {
       return res.status(404).json({ message: "Process not found." });
     }
@@ -42,7 +44,8 @@ export const update_process_workflow = async (req, res) => {
     // Process incoming steps
     const finalSteps = [];
     for (const step of steps) {
-      const { work, stepNumber, users } = step;
+      const { work, users } = step;
+      const stepNumber = step.step;
 
       // Validate required fields
       if (!work || !stepNumber || !Array.isArray(users) || users.length === 0) {
@@ -50,7 +53,7 @@ export const update_process_workflow = async (req, res) => {
       }
 
       // Validate or create work
-      let workDoc = await Work.findById(work);
+      let workDoc = await Work.findOne({ name: work });
       if (!workDoc) {
         return res.status(404).json({ message: `Work ID ${work} not found.` });
       }
@@ -58,33 +61,42 @@ export const update_process_workflow = async (req, res) => {
       // Validate users
       const validatedUsers = [];
       for (const { user, role } of users) {
-        const userDoc = await User.findById(user);
+        const userDoc = await User.findOne({ username: user });
         if (!userDoc) {
           return res
             .status(404)
             .json({ message: `User ID ${user} not found.` });
         }
 
-        const roleDoc = await Role.findById(role);
+        const roleDoc = await Role.findOne({ role: role });
         if (!roleDoc) {
           return res
             .status(404)
             .json({ message: `Role ID ${role} not found.` });
         }
 
-        validatedUsers.push({ actorUser: user, actorRole: role });
+        validatedUsers.push({ user: userDoc._id, role: roleDoc._id });
       }
 
       // Add to final steps array
       finalSteps.push({
+        work: workDoc._id,
         stepNumber,
-        actorUser: validatedUsers[0]?.actorUser,
-        actorRole: validatedUsers[0]?.actorRole,
+        users: validatedUsers,
       });
     }
 
     // Create workflow schema object
     const updatedWorkflow = { workflow: finalSteps };
+
+    let workFlow;
+
+    if (!(process.steps && process.steps.length > 0)) {
+      const department = await Department.findOne({
+        _id: process.workFlow,
+      }).select("steps");
+      workFlow = department.steps;
+    }
 
     // Create edition entry
     const edition = new Edition({
@@ -92,7 +104,9 @@ export const update_process_workflow = async (req, res) => {
       time: new Date(),
       actorUser: actorUserId,
       workflowChanges: {
-        previous: process.steps ? { workflow: process.steps } : undefined,
+        previous: {
+          workflow: process.steps || workFlow,
+        },
         updated: updatedWorkflow,
       },
     });

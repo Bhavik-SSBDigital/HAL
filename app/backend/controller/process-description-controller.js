@@ -12,6 +12,8 @@ import User from "../models/user.js";
 import Role from "../models/role.js";
 import { ObjectId } from "mongodb";
 import { is_branch_head_office } from "../utility/branch-handlers.js";
+import { get_edition_details } from "./log-controller.js";
+import { verifyUser } from "../utility/verifyUser.js";
 
 export const get_process_history = async (req, res, next) => {
   try {
@@ -302,6 +304,7 @@ export const get_process_history = async (req, res, next) => {
       }
 
       history.publishedTo = publishedTo;
+      history.isEdition = false;
       historyDetails.push(history);
       history.belongingDepartment = department ? department.name : "custom";
     }
@@ -369,6 +372,24 @@ export const get_process_history = async (req, res, next) => {
         });
       }
     }
+
+    const editionDetails = await get_edition_details(process._id);
+
+    for (const edition of editionDetails) {
+      historyDetails.push({
+        description: `Workflow was edited by ${edition.actorUser}`,
+        previousWorkflow: edition.previousWorkflow,
+        updatedWorkflow: edition.updatedWorkflow,
+        date: edition.time,
+        isEdition: true,
+        belongingDepartment: "custom",
+        documentsInvolved: [],
+        isReverted: false,
+        publishedTo: [],
+      });
+    }
+
+    historyDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return res.status(200).json({
       name: process.name,
