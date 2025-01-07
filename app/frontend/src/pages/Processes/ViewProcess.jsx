@@ -1379,7 +1379,7 @@ export default function ViewProcess(props) {
   }, [processData?.workFlow]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const submitWorkflow = async () => {
-    setSubmitLoading(false);
+    setSubmitLoading(true);
     const url = backendUrl + '/updateProcessWorkflow';
     try {
       await axios.post(
