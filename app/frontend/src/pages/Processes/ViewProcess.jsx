@@ -2044,7 +2044,7 @@ export default function ViewProcess(props) {
                           color: '#333',
                           marginBottom: '10px',
                           borderRadius: '5px',
-                          background: 'lightblue',
+                          background: 'var(--themeColor)',
                           width: '100%',
                           textAlign: 'center',
                         }}
@@ -3021,7 +3021,9 @@ export default function ViewProcess(props) {
               }}
               anchor="right"
               open={workFlowDialogOpen}
-              onClose={() => (submitLoading ? null : setWorkFlowDialogOpen(false))}
+              onClose={() =>
+                submitLoading ? null : setWorkFlowDialogOpen(false)
+              }
             >
               <IconButton
                 onClick={() => setWorkFlowDialogOpen(false)}
