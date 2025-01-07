@@ -9,6 +9,7 @@ import {
   format_workflow_steps,
   format_workflow_step,
 } from "./department-controller.js";
+import LogWork from "../models/logWork.js";
 
 import { format_process_documents } from "./processes-controller.js";
 import Edition from "../models/process-edition.js";
@@ -32,6 +33,13 @@ export const addLog = async (
       currentWorkName = currentWorkName.name;
     }
 
+    const logWork = await LogWork.findOne({
+      process: processId,
+      user: currentStep.actorUser,
+    });
+
+    console.log("found log work", logWork);
+
     let logData = {
       processId: processId,
       time: Date.now(),
@@ -39,7 +47,18 @@ export const addLog = async (
       currentStep: currentStep,
       documents: documents,
       belongingDepartment: belongingDepartment,
+      workflowChanges: logWork
+        ? {
+            previous: logWork.workflowChanges.previous,
+            updated: logWork.workflowChanges.updated,
+          }
+        : null,
     };
+
+    await LogWork.deleteOne({
+      process: processId,
+      user: currentStep.actorUser,
+    });
 
     if (nextStep) {
       logData.nextStep = nextStep;
@@ -171,6 +190,7 @@ export const formatUserLogs = async (workDone_, detailed) => {
       if (!process) {
         continue;
       }
+
       completedWork.processName = process.name;
       completedWork.time = log.time;
       completedWork.reverted = log.reverted;
@@ -208,6 +228,17 @@ export const formatUserLogs = async (workDone_, detailed) => {
         if (finalStep !== null) {
           completedWork.nextStep = finalStep;
         }
+      }
+
+      if (log.workflowChanges) {
+        completedWork.workflowChanges = {
+          previous: await format_workflow_steps(
+            log.workflowChanges.previous.workflow
+          ),
+          updated: await format_workflow_steps(
+            log.workflowChanges.updated.workflow
+          ),
+        };
       }
       worksDone.push(completedWork);
     }
@@ -403,6 +434,43 @@ export const get_user_logs = async (req, res, next) => {
     return res.status(500).json({
       message: "error accessing user logs",
     });
+  }
+};
+
+export const format_edition_logs = async (editions) => {
+  try {
+    let formattedEditions = [];
+    for (let i = 0; i < editions.length; i++) {
+      let edition = editions[i];
+      let process = await Process.findOne({ _id: edition.processId }).select(
+        "name"
+      );
+
+      let actorUser = await User.findOne({ _id: edition.actorUser }).select(
+        "username"
+      );
+
+      let previousWorkflow = await format_workflow_steps(
+        edition.workflowChanges.previous.workflow
+      );
+
+      let updatedWorkflow = await format_workflow_steps(
+        edition.workflowChanges.updated.workflow
+      );
+
+      formattedEditions.push({
+        processName: process.name,
+        actorUser: actorUser.username,
+        time: edition.time,
+        previousWorkflow: previousWorkflow,
+        updatedWorkflow: updatedWorkflow,
+      });
+    }
+
+    return formattedEditions;
+  } catch (error) {
+    console.log("error in formatting edition logs", error);
+    throw new Error(error);
   }
 };
 

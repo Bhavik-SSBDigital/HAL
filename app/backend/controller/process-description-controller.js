@@ -3,6 +3,7 @@ import Log from "../models/log.js";
 import {
   format_department_data,
   format_workflow_step,
+  format_workflow_steps,
 } from "./department-controller.js";
 import Department from "../models/department.js";
 import Work from "../models/work.js";
@@ -57,7 +58,23 @@ export const get_process_history = async (req, res, next) => {
     // looping over each log
     for (let i = 0; i < logs.length; i++) {
       let history = {};
+
       const currentLog = logs[i];
+      if (currentLog.workflowChanges) {
+        const previous_workflow = await format_workflow_steps(
+          currentLog.workflowChanges.previous.workflow
+        );
+        const updated_workflow = await format_workflow_steps(
+          currentLog.workflowChanges.updated.workflow
+        );
+
+        history.didChangeWorkFlow = true;
+
+        history.workflowChanges = {
+          previous: previous_workflow,
+          updated: updated_workflow,
+        };
+      }
       const stepDone = currentLog.currentStep;
 
       // getting the department from where the work mentioned in log is done
@@ -304,7 +321,7 @@ export const get_process_history = async (req, res, next) => {
       }
 
       history.publishedTo = publishedTo;
-      history.isEdition = false;
+      history.didChangeWorkFlow = false;
       historyDetails.push(history);
       history.belongingDepartment = department ? department.name : "custom";
     }
@@ -372,24 +389,6 @@ export const get_process_history = async (req, res, next) => {
         });
       }
     }
-
-    const editionDetails = await get_edition_details(process._id);
-
-    for (const edition of editionDetails) {
-      historyDetails.push({
-        description: `Workflow was edited by ${edition.actorUser}`,
-        previousWorkflow: edition.previousWorkflow,
-        updatedWorkflow: edition.updatedWorkflow,
-        date: edition.time,
-        isEdition: true,
-        belongingDepartment: "custom",
-        documentsInvolved: [],
-        isReverted: false,
-        publishedTo: [],
-      });
-    }
-
-    historyDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return res.status(200).json({
       name: process.name,

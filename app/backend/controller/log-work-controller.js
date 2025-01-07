@@ -75,10 +75,5 @@ export const get_log_docs = async (processId, userId, documents) => {
     ...uploadedDocuments,
   ];
 
-  await LogWork.deleteOne({
-    process: processId,
-    user: userId,
-  });
-
   return logDocs;
 };

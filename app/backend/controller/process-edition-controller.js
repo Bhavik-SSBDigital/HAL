@@ -6,6 +6,7 @@ import Role from "../models/role.js"; // Adjust to the actual path of your model
 import Edition from "../models/process-edition.js"; // Adjust to the actual path of your model
 import { verifyUser } from "../utility/verifyUser.js";
 import Department from "../models/department.js";
+import LogWork from "../models/logWork.js";
 
 export const update_process_workflow = async (req, res) => {
   try {
@@ -98,21 +99,36 @@ export const update_process_workflow = async (req, res) => {
       workFlow = department.steps;
     }
 
-    // Create edition entry
-    const edition = new Edition({
-      processId,
-      time: new Date(),
-      actorUser: actorUserId,
-      workflowChanges: {
-        previous: {
-          workflow: process.steps || workFlow,
-        },
-        updated: updatedWorkflow,
-      },
+    const logWork = await LogWork.findOne({
+      process: processId,
+      user: actorUserId,
     });
 
-    // Save the edition
-    await edition.save();
+    try {
+      if (logWork) {
+        logWork.workflowChanges = {
+          previous: {
+            workflow: process.steps || workFlow,
+          },
+          updated: updatedWorkflow,
+        };
+        logWork.save();
+      } else {
+        const newLogWork = new LogWork({
+          user: actorUserId,
+          process: processId,
+          workflowChanges: {
+            previous: {
+              workflow: process.steps || workFlow,
+            },
+            updated: updatedWorkflow,
+          },
+        });
+        await newLogWork.save();
+      }
+    } catch (error) {
+      console.log("error adding log work", error);
+    }
 
     // Update the process with the final steps
     process.steps = finalSteps;
