@@ -36,6 +36,7 @@ import {
   AccordionDetails,
   DialogContent,
   Grid2,
+  Drawer,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import CheckboxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
@@ -56,6 +57,7 @@ import { useRef } from 'react';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   IconBan,
+  IconCircleDashedX,
   IconDownload,
   IconEye,
   IconFileOff,
@@ -1332,7 +1334,7 @@ export default function ViewProcess(props) {
   const [formData, setFormData] = useState({ ...initialUser });
   const [flow, setFlow] = useState({ work: '', step: '' });
   const [usersOnStep, setUsersOnStep] = useState([]);
-
+  const [workFlowDialogOpen, setWorkFlowDialogOpen] = useState(false);
   const handleWorkFlow = () => {
     if (formData.workFlow.length === 0 && flow.work !== 'upload') {
       toast.info('First step should be upload');
@@ -1375,6 +1377,24 @@ export default function ViewProcess(props) {
   useEffect(() => {
     setFormData((prev) => ({ ...prev, workFlow: processData?.workFlow }));
   }, [processData?.workFlow]);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const submitWorkflow = async () => {
+    setSubmitLoading(false);
+    const url = backendUrl + '/updateProcessWorkflow';
+    try {
+      await axios.post(
+        url,
+        { processId: processData?._id, steps: formData?.workFlow },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
   return (
     <>
       {loading ? (
@@ -2970,6 +2990,12 @@ export default function ViewProcess(props) {
                     >
                       View Timeline
                     </Button>
+                    <Button
+                      onClick={() => setWorkFlowDialogOpen((prev) => !prev)}
+                      variant="contained"
+                    >
+                      Update Workflow
+                    </Button>
                   </Stack>
                 ) : (
                   <Stack alignItems="center">
@@ -2989,7 +3015,23 @@ export default function ViewProcess(props) {
                 )}
               </div>
             )}
-            {false ? (
+            <Drawer
+              PaperProps={{
+                sx: { padding: 2 }, // Adjust the value as per your needs (e.g., 1, 2, 3 for Material-UI spacing)
+              }}
+              anchor="right"
+              open={workFlowDialogOpen}
+              onClose={() => (submitLoading ? null : workFlowDialogOpen(false))}
+            >
+              <IconButton
+                onClick={() => setWorkFlowDialogOpen(false)}
+                sx={{ position: 'absolute', right: '5px', top: '5px' }}
+              >
+                <IconCircleDashedX />
+              </IconButton>
+              <Typography variant="h6" textAlign={'center'}>
+                Update Workflow
+              </Typography>
               <Workflow
                 workFlow={formData?.workFlow}
                 workFlowLength={formData?.workFlow?.length || 0}
@@ -3003,7 +3045,15 @@ export default function ViewProcess(props) {
                 setBranches={setBranches}
                 fullState={formData}
               />
-            ) : null}
+              <Button
+                disabled={submitLoading}
+                variant="contained"
+                onClick={submitWorkflow}
+                sx={{ display: 'block', mx: 'auto', width: '250px' }}
+              >
+                {submitLoading ? <CircularProgress size={22} /> : 'Update'}
+              </Button>
+            </Drawer>
           </div>
           <Dialog
             maxWidth="md"
