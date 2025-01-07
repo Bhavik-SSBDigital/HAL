@@ -340,6 +340,7 @@ export default function Workflow({
               sx={{
                 position: 'relative',
                 width: { xs: 230, sm: 250, md: 280 },
+                border: "1px solid lightgray",
                 borderRadius: '15px',
                 backgroundColor: 'white',
               }}
