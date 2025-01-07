@@ -3021,7 +3021,7 @@ export default function ViewProcess(props) {
               }}
               anchor="right"
               open={workFlowDialogOpen}
-              onClose={() => (submitLoading ? null : workFlowDialogOpen(false))}
+              onClose={() => (submitLoading ? null : setWorkFlowDialogOpen(false))}
             >
               <IconButton
                 onClick={() => setWorkFlowDialogOpen(false)}
