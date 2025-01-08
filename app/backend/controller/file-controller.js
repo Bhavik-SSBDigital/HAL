@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import { createWriteStream, createReadStream, read } from "fs";
 import { fileURLToPath } from "url";
-import { dirname, join, normalize } from "path";
+import { dirname, join, normalize, extname } from "path";
 import fsCB from "fs";
 import path from "path";
 import { Transform } from "stream";
@@ -16,9 +16,6 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import Department from "../models/department.js";
-import { Mime } from "mime";
-
-const mime = new Mime();
 
 const pipelineAsync = promisify(pipeline);
 // Now you can access the desired functions
@@ -1055,16 +1052,19 @@ export const file_download = async (req, res) => {
         message: "Unauthorized request",
       });
     }
+
     let extra = decodeURIComponent(req.headers["x-file-path"]);
     let relativePath = process.env.STORAGE_PATH + extra.substring(2);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
     const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
-    const fileType = mime.getType(fileName);
+
+    const fileExt = extname(fileName).toLowerCase();
+
     return res.status(200).json({
       data: `https://dms.ssbd.in/files/${filePath}`,
-      fileType: fileType,
+      fileType: fileExt,
     });
   } catch (error) {
     console.log("error", error);
