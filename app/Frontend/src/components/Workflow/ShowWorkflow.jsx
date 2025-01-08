@@ -2,39 +2,7 @@ import { IconButton, Paper, Stack, Tooltip } from '@mui/material';
 import React from 'react';
 import styles from './ShowWorkflow.module.css';
 
-export default function ShowWorkflow() {
-  const workFlow = [
-    {
-      work: 'upload',
-      users: [
-        {
-          user: 'UNI_CLERK',
-          role: 'UNI_CLERK',
-        },
-      ],
-      step: 1,
-    },
-    {
-      work: 'e-sign',
-      users: [
-        {
-          user: 'UNI_JO',
-          role: 'UNI_JO',
-        },
-      ],
-      step: 2,
-    },
-    {
-      work: 'e-sign',
-      users: [
-        {
-          user: 'VirajKalariya0123455',
-          role: 'UNI_JO',
-        },
-      ],
-      step: 3,
-    },
-  ];
+export default function ShowWorkflow({ workFlow }) {
   function formatUserNames(users) {
     if (!users || users.length === 0) {
       return 'No users';

@@ -1344,6 +1344,7 @@ export default function ViewProcess(props) {
       setFinalBranch(formData.branch);
     }
     if (usersOnStep.length > 0 && flow.work) {
+      console.log(formData);
       setFormData((prev) => {
         const updatedWorkFlow = [...prev.workFlow];
 
@@ -1382,13 +1383,14 @@ export default function ViewProcess(props) {
     setSubmitLoading(true);
     const url = backendUrl + '/updateProcessWorkflow';
     try {
-      await axios.post(
+      const response = await axios.post(
         url,
         { processId: processData?._id, steps: formData?.workFlow },
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
+      toast.success(response?.data?.message);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
@@ -2041,7 +2043,7 @@ export default function ViewProcess(props) {
                       <Typography
                         variant="h5"
                         sx={{
-                          color: '#333',
+                          color: 'white',
                           marginBottom: '10px',
                           borderRadius: '5px',
                           background: 'var(--themeColor)',
