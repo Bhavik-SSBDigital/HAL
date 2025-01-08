@@ -1021,21 +1021,25 @@ export const file_delete = async (req, res) => {
 
 export const file_though_url = async (req, res) => {
   try {
-    // Decode the incoming filePath parameter
     const filePath = req.params.filePath;
     if (!filePath) {
       return res.status(400).json({ message: "File path is missing" });
     }
 
+    // Resolve relative path to absolute path
+    const absoluteFilePath = path.resolve(filePath);
+    console.log("Resolved absolute file path:", absoluteFilePath);
+    console.log("is file path absolute", path.isAbsolute(absoluteFilePath));
+
     // Check if the file exists
     try {
-      await fs.access(filePath);
+      await fs.access(absoluteFilePath);
     } catch {
       return res.status(404).json({ message: "File not found" });
     }
 
     // Serve the file
-    return res.sendFile(filePath);
+    return res.sendFile(absoluteFilePath);
   } catch (error) {
     console.error("Error serving file:", error);
     return res.status(500).json({ message: "Error serving file" });
