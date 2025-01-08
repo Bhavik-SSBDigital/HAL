@@ -1060,7 +1060,7 @@ export const file_download = async (req, res) => {
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
     const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
 
-    const fileExt = extname(fileName).toLowerCase();
+    const fileExt = extname(fileName).slice(1).toLowerCase();
 
     return res.status(200).json({
       data: `https://dms.ssbd.in/files/${filePath}`,
