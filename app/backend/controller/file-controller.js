@@ -16,6 +16,7 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import Department from "../models/department.js";
+import mime from "mime";
 
 const pipelineAsync = promisify(pipeline);
 // Now you can access the desired functions
@@ -1058,9 +1059,10 @@ export const file_download = async (req, res) => {
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
     const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
-
+    const fileType = mime.getType(filePath);
     return res.status(200).json({
       data: `https://dms.ssbd.in/files/${filePath}`,
+      fileType: fileType,
     });
   } catch (error) {
     console.log("error", error);
