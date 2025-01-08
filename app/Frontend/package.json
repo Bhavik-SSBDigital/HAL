@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ckeditor/ckeditor5-react": "^9.4.0",
     "@cyntler/react-doc-viewer": "^1.17.0",
     "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.11.4",
