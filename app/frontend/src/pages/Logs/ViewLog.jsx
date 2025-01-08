@@ -241,10 +241,9 @@ export default function ViewLog(props) {
       label: 'Workflow Updated?',
       value: (
         <>
-          {' '}
           {Data?.didChangeWorkFlow ? (
             <>
-              Yes{' '}
+              Yes
               <Button
                 variant="contained"
                 sx={{ ml: 'auto', display: 'block' }}
