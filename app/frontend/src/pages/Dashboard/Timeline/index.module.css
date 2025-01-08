@@ -1,37 +1,41 @@
 .DocList {
-    list-style: none;
-    max-height: 175px;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
+  list-style: none;
+  max-height: 175px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .listDiv {
-    display: flex;
-    flex-direction: row;
+  display: flex;
+  flex-direction: row;
+  border: 1px solid lightgray;
+  margin: 4px;
+  padding: 5px;
+  border-radius: 8px;
 }
-.listItem{
-    margin-top: 10px;
-    display: flex;
-    width: 95%;
-    justify-content: space-between;
-
+.listItem {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-between;
 }
 .DocList::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-    /* Width of the scrollbar */
+  width: 5px;
+  height: 5px;
+  /* Width of the scrollbar */
 }
 
 .DocList::-webkit-scrollbar-thumb {
-    background-color: #2196f3;
-    /* Color of the thumb */
-    border-radius: 6px;
-    /* Radius of the thumb */
+  background-color: #2196f3;
+  /* Color of the thumb */
+  border-radius: 6px;
+  /* Radius of the thumb */
 }
 
 .DocList::-webkit-scrollbar-track {
-    background-color: rgb(229, 229, 229);
-    /* Color of the track */
-    border-radius: 6px;
+  background-color: rgb(229, 229, 229);
+  /* Color of the track */
+  border-radius: 6px;
 }

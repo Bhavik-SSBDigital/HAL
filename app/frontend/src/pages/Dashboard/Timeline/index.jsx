@@ -14,6 +14,9 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   Stack,
@@ -29,6 +32,7 @@ import {
   IconAlertTriangleFilled,
   IconArrowRight,
   IconDiscountCheckFilled,
+  IconSquareRoundedX,
 } from '@tabler/icons-react';
 import { Button } from '@mui/material';
 import { download } from '../../../components/drop-file-input/FileUploadDownload';
@@ -39,6 +43,7 @@ import {
 } from 'react-vertical-timeline-component';
 import 'react-vertical-timeline-component/style.min.css';
 import ComponentLoader from '../../../common/Loader/ComponentLoader';
+import ShowWorkflow from '../../../components/Workflow/ShowWorkflow';
 const accessToken = sessionStorage.getItem('accessToken');
 
 const index = () => {
@@ -105,6 +110,10 @@ const index = () => {
     (item) => item.departmentName === selectedDep,
   );
   const skipped = [1, 2];
+
+  //Workflow show
+  const [openWorkflowDialog, setOpenWorkflowDialog] = useState(false);
+  const [workFlow, setWorkFlow] = useState({ prev: [], updated: [] });
   return (
     <div
       style={{
@@ -225,18 +234,12 @@ const index = () => {
                         {item.documentsInvolved.map((doc, docIndex) => (
                           <div className={styles.listDiv} key={docIndex}>
                             <li className={styles.listItem}>
-                              <Stack>
+                              <Stack sx={{ maxWidth: 'fit-content' }}>
                                 <Stack alignItems="flex-start">
                                   <Box>
                                     <b>Document Name: </b>
                                     {doc.documentName}
                                   </Box>
-                                </Stack>
-                                <Stack
-                                  flexDirection="row"
-                                  columnGap={2}
-                                  flexWrap="wrap"
-                                >
                                   <Box>
                                     <b>Action:</b>{' '}
                                     {doc.change ? doc.change : 'No-action'}
@@ -249,6 +252,14 @@ const index = () => {
                                 </Stack>
                               </Stack>
                               <Button
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                  height: '30px',
+                                  my: 'auto',
+                                  maxWidth: 'fit-content',
+                                  ml: 'auto',
+                                }}
                                 onClick={() =>
                                   handleView(
                                     data?.documentsPath,
@@ -278,6 +289,20 @@ const index = () => {
                           </p>
                         </>
                       )}
+                      {item.didChangeWorkFlow ? (
+                        <Button
+                          onClick={() => {
+                            setOpenWorkflowDialog((prev) => !prev);
+                            setWorkFlow((prev) => ({
+                              prev: item?.workflowChanges?.previous || [],
+                              updated: item.workflowChanges.updated || [],
+                            }));
+                          }}
+                          sx={{ display: 'block', ml: 'auto' }}
+                        >
+                          View Workflow Update
+                        </Button>
+                      ) : null}
                     </VerticalTimelineElement>
                   ))}
                 </VerticalTimeline>
@@ -530,6 +555,26 @@ const index = () => {
           <Button onClick={handleGoBack}>Go Back</Button>
         </Stack>
       )}
+      <Dialog
+        fullWidth
+        maxWidth="xl"
+        open={openWorkflowDialog}
+        onClose={() => setOpenWorkflowDialog(false)}
+      >
+        <DialogContent>
+          <IconButton
+            onClick={() => setOpenWorkflowDialog(false)}
+            sx={{ position: 'absolute', top: '5px', right: '5px' }}
+          >
+            <IconSquareRoundedX />
+          </IconButton>
+          <Typography variant="h6">Previous Workflow :</Typography>
+          <ShowWorkflow workFlow={workFlow.prev} />
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h6">Updated Workflow :</Typography>
+          <ShowWorkflow workFlow={workFlow.updated} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
