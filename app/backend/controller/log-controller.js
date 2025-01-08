@@ -38,7 +38,6 @@ export const addLog = async (
       user: currentStep.actorUser,
     });
 
-    console.log("found log work", logWork);
 
     let logData = {
       processId: processId,
@@ -231,6 +230,7 @@ export const formatUserLogs = async (workDone_, detailed) => {
       }
 
       if (log.workflowChanges) {
+        completedWork.didChangeWorkFlow = true;
         completedWork.workflowChanges = {
           previous: await format_workflow_steps(
             log.workflowChanges.previous.workflow

@@ -283,8 +283,8 @@ export const format_workflow_steps = async (steps) => {
     for (let i = 0; i < steps.length; i++) {
       let formattedStep = await format_workflow_step(steps[i]);
       finalSteps.push(formattedStep);
-      return finalSteps;
     }
+    return finalSteps;
   } catch (error) {
     console.log("error", error);
     return null;

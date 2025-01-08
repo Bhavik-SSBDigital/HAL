@@ -60,7 +60,9 @@ export const get_process_history = async (req, res, next) => {
       let history = {};
 
       const currentLog = logs[i];
+      history.didChangeWorkFlow = false;
       if (currentLog.workflowChanges) {
+        console.log("reached heaven");
         const previous_workflow = await format_workflow_steps(
           currentLog.workflowChanges.previous.workflow
         );
@@ -312,6 +314,8 @@ export const get_process_history = async (req, res, next) => {
           ? `${currentFormattedStep.user} forwarded process to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}`
           : "";
 
+        console.log("action statement", action);
+
         history.description = currentLog.reverted
           ? `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`
           : `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`;
@@ -321,7 +325,6 @@ export const get_process_history = async (req, res, next) => {
       }
 
       history.publishedTo = publishedTo;
-      history.didChangeWorkFlow = false;
       historyDetails.push(history);
       history.belongingDepartment = department ? department.name : "custom";
     }
