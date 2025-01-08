@@ -35,7 +35,7 @@ import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
 import MetaData from './pages/MetaData';
-import Editor from './pages/view/Editor';
+// import Editor from './pages/view/Editor';
 // import History from './pages/Meeting/History';
 
 // editors
@@ -374,7 +374,7 @@ function App() {
         />
 
         {/* editors route */}
-        <Route
+        {/* <Route
           path="/editor"
           element={
             <DefaultLayout>
@@ -382,7 +382,7 @@ function App() {
               <Editor />
             </DefaultLayout>
           }
-        />
+        /> */}
         <Route
           path="/draft"
           element={
