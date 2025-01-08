@@ -43,7 +43,7 @@ import MetaData from './pages/MetaData';
 import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 // import SlateEditor from './pages/view/Editor/SlateEditor';
 import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
-import DraftEditor from './pages/view/Editor/DraftEditor';
+// import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
 
 function App() {
@@ -383,7 +383,7 @@ function App() {
             </DefaultLayout>
           }
         /> */}
-        <Route
+        {/* <Route
           path="/draft"
           element={
             <DefaultLayout>
@@ -391,7 +391,7 @@ function App() {
               <DraftEditor />
             </DefaultLayout>
           }
-        />
+        /> */}
 
         {/* Route for React Quill Editor */}
         <Route
