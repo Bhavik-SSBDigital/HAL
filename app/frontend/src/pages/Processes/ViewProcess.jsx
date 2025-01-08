@@ -1465,6 +1465,12 @@ export default function ViewProcess(props) {
   };
   const [formData, setFormData] = useState({ ...initialUser });
   const [flow, setFlow] = useState({ work: '', step: '' });
+  useEffect(() => {
+    setFlow((prevFlow) => ({
+      ...prevFlow,
+      step: processData?.workFlow?.length + 1,
+    }));
+  }, [processData?.workFlow]);
   const [usersOnStep, setUsersOnStep] = useState([]);
   const [workFlowDialogOpen, setWorkFlowDialogOpen] = useState(false);
   const handleWorkFlow = () => {
@@ -1491,6 +1497,7 @@ export default function ViewProcess(props) {
 
           // Update step numbers for all items after the insertion point
           for (let i = flow.step; i < updatedWorkFlow.length; i++) {
+            console.log(updatedWorkFlow, i);
             updatedWorkFlow[i].step++;
           }
         }
