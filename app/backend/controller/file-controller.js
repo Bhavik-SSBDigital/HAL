@@ -1027,7 +1027,14 @@ export const file_though_url = async (req, res) => {
     }
 
     // Resolve relative path to absolute path
-    const absoluteFilePath = path.resolve(filePath);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+
+    const absoluteFilePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH,
+      filePath
+    );
     console.log("Resolved absolute file path:", absoluteFilePath);
     console.log("is file path absolute", path.isAbsolute(absoluteFilePath));
 
@@ -1058,11 +1065,12 @@ export const file_download = async (req, res) => {
     }
 
     let extra = decodeURIComponent(req.headers["x-file-path"]);
-    let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    // let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    let relativePath = extra.substring(2);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
+    const filePath = join(relativePath, `${fileName}`); // Replace with your file path
 
     const fileExt = extname(fileName).slice(1).toLowerCase();
 
