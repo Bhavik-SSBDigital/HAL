@@ -32,6 +32,15 @@ export const signCoordinate = new mongoose.Schema({
         stepNo: {
           type: Number,
         },
+        isSigned: {
+          type: Boolean,
+          default: false,
+        },
+        signedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: false,
+        },
       },
     ],
     default: [],

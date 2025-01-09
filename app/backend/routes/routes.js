@@ -94,6 +94,7 @@ import {
 
 import {
   sign_document,
+  revoke_sign,
   reject_document,
 } from "../controller/e-sign-controller.js";
 
@@ -232,7 +233,9 @@ router.post("/rejectFromHeadOffice/:processId", head_office_rejection);
 router.post("/getUserLogs", get_user_logs);
 
 router.post("/signDocument", sign_document);
+router.post("/revokeSign", revoke_sign);
 router.post("/rejectDocument", reject_document);
+// router.post("/revokeRejection", revoke_rejection);
 
 router.post("/getUserLog/:id", get_user_log);
 
