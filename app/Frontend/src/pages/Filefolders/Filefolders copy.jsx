@@ -20,7 +20,7 @@ import img from '../../assets/images/folder.png';
 import { json, useParams } from 'react-router-dom';
 // import styles from './Filefolders.module.css'
 
-function App(props) {
+function FileExplorer(props) {
   // console.log(JSON.stringify(props.selection) + "selections");
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { id } = useParams();
@@ -353,7 +353,7 @@ function App(props) {
     }
 
     return (
-      <div style={{ paddingBottom: '10px' }}>
+      <div>
         {data.map((item) => {
           // Check if the parent folder has Full Permission and View selected
           const isParentFullAccessAndViewSelected =
@@ -364,189 +364,231 @@ function App(props) {
             isParentFullAccessAndViewSelected && item.type === 'folder';
 
           return (
-            <div
-              key={item.id}
-              style={{
-                border: '1px solid #ddd',
-                marginBottom: '10px',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                background: '#F9F9F9',
-                padding: '2px',
-              }}
-            >
-              <div
-                style={{
-                  padding: '10px 15px',
-                  backgroundColor: item.type === 'folder' ? '#f9f9f9' : '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '15px',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '15px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {item.type === 'folder' ? (
-                    <span
-                      style={{
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                      onClick={(e) => handleFolderClick(item.id, e, item.path)}
-                    >
-                      {item.isOpen ? (
-                        <KeyboardArrowUpIcon />
-                      ) : (
-                        <KeyboardArrowDownIcon />
-                      )}
-                      <img
+            <>
+              <div key={item.id}>
+                <div style={{ paddingLeft: `${level * 15}px` }}>
+                  <span style={folderStyle}>
+                    {item.type === 'folder' && (
+                      <>
+                        <span
+                          style={{ alignContent: 'flex-end', display: 'flex' }}
+                          onClick={(e) =>
+                            handleFolderClick(item.id, e, item.path)
+                          }
+                        >
+                          {item.isOpen ? (
+                            <KeyboardArrowUpIcon />
+                          ) : (
+                            <KeyboardArrowDownIcon />
+                          )}
+                          {/* <FolderOpenIcon fontSize="small" /> */}
+                          <img
+                            style={{ width: '20px', height: '20px' }}
+                            src={img}
+                            alt="folderIcon"
+                          />
+                          <p>{item.name}</p>
+                        </span>
+                      </>
+                    )}
+                    {item.type === 'file' && (
+                      <>
+                        <span
+                          style={{ alignContent: 'flex-end', display: 'flex' }}
+                        >
+                          <img
+                            style={{ width: '20px', height: '20px' }}
+                            src={
+                              ImageConfig[item.name.split('.')[1]] ||
+                              ImageConfig['default']
+                            }
+                            alt=""
+                          />
+                          {item.name}
+                        </span>
+                      </>
+                    )}
+                    {item.type === 'folder' ? (
+                      <div
                         style={{
-                          width: '20px',
-                          height: '20px',
-                          marginLeft: '5px',
+                          width: '100%',
+                          flexShrink: 0,
+                          justifyContent: 'flex-end',
+                          display: 'flex',
                         }}
-                        src={img}
-                        alt="folderIcon"
-                      />
-                    </span>
-                  ) : (
-                    <img
-                      style={{ width: '20px', height: '20px' }}
-                      src={
-                        ImageConfig[item.name.split('.')[1]] ||
-                        ImageConfig['default']
-                      }
-                      alt="fileIcon"
-                    />
-                  )}
-                  <p style={{ margin: 0, fontWeight: 500 }}>{item.name}</p>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '15px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {item.type === 'folder' ? (
-                    <>
-                      <input
-                        type="checkbox"
-                        id={`permission-${item.id}`}
-                        style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
-                        checked={props?.selection?.fullAccess?.some(
-                          (check) => check.id === item.id,
-                        )}
-                        onChange={(e) =>
-                          handleFullPermissionCheckboxChange(
-                            item,
-                            e.target.checked,
-                          )
-                        }
-                      />
-                      <label htmlFor={`permission-${item.id}`}>
-                        Full Permission
-                      </label>
-                    </>
-                  ) : null}
-
-                  <input
-                    type="checkbox"
-                    id={`view-${item.id}`}
-                    style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
-                    name="view"
-                    checked={
-                      props?.selection?.selectedView?.includes(item.id) ||
-                      (item.type === 'folder' &&
-                        props?.selection?.fullAccess?.some(
-                          (check) => check.id === item.id && check.view,
-                        ))
-                    }
-                    onChange={(e) =>
-                      handleViewCheckboxChange(
-                        item,
-                        e.target.name,
-                        e.target.checked,
-                      )
-                    }
-                    disabled={isFolderWithDisabledView}
-                  />
-                  <label htmlFor={`view-${item.id}`}>View</label>
-
-                  <input
-                    type="checkbox"
-                    id={`upload-${item.id}`}
-                    style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
-                    name="upload"
-                    checked={
-                      props?.selection?.selectedUpload?.includes(item.id) ||
-                      (item.type === 'folder' &&
-                        props?.selection?.fullAccess?.some(
-                          (check) => check.id === item.id && check.upload,
-                        ))
-                    }
-                    onChange={(e) =>
-                      handleUploadCheckboxChange(
-                        item,
-                        e.target.name,
-                        e.target.checked,
-                      )
-                    }
-                  />
-                  <label htmlFor={`upload-${item.id}`}>Upload</label>
-
-                  <input
-                    type="checkbox"
-                    id={`download-${item.id}`}
-                    style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
-                    name="download"
-                    checked={
-                      props?.selection?.selectedDownload?.includes(item.id) ||
-                      (item.type === 'folder' &&
-                        props?.selection?.fullAccess?.some(
-                          (check) => check.id === item.id && check.download,
-                        ))
-                    }
-                    onChange={(e) =>
-                      handleDownloadCheckboxChange(
-                        item,
-                        e.target.name,
-                        e.target.checked,
-                      )
-                    }
-                  />
-                  <label htmlFor={`download-${item.id}`}>Download</label>
+                      >
+                        <Stack
+                          display="inline-list-item"
+                          padding={2}
+                          columnGap={2}
+                        >
+                          <Box display="inline-list-item">
+                            <input
+                              type="checkbox"
+                              id={`permission-${item.id}`}
+                              style={{ transform: 'scale(1.5)', margin: '3px' }}
+                              checked={props?.selection?.fullAccess?.some(
+                                (check) => check.id === item.id,
+                              )}
+                              onChange={(e) =>
+                                handleFullPermissionCheckboxChange(
+                                  item,
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            <label htmlFor={`permission-${item.id}`}>
+                              Full Permission
+                            </label>
+                          </Box>
+                          <Box>
+                            <input
+                              type="checkbox"
+                              id={`view-${item.id}`}
+                              style={{ transform: 'scale(1.5)', margin: '3px' }}
+                              name="view"
+                              checked={
+                                props?.selection?.fullAccess?.some(
+                                  (check) => check.id === item.id && check.view,
+                                ) ||
+                                props?.selection?.selectedView?.includes(
+                                  item.id,
+                                )
+                              }
+                              onChange={(e) =>
+                                handleViewCheckboxChange(
+                                  item,
+                                  e.target.name,
+                                  e.target.checked,
+                                )
+                              }
+                              disabled={isFolderWithDisabledView}
+                            />
+                            <label htmlFor={`view-${item.id}`}>View</label>
+                          </Box>
+                          <Box>
+                            <input
+                              type="checkbox"
+                              id={`upload-${item.id}`}
+                              style={{ transform: 'scale(1.5)', margin: '3px' }}
+                              name="upload"
+                              checked={
+                                props?.selection?.fullAccess?.some(
+                                  (check) =>
+                                    check.id === item.id && check.upload,
+                                ) ||
+                                props?.selection?.selectedUpload?.includes(
+                                  item.id,
+                                )
+                              }
+                              onChange={(e) =>
+                                handleUploadCheckboxChange(
+                                  item,
+                                  e.target.name,
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            <label htmlFor={`upload-${item.id}`}>Upload</label>
+                          </Box>
+                          <Box>
+                            <input
+                              type="checkbox"
+                              id={`download-${item.id}`}
+                              style={{ transform: 'scale(1.5)', margin: '3px' }}
+                              name="download"
+                              checked={
+                                props?.selection?.fullAccess?.some(
+                                  (check) =>
+                                    check.id === item.id && check.download,
+                                ) ||
+                                props?.selection?.selectedDownload?.includes(
+                                  item.id,
+                                )
+                              }
+                              onChange={(e) =>
+                                handleDownloadCheckboxChange(
+                                  item,
+                                  e.target.name,
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            <label htmlFor={`download-${item.id}`}>
+                              Download
+                            </label>
+                          </Box>
+                        </Stack>
+                      </div>
+                    ) : (
+                      <Stack
+                        // display="inline-list-item"
+                        flexDirection="row"
+                        justifyContent="flex-end"
+                        padding={2}
+                        columnGap={2}
+                      >
+                        <Box>
+                          <input
+                            type="checkbox"
+                            id={`view-${item.id}`}
+                            style={{ transform: 'scale(1.5)', margin: '3px' }}
+                            name="view"
+                            checked={props?.selection?.selectedView?.includes(
+                              item.id,
+                            )}
+                            onChange={(e) =>
+                              handleViewCheckboxChange(
+                                item,
+                                e.target.name,
+                                e.target.checked,
+                              )
+                            }
+                            disabled={isFolderWithDisabledView}
+                          />
+                          <label htmlFor={`view-${item.id}`}>View</label>
+                        </Box>
+                        <Box>
+                          <input
+                            type="checkbox"
+                            id={`download-${item.id}`}
+                            style={{ transform: 'scale(1.5)', margin: '3px' }}
+                            name="download"
+                            checked={props?.selection?.selectedDownload?.includes(
+                              item.id,
+                            )}
+                            onChange={(e) =>
+                              handleDownloadCheckboxChange(
+                                item,
+                                e.target.name,
+                                e.target.checked,
+                              )
+                            }
+                          />
+                          <label htmlFor={`download-${item.id}`}>
+                            Download
+                          </label>
+                        </Box>
+                      </Stack>
+                    )}
+                  </span>
+                  {item.isOpen &&
+                    item.children.length > 0 &&
+                    renderFileSystem(
+                      item.children,
+                      level + 1,
+                      item.type === 'folder'
+                        ? item.fullAccess &&
+                            item.fullAccess.view &&
+                            item.fullAccess.upload
+                        : false,
+                      item.type === 'folder'
+                        ? item.selectedView && item.selectedUpload
+                        : false,
+                    )}
                 </div>
               </div>
-
-              {item.isOpen && item.children.length > 0 && (
-                <div style={{ paddingLeft: `${(level + 1) * 30}px` }}>
-                  {renderFileSystem(
-                    item.children,
-                    level + 1,
-                    item.type === 'folder'
-                      ? item.fullAccess &&
-                          item.fullAccess.view &&
-                          item.fullAccess.upload
-                      : false,
-                    item.type === 'folder'
-                      ? item.selectedView && item.selectedUpload
-                      : false,
-                  )}
-                </div>
-              )}
-            </div>
+            </>
           );
         })}
       </div>
@@ -555,4 +597,18 @@ function App(props) {
 
   return <div style={containerStyle}>{renderFileSystem(fileSystemData)}</div>;
 }
+
+function App(props) {
+  return (
+    <div className="App">
+      <FileExplorer
+        selection={props.selection}
+        setSelection={props.setSelection}
+        checkShow={props.checkShow}
+        id={props.id}
+      />
+    </div>
+  );
+}
+
 export default App;
