@@ -3242,6 +3242,7 @@ export default function ViewProcess(props) {
                 branches={branches}
                 setBranches={setBranches}
                 fullState={formData}
+                maxStepNumberReached={processData?.maxStepNumberReached}
               />
               <Button
                 disabled={submitLoading}

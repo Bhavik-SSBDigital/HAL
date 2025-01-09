@@ -39,7 +39,9 @@ export default function Workflow({
   setUsersOnStep,
   branches,
   fullState,
+  maxStepNumberReached,
 }) {
+  console.log(maxStepNumberReached);
   // variable
   const token = sessionStorage.getItem('accessToken');
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -246,7 +248,13 @@ export default function Workflow({
               value={+flow.step ? +flow.step : workFlowLength + 1}
             >
               {Array.from({ length: workFlowLength + 1 }, (_, index) => (
-                <MenuItem key={index} value={index + 1}>
+                <MenuItem
+                  key={index}
+                  value={index + 1}
+                  disabled={
+                    maxStepNumberReached && index + 1 <= maxStepNumberReached
+                  }
+                >
                   {index + 1}
                 </MenuItem>
               ))}
@@ -340,21 +348,24 @@ export default function Workflow({
               sx={{
                 position: 'relative',
                 width: { xs: 230, sm: 250, md: 280 },
-                border: "1px solid lightgray",
+                border: '1px solid lightgray',
                 borderRadius: '15px',
                 backgroundColor: 'white',
               }}
             >
-              <IconButton
-                sx={{
-                  position: 'absolute',
-                  right: '0px',
-                  top: '0px',
-                }}
-                onClick={() => handleDelete(index)}
-              >
-                <IconX />
-              </IconButton>
+              {(!maxStepNumberReached || maxStepNumberReached < index + 1) && (
+                <IconButton
+                  sx={{
+                    position: 'absolute',
+                    right: '0px',
+                    top: '0px',
+                  }}
+                  onClick={() => handleDelete(index)}
+                >
+                  <IconX />
+                </IconButton>
+              )}
+
               <h3 className={styles.workflowIndex}>{index + 1}</h3>
               <div className={styles.workflowContent}>
                 <div className={styles.workFlowElements}>
