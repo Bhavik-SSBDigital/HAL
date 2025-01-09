@@ -38,7 +38,6 @@ export const addLog = async (
       user: currentStep.actorUser,
     });
 
-
     let logData = {
       processId: processId,
       time: Date.now(),
@@ -46,13 +45,16 @@ export const addLog = async (
       currentStep: currentStep,
       documents: documents,
       belongingDepartment: belongingDepartment,
-      workflowChanges: logWork
-        ? {
-            previous: logWork.workflowChanges.previous,
-            updated: logWork.workflowChanges.updated,
-          }
-        : null,
     };
+
+    if (logWork) {
+      if (logWork.workflowChanges) {
+        logData.workflowChanges = {
+          previous: logWork.workflowChanges.previous,
+          updated: logWork.workflowChanges.updated,
+        };
+      }
+    }
 
     await LogWork.deleteOne({
       process: processId,

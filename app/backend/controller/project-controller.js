@@ -112,8 +112,13 @@ export const getRootDocumentsWithAccess = async (req, res) => {
     uploadableDocumentIds = [
       ...new Set([...uploadableDocumentIds, ...uploadableDocumentIds_]),
     ];
+    console.log("donwloadable", downloadableDocumentIds_);
+    console.log("dows", downloadableDocumentIds);
     downloadableDocumentIds = [
-      ...new Set(...downloadableDocumentIds, ...downloadableDocumentIds_),
+      ...new Set(
+        ...downloadableDocumentIds.map((item) => item.toString()),
+        ...downloadableDocumentIds_.map((item) => item.toString())
+      ),
     ];
 
     // Find documents whose parent's path contains "../"

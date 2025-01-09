@@ -27,6 +27,7 @@ import LogWork from "../models/logWork.js";
 import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
 import Meeting from "../models/Meeting.js";
+import { get_max_step_number } from "../utility/process-data-utility.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -2200,6 +2201,13 @@ export const getProcess = async (
 
     process.replacementsWithRef = result.replacementsWithRef;
 
+    const max_step_number = await get_max_step_number(
+      process_id,
+      workFlowToBeFollowed
+    );
+
+    process.maxStepNumberReached = max_step_number;
+
     const logWork = await LogWork.findOne({
       process: process_id,
       user: userId,
@@ -3560,10 +3568,14 @@ export const pick_process = async (req, res, next) => {
 
     let workFlow;
 
+    console.log("process workflow", process.workFlow);
+
     if (!(process.steps && process.steps.length > 0)) {
-      workFlow = req.body.workFlowToBeFollowed
-        ? new ObjectId(req.body.workFlowToBeFollowed)
-        : process.workFlow;
+      workFlow =
+        req.body.workFlowToBeFollowed !== "null" &&
+        req.body.workFlowToBeFollowed
+          ? new ObjectId(req.body.workFlowToBeFollowed)
+          : process.workFlow;
     }
 
     if (
