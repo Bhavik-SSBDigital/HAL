@@ -209,7 +209,7 @@ export default function ViewProcess(props) {
     setRemarks(processData?.remarks);
   }, [processData?.remarks]);
   const [reasonOfRejection, setReasonOfRejection] = useState();
-  const [rejectFileId, setRejectFileId] = useState();
+  // const [rejectFileId, setRejectFileId] = useState();
   const [workNameError, setWorkNameError] = useState('');
   const [cabinetNoError, setCabinetNoError] = useState('');
   const [fileInputError, setFileInputError] = useState('');
@@ -2143,7 +2143,10 @@ export default function ViewProcess(props) {
                           disabled={commanLoading}
                           onClick={() =>
                             reasonOfRejection
-                              ? handleRejectFile(processData._id, rejectFileId)
+                              ? handleRejectFile(
+                                  processData._id,
+                                  fileToBeOperated?.details?._id,
+                                )
                               : toast.warning('Provide remarks')
                           }
                         >
