@@ -32,13 +32,16 @@ export function getContentTypeFromExtension(extension) {
 }
 
 export const getFileSize = async (fileName, path, token) => {
+
   // console.log('getfilesize is called with', fileName);
   let response;
   try {
-    const url = backendUrl + '/download';
+    const url = backendUrl + '/getFileData';
     // console.log('url is', url);
-    response = await axios.post(url, null, {
-      headers: {
+
+
+     
+    response = await axios({method: 'get', url: url, headers:  {
         Range: `bytes=0-0`,
         'X-File-name': encodeURIComponent(fileName),
         'X-File-path': encodeURIComponent(path),
@@ -145,88 +148,98 @@ export const getFileSize = async (fileName, path, token) => {
 //         console.error('Error downloading file:', error);
 //     }
 // };
-// export const download = async (fileName, path, view) => {
-//   // let chunks = [];
-//   const token = sessionStorage.getItem('accessToken');
-//   // let start = 0;
-//   // let chunkSize = 100 * 1024 * 1024;
-//   // let end = chunkSize - 1;
-//   // const fileExtension = fileName.split('.').pop();
-//   // let fileSize = await getFileSize(fileName, path, token);
 
-//   // if (fileSize === undefined) {
-//   //   // alert("File does not exist, please check file name");
-//   //   return null; // Return null if the file doesn't exist
-//   // }
+export const get_file_data = async (fileName, path, view) => {
+  let chunks = [];
+  const token = sessionStorage.getItem('accessToken');
+  let start = 0;
+  let chunkSize = 100 * 1024 * 1024;
+  let end = chunkSize - 1;
+  const fileExtension = fileName.split('.').pop();
+  let fileSize = await getFileSize(fileName, path, token);
 
-//   // end = Math.min(end, fileSize - 1);
+  if (fileSize === undefined) {
+    console.log('File does not exist');
+    // alert("File does not exist, please check file name");
+    return null; // Return null if the file doesn't exist
+  }
 
-//   try {
-//     // while (start < fileSize) {
-//       const url = backendUrl + '/download';
-//       const config = {
-//         headers: {
-//           // Range: `bytes=${start}-${end}`,
-//           'x-file-name': encodeURIComponent(fileName),
-//           'x-file-path': encodeURIComponent(path),
-//           // 'content-type': getContentTypeFromExtension(fileExtension),
-//           'x-authorization': `Bearer ${token}`,
-//           // 'access-control-expose-headers': 'Content-Range',
-//         },
-//         // responseType: 'arraybuffer',
-//       };
+  end = Math.min(end, fileSize - 1);
 
-//       const response = await axios.post(url, null, config);
-//       // Push the chunk to the array
-//       // let check = new Blob([response.data]);
-//       // chunks.push(new Blob([response.data]));
+  try {
+    while (start < fileSize) {
+      const url = backendUrl + '/getFileData';
+      const config = {
+        headers: {
+          Range: `bytes=${start}-${end}`,
+          'x-file-name': encodeURIComponent(fileName),
+          'x-file-path': encodeURIComponent(path),
+          'content-type': getContentTypeFromExtension(fileExtension),
+          'x-authorization': `Bearer ${token}`,
+          'access-control-expose-headers': 'Content-Range',
+        },
+        responseType: 'arraybuffer',
+      };
 
-//       // // Update the byte range for the next chunk
-//       // start = end + 1;
-//       // end = Math.min(start + chunkSize - 1, fileSize - 1);
-//     // }
+      const response = await axios({method: 'get', url: url,   headers: {
+          Range: `bytes=${start}-${end}`,
+          'x-file-name': encodeURIComponent(fileName),
+          'x-file-path': encodeURIComponent(path),
+          'content-type': getContentTypeFromExtension(fileExtension),
+          'x-authorization': `Bearer ${token}`,
+          'access-control-expose-headers': 'Content-Range',
+        },  responseType: 'arraybuffer',});
 
-//     // Create a single Blob from the chunks
-//     // const combinedBlob = new Blob(chunks, {
-//     //   type: getContentTypeFromExtension(fileExtension),
-//     // });
+      // Push the chunk to the array
+      let check = new Blob([response.data]);
+      chunks.push(new Blob([response.data]));
 
-//     // // Create a URL for the Blob
-//     // const blobUrl = URL.createObjectURL(combinedBlob, {
-//     //   type: getContentTypeFromExtension(fileExtension),
-//     // });
+      // Update the byte range for the next chunk
+      start = end + 1;
+      end = Math.min(start + chunkSize - 1, fileSize - 1);
+    }
 
-//     if (view) {
-//       // Return the document data and file type
-//       return {
-//         data: response.data.data,
-//         fileType: response.data.fileType
-//         // fileType: fileExtension,
-//       };
-//     }
+    // Create a single Blob from the chunks
+    const combinedBlob = new Blob(chunks, {
+      type: getContentTypeFromExtension(fileExtension),
+    });
 
-//     // Create a new anchor element
-//     // const anchor = document.createElement('a');
-//     // anchor.href = blobUrl;
-//     // anchor.download = `${fileName}`;
+    // Create a URL for the Blob
+    const blobUrl = URL.createObjectURL(combinedBlob, {
+      type: getContentTypeFromExtension(fileExtension),
+    });
 
-//     // Attach the anchor element to the DOM temporarily
-//     // document.body.appendChild(anchor);
+    if (view) {
+      // Return the document data and file type
+      return {
+        data: blobUrl,
+        fileType: fileExtension,
+      };
+    }
 
-//     // Programmatically trigger a click event on the anchor element
-//     // anchor.click();
+    // Create a new anchor element
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = `${fileName}`;
 
-//     // Clean up: revoke the URL and remove the dynamically created anchor element
-//     // URL.revokeObjectURL(blobUrl);
-//     // document.body.removeChild(anchor);
+    // Attach the anchor element to the DOM temporarily
+    document.body.appendChild(anchor);
 
-//     // chunks = [];
-//     // start = 0;
-//   } catch (error) {
-//     alert(`Download failed for ${fileName}`);
-//     console.error('Error downloading file:', error);
-//   }
-// };
+    // Programmatically trigger a click event on the anchor element
+    anchor.click();
+
+    // Clean up: revoke the URL and remove the dynamically created anchor element
+    URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(anchor);
+
+    chunks = [];
+    start = 0;
+  } catch (error) {
+    alert(`Download failed for ${fileName}`);
+    console.error('Error downloading file:', error);
+  }
+};
+
 export const download = async (fileName, path, view) => {
   const token = sessionStorage.getItem('accessToken');
 
@@ -249,26 +262,35 @@ export const download = async (fileName, path, view) => {
         fileType: response.data.fileType,
       };
     } else {
-      // If view is false, trigger the download
-      const downloadUrl = response.data.data; // Assuming `data` contains the download URL
 
-      if (!downloadUrl) {
-        throw new Error('No download URL provided in the response.');
-      }
-      const fileExtension = fileName.split('.').pop();
 
-      const blob = new Blob([downloadUrl], {
-        type: getContentTypeFromExtension(fileExtension),
-      }); // or the correct MIME type
-      const blobUrl = URL.createObjectURL(blob);
+      await get_file_data(fileName, path, false);
+      // const file_url = response.data.data;
 
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = fileName || 'downloaded_file.pdf'; // Suggested filename
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(blobUrl); // Clean up the object URL after download
+      // const response2 = await axios.get(backendUrl + '/getFileData');
+
+      // console.log("response2", response2)
+
+      // // If view is false, trigger the download
+      // const downloadUrl = response2.data; // Assuming `data` contains the download URL
+
+      // if (!downloadUrl) {
+      //   throw new Error('No download URL provided in the response.');
+      // }
+      // const fileExtension = fileName.split('.').pop();
+
+      // const blob = new Blob([downloadUrl], {
+      //   type: getContentTypeFromExtension(fileExtension),
+      // }); // or the correct MIME type
+      // const blobUrl = URL.createObjectURL(blob);
+
+      // const anchor = document.createElement('a');
+      // anchor.href = blobUrl;
+      // anchor.download = fileName || 'downloaded_file.pdf'; // Suggested filename
+      // document.body.appendChild(anchor);
+      // anchor.click();
+      // document.body.removeChild(anchor);
+      // URL.revokeObjectURL(blobUrl); // Clean up the object URL after download
 
       // const anchor = document.createElement('a');
       // anchor.href = downloadUrl; // The file URL
@@ -304,7 +326,7 @@ export async function uploadFileWithChunks(
       const contentType = getContentTypeFromExtension(
         file.name.split('.').pop(),
       );
-      console.log('content type', contentType);
+      
 
       const headers = {
         'X-File-Name':
@@ -337,7 +359,7 @@ export async function uploadFileWithChunks(
       // console.log('reseponse', response);
 
       if (response.status === 409) {
-        console.log('file exists, response received');
+
         throw new Error('File with given name already exists');
       }
 
