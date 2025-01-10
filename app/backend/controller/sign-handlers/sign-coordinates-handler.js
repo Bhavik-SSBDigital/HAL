@@ -113,13 +113,12 @@ export const get_sign_coordinates_for_specific_step_in_process = async (
 
         coordinates = await Promise.all(
           coordinates.map(async (item) => {
-            console.log("itemm", item);
             const finalCoord = { ...item };
             let signedBy = await User.findOne({ _id: item.signedBy }).select(
               "username"
             );
             signedBy = signedBy ? signedBy.username : "N/A";
-            console.log("signedBy", signedBy);
+
             finalCoord["signedBy"] = signedBy;
             return finalCoord;
           })
@@ -142,22 +141,16 @@ export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
     }).lean();
 
     if (!signCoordinates) {
-      console.log("reached at right");
       return [];
     }
 
-    console.log("sign coordinate1", signCoordinates);
-
     let finalCoordinates = [];
 
-    console.log("sign coordinates2", signCoordinates.coordinates);
-    console.log("type of sign coordinates", typeof signCoordinates.coordinates);
     if (signCoordinates && signCoordinates.coordinates.length) {
       finalCoordinates = signCoordinates.coordinates;
 
       finalCoordinates = await Promise.all(
         finalCoordinates.map(async (item) => {
-          console.log("item", item);
           const finalCoord = { ...item };
           let signedBy = await User.findOne({ _id: item.signedBy }).select(
             "username"
@@ -176,7 +169,7 @@ export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
 };
 
 export const remove_coordinate_from_doc = async (req, res) => {
-  const { documentId, pageNo, coordinates } = req.body;
+  const { documentId, coordinates } = req.body;
 
   try {
     // Find the document by docId and check for the coordinate on the specified page
@@ -189,7 +182,7 @@ export const remove_coordinate_from_doc = async (req, res) => {
     // Find matching coordinate entry
     const coordinateIndex = signRecord.coordinates.findIndex(
       (coord) =>
-        coord.page === pageNo &&
+        coord.page === coordinates.page &&
         coord.x === coordinates.x &&
         coord.y === coordinates.y &&
         coord.width === coordinates.width &&
