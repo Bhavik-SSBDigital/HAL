@@ -262,7 +262,9 @@ export const sign_document = async (req, res, next) => {
         remarks,
         formatDate(Date.now()),
         helveticaFont,
-        absDocumentPath
+        absDocumentPath,
+        documentId,
+        userData
       );
     } else {
       const signatureCoordinates =
@@ -450,13 +452,13 @@ async function clear_signature_at_coordinates(pdfDoc, coordinates, documentId) {
     });
   }
 
-  const updates = coordinates.map((coord) => ({
+  // Update all coordinates in a single update call
+  const updateData = coordinates.map((coord) => ({
     page: coord.page,
     x: coord.x,
     y: coord.y,
   }));
 
-  // Update the database
   await SignCoordinate.updateOne(
     { docId: documentId },
     {
@@ -466,11 +468,13 @@ async function clear_signature_at_coordinates(pdfDoc, coordinates, documentId) {
       },
     },
     {
-      arrayFilters: updates.map((update) => ({
-        "coord.page": update.page,
-        "coord.x": update.x,
-        "coord.y": update.y,
-      })),
+      arrayFilters: [
+        {
+          "coord.page": { $in: updateData.map((c) => c.page) },
+          "coord.x": { $in: updateData.map((c) => c.x) },
+          "coord.y": { $in: updateData.map((c) => c.y) },
+        },
+      ],
       multi: true,
     }
   );
@@ -640,26 +644,29 @@ async function print_signature_after_content_on_the_last_page(
 
 async function print_signature_at_coordinates(
   pdfDoc,
-  coordinates, // Array of coordinate objects { page, x, y, width, height }
+  coordinates,
   jpegImagePath,
   username,
   remarks,
   timestamp,
   helveticaFont,
-  absDocumentPath
+  absDocumentPath,
+  documentId,
+  userData
 ) {
   try {
     const signatureImageBytes = await fs.readFile(jpegImagePath);
     const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
 
     for (const coord of coordinates) {
-      const page = pdfDoc.getPage(coord.page - 1); // Convert 1-based index to 0-based
+      const page = pdfDoc.getPage(coord.page - 1); // Convert to zero-based index
       const { x, y, width, height } = coord;
 
-      // Allocate space for image and text
-      const imageHeight = height * 0.6; // 60% for image
-      const textHeight = height * 0.4; // 40% for text
-      const textPadding = 5; // Padding between text lines
+      // Allocate layout space for image and text
+      const imageHeight = height * 0.65; // 65% for image
+      const textHeight = height * 0.35; // 35% for text
+      const textFontSize = Math.min(10, textHeight / 3); // Adjust font size dynamically
+      const textPadding = 2;
 
       // Draw signature image
       page.drawImage(signatureImage, {
@@ -669,41 +676,54 @@ async function print_signature_at_coordinates(
         height: imageHeight,
       });
 
+      // Start text just below the image
+      let currentTextY = page.getHeight() - y - imageHeight - textPadding;
+
+      // Helper to draw text lines
+      function drawTextLine(text) {
+        page.drawText(text, {
+          x: x + 2, // Slight horizontal padding
+          y: currentTextY,
+          size: textFontSize,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+          maxWidth: width - 4,
+        });
+        currentTextY -= textFontSize + textPadding; // Move position for the next line
+      }
+
       // Draw text details
-      const textFontSize = Math.min(10, textHeight / 3); // Adjust font size dynamically
-      const textStartY = page.getHeight() - y - imageHeight - textPadding;
+      drawTextLine(`SignedBy: ${username}`);
+      drawTextLine(`Remarks: ${remarks}`);
+      drawTextLine(`Timestamp: ${timestamp}`);
 
-      page.drawText(`SignedBy: ${username}`, {
-        x: x,
-        y: textStartY,
-        size: textFontSize,
-        font: helveticaFont,
-        color: rgb(0, 0, 0),
-      });
-
-      page.drawText(`Remarks: ${remarks}`, {
-        x: x,
-        y: textStartY - textFontSize - textPadding,
-        size: textFontSize,
-        font: helveticaFont,
-        color: rgb(0, 0, 0),
-      });
-
-      page.drawText(`Timestamp: ${timestamp}`, {
-        x: x,
-        y: textStartY - 2 * textFontSize - 2 * textPadding,
-        size: textFontSize,
-        font: helveticaFont,
-        color: rgb(0, 0, 0),
-      });
+      // Update database with signature coordinates
+      await SignCoordinate.updateOne(
+        { docId: documentId },
+        {
+          $push: {
+            coordinates: {
+              page: coord.page,
+              x: x,
+              y: y,
+              width: width,
+              height: height,
+              stepNo: coord.stepNo || 1,
+              isSigned: true,
+              signedBy: userData._id,
+            },
+          },
+        },
+        { upsert: true }
+      );
     }
 
+    // Save updated PDF
     const pdfBytes = await pdfDoc.save();
-    console.log("abs doc path", absDocumentPath);
     await fs.writeFile(absDocumentPath, pdfBytes);
   } catch (error) {
     console.error("Error in print_signature_at_coordinates:", error.message);
-    throw error; // Re-throw the error for higher-level handling
+    throw error;
   }
 }
 
