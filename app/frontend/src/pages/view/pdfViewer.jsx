@@ -306,10 +306,14 @@ function PdfContainer({
             ?.filter((signArea) => signArea.page === i)
             ?.map((signArea, index) => (
               <Tooltip
-                title={workflow
-                  ?.find((item) => item.step == signArea.stepNo)
-                  ?.users?.map((user) => user.user)
-                  .join(',')}
+                title={
+                  signArea?.isSigned
+                    ? signArea.signedBy
+                    : workflow
+                        ?.find((item) => item.step == signArea.stepNo)
+                        ?.users?.map((user) => user.user)
+                        .join(',')
+                }
               >
                 <Box
                   key={index}
