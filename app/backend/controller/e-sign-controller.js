@@ -1,7 +1,14 @@
 import Document from "../models/document.js";
 import { verifyUser } from "../utility/verifyUser.js";
 import User from "../models/user.js";
-import { PDFDocument, rgb, StandardFonts, PDFParser } from "pdf-lib";
+import {
+  PDFDocument,
+  rgb,
+  StandardFonts,
+  PDFParser,
+  PDFName,
+  PDFArray,
+} from "pdf-lib";
 import fs from "fs/promises";
 import Process from "../models/process.js";
 import path from "path";
@@ -232,7 +239,8 @@ export const sign_document = async (req, res, next) => {
       currentStepNumber
     );
 
-    const remarks = req.body.remarks;
+    const remarks =
+      req.body.remarks === "" || !req.body.remarks ? "N/A" : req.body.remarks;
 
     let newCoordinates = [];
 
@@ -286,7 +294,9 @@ export const sign_document = async (req, res, next) => {
         {
           $push: {
             coordinates: {
-              page: lastPageIndex + 1, // Add page number (1-based index)
+              page: signatureCoordinates.newlyAdded
+                ? lastPageIndex + 2
+                : lastPageIndex + 1, // Add page number (1-based index)
               x: signatureCoordinates.x,
               y: signatureCoordinates.y,
               width: signatureCoordinates.width,
@@ -370,11 +380,7 @@ export const revoke_sign = async (req, res, next) => {
     }
 
     // Step 3: Remove the user from the signedBy array
-    console.log("user data", userData._id);
-    console.log(
-      "found document",
-      foundDocument.signedBy.map((item) => item._id.toString())
-    );
+
     const signedIndex = foundDocument.signedBy
       .map((item) => item._id.toString())
       .indexOf(userData._id.toString());
@@ -399,13 +405,8 @@ export const revoke_sign = async (req, res, next) => {
       process.currentStepNumber
     );
 
-    if (coordinates.length > 0) {
-      // Clear signature at specific coordinates
-      await clear_signature_at_coordinates(pdfDoc, coordinates, documentId);
-    } else {
-      // If no coordinates, assume it was added at the bottom and clear it
-      await clear_signature_from_last_page(pdfDoc);
-    }
+    // Clear signature at specific coordinates
+    await clear_signature_at_coordinates(pdfDoc, coordinates, documentId);
 
     const updatedPdfBytes = await pdfDoc.save();
     await fs.writeFile(documentPath, updatedPdfBytes);
@@ -442,13 +443,19 @@ async function clear_signature_at_coordinates(pdfDoc, coordinates, documentId) {
   for (const coord of coordinates) {
     const page = pdfDoc.getPage(coord.page - 1); // Convert 1-based index to 0-based
 
-    // Clear the rectangular area where the signature was added
+    // Step 1: Remove annotations (signatures, sticky notes, etc.)
+    if (page.node.has(PDFName.of("Annots"))) {
+      page.node.set(PDFName.of("Annots"), PDFArray.withContext(pdfDoc.context));
+    }
+
+    // Step 2: Mask content by drawing a solid opaque rectangle
     page.drawRectangle({
-      x: coord.x,
-      y: page.getHeight() - coord.y - coord.height,
-      width: coord.width,
-      height: coord.height,
-      color: rgb(1, 1, 1), // Use white to overwrite the area
+      x: coord.x - 1, // Expand slightly for better masking
+      y: page.getHeight() - coord.y - coord.height - 1,
+      width: coord.width + 2,
+      height: coord.height + 2,
+      color: rgb(1, 1, 1), // White color to match common backgrounds (adjust if needed)
+      opacity: 1, // Ensure full opacity
     });
   }
 
@@ -493,6 +500,7 @@ async function print_signature_after_content_on_the_last_page(
   pythonScriptPath
 ) {
   try {
+    console.log("called this mf");
     const absDocumentPath = path.join(__dirname, documentPath);
 
     // Get the last content's position from the Python script
@@ -503,12 +511,18 @@ async function print_signature_after_content_on_the_last_page(
     );
 
     const startingY = lastContentCoordinates.last_y;
+    console.log("starting y", startingY);
     const pageHeight = lastContentCoordinates.height;
+
+    const availableSpace = pageHeight - startingY;
 
     const signatureImageBytes = await fs.readFile(jpegImagePath);
     const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
     const signatureImageWidth = 200;
-    const signatureImageHeight = 50;
+    const signatureImageHeight = 75;
+
+    console.log("page height", pageHeight);
+    console.log("image height", signatureImageHeight);
 
     const fontSize = 12;
     const textPadding = 15; // Space between text lines
@@ -524,27 +538,27 @@ async function print_signature_after_content_on_the_last_page(
       textPadding; // Remarks
     // bottomMargin;
 
-    let currentY = pageHeight - startingY - 20;
-    console.log("current y", currentY);
-    console.log("required height", requiredHeight);
-    console.log("y", startingY);
+    let currentY = availableSpace - 20;
+
     let signatureCoordinates = {};
 
     // Check if the content fits on the current page
     if (currentY < requiredHeight) {
       // Add a new page if there's not enough space
       const newPage = pdfDoc.addPage();
-      currentY = pageHeight - 20; // Reset the Y-coordinate
+      console.log("rcncnkanmkkkkk");
+      currentY = pageHeight - signatureImageHeight; // Reset the Y-coordinate
+      console.log("current y", currentY);
 
       // Draw the signature image on the new page
       newPage.drawImage(signatureImage, {
         x: 50,
-        y: pageHeight - 20,
+        y: currentY,
         width: signatureImageWidth,
         height: signatureImageHeight,
       });
 
-      currentY -= signatureImageHeight + textPadding;
+      currentY -= textPadding;
 
       // Draw the text details below the image
       newPage.drawText(`Signed By: ${username}`, {
@@ -577,20 +591,23 @@ async function print_signature_after_content_on_the_last_page(
 
       signatureCoordinates = {
         x: 50,
-        y: startingY - 20, // Final Y-coordinate after printing the signature
+        y: signatureImageHeight - 20 - textPadding, // Final Y-coordinate after printing the signature
         width: signatureImageWidth,
         height: requiredHeight,
+        newlyAdded: true,
       };
     } else {
+      console.log("current y", currentY);
+      currentY = currentY - signatureImageHeight;
       // Draw the signature image on the last page
       lastPage.drawImage(signatureImage, {
         x: 50,
-        y: currentY - signatureImageHeight,
+        y: currentY,
         width: signatureImageWidth,
         height: signatureImageHeight,
       });
 
-      currentY -= signatureImageHeight + textPadding;
+      currentY -= textPadding;
 
       // Draw the text details below the image
       lastPage.drawText(`Signed By: ${username}`, {
@@ -623,7 +640,7 @@ async function print_signature_after_content_on_the_last_page(
 
       signatureCoordinates = {
         x: 50,
-        y: startingY + 20,
+        y: startingY + textPadding,
         width: signatureImageWidth,
         height: requiredHeight,
       };
@@ -655,6 +672,7 @@ async function print_signature_at_coordinates(
   userData
 ) {
   try {
+    console.log("reache wrong mf");
     const signatureImageBytes = await fs.readFile(jpegImagePath);
     const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
 
@@ -762,8 +780,7 @@ export const reject_document = async (req, res, next) => {
           : workFlow.steps;
 
       let foundDocument;
-      console.log("process docs", process.documents);
-      console.log("doc ID", documentId);
+
       if (process.isInterBranchProcess) {
         const connectorIndex = process.connectors.findIndex((connector) =>
           connector.department.equals(
