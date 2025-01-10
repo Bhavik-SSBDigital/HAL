@@ -8,6 +8,7 @@ import {
   file_cut,
   file_delete,
   file_though_url,
+  get_file_data,
 } from "../controller/file-controller.js";
 import {
   signup_POST,
@@ -90,6 +91,7 @@ import { get_user_logs, get_user_log } from "../controller/log-controller.js";
 import {
   add_sign_coordinates,
   get_sign_coordinates_for_specific_step,
+  remove_coordinate_from_doc,
 } from "../controller/sign-handlers/sign-coordinates-handler.js";
 
 import {
@@ -143,6 +145,7 @@ import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
 // const upload = multer();
 
 import { update_process_workflow } from "../controller/process-edition-controller.js";
+import { get } from "https";
 
 const router = express.Router();
 
@@ -323,6 +326,10 @@ router.post("/getMergedWorkFlow", get_merged_workflow);
 
 router.get("/files/:filePath(*)", file_though_url);
 
+router.get("/getFileData", get_file_data);
+
 router.post("/updateProcessWorkflow", update_process_workflow);
+
+router.post("/removeCoordinates", remove_coordinate_from_doc);
 
 export default router;

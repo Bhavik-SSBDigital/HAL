@@ -1,6 +1,7 @@
 import { sign } from "crypto";
 import SignCoordinate from "../../models/signCoordinates.js";
 import { verifyUser } from "../../utility/verifyUser.js";
+import User from "../../models/user.js";
 export const add_sign_coordinates = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -80,7 +81,6 @@ export const get_sign_coordinates_for_specific_step = async (
         )
       : await get_sign_coordinates_for_all_steps_in_process(docId);
 
-    console.log("coordinates from controller", coordinates);
     return res.status(200).json({
       coordinates: coordinates,
     });
@@ -109,6 +109,20 @@ export const get_sign_coordinates_for_specific_step_in_process = async (
       if (signCoordinates.coordinates.length > 0) {
         coordinates = signCoordinates.coordinates.filter(
           (item) => item.stepNo === stepNo
+        );
+
+        coordinates = await Promise.all(
+          coordinates.map(async (item) => {
+            console.log("itemm", item);
+            const finalCoord = { ...item };
+            let signedBy = await User.findOne({ _id: item.signedBy }).select(
+              "username"
+            );
+            signedBy = signedBy ? signedBy.username : "N/A";
+            console.log("signedBy", signedBy);
+            finalCoord["signedBy"] = signedBy;
+            return finalCoord;
+          })
         );
       }
     }
@@ -140,10 +154,71 @@ export const get_sign_coordinates_for_all_steps_in_process = async (docId) => {
     console.log("type of sign coordinates", typeof signCoordinates.coordinates);
     if (signCoordinates && signCoordinates.coordinates.length) {
       finalCoordinates = signCoordinates.coordinates;
+
+      finalCoordinates = await Promise.all(
+        finalCoordinates.map(async (item) => {
+          console.log("item", item);
+          const finalCoord = { ...item };
+          let signedBy = await User.findOne({ _id: item.signedBy }).select(
+            "username"
+          );
+          signedBy = signedBy ? signedBy.username : "N/A";
+          finalCoord["signedBy"] = signedBy;
+          return finalCoord;
+        })
+      );
     }
 
     return finalCoordinates;
   } catch (error) {
     return [];
+  }
+};
+
+export const remove_coordinate_from_doc = async (req, res) => {
+  const { documentId, pageNo, coordinates } = req.body;
+
+  try {
+    // Find the document by docId and check for the coordinate on the specified page
+    const signRecord = await SignCoordinate.findOne({ docId: documentId });
+
+    if (!signRecord) {
+      return res.status(404).json({ message: "Document not found." });
+    }
+
+    // Find matching coordinate entry
+    const coordinateIndex = signRecord.coordinates.findIndex(
+      (coord) =>
+        coord.page === pageNo &&
+        coord.x === coordinates.x &&
+        coord.y === coordinates.y &&
+        coord.width === coordinates.width &&
+        coord.height === coordinates.height
+    );
+
+    if (coordinateIndex === -1) {
+      return res.status(404).json({ message: "Coordinate not found." });
+    }
+
+    const targetCoordinate = signRecord.coordinates[coordinateIndex];
+
+    // Check if the coordinate is signed
+    if (targetCoordinate.isSigned) {
+      return res.status(400).json({
+        message:
+          "Request invalid. The signature is already implemented and cannot be revoked.",
+      });
+    }
+
+    // Remove the coordinate from the database
+    signRecord.coordinates.splice(coordinateIndex, 1);
+    await signRecord.save();
+
+    return res
+      .status(200)
+      .json({ message: "Coordinate successfully removed." });
+  } catch (error) {
+    console.error("Error handling coordinate request:", error);
+    return res.status(500).json({ message: "Internal server error." });
   }
 };
