@@ -218,8 +218,20 @@ function PdfContainer({
     setLoading(false);
   };
 
-  const removeSignArea = (index) => {
-    setSignAreas((prev) => prev.filter((_, i) => i !== index));
+  const removeSignArea = async (signArea, index) => {
+    const url = backendUrl + '/removeCoordinates';
+
+    try {
+      const response = await axios.post(
+        url,
+        { documentId, coordinates: signArea },
+        { headers: { Authorization: `Bearer ${token}` } },
+        setSignAreas((prev) => prev.filter((_, i) => i !== index)),
+        toast.success(response?.data?.message),
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
 
   const [openTooltip, setOpenTooltip] = useState(false);
@@ -329,9 +341,9 @@ function PdfContainer({
                     zIndex: 20,
                   }}
                 >
-                  {/* {initiator ? (
+                  {initiator ? (
                     <Button
-                      onClick={() => removeSignArea(index)}
+                      onClick={() => removeSignArea(signArea, index)}
                       sx={{
                         position: 'absolute',
                         top: -10,
@@ -348,7 +360,7 @@ function PdfContainer({
                     >
                       X
                     </Button>
-                  ) : null} */}
+                  ) : null}
                 </Box>
               </Tooltip>
             ))}
