@@ -40,6 +40,7 @@ import userSocket from '../Socket_Connection';
 import { socketData } from '../../Store';
 import axios from 'axios';
 import History from './History';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
 // Define the ICE server configuration
 const configuration = {
   iceServers: [
@@ -576,13 +577,43 @@ const MeetingManager = () => {
     setIsRecording(false);
   };
 
-  const saveRecording = (chunks) => {
-    const blob = new Blob(chunks, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'screen-recording.webm';
-    a.click();
+  const saveRecording = async (chunks) => {
+    try {
+      // Create a Blob from the recorded chunks
+      const blob = new Blob(chunks, { type: 'video/webm' });
+
+      // Create a download URL for user convenience
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'screen-recording.webm';
+      a.click();
+
+      // Prepare the recorded file for upload
+      const formData = new FormData();
+      formData.append('file', blob, 'screen-recording.webm');
+
+      // Simulate a progress handler
+      const onProgress = () => {
+        console.log('Uploading...');
+      };
+
+      // Perform the upload
+      const response = await upload(
+        [formData],
+        '../meetings',
+        onProgress,
+        'screen-recording.webm',
+        true,
+      );
+
+      toast.success(
+        response?.data?.message || 'Recording uploaded sucessfully',
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
 
   return (
