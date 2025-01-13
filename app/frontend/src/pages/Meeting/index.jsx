@@ -583,15 +583,18 @@ const MeetingManager = () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
 
       // Create a download URL for user convenience
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'screen-recording.webm';
-      a.click();
+      // const url = URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = 'screen-recording.webm';
+      // a.click();
 
       // Prepare the recorded file for upload
-      const formData = new FormData();
-      formData.append('file', blob, 'screen-recording.webm');
+      console.log(blob);
+      const file = new File([blob], 'example1.mp4', { type: 'video/mp4' });
+      console.log(file);
+      // const formData = new FormData();
+      // formData.append('file', blob, 'screen-recording.webm');
 
       // Simulate a progress handler
       const onProgress = () => {
@@ -600,13 +603,21 @@ const MeetingManager = () => {
 
       // Perform the upload
       const response = await upload(
-        [formData],
+        [file],
         '../meetings',
         onProgress,
-        'screen-recording.webm',
+        'example4.mp4',
         true,
       );
-
+      const uploadUrl = backendUrl + '/uploadMeetRecording';
+      const res = await axios.post(
+        uploadUrl,
+        {
+          meetingId,
+          recordingId: response[0],
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       toast.success(
         response?.data?.message || 'Recording uploaded sucessfully',
       );
