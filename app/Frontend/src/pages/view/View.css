@@ -21,6 +21,6 @@
 }
 
 /*cyntler doc viewer styling */
-#msdoc-renderer {
+#msdoc-renderer, #video-renderer {
   height: calc(100vh - 60px) !important;
 }
