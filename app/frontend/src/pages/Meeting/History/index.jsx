@@ -277,6 +277,7 @@ export default function History({ joinMeet }) {
       {/* meeting details dialog */}
       <MeetingDetailsDialog
         open={openMeetingDetails}
+        setOpen={setOpenMeetingDetails}
         meetingId={meetingId}
         onClose={handleCloseMeetingDetails}
         id={meetingId}

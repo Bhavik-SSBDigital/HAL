@@ -20,6 +20,12 @@ import {
   CircularProgress,
   Skeleton,
   ListItemButton,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
@@ -38,7 +44,7 @@ import {
 } from '../../../components/drop-file-input/FileUploadDownload';
 import View from '../../../pages/view/View';
 
-const MeetingDetailsDialog = ({ open, onClose, id }) => {
+const MeetingDetailsDialog = ({ open, setOpen, onClose, id }) => {
   const {
     handleSubmit,
     register,
@@ -490,6 +496,65 @@ const MeetingDetailsDialog = ({ open, onClose, id }) => {
                       </>
                     ) : null}
                   </List>
+                </Box>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: '8px',
+                    boxShadow: 'rgba(0, 0, 0, 0.16) 0px 1px 4px',
+                  }}
+                >
+                  <Typography variant="h6" mb={1}>
+                    Uploaded Recordings:
+                  </Typography>
+                  {meetingDetails?.associatedRecordings?.length > 0 ? (
+                    <TableContainer
+                      sx={{
+                        border: '1px solid lightgray',
+                        borderRadius: '8px',
+                        maxHeight: '350px',
+                        overflow: 'auto',
+                      }}
+                    >
+                      <Table stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>URL</TableCell>
+                            <TableCell>File Type</TableCell>
+                            <TableCell>Action</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {meetingDetails?.associatedRecordings?.map(
+                            (recording, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{recording?.url}</TableCell>
+                                <TableCell>{recording?.fileType}</TableCell>
+                                <TableCell>
+                                  <Button
+                                    sx={{ color: 'blue' }}
+                                    onClick={() => {
+                                      setViewFileDetails({
+                                        url: recording?.url,
+                                        type: recording?.fileType,
+                                      });
+                                      setOpen(false);
+                                    }}
+                                  >
+                                    View
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ),
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography color="textSecondary" variant="body2">
+                      No Recording Uploaded Yet.
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* <Box

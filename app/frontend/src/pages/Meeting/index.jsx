@@ -590,9 +590,7 @@ const MeetingManager = () => {
       // a.click();
 
       // Prepare the recorded file for upload
-      console.log(blob);
       const file = new File([blob], 'example1.mp4', { type: 'video/mp4' });
-      console.log(file);
       // const formData = new FormData();
       // formData.append('file', blob, 'screen-recording.webm');
 
@@ -606,7 +604,7 @@ const MeetingManager = () => {
         [file],
         '../meetings',
         onProgress,
-        'example4.mp4',
+        'recording.mp4',
         true,
       );
       const uploadUrl = backendUrl + '/uploadMeetRecording';
