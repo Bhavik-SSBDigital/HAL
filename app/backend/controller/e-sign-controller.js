@@ -536,21 +536,25 @@ async function print_signature_after_content_on_the_last_page(
       textPadding + // Timestamp
       fontSize +
       textPadding; // Remarks
-    // bottomMargin;
 
     let currentY = availableSpace - 20;
 
     let signatureCoordinates = {};
 
+    let maxWidth = signatureImageWidth; // Initialize max width to the image width
+
+    // Helper function to calculate and track text width
+    const calculateMaxWidth = (text) => {
+      const textWidth = helveticaFont.widthOfTextAtSize(text, fontSize);
+      maxWidth = Math.max(maxWidth, textWidth);
+    };
+
     // Check if the content fits on the current page
     if (currentY < requiredHeight) {
-      // Add a new page if there's not enough space
       const newPage = pdfDoc.addPage();
-      console.log("rcncnkanmkkkkk");
-      currentY = pageHeight - signatureImageHeight; // Reset the Y-coordinate
-      console.log("current y", currentY);
+      console.log("Adding new page");
+      currentY = pageHeight - signatureImageHeight;
 
-      // Draw the signature image on the new page
       newPage.drawImage(signatureImage, {
         x: 50,
         y: currentY,
@@ -560,7 +564,6 @@ async function print_signature_after_content_on_the_last_page(
 
       currentY -= textPadding;
 
-      // Draw the text details below the image
       newPage.drawText(`Signed By: ${username}`, {
         x: 50,
         y: currentY,
@@ -568,6 +571,7 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Signed By: ${username}`);
 
       currentY -= fontSize + textPadding;
 
@@ -578,6 +582,7 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Timestamp: ${timestamp}`);
 
       currentY -= fontSize + textPadding;
 
@@ -588,18 +593,18 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Remarks: ${remarks}`);
 
       signatureCoordinates = {
         x: 50,
-        y: signatureImageHeight - 20 - textPadding, // Final Y-coordinate after printing the signature
-        width: signatureImageWidth,
+        y: signatureImageHeight - 20 - textPadding,
+        width: maxWidth,
         height: requiredHeight,
         newlyAdded: true,
       };
     } else {
-      console.log("current y", currentY);
-      currentY = currentY - signatureImageHeight;
-      // Draw the signature image on the last page
+      currentY -= signatureImageHeight;
+
       lastPage.drawImage(signatureImage, {
         x: 50,
         y: currentY,
@@ -609,7 +614,6 @@ async function print_signature_after_content_on_the_last_page(
 
       currentY -= textPadding;
 
-      // Draw the text details below the image
       lastPage.drawText(`Signed By: ${username}`, {
         x: 50,
         y: currentY,
@@ -617,6 +621,7 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Signed By: ${username}`);
 
       currentY -= fontSize + textPadding;
 
@@ -627,6 +632,7 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Timestamp: ${timestamp}`);
 
       currentY -= fontSize + textPadding;
 
@@ -637,11 +643,12 @@ async function print_signature_after_content_on_the_last_page(
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
+      calculateMaxWidth(`Remarks: ${remarks}`);
 
       signatureCoordinates = {
         x: 50,
         y: startingY + textPadding,
-        width: signatureImageWidth,
+        width: maxWidth,
         height: requiredHeight,
       };
     }
@@ -750,270 +757,288 @@ export const reject_document = async (req, res, next) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
     if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { processId, documentId, reason } = req.body;
+
+    const process = await Process.findOne({ _id: processId });
+
+    const workFlowToBeFollowed =
+      req.body.workFlowToBeFollowed !== "null" && !req.body.workFlowToBeFollowed
+        ? req.body.workFlowToBeFollowed
+        : process.workFlow;
+
+    if (!process) {
+      return res.status(400).json({ message: "Error getting process" });
+    }
+
+    const document = await Document.findById(documentId);
+    if (!document) {
+      return res.status(400).json({ message: "Document not found" });
+    }
+
+    const documentPath = document.path;
+    const absDocumentPath = path.join(__dirname, documentPath);
+    const existingPdfBytes = await fs.readFile(absDocumentPath);
+
+    const pythonScriptPath = path.join(
+      __dirname,
+      "../../support/getFileSpace.py"
+    );
+    const pythonEnvPath = path.join(__dirname, "../../support/venv/bin/python");
+
+    let scriptOutput;
+    try {
+      scriptOutput = await executePythonScript(
+        pythonEnvPath,
+        pythonScriptPath,
+        absDocumentPath
+      );
+    } catch (error) {
+      console.error("Error calculating available space:", error);
+      scriptOutput = { last_y: "not a number", height: 0 };
+    }
+
+    const lastYCoordinate = Number(scriptOutput.last_y);
+    const pageHeight = Number(scriptOutput.height);
+    const availableSpace = !isNaN(lastYCoordinate)
+      ? Math.max(0, pageHeight - lastYCoordinate - 50)
+      : 0;
+
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const pages = pdfDoc.getPages();
+    const lastPageIndex = pages.length - 1;
+    const lastPage = pages[lastPageIndex];
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const currentDate = new Date().toLocaleString();
+    const branch = await Branch.findById(userData.branch).select("name");
+    const department = await Department.findById(workFlowToBeFollowed).select(
+      "name"
+    );
+    const role = await Role.findById(userData.role).select("role");
+
+    const rejectionReason = reason || "No reason provided";
+
+    const watermarkLines = [
+      `Rejected By: ${userData.username}`,
+      `Branch: ${branch.name}`,
+      `Department: ${department.name}`,
+      `Role: ${role.role}`,
+      `Timestamp: ${currentDate}`,
+      `Reason: ${rejectionReason}`,
+    ];
+
+    const fontSize = 12;
+    const lineSpacing = 20;
+    const maxLineWidth = lastPage.getWidth() - 100;
+
+    const splitText = (text) => {
+      const words = text.split(" ");
+      let lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = helveticaFont.widthOfTextAtSize(
+          currentLine + " " + word,
+          fontSize
+        );
+        if (width < maxLineWidth) {
+          currentLine += " " + word;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines;
+    };
+
+    let preparedLines = watermarkLines.flatMap(splitText);
+    let totalTextHeight = preparedLines.length * lineSpacing;
+
+    let yCoordinate = availableSpace;
+
+    if (yCoordinate < totalTextHeight) {
+      const newPage = pdfDoc.addPage();
+      yCoordinate = newPage.getHeight() - 50;
+      preparedLines.forEach((line, index) => {
+        newPage.drawText(line, {
+          x: 50,
+          y: yCoordinate - index * lineSpacing,
+          size: fontSize,
+          font: helveticaFont,
+          color: rgb(1, 0, 0),
+        });
+      });
+    } else {
+      preparedLines.forEach((line, index) => {
+        lastPage.drawText(line, {
+          x: 50,
+          y: yCoordinate - index * lineSpacing,
+          size: fontSize,
+          font: helveticaFont,
+          color: rgb(1, 0, 0),
+        });
+      });
+    }
+
+    const updatedPdfBytes = await pdfDoc.save();
+    await fs.writeFile(absDocumentPath, updatedPdfBytes);
+
+    document.isRejected = true;
+    document.rejection = {
+      reason: rejectionReason,
+      rejectedBy: userData._id,
+      timestamp: new Date(),
+    };
+    await document.save();
+
+    process.documents.forEach((doc) => {
+      if (doc.documentId.toString() === documentId) {
+        doc.rejection = {
+          reason: rejectionReason,
+          step: {
+            work: process.workFlow,
+            stepNumber: process.currentStepNumber,
+            actorUser: userData._id,
+            actorRole: userData.role,
+          },
+        };
+      }
+    });
+    await process.save();
+
+    const logWork = await LogWork.findOne({
+      user: userData._id,
+      process: processId,
+    });
+
+    if (logWork) {
+      logWork.rejectedDocuments.push({
+        document: documentId,
+        reason: rejectionReason,
+      });
+      await logWork.save();
+    } else {
+      const logWorkData = new LogWork({
+        process: processId,
+        user: userData._id,
+        rejectedDocuments: [{ document: documentId, reason: rejectionReason }],
+      });
+      await logWorkData.save();
+    }
+
+    const processResult = await is_process_forwardable(process, userData._id);
+
+    return res.status(200).json({
+      message: "Document rejected successfully",
+      isForwardable: processResult.isForwardable,
+      isRevertable: processResult.isRevertable,
+    });
+  } catch (error) {
+    console.error("Error rejecting document:", error);
+    return res.status(500).json({ message: "Error rejecting document" });
+  }
+};
+
+export const revoke_rejection = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
-    const processId = req.body.processId;
-
-    const documentId = req.body.documentId;
+    const { processId, documentId } = req.body;
 
     const process = await Process.findOne({ _id: processId });
-
-    if (process) {
-      let workFlow;
-
-      if (!(process.steps && process.steps.length > 0)) {
-        workFlow = await Department.findOne({
-          _id:
-            req.body.workFlowToBeFollowed !== "null" &&
-            req.body.workFlowToBeFollowed
-              ? req.body.workFlowToBeFollowed
-              : process.workFlow,
-        });
-      }
-
-      const steps =
-        process.steps && process.steps.length > 0
-          ? process.steps
-          : workFlow.steps;
-
-      let foundDocument;
-
-      if (process.isInterBranchProcess) {
-        const connectorIndex = process.connectors.findIndex((connector) =>
-          connector.department.equals(
-            new ObjectId(req.body.workFlowToBeFollowed)
-          )
-        );
-        if (
-          process.workFlow.equals(new ObjectId(req.body.workFlowToBeFollowed))
-        ) {
-          foundDocument = process.documents.find(
-            (doc) => doc.documentId.toString() === documentId
-          );
-        } else {
-          if (connectorIndex === -1) {
-            throw new Error("error finding connector");
-          } else {
-            foundDocument = process.connectors[connectorIndex].documents.find(
-              (doc) => doc.documentId.toString() === documentId
-            );
-          }
-        }
-      } else {
-        foundDocument = process.documents.find(
-          (doc) => doc.documentId.toString() === documentId
-        );
-      }
-
-      // const foundDocument = process.documents.find(
-      //   (doc) => doc.documentId.toString() === documentId
-      // );
-
-      const updatedDocument = await Document.findByIdAndUpdate(
-        foundDocument.documentId,
-        { isRejected: true }
-      );
-
-      const targetStep =
-        !process.isInterBranchProcess ||
-        process.workFlow.equals(new ObjectId(req.body.workFlowToBeFollowed))
-          ? steps[process.lastStepDone]
-          : steps[process.connectors[connectorIndex].lastStepDone];
-
-      const actorRole = await User.findOne({ _id: userData._id }).select(
-        "role"
-      );
-
-      const wantedStepNumber =
-        !process.isInterBranchProcess ||
-        process.workFlow.equals(new ObjectId(req.body.workFlowToBeFollowed))
-          ? process.currentStepNumber
-          : process.connectors[connectorIndex].currentStepNumber;
-
-      if (foundDocument) {
-        foundDocument.rejection = {
-          reason: req.body.reason,
-          step: {
-            work: targetStep.work,
-            stepNumber: wantedStepNumber,
-            actorUser: new ObjectId(userData._id),
-            actorRole: actorRole.role,
-          },
-        }; // Push the new user ID to the signedBy array
-
-        if (
-          process.isInterBranchProcess &&
-          !process.workFlow.equals(new ObjectId(req.body.workFlowToBeFollowed))
-        ) {
-          process.markModified(`connectors.${connectorIndex}.documents`);
-        } else {
-          process.markModified("documents");
-        }
-
-        await process.save(); // Save the updated process document
-
-        let currentDate = new Date();
-
-        currentDate.setHours(0, 0, 0, 0);
-
-        // Check if the document exists
-        let processAnalytics = await ProcessAnalytics.findOne({
-          date: currentDate,
-        });
-
-        let documentDetailsIfAddedForTheFirstTime = [];
-
-        documentDetailsIfAddedForTheFirstTime.push({
-          workName: foundDocument.workName,
-          documentsReverted: [documentId],
-        });
-
-        try {
-          if (processAnalytics) {
-            if (processAnalytics.documentDetails) {
-              const workNameIndex = processAnalytics.documentDetails.findIndex(
-                (work) => work.workName === foundDocument.workName
-              );
-              if (workNameIndex !== -1) {
-                processAnalytics.documentDetails[
-                  workNameIndex
-                ].documentsReverted =
-                  processAnalytics.documentDetails[workNameIndex]
-                    .documentsReverted || [];
-
-                processAnalytics.documentDetails[
-                  workNameIndex
-                ].documentsReverted.push(documentId);
-              } else {
-                processAnalytics.documentDetails.push({
-                  workName: foundDocument.workName,
-                  documentsReverted: [documentId],
-                });
-              }
-              // processAnalytics.documentDetails = processAnalytics.documentDetails;
-            } else {
-              processAnalytics.documentDetails =
-                documentDetailsIfAddedForTheFirstTime;
-            }
-
-            // Document found, update the counts
-            let departmentIndex = -1;
-
-            try {
-              departmentIndex =
-                processAnalytics.departmentsPendingProcess.findIndex(
-                  (department) =>
-                    department.department.equals(new ObjectId(process.workFlow))
-                );
-            } catch (error) {
-              console.log("faulty entry in departmentsPendingProcesses");
-            }
-
-            if (departmentIndex !== -1) {
-              let documentDetailsOfDepartment =
-                processAnalytics.departmentsPendingProcess[departmentIndex]
-                  .documentDetails;
-              if (documentDetailsOfDepartment) {
-                const workNameIndex = documentDetailsOfDepartment.findIndex(
-                  (work) => work.workName === foundDocument.workName
-                );
-                if (workNameIndex !== -1) {
-                  documentDetailsOfDepartment[workNameIndex].documentsReverted =
-                    documentDetailsOfDepartment[workNameIndex]
-                      .documentsReverted || [];
-
-                  documentDetailsOfDepartment[
-                    workNameIndex
-                  ].documentsReverted.push(documentId);
-                } else {
-                  documentDetailsOfDepartment.push({
-                    workName: foundDocument.workName,
-                    documentsReverted: [documentId],
-                  });
-                }
-                processAnalytics.departmentsPendingProcess[
-                  departmentIndex
-                ].documentDetails = documentDetailsOfDepartment;
-              } else {
-                processAnalytics.departmentsPendingProcess[
-                  departmentIndex
-                ].documentDetails = documentDetailsIfAddedForTheFirstTime;
-              }
-            } else {
-              // If the department is not found, add it with an initial count of 1
-              // processAnalytics.noOfPendingProcess += 1;
-              processAnalytics.departmentsPendingProcess.push({
-                department: req.body.workFlow || process.workFlow,
-                documentDetails: documentDetailsIfAddedForTheFirstTime,
-              });
-            }
-
-            // Save the updated document back to the database
-
-            await processAnalytics.save();
-          } else {
-            let newProcessAnalytics = new ProcessAnalytics({
-              date: new Date(),
-              documentDetails: documentDetailsIfAddedForTheFirstTime,
-              departmentsPendingProcess: [
-                {
-                  department: req.body.workFlow || process.workFlow,
-                  documentDetails: documentDetailsIfAddedForTheFirstTime,
-                },
-              ],
-            });
-
-            await newProcessAnalytics.save();
-          }
-        } catch (error) {
-          console.log("error updating process analytics", error);
-        }
-      }
-
-      const logWork = await LogWork.findOne({
-        user: new ObjectId(userData._id),
-        process: new ObjectId(processId),
-      });
-
-      if (logWork) {
-        const rejectedDocuments = logWork.rejectedDocuments || [];
-        logWork.rejectedDocuments = [
-          ...rejectedDocuments,
-          { document: new ObjectId(documentId), reason: req.body.reason },
-        ];
-        await logWork.save();
-      } else {
-        const logWorkData = {
-          process: new ObjectId(processId),
-          user: new ObjectId(userData._id),
-          rejectedDocuments: [
-            { document: new ObjectId(documentId), reason: req.body.reason },
-          ],
-        };
-
-        const logWorkDataObj = new LogWork(logWorkData);
-        await logWorkDataObj.save();
-      }
-    } else {
+    if (!process) {
       return res.status(400).json({
-        message: "error getting process",
+        message: "Error getting process",
       });
     }
 
-    const process_result = await is_process_forwardable(process, userData._id);
+    const document = await Document.findById(documentId);
+    if (!document || !document.isRejected) {
+      return res.status(400).json({
+        message: "Document is not rejected or does not exist",
+      });
+    }
+
+    // Revert PDF changes
+    const documentPath = document.path;
+    const existingPdfBytes = await fs.readFile(
+      path.join(__dirname, documentPath)
+    );
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+    const pages = pdfDoc.getPages();
+    const lastPageIndex = pages.length - 1;
+
+    // Check if a watermark/rejection mark is present and remove it
+    if (pages.length > 1) {
+      // If the rejection mark was added as a new page, remove the last page
+      pdfDoc.removePage(lastPageIndex);
+    } else {
+      // Mask the rejection area
+      const lastPage = pages[lastPageIndex];
+      lastPage.drawRectangle({
+        x: 0,
+        y: 0,
+        width: lastPage.getWidth(),
+        height: 50, // Adjust this height to match the rejection mark area
+        color: rgb(1, 1, 1), // White color to mask the area
+      });
+    }
+
+    const updatedPdfBytes = await pdfDoc.save();
+    await fs.writeFile(path.join(__dirname, documentPath), updatedPdfBytes);
+
+    // Revert the rejection in the database
+    document.isRejected = false;
+    document.rejection = null;
+    await document.save();
+
+    // Remove the rejection from the process documents
+    process.documents = process.documents.map((doc) => {
+      if (doc.documentId.toString() === documentId) {
+        doc = doc.toObject(); // Ensure it's a plain object
+        delete doc.rejection; // Delete the `rejection` property
+      }
+      return doc;
+    });
+    await process.save();
+
+    // Remove the rejection entry from the log
+    const logWork = await LogWork.findOne({
+      user: new ObjectId(userData._id),
+      process: processId,
+    });
+
+    if (logWork) {
+      logWork.rejectedDocuments = logWork.rejectedDocuments.filter(
+        (entry) => entry.document.toString() !== documentId.toString()
+      );
+      await logWork.save();
+    }
+
+    // Check process status
+    const processResult = await is_process_forwardable(process, userData._id);
 
     return res.status(200).json({
-      message: "rejected document successfully",
-      isForwardable: process_result.isForwardable,
-      isRevertable: process_result.isRevertable,
+      message: "Rejection revoked successfully",
+      isForwardable: processResult.isForwardable,
+      isRevertable: processResult.isRevertable,
     });
   } catch (error) {
-    console.log(error, "error rejecting document");
+    console.error("Error revoking rejection:", error);
     return res.status(500).json({
-      message: "error rejecting document",
+      message: "Error revoking rejection",
     });
   }
 };
