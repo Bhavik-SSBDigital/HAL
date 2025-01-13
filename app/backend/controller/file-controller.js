@@ -16,6 +16,9 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import Department from "../models/department.js";
+import dotnev from "dotenv";
+
+dotnev.config();
 
 const pipelineAsync = promisify(pipeline);
 // Now you can access the desired functions
@@ -1008,9 +1011,9 @@ export const file_download = async (req, res) => {
     const filePath = join(relativePath, `${fileName}`); // Replace with your file path
 
     const fileExt = extname(fileName).slice(1).toLowerCase();
-
+    const fileURL = process.env.FILE_URL;
     return res.status(200).json({
-      data: `http://localhost:9000/files/${filePath}`,
+      data: `${fileURL}${filePath}`,
       fileType: fileExt,
     });
   } catch (error) {

@@ -7,6 +7,12 @@ import { getSocketInstance } from "../socketHandler.js";
 import moment from "moment";
 import Process from "../models/process.js";
 import Document from "../models/document.js";
+import { extname } from "path";
+import dotnev from "dotenv";
+
+dotnev.config();
+
+const fileURL = process.env.FILE_URL;
 
 const checkIfRoomHasParticipants = (roomId) => {
   const io = getSocketInstance(); // Get the Socket.io instance
@@ -497,6 +503,18 @@ export const get_meeting_details = async (req, res, next) => {
 
     meet.associatedProcesses = associatedProcesses;
 
+    meet.associatedProcesses = await Promise.all(
+      meet.associatedRecordings.map(async (item) => {
+        const document = await Document.findOne({ _id: item }).select(
+          "name path"
+        );
+        return {
+          url: `${fileURL}${document.path.substring(19)}`,
+          fileType: extname(document.name).slice(1).toLowerCase(),
+        };
+      })
+    );
+
     // Retrieve momUploadedBy
     // const momUploadedBy = await User.findOne({
     //   _id: meet.momUploadedBy,
@@ -628,7 +646,8 @@ export const upload_meeting_recording = async (req, res, next) => {
     }
 
     // Check if meeting exists
-    const meeting = await Meeting.findById(meetingId);
+    const meeting = await Meeting.findOne({ meetingId: meetingId });
+    console.log("meeting", meeting);
     if (!meeting) {
       return res.status(404).json({ message: "Meeting not found" });
     }
@@ -640,6 +659,8 @@ export const upload_meeting_recording = async (req, res, next) => {
     }
 
     // Add recording to the meeting's associated recordings
+    meeting.associatedRecordings = meeting.associatedRecordings || [];
+
     meeting.associatedRecordings.push(recordingId);
     await meeting.save();
 
