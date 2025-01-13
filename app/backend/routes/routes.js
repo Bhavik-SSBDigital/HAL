@@ -140,6 +140,7 @@ import {
   get_meetings_for_user,
   is_user_an_attendee,
   upload_mom_in_meeting,
+  upload_meeting_recording,
 } from "../controller/meeting-controller.js";
 import { compare_documents } from "../controller/compare-documents.js";
 import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
@@ -318,6 +319,8 @@ router.post(
 router.post("/storeDocMetaData", add_doc_meta_data);
 
 router.post("/uploadMomInMeet", upload_mom_in_meeting);
+
+router.post("uploadMeetRecording", upload_meeting_recording);
 
 router.post("/getProcessStatistics", get_process_statistics);
 

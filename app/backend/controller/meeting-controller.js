@@ -602,3 +602,53 @@ export const upload_mom_in_meeting = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const upload_meeting_recording = async (req, res, next) => {
+  try {
+    // Extract and verify access token
+    const accessToken = req.headers["authorization"]?.substring(7);
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ message: "Authorization token is required" });
+    }
+
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { meetingId, recordingId } = req.body;
+
+    // Validate required data
+    if (!meetingId || !recordingId) {
+      return res
+        .status(400)
+        .json({ message: "Meeting ID and Recording ID are required" });
+    }
+
+    // Check if meeting exists
+    const meeting = await Meeting.findById(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    // Check if recording exists (optional validation)
+    const recordingExists = await Document.findById(recordingId);
+    if (!recordingExists) {
+      return res.status(404).json({ message: "Recording document not found" });
+    }
+
+    // Add recording to the meeting's associated recordings
+    meeting.associatedRecordings.push(recordingId);
+    await meeting.save();
+
+    return res.status(200).json({
+      message: "Recording successfully uploaded to the meeting",
+      meeting,
+    });
+  } catch (error) {
+    console.error("Error uploading recording:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
