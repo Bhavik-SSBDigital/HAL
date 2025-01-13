@@ -320,7 +320,7 @@ router.post("/storeDocMetaData", add_doc_meta_data);
 
 router.post("/uploadMomInMeet", upload_mom_in_meeting);
 
-router.post("uploadMeetRecording", upload_meeting_recording);
+router.post("/uploadMeetRecording", upload_meeting_recording);
 
 router.post("/getProcessStatistics", get_process_statistics);
 
