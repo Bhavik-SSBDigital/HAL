@@ -226,10 +226,11 @@ function PdfContainer({
         url,
         { documentId, coordinates: signArea },
         { headers: { Authorization: `Bearer ${token}` } },
-        setSignAreas((prev) => prev.filter((_, i) => i !== index)),
-        toast.success(response?.data?.message),
       );
+      setSignAreas((prev) => prev.filter((_, i) => i !== index));
+      toast.success(response?.data?.message);
     } catch (error) {
+      console.log(error);
       toast.error(error?.response?.data?.message || error?.message);
     }
   };
