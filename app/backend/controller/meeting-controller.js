@@ -503,7 +503,7 @@ export const get_meeting_details = async (req, res, next) => {
 
     meet.associatedProcesses = associatedProcesses;
 
-    meet.associatedProcesses = await Promise.all(
+    meet.associatedRecordings = await Promise.all(
       meet.associatedRecordings.map(async (item) => {
         const document = await Document.findOne({ _id: item }).select(
           "name path"
