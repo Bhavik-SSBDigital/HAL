@@ -355,7 +355,7 @@ function App() {
           }
         />
         <Route
-          path="/Meeting"
+          path="/meeting-manager"
           element={
             <DefaultLayout>
               <PageTitle title="Meeting" />

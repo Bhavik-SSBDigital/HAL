@@ -305,7 +305,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 </span>
               </NavLink>
               <NavLink
-                to="/meeting"
+                to="/meeting-manager"
                 style={{
                   fontWeight: 700,
                   marginRight: '2px',
@@ -314,7 +314,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   letterSpacing: '0.5px',
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                  (pathname === '/meeting' || pathname.includes('meeting')) &&
+                  (pathname === '/meeting-manager' || pathname.includes('meeting-manager')) &&
                   'bg-indigo-400 text-white'
                 }`}
               >
