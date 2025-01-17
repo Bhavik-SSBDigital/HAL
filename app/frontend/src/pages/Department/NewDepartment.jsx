@@ -231,7 +231,7 @@ export default function NewDepartment(props) {
           workFlow: updatedWorkFlow,
         };
       });
-      setFlow({ work: '', step: '' });
+      setFlow({ step: '' });
       // setUserBranch('');
       setUsersOnStep([]);
     } else {

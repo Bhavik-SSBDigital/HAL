@@ -347,7 +347,7 @@ export default function InitiateForm() {
           workFlow: updatedWorkFlow,
         };
       });
-      setFlow({ work: '', step: '' });
+      setFlow({ step: '' });
       // setUserBranch('');
       setUsersOnStep([]);
     } else {

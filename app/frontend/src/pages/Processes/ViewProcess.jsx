@@ -1504,7 +1504,7 @@ export default function ViewProcess(props) {
           workFlow: updatedWorkFlow,
         };
       });
-      setFlow({ work: '', step: '' });
+      setFlow({ step: '' });
       // setUserBranch('');
       setUsersOnStep([]);
     } else {
