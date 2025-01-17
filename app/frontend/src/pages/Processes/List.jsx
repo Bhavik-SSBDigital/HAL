@@ -171,7 +171,7 @@ export default function List() {
                   <TableCell sx={{ fontWeight: 700 }}>Serial No</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Process Name</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Create Time</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>File Name</TableCell>
+                  {/* <TableCell sx={{ fontWeight: 700 }}>File Name</TableCell> */}
                   <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
                 </TableRow>
               </TableHead>
@@ -191,7 +191,7 @@ export default function List() {
                         <TableCell className={styles.cell}>
                           {moment(row.createdAt).format('DD-MMM-YYYY hh:mm A')}
                         </TableCell>
-                        <TableCell className={styles.cell}>
+                        {/* <TableCell className={styles.cell}>
                           {getWorkName(row.files).map((fileName, index1) => (
                             <Typography key={index1}>- {fileName}</Typography>
                           ))}
@@ -203,7 +203,7 @@ export default function List() {
                               View More
                             </Button>
                           )}
-                        </TableCell>
+                        </TableCell> */}
 
                         <TableCell className={styles.cell}>
                           <Button
