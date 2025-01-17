@@ -167,7 +167,8 @@ export default function ViewProcess(props) {
     reset();
   };
   // ----------------------
-  const { work, setWork, pickedProcesses } = sessionData();
+  const { pickedProcesses } = sessionData();
+  const [work, setWork] = useState('e-sign');
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const receivedData = params.get('data');
@@ -909,7 +910,7 @@ export default function ViewProcess(props) {
       );
       if (res.status === 200) {
         toast.success('Sent to clerk');
-        setWork('');
+        // setWork('');
         setSendLoading(false);
         queryClient.removeQueries('pendingProcesses');
         setOpenC(false);
@@ -1312,6 +1313,24 @@ export default function ViewProcess(props) {
               boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
             }}
           >
+            <Stack alignItems={'flex-end'} padding={1}>
+              <TextField
+                fullWidth
+                value={work}
+                sx={{
+                  maxWidth: '150px',
+                }}
+                label="Select Work"
+                onChange={(e) => setWork(e.target.value)}
+                select
+              >
+                {works.map((item) => (
+                  <MenuItem key={item.name} value={item.name}>
+                    {item?.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
             {processData && (
               <>
                 {processData?.samples?.length ? (
@@ -1609,8 +1628,7 @@ export default function ViewProcess(props) {
                       handleView={handleView}
                     />
                   ) : null}
-                  {(work === 'publish' ||
-                    (work === '' && upload_Work?.work === 'publish')) &&
+                  {(work === 'publish' || upload_Work?.work === 'publish') &&
                     !processData.isInterBranchProcess &&
                     !processData.isHead && (
                       <>
@@ -2643,7 +2661,7 @@ export default function ViewProcess(props) {
                   textAlign: 'center',
                   padding: '10px',
                   backgroundColor: 'var(--themeColor)',
-                  color:"white",
+                  color: 'white',
                   margin: '10px',
                   borderRadius: '5px',
                 }}
@@ -2776,7 +2794,6 @@ export default function ViewProcess(props) {
                         </Button>
                       )}
                     {userIsLastInWorkflow &&
-                      work === '' &&
                       !processData.completed &&
                       (!processData.isInterBranchProcess ||
                         (processData.isInterBranchProcess &&
@@ -2838,7 +2855,6 @@ export default function ViewProcess(props) {
                     userNotFirstInWorkflow ? (
                       <>
                         {!processData.completed &&
-                          work === '' &&
                           userNotLastInWorkflow &&
                           processData?.workFlow.some((step) =>
                             step.users.some(

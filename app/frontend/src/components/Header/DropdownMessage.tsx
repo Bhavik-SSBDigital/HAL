@@ -4,7 +4,7 @@ import sessionData from '../../Store';
 import axios from 'axios';
 
 const DropdownMessage = () => {
-  const { alerts, setWork, setAlerts } = sessionData();
+  const { alerts, setAlerts } = sessionData();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -113,7 +113,7 @@ const DropdownMessage = () => {
                     style={{ cursor: 'pointer' }}
                     className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
                     onClick={() => {
-                      setWork(item.work);
+                      // setWork(item.work);
                       handleRemoveNotification(item.processId);
                       handleViewProcess(
                         item?.processId,

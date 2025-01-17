@@ -17,7 +17,6 @@ const DropdownUser = () => {
     setProfileImage,
     setAlerts,
     setNotifications,
-    setWork,
   } = sessionData();
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
@@ -56,7 +55,7 @@ const DropdownUser = () => {
     setNotifications([]);
     setAlerts([]);
     setProfileImage('');
-    setWork('');
+    // setWork('');
     dispatch(setPath('..'));
     dispatch(backButtonPath('..'));
     navigate('/auth/signin');

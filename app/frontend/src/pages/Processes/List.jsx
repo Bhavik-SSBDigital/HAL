@@ -85,7 +85,7 @@ export default function List() {
 
   const handleView = (id, workflow, work) => {
     console.log(work);
-    setWork(work);
+    // setWork(work);
     navigate(
       `/processes/work/view?data=${encodeURIComponent(
         id,

@@ -132,7 +132,7 @@ const index = () => {
                   <Stepper activeStep={data?.lastStepDone} alternativeLabel>
                     {data?.workFlow?.map((label, index) => (
                       <Step
-                        key={label.work}
+                        key={label?.work}
                         sx={{
                           '& span span .Mui-completed': {
                             color: 'green !important',
@@ -154,7 +154,7 @@ const index = () => {
                         <StepLabel>
                           <>
                             <p>
-                              {label.work} (
+                              {label?.work} (
                               {label?.users
                                 ?.map((user) => user.user)
                                 .join(', ')}
@@ -354,7 +354,7 @@ const index = () => {
                           ?.find((item) => item.departmentName === selectedDep)
                           ?.workFlow?.map((label, index) => (
                             <Step
-                              key={label.work}
+                              key={label?.work}
                               sx={{
                                 '& span span .Mui-completed': {
                                   color: 'green !important',
@@ -375,7 +375,7 @@ const index = () => {
                             >
                               <StepLabel>
                                 <p>
-                                  {label.work} (
+                                  {label?.work} (
                                   {label?.users
                                     ?.map((user) => user.user)
                                     .join(', ')}
