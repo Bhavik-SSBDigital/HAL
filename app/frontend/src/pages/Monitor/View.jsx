@@ -488,7 +488,7 @@ export default function View() {
                       <Box sx={{ padding: "10px" }} key={file?.details?._id}>
                         <Stack
                           sx={{
-                            minHeight: "270px",
+                            minHeight: "fit-content",
                             width: "250px",
                             borderRadius: "15px",
                             flex: "1 1 auto",
@@ -601,9 +601,9 @@ export default function View() {
                             </div>
                           </div>
                           <div className={styles.filePartTwo}>
-                            <p className={styles.fileElements}>
+                            {/* <p className={styles.fileElements}>
                               <b>Work assigned</b> :{file?.workName}
-                            </p>
+                            </p> */}
                             <p className={styles.fileElements}>
                               <b>Cabinet no</b> : {file?.cabinetNo}
                             </p>
@@ -696,7 +696,7 @@ export default function View() {
                                 >
                                   <Stack
                                     sx={{
-                                      minHeight: "270px",
+                                      minHeight: "fit-content",
                                       width: "250px",
                                       borderRadius: "15px",
                                       flex: "1 1 auto",
@@ -821,9 +821,9 @@ export default function View() {
                                       </div>
                                     </div>
                                     <div className={styles.filePartTwo}>
-                                      <p className={styles.fileElements}>
+                                      {/* <p className={styles.fileElements}>
                                         <b>Work assigned</b> :{file?.workName}
-                                      </p>
+                                      </p> */}
                                       <p className={styles.fileElements}>
                                         <b>Cabinet no</b> : {file?.cabinetNo}
                                       </p>

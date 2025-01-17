@@ -1604,7 +1604,7 @@ export default function ViewProcess(props) {
                                 >
                                   <Stack
                                     sx={{
-                                      minHeight: '270px',
+                                      minHeight: 'fit-content',
                                       width: '250px',
                                       borderRadius: '15px',
                                       border: '1px solid lightgray',
@@ -1674,9 +1674,9 @@ export default function ViewProcess(props) {
                                       </div>
                                     </div>
                                     <div className={styles.filePartTwo}>
-                                      <p className={styles.fileElements}>
+                                      {/* <p className={styles.fileElements}>
                                         <b>Work assigned</b> :{file?.workName}
-                                      </p>
+                                      </p> */}
                                       <p className={styles.fileElements}>
                                         <b>Cabinet no</b> : {file?.cabinetNo}
                                       </p>
@@ -1719,7 +1719,7 @@ export default function ViewProcess(props) {
                             >
                               <Stack
                                 sx={{
-                                  minHeight: '270px',
+                                  minHeight: 'fit-content',
                                   width: '270px',
                                   borderRadius: '15px',
                                   border: '1px solid lightgray',
@@ -1845,9 +1845,9 @@ export default function ViewProcess(props) {
                                   </div>
                                 </div>
                                 <div className={styles.filePartTwo}>
-                                  <p className={styles.fileElements}>
+                                  {/* <p className={styles.fileElements}>
                                     <b>Work assigned</b> :{file?.workName}
-                                  </p>
+                                  </p> */}
                                   <p className={styles.fileElements}>
                                     <b>Cabinet no</b> : {file?.cabinetNo}
                                   </p>
