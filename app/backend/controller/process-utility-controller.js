@@ -7,6 +7,10 @@ import Work from "../models/work.js";
 import Process from "../models/process.js";
 export const is_process_forwardable = async (process, userId) => {
   try {
+    return {
+      isForwardable: true,
+      isRevertable: true,
+    };
     if (process.completed) {
       return {
         isForwardable: false,

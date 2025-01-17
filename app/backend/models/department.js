@@ -12,11 +12,11 @@ const departmentSchema = new mongoose.Schema({
   },
   steps: [
     {
-      work: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Work",
-        required: true,
-      },
+      // work: {
+      //   type: mongoose.Schema.Types.ObjectId,
+      //   ref: "Work",
+      //   required: true,
+      // },
       stepNumber: {
         type: Number,
         required: true,

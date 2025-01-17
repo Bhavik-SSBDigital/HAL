@@ -39,11 +39,11 @@ const processSchema = new mongoose.Schema({
               type: String,
             },
             step: {
-              work: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Work",
-                required: true,
-              },
+              // work: {
+              //   type: mongoose.Schema.Types.ObjectId,
+              //   ref: "Work",
+              //   required: true,
+              // },
               stepNumber: {
                 type: Number,
                 required: true,
@@ -151,11 +151,11 @@ const processSchema = new mongoose.Schema({
                     type: String,
                   },
                   step: {
-                    work: {
-                      type: mongoose.Schema.Types.ObjectId,
-                      ref: "Work",
-                      required: true,
-                    },
+                    // work: {
+                    //   type: mongoose.Schema.Types.ObjectId,
+                    //   ref: "Work",
+                    //   required: true,
+                    // },
                     stepNumber: {
                       type: Number,
                       required: true,
@@ -216,11 +216,11 @@ const processSchema = new mongoose.Schema({
   },
   steps: [
     {
-      work: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Work",
-        required: true,
-      },
+      // work: {
+      //   type: mongoose.Schema.Types.ObjectId,
+      //   ref: "Work",
+      //   required: true,
+      // },
       stepNumber: {
         type: Number,
         required: true,

@@ -11,10 +11,10 @@ export const logSchema = new mongoose.Schema({
     required: true,
   },
   currentStep: {
-    work: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Work",
-    },
+    // work: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Work",
+    // },
     stepNumber: {
       type: Number,
     },
@@ -28,10 +28,10 @@ export const logSchema = new mongoose.Schema({
     },
   },
   nextStep: {
-    work: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Work",
-    },
+    // work: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Work",
+    // },
     stepNumber: {
       type: Number,
     },

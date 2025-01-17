@@ -178,21 +178,21 @@ export const add_department = async (req, res, next) => {
         });
       }
 
-      let work = await Work.findOne({ name: step.work });
+      // let work = await Work.findOne({ name: step.work });
 
-      if (!work) {
-        const newWork = new Work({
-          name: step.work,
-        });
+      // if (!work) {
+      //   const newWork = new Work({
+      //     name: step.work,
+      //   });
 
-        work = await newWork.save();
-      }
+      //   work = await newWork.save();
+      // }
 
-      work = work._id;
+      // work = work._id;
 
       updatedSteps.push({
         users: users,
-        work: work,
+        // work: work,
         stepNumber: step.step,
       });
     }
@@ -229,11 +229,11 @@ export const add_department = async (req, res, next) => {
 export const format_workflow_step = async (step, forLog) => {
   try {
     let finalStep = {};
-    const work = await Work.findOne({ _id: step.work }).select("name");
-    finalStep.work = "N/A";
-    if (work) {
-      finalStep.work = work.name;
-    }
+    // const work = await Work.findOne({ _id: step.work }).select("name");
+    // finalStep.work = "N/A";
+    // if (work) {
+    //   finalStep.work = work.name;
+    // }
 
     if (!forLog) {
       let users = [];
@@ -459,21 +459,21 @@ export const edit_department = async (req, res, next) => {
         });
       }
 
-      let work = await Work.findOne({ name: step.work });
+      // let work = await Work.findOne({ name: step.work });
 
-      if (!work) {
-        const newWork = new Work({
-          name: step.work,
-        });
+      // if (!work) {
+      //   const newWork = new Work({
+      //     name: step.work,
+      //   });
 
-        work = await newWork.save();
-      }
+      //   work = await newWork.save();
+      // }
 
-      work = work._id;
+      // work = work._id;
 
       updatedSteps.push({
         users: users,
-        work: work,
+        // work: work,
         stepNumber: step.step,
       });
     }

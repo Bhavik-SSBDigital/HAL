@@ -296,21 +296,21 @@ export const add_process = async (req, res, next) => {
           });
         }
 
-        let work = await Work.findOne({ name: step.work });
+        // let work = await Work.findOne({ name: step.work });
 
-        if (!work) {
-          const newWork = new Work({
-            name: step.work,
-          });
+        // if (!work) {
+        //   const newWork = new Work({
+        //     name: step.work,
+        //   });
 
-          work = await newWork.save();
-        }
+        //   work = await newWork.save();
+        // }
 
-        work = work._id;
+        // work = work._id;
 
         updatedSteps.push({
           users: users,
-          work: work,
+          // work: work,
           stepNumber: step.step,
         });
       }
@@ -930,8 +930,8 @@ async function sendEmail(
   );
   senderRole = senderRole.role;
 
-  let receiverWork = await Work.findOne({ _id: nextStep.work });
-  receiverWork = receiverWork.name;
+  // let receiverWork = await Work.findOne({ _id: nextStep.work });
+  // receiverWork = receiverWork.name;
 
   // Fetch document details from MongoDB
   const attachmentFiles = [];
@@ -974,7 +974,7 @@ async function sendEmail(
     subject: `Update on ${processDetails.name}`,
     html: `
       <p>Hello, ${username}</p>
-      <p>${processDetails.name} is ${action} to you by ${senderUsername} for ${receiverWork}</p>
+      <p>${processDetails.name} is ${action} to you by ${senderUsername}</p>
       <p>${senderUsername} holds the role ${senderRole} in branch ${senderBranch}</p>
       <p>Thank you for choosing our service!</p>
     `,
@@ -2302,11 +2302,11 @@ export const get_process_for_user = async (req, res, next) => {
 
       let workName = "";
 
-      if (process_.work) {
-        workName = await Work.findById({ _id: process_.work }).select("name");
+      // if (process_.work) {
+      //   workName = await Work.findById({ _id: process_.work }).select("name");
 
-        workName = workName.name;
-      }
+      //   workName = workName.name;
+      // }
 
       let documents = process.documents;
 
@@ -2336,7 +2336,7 @@ export const get_process_for_user = async (req, res, next) => {
               createdAt: process.createdAt,
               departmentName: department.name,
               isPending: true,
-              work: workName,
+              // work: workName,
               workFlowToBeFollowed: process_.workFlowToBeFollowed,
               files: documents,
             }
@@ -2346,7 +2346,7 @@ export const get_process_for_user = async (req, res, next) => {
                 (step) => step.step === process.lastStepDone
               ),
               name: process.name,
-              work: workName,
+              // work: workName,
               completed: process.completed,
               createdAt: process.createdAt,
               departmentName: department.name,
@@ -3024,18 +3024,18 @@ export const get_user_notifications_for_processes = async (req, res, next) => {
     if (user.notifications) {
       for (let i = 0; i < user.notifications.length; i++) {
         let note = user.notifications[i];
-        if (note.work) {
-          const workName = await Work.findOne({ _id: note.work }).select(
-            "name"
-          );
-          if (workName) {
-            note.work = workName.name;
-          } else {
-            note.work = "";
-          }
-        } else {
-          note.work = "";
-        }
+        // if (note.work) {
+        //   const workName = await Work.findOne({ _id: note.work }).select(
+        //     "name"
+        //   );
+        //   if (workName) {
+        //     note.work = workName.name;
+        //   } else {
+        //     note.work = "";
+        //   }
+        // } else {
+        //   note.work = "";
+        // }
         notifications.push(note);
       }
     }
@@ -3148,7 +3148,7 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
 
     // let clerks = department.steps[0].users.map((item) => item.user);
 
-    let work;
+    // let work;
     if (department.steps.length > 0) {
       for (let m = 0; m < clerks.length; m++) {
         const clerk = clerks[m];
@@ -3173,24 +3173,24 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
 
           docs = [...docIds, ...docs];
 
-          work = await Work.findOne({ name: req.body.work });
+          // work = await Work.findOne({ name: req.body.work });
 
           let newProcess;
 
-          if (work) {
-            newProcess = {
-              process: process._id, // Replace with the actual process ID
-              pending: true, // Set to the desired value
-              receivedAt: Date.now(),
-              work: work._id,
-            };
-          } else {
-            newProcess = {
-              process: process._id, // Replace with the actual process ID
-              pending: true, // Set to the desired value
-              receivedAt: Date.now(),
-            };
-          }
+          // if (work) {
+          newProcess = {
+            process: process._id, // Replace with the actual process ID
+            pending: true, // Set to the desired value
+            receivedAt: Date.now(),
+            // work: work._id,
+          };
+          // } else {
+          //   newProcess = {
+          //     process: process._id, // Replace with the actual process ID
+          //     pending: true, // Set to the desired value
+          //     receivedAt: Date.now(),
+          //   };
+          // }
 
           if (req.body.workFlowToBeFollowed) {
             newProcess.workFlowToBeFollowed = req.body.workFlowToBeFollowed;
@@ -3231,7 +3231,7 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
               ? `<p>Hello, ${clerk.username}</p>
           <p>${process.name} is forwarded to you by ${userData.username}`
               : `<p>Hello, ${clerk.username}</p>
-          <p>${process.name} is forwarded to you by ${userData.username} for work ${req.body.work}.</p>
+          <p>${process.name} is forwarded to you by ${userData.username}</p>
         `,
           };
           const info = await transporter.sendMail(mailOptions);
@@ -3250,7 +3250,7 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
             completed: process.completed,
             receivedAt: Date.now(),
             isPending: true,
-            work: work ? work._id : null,
+            // work: work ? work._id : null,
           };
 
           if (req.body.workFlowToBeFollowed) {
@@ -3279,7 +3279,7 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
 
     if (!req.body.workFlowToBeFollowed) {
       try {
-        let work = await Work.findOne({ name: "publish" });
+        // let work = await Work.findOne({ name: "publish" });
 
         const logWorkDocs = await get_log_docs(
           processId,
@@ -3291,13 +3291,13 @@ export const send_process_to_clerk_for_work = async (req, res, next) => {
           processId,
           false,
           {
-            work: work._id,
+            // work: work._id,
             actorUser: userData._id,
             actorRole: userData.role,
             stepNumber: department.steps.length + 1,
           },
           {
-            work: work._id,
+            // work: work._id,
             users: clerks,
             stepNumber: department.steps.length + 2,
           },
@@ -3351,7 +3351,7 @@ export const end_process = async (req, res, next) => {
 
     let clerkRoleId = await Role.findOne({ _id: userData.role }).select("_id");
 
-    let work = await Work.findOne({ name: req.body.work });
+    // let work = await Work.findOne({ name: req.body.work });
 
     try {
       const logWorkDocs = await get_log_docs(
@@ -3364,7 +3364,7 @@ export const end_process = async (req, res, next) => {
         req.params.id,
         false,
         {
-          work: work._id,
+          // work: work._id,
           actorUser: userData._id,
           actorRole: clerkRoleId._id,
           stepNumber: department.steps.length + 2,

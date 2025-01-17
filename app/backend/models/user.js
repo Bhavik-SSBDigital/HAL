@@ -66,11 +66,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
       },
-      work: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Work",
-        default: null,
-      },
+      // work: {
+      //   type: mongoose.Schema.Types.ObjectId,
+      //   ref: "Work",
+      //   default: null,
+      // },
       workFlowToBeFollowed: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Department",
