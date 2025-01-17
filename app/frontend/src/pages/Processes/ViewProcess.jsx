@@ -1375,33 +1375,33 @@ export default function ViewProcess(props) {
       label: 'Process Name',
       value: processData?.name,
     },
-    {
-      label: 'File Name',
-      value:
-        processData?.documents?.length <= 4 ? (
-          <Stack flexDirection="row" gap={1} flexWrap="wrap">
-            {processData?.documents?.map((item, index) => {
-              const name = item.details.name;
-              const work = name.split('_')[1]; // Assuming work can be extracted here
-              return (
-                <Typography
-                  px={1}
-                  borderRadius={1}
-                  className={styles.workName}
-                  key={index}
-                  sx={{ border: '1px solid lightgray' }}
-                >
-                  {work}
-                </Typography>
-              );
-            })}
-          </Stack>
-        ) : (
-          <Button onClick={handleOpenFilesList} size="small">
-            View
-          </Button>
-        ),
-    },
+    // {
+    //   label: 'File Name',
+    //   value:
+    //     processData?.documents?.length <= 4 ? (
+    //       <Stack flexDirection="row" gap={1} flexWrap="wrap">
+    //         {processData?.documents?.map((item, index) => {
+    //           const name = item.details.name;
+    //           const work = name.split('_')[1]; // Assuming work can be extracted here
+    //           return (
+    //             <Typography
+    //               px={1}
+    //               borderRadius={1}
+    //               className={styles.workName}
+    //               key={index}
+    //               sx={{ border: '1px solid lightgray' }}
+    //             >
+    //               {work}
+    //             </Typography>
+    //           );
+    //         })}
+    //       </Stack>
+    //     ) : (
+    //       <Button onClick={handleOpenFilesList} size="small">
+    //         View
+    //       </Button>
+    //     ),
+    // },
     {
       label: 'Status',
       value: processData?.completed ? (
