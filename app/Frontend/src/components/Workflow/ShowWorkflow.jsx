@@ -3,14 +3,16 @@ import React from 'react';
 import styles from './ShowWorkflow.module.css';
 
 export default function ShowWorkflow({ workFlow }) {
-  function formatUserNames(users) {
-    if (!users || users.length === 0) {
-      return 'No users';
-    } else if (users.length === 1) {
-      return users[0].user;
-    } else {
-      return users[0].user + ', ...';
+  function truncateUsername(username, maxLength = 12) {
+    if (!username || typeof username !== 'string') return '';
+
+    // Check if truncation is needed
+    if (username.length <= maxLength) {
+      return username;
     }
+
+    // Truncate and append "..."
+    return `${username.substring(0, maxLength)}...`;
   }
   return (
     <Stack
@@ -38,23 +40,26 @@ export default function ShowWorkflow({ workFlow }) {
             <div className={styles.workflowContent}>
               <div className={styles.workFlowElements}>
                 <p style={{ width: '60px' }}>
-                  <strong>Work :</strong>
+                  <strong>Step :</strong>
                 </p>
-                <p>{item?.work}</p>
+                <p>{index + 1}</p>
               </div>
               <div className={styles.workFlowElements}>
                 <p style={{ width: '60px' }}>
                   <strong>Users :</strong>
                 </p>
-                <Tooltip
-                  title={
-                    item?.users?.length > 1
-                      ? item.users.map((user) => user.user).join(', ')
-                      : null
-                  }
-                >
-                  <p>{formatUserNames(item?.users)}</p>
-                </Tooltip>
+                <p style={{ whiteSpace: 'pre-line' }}>
+                  {item?.users?.length
+                    ? item.users.map((user, index) => (
+                        <Tooltip
+                          key={index}
+                          title={user.user.length > 12 ? user.user : ''}
+                        >
+                          <span>{truncateUsername(user.user)}</span>
+                        </Tooltip>
+                      ))
+                    : '---'}
+                </p>
               </div>
             </div>
           </Paper>

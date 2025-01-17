@@ -71,14 +71,16 @@ export default function Workflow({
   const onUserDialogClose = () => {
     setUserDialogOpen(false);
   };
-  function formatUserNames(users) {
-    if (!users || users.length === 0) {
-      return 'No users';
-    } else if (users.length === 1) {
-      return users[0].user;
-    } else {
-      return users[0].user + ', ...';
+  function truncateUsername(username, maxLength = 12) {
+    if (!username || typeof username !== 'string') return '';
+
+    // Check if truncation is needed
+    if (username.length <= maxLength) {
+      return username;
     }
+
+    // Truncate and append "..."
+    return `${username.substring(0, maxLength)}...`;
   }
   const handleDelete = (index) => {
     const updatedWorkFlow = [...workFlow];
@@ -213,7 +215,7 @@ export default function Workflow({
   return (
     <div>
       <Grid2 container spacing={3} p={2}>
-        <Grid2 item size={{ xs: 6 }}>
+        {/* <Grid2 item size={{ xs: 6 }}>
           <Typography variant="body1">Work</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'row', gap: '3px' }}>
             <FormControl fullWidth variant="outlined">
@@ -236,13 +238,13 @@ export default function Workflow({
               </Select>
             </FormControl>
           </Box>
-        </Grid2>
-        <Grid2 item size={{ xs: 6 }}>
+        </Grid2> */}
+        <Grid2 item size={{ xs: 12 }}>
           <Typography variant="body1">Step No:</Typography>
           <FormControl fullWidth variant="outlined">
             <Select
               name="step"
-              size="small"
+              // size="small"
               sx={{ backgroundColor: 'whitesmoke' }}
               onChange={handleFlowChange}
               value={+flow.step ? +flow.step : workFlowLength + 1}
@@ -348,7 +350,7 @@ export default function Workflow({
               sx={{
                 position: 'relative',
                 width: { xs: 230, sm: 250, md: 280 },
-                border: '1px solid lightgray',
+                border: '1px solid purple',
                 borderRadius: '15px',
                 backgroundColor: 'white',
               }}
@@ -370,23 +372,26 @@ export default function Workflow({
               <div className={styles.workflowContent}>
                 <div className={styles.workFlowElements}>
                   <p style={{ width: '60px' }}>
-                    <strong>Work :</strong>
+                    <strong>Step :</strong>
                   </p>
-                  <p>{item?.work}</p>
+                  <p>{index + 1}</p>
                 </div>
                 <div className={styles.workFlowElements}>
                   <p style={{ width: '60px' }}>
                     <strong>Users :</strong>
                   </p>
-                  <Tooltip
-                    title={
-                      item?.users?.length > 1
-                        ? item.users.map((user) => user.user).join(', ')
-                        : null
-                    }
-                  >
-                    <p>{formatUserNames(item?.users)}</p>
-                  </Tooltip>
+                  <p style={{ whiteSpace: 'pre-line' }}>
+                    {item?.users?.length
+                      ? item.users.map((user, index) => (
+                          <Tooltip
+                            key={index}
+                            title={user.user.length > 12 ? user.user : ''}
+                          >
+                            <span>{truncateUsername(user.user)}</span>
+                          </Tooltip>
+                        ))
+                      : '---'}
+                  </p>
                 </div>
               </div>
             </Paper>

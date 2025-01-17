@@ -1475,14 +1475,10 @@ export default function ViewProcess(props) {
   const [usersOnStep, setUsersOnStep] = useState([]);
   const [workFlowDialogOpen, setWorkFlowDialogOpen] = useState(false);
   const handleWorkFlow = () => {
-    if (formData.workFlow.length === 0 && flow.work !== 'upload') {
-      toast.info('First step should be upload');
-      return;
-    }
     if (formData.workFlow.length === 0) {
       setFinalBranch(formData.branch);
     }
-    if (usersOnStep.length > 0 && flow.work) {
+    if (usersOnStep.length > 0) {
       console.log(formData);
       setFormData((prev) => {
         const updatedWorkFlow = [...prev.workFlow];

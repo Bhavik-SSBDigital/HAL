@@ -324,11 +324,7 @@ export default function InitiateForm() {
   };
 
   const handleWorkFlow = () => {
-    if (selectedDepartment?.workFlow?.length === 0 && flow.work !== 'upload') {
-      toast.info('First step should be upload');
-      return;
-    }
-    if (usersOnStep.length > 0 && flow.work) {
+    if (usersOnStep.length > 0) {
       setSelectedDepartment((prev) => {
         const updatedWorkFlow = [...prev.workFlow];
 
@@ -356,11 +352,7 @@ export default function InitiateForm() {
       // setUserBranch('');
       setUsersOnStep([]);
     } else {
-      if (!flow.work) {
-        toast.info('Please select work!!');
-      } else {
-        toast.info('Please add users!!');
-      }
+      toast.info('Please add users!!');
     }
   };
   // working here
