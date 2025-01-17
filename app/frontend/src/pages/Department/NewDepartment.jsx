@@ -53,7 +53,7 @@ export default function NewDepartment(props) {
     workFlow: [],
   };
   const [formData, setFormData] = useState({ ...initialUser });
-  const [flow, setFlow] = useState({ work: '', step: '' });
+  const [flow, setFlow] = useState({ step: '' });
   const [usersOnStep, setUsersOnStep] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);

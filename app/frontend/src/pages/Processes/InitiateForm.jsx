@@ -305,7 +305,6 @@ export default function InitiateForm() {
   };
   const [usersOnStep, setUsersOnStep] = useState([]);
   const [flow, setFlow] = useState({
-    work: '',
     step: selectedDepartment?.workFlow?.length,
   });
   useEffect(() => {

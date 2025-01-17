@@ -1465,7 +1465,7 @@ export default function ViewProcess(props) {
     workFlow: processData?.workFlow || [],
   };
   const [formData, setFormData] = useState({ ...initialUser });
-  const [flow, setFlow] = useState({ work: '', step: '' });
+  const [flow, setFlow] = useState({ step: '' });
   useEffect(() => {
     setFlow((prevFlow) => ({
       ...prevFlow,
