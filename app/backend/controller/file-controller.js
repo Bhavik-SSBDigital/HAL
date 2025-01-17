@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import { createWriteStream, createReadStream, read } from "fs";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { dirname, join, normalize, extname } from "path";
 import fsCB from "fs";
 import path from "path";
 import { Transform } from "stream";
@@ -16,6 +16,9 @@ import { promisify } from "util";
 import { pipeline } from "stream";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import Department from "../models/department.js";
+import dotnev from "dotenv";
+
+dotnev.config();
 
 const pipelineAsync = promisify(pipeline);
 // Now you can access the desired functions
@@ -52,6 +55,8 @@ function getContentTypeFromExtension(extension) {
 
   return mimeTypes[extension] || "application/octet-stream"; // Default to generic binary if extension not found
 }
+
+const STORAGE_PATH = process.env.STORAGE_PATH;
 
 export const file_upload = async (req, res) => {
   try {
@@ -191,72 +196,6 @@ export const file_upload = async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).send("Error.");
-  }
-};
-
-export const file_download = async (req, res) => {
-  try {
-    const accessToken = req.headers["x-authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
-
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
-    let extra = decodeURIComponent(req.headers["x-file-path"]);
-    let relativePath = process.env.STORAGE_PATH + extra.substring(2);
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
-
-    const stat = await fs.stat(filePath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-    const fileExtension = fileName.split(".").pop();
-
-    if (range === "bytes=0-0") {
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      res.setHeader("access-control-expose-headers", "Content-Range");
-      return res.status(206).json({
-        fileSize: fileSize,
-        msg: "hello bro",
-      });
-    }
-
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunkSize = end - start + 1;
-
-      // const fileDescriptor = await fs.open(filePath, 'r')
-      const fileStream = fsCB.createReadStream(filePath, { start, end });
-
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      res.setHeader("access-control-expose-headers", "Content-Range");
-
-      let bytesWritten = 0;
-
-      fileStream.on("data", (chunk) => {
-        bytesWritten += chunk.length;
-      });
-
-      fileStream.on("end", () => {});
-
-      fileStream.pipe(res);
-    } else {
-      res.setHeader("access-control-expose-headers", "Content-Range");
-      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
-      // const fileDescriptor = await fs.open(filePath, 'r');
-      fsCB.createReadStream(filePath).pipe(res);
-    }
-  } catch (error) {
-    console.log("error", error);
-    res.status(500).json({
-      message: "error downloading file",
-    });
   }
 };
 
@@ -1013,6 +952,140 @@ export const file_delete = async (req, res) => {
     console.error("Error delete file:", error);
     res.status(500).json({
       message: "Error delete file",
+    });
+  }
+};
+
+export const file_though_url = async (req, res) => {
+  try {
+    console.log("file through url called");
+    const filePath = req.params.filePath;
+    if (!filePath) {
+      return res.status(400).json({ message: "File path is missing" });
+    }
+
+    // Resolve relative path to absolute path
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+
+    const absoluteFilePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH,
+      filePath
+    );
+    console.log("Resolved absolute file path:", absoluteFilePath);
+    console.log("is file path absolute", path.isAbsolute(absoluteFilePath));
+
+    // Check if the file exists
+    try {
+      await fs.access(absoluteFilePath);
+    } catch {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    // Serve the file
+    return res.sendFile(absoluteFilePath);
+  } catch (error) {
+    console.error("Error serving file:", error);
+    return res.status(500).json({ message: "Error serving file" });
+  }
+};
+
+export const file_download = async (req, res) => {
+  try {
+    const accessToken = req.headers["x-authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    let extra = decodeURIComponent(req.headers["x-file-path"]);
+    // let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    let relativePath = extra.substring(2);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const fileName = decodeURIComponent(req.headers["x-file-name"]);
+    const filePath = join(relativePath, `${fileName}`); // Replace with your file path
+
+    const fileExt = extname(fileName).slice(1).toLowerCase();
+    const fileURL = process.env.FILE_URL;
+    return res.status(200).json({
+      data: `${fileURL}${filePath}`,
+      fileType: fileExt,
+    });
+  } catch (error) {
+    console.log("error", error);
+    res.status(500).json({
+      message: "error downloading file",
+    });
+  }
+};
+
+export const get_file_data = async (req, res) => {
+  try {
+    const accessToken = req.headers["x-authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+    let extra = decodeURIComponent(req.headers["x-file-path"]);
+    let relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const fileName = decodeURIComponent(req.headers["x-file-name"]);
+    const filePath = join(__dirname, relativePath, `${fileName}`); // Replace with your file path
+
+    const stat = await fs.stat(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    const fileExtension = fileName.split(".").pop();
+
+    if (range === "bytes=0-0") {
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      res.setHeader("access-control-expose-headers", "Content-Range");
+      return res.status(206).json({
+        fileSize: fileSize,
+        msg: "hello bro",
+      });
+    }
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+
+      // const fileDescriptor = await fs.open(filePath, 'r')
+      const fileStream = fsCB.createReadStream(filePath, { start, end });
+
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      res.setHeader("access-control-expose-headers", "Content-Range");
+
+      let bytesWritten = 0;
+
+      fileStream.on("data", (chunk) => {
+        bytesWritten += chunk.length;
+      });
+
+      fileStream.on("end", () => {});
+
+      fileStream.pipe(res);
+    } else {
+      res.setHeader("access-control-expose-headers", "Content-Range");
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      // const fileDescriptor = await fs.open(filePath, 'r');
+      fsCB.createReadStream(filePath).pipe(res);
+    }
+  } catch (error) {
+    console.log("error", error);
+    res.status(500).json({
+      message: "error downloading file",
     });
   }
 };

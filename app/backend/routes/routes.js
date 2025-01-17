@@ -7,6 +7,8 @@ import {
   file_copy,
   file_cut,
   file_delete,
+  file_though_url,
+  get_file_data,
 } from "../controller/file-controller.js";
 import {
   signup_POST,
@@ -62,6 +64,7 @@ import {
   get_department,
   delete_department,
   get_departments_for_initiator,
+  get_merged_workflow,
 } from "../controller/department-controller.js";
 
 import {
@@ -88,11 +91,14 @@ import { get_user_logs, get_user_log } from "../controller/log-controller.js";
 import {
   add_sign_coordinates,
   get_sign_coordinates_for_specific_step,
+  remove_coordinate_from_doc,
 } from "../controller/sign-handlers/sign-coordinates-handler.js";
 
 import {
   sign_document,
+  revoke_sign,
   reject_document,
+  revoke_rejection,
 } from "../controller/e-sign-controller.js";
 
 import {
@@ -134,10 +140,14 @@ import {
   get_meetings_for_user,
   is_user_an_attendee,
   upload_mom_in_meeting,
+  upload_meeting_recording,
 } from "../controller/meeting-controller.js";
 import { compare_documents } from "../controller/compare-documents.js";
 import { add_doc_meta_data } from "../controller/file-meta-data-controller.js";
 // const upload = multer();
+
+import { update_process_workflow } from "../controller/process-edition-controller.js";
+import { get } from "https";
 
 const router = express.Router();
 
@@ -228,7 +238,9 @@ router.post("/rejectFromHeadOffice/:processId", head_office_rejection);
 router.post("/getUserLogs", get_user_logs);
 
 router.post("/signDocument", sign_document);
+router.post("/revokeSign", revoke_sign);
 router.post("/rejectDocument", reject_document);
+router.post("/revokeRejection", revoke_rejection);
 
 router.post("/getUserLog/:id", get_user_log);
 
@@ -308,8 +320,20 @@ router.post("/storeDocMetaData", add_doc_meta_data);
 
 router.post("/uploadMomInMeet", upload_mom_in_meeting);
 
+router.post("/uploadMeetRecording", upload_meeting_recording);
+
 router.post("/getProcessStatistics", get_process_statistics);
 
 router.get("/getHeadOfficeName", get_head_office_name);
+
+router.post("/getMergedWorkFlow", get_merged_workflow);
+
+router.get("/files/:filePath(*)", file_though_url);
+
+router.get("/getFileData", get_file_data);
+
+router.post("/updateProcessWorkflow", update_process_workflow);
+
+router.post("/removeCoordinates", remove_coordinate_from_doc);
 
 export default router;

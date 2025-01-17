@@ -36,6 +36,7 @@ import {
   AccordionDetails,
   DialogContent,
   Grid2,
+  Drawer,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import CheckboxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
@@ -56,6 +57,7 @@ import { useRef } from 'react';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   IconBan,
+  IconCircleDashedX,
   IconDownload,
   IconEye,
   IconFileOff,
@@ -75,11 +77,13 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { useForm } from 'react-hook-form';
 import Replacements from './Components/Replacements';
 import TopLoader from '../../common/Loader/TopLoader';
+import Workflow from '../../components/Workflow';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [processData, setProcessData] = useState();
   const token = sessionStorage.getItem('accessToken');
+  const initiator = sessionStorage.getItem('initiator') == 'true';
 
   const style = {
     position: 'absolute',
@@ -121,7 +125,6 @@ export default function ViewProcess(props) {
       );
       const dummy = () => {};
 
-      console.log(data);
       let ext = data.fileInput[0].name.split('.').pop();
       let fileUploaded = await upload(
         [data.fileInput[0]],
@@ -130,7 +133,7 @@ export default function ViewProcess(props) {
         `${res.data.name}.${ext}`,
         true,
       );
-      await axios.post(
+      const response = await axios.post(
         uploadUrl,
         {
           processId: viewId,
@@ -147,7 +150,14 @@ export default function ViewProcess(props) {
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      toast.success('Document Replaced');
+      setProcessData((prev) => ({
+        ...prev,
+        isRevertable: response?.data?.isRevertable,
+        isForwardable: response?.data?.isForwardable,
+        documents: response?.data?.documents,
+        replacementsWithRef: response?.data?.replacementsWithRef,
+      }));
+      toast.success(response?.data?.message);
       onClose();
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -200,7 +210,7 @@ export default function ViewProcess(props) {
     setRemarks(processData?.remarks);
   }, [processData?.remarks]);
   const [reasonOfRejection, setReasonOfRejection] = useState();
-  const [rejectFileId, setRejectFileId] = useState();
+  // const [rejectFileId, setRejectFileId] = useState();
   const [workNameError, setWorkNameError] = useState('');
   const [cabinetNoError, setCabinetNoError] = useState('');
   const [fileInputError, setFileInputError] = useState('');
@@ -350,10 +360,16 @@ export default function ViewProcess(props) {
     try {
       const fileData = await download(name, path, true);
       if (fileData) {
+        const signed = processData?.documents
+          ?.find((item) => item.details._id == fileToBeOperated?.details?._id)
+          ?.signedBy?.map((sign) => sign.username)
+          .includes(username);
+        console.log(signed);
         setFileView({
           url: fileData.data,
           type: fileData.fileType,
           fileId: fileToBeOperated?.details?._id,
+          signed,
         });
         setLoading(false);
       } else {
@@ -472,10 +488,23 @@ export default function ViewProcess(props) {
     setSelectedBranches(value);
   };
   const [selectAllCheckBranches, setSelectAllCheckBranches] = useState(false);
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const handleSelectAllBranches = (e) => {
     if (e.target.checked) {
       const nonHeadOfficeBranches = branches
-        .filter((item) => item.name !== 'headOffice')
+        .filter((item) => item.name !== headOfficeName)
         .filter((item) => !processData.name.includes(item.name))
         .map((item) => item.name);
       setSelectedBranches(nonHeadOfficeBranches);
@@ -639,7 +668,7 @@ export default function ViewProcess(props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectFileModalOpen, setRejectFileModalOpen] = useState(false);
-  const [rejectFileLoading, setRejectFileLoading] = useState(false);
+  const [commanLoading, setCommanLoading] = useState(false);
   const [selectedStep, setSelectedStep] = useState('');
   const openModal = () => {
     setIsModalOpen(true);
@@ -676,7 +705,6 @@ export default function ViewProcess(props) {
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   // const filelist = fileData.map((item) => item.file);
-  const [signLoading, setSignLoading] = useState(false);
   const handleFileSelect = (e) => {
     const selected = e.target.files[0];
     if (selected && selected.type !== 'application/pdf') {
@@ -716,8 +744,10 @@ export default function ViewProcess(props) {
     }
   };
 
+  const [signModalOpen, setSignModalOpen] = useState(false);
+  const [signRemarks, setSignRemarks] = useState('');
   const handleSign = async (processId, fileId) => {
-    setSignLoading((value) => !value);
+    setCommanLoading((value) => !value);
     const signUrl = backendUrl + '/signDocument';
     try {
       const res = await axios.post(
@@ -726,6 +756,7 @@ export default function ViewProcess(props) {
           processId: processId,
           documentId: fileId,
           workFlowToBeFollowed,
+          remarks: signRemarks,
         },
         {
           headers: {
@@ -736,6 +767,8 @@ export default function ViewProcess(props) {
 
       if (res.status === 200) {
         toast.success('Document signed');
+        setSignModalOpen(false);
+        setSignRemarks('');
         setProcessData((prevProcessData) => {
           // create a copy of the previous state
           const updatedProcessData = {
@@ -750,7 +783,10 @@ export default function ViewProcess(props) {
               // Update the signedBy array
               return {
                 ...file,
-                signedBy: [...file.signedBy, { username: username }],
+                signedBy: [
+                  ...file.signedBy,
+                  { username: sessionStorage.getItem('username') },
+                ],
               };
             }
             return file;
@@ -762,16 +798,16 @@ export default function ViewProcess(props) {
           // Return the updated state
           return updatedProcessData;
         });
+        setCommanLoading((value) => !value);
       }
     } catch (error) {
       console.log('error', error);
       toast.error(error.response.data.message);
-    } finally {
-      setSignLoading(false);
+      setCommanLoading(false);
     }
   };
   const handleRejectFile = async (processId, fileId) => {
-    setRejectFileLoading(true);
+    setCommanLoading(true);
     const rejectUrl = backendUrl + '/rejectDocument';
     try {
       const res = await axios.post(
@@ -823,7 +859,132 @@ export default function ViewProcess(props) {
     }
     CloseRejectFileModal();
     setReasonOfRejection('');
-    setRejectFileLoading(false);
+    setCommanLoading(false);
+  };
+  // remove sign, rejection
+  const handleSignRevoke = async () => {
+    setCommanLoading(true);
+    const url = backendUrl + '/revokeSign';
+    try {
+      const res = await axios.post(
+        url,
+        {
+          processId: processData?._id,
+          documentId: fileToBeOperated.details._id,
+          workFlowToBeFollowed,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (res.status === 200) {
+        toast.success(res?.data?.message || 'Success');
+        setProcessData((prevProcessData) => {
+          // create a copy of the previous state
+          const updatedProcessData = {
+            ...prevProcessData,
+            hasUserDoneAnythingAfterReceivingProcess: true,
+            isForwardable: res?.data?.isForwardable,
+            isRevertable: res?.data?.isRevertable,
+          };
+
+          // Find the document to update
+          const documents = updatedProcessData.documents.map((file) => {
+            if (file.details._id === fileToBeOperated?.details?._id) {
+              // Update the signedBy array
+              return {
+                ...file,
+                signedBy: [
+                  ...file.signedBy?.filter(
+                    (user) => user.username !== username,
+                  ),
+                ],
+              };
+            }
+            return file;
+          });
+
+          // Update the documents array in the state
+          updatedProcessData.documents = documents;
+
+          // Return the updated state
+          return updatedProcessData;
+        });
+      }
+    } catch (error) {
+      console.log('error', error);
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setCommanLoading(false);
+    }
+  };
+  const handleRejectFileRevoke = async () => {
+    setCommanLoading(true);
+    const url = backendUrl + '/revokeRejection';
+    try {
+      const res = await axios.post(
+        url,
+        {
+          processId: processData?._id,
+          documentId: fileToBeOperated.details._id,
+          workFlowToBeFollowed,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (res.status === 200) {
+        toast.success(res?.data?.message);
+        setProcessData((prevProcessData) => {
+          const updatedProcessData = {
+            ...prevProcessData,
+            hasUserDoneAnythingAfterReceivingProcess: true,
+            isForwardable: res?.data?.isForwardable,
+            isRevertable: res?.data?.isRevertable,
+          };
+
+          const documents = updatedProcessData.documents.map((file) => {
+            if (file.details._id === fileToBeOperated.details._id) {
+              // Update the signedBy array
+              return {
+                ...file,
+                rejection: undefined,
+              };
+            }
+            return file;
+          });
+
+          // Update the documents array in the state
+          updatedProcessData.documents = documents;
+
+          // Return the updated state
+          return updatedProcessData;
+        });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setCommanLoading(false);
+    }
+  };
+  const revokeOperable = (action) => {
+    const operatingFile = processData?.documents?.find(
+      (doc) => doc?.details?._id == fileToBeOperated?.details?._id,
+    );
+    if (action === 'sign') {
+      return !operatingFile?.signedBy
+        ?.map((item) => item?.username)
+        ?.includes(sessionStorage.getItem('username'));
+    } else if (action === 'reject') {
+      return !operatingFile?.rejection;
+    } else {
+      return false;
+    }
   };
   const handleDeleteFile = (index) => {
     if (index >= 0 && index < fileData.length) {
@@ -1296,6 +1457,86 @@ export default function ViewProcess(props) {
     </Grid2>
   );
 
+  // workflow
+  const initialUser = {
+    department: '',
+    branch: '',
+    head: '',
+    workFlow: processData?.workFlow || [],
+  };
+  const [formData, setFormData] = useState({ ...initialUser });
+  const [flow, setFlow] = useState({ work: '', step: '' });
+  useEffect(() => {
+    setFlow((prevFlow) => ({
+      ...prevFlow,
+      step: processData?.workFlow?.length + 1,
+    }));
+  }, [processData?.workFlow]);
+  const [usersOnStep, setUsersOnStep] = useState([]);
+  const [workFlowDialogOpen, setWorkFlowDialogOpen] = useState(false);
+  const handleWorkFlow = () => {
+    if (formData.workFlow.length === 0 && flow.work !== 'upload') {
+      toast.info('First step should be upload');
+      return;
+    }
+    if (formData.workFlow.length === 0) {
+      setFinalBranch(formData.branch);
+    }
+    if (usersOnStep.length > 0 && flow.work) {
+      console.log(formData);
+      setFormData((prev) => {
+        const updatedWorkFlow = [...prev.workFlow];
+
+        if (flow.step > prev.workFlow.length) {
+          // If step is greater than the length, insert at the end
+          updatedWorkFlow.push({ ...flow, users: usersOnStep });
+        } else {
+          updatedWorkFlow.splice(flow.step - 1, 0, {
+            ...flow,
+            users: usersOnStep,
+          });
+
+          // Update step numbers for all items after the insertion point
+          for (let i = flow.step; i < updatedWorkFlow.length; i++) {
+            console.log(updatedWorkFlow, i);
+            updatedWorkFlow[i].step++;
+          }
+        }
+
+        return {
+          ...prev,
+          workFlow: updatedWorkFlow,
+        };
+      });
+      setFlow({ work: '', step: '' });
+      // setUserBranch('');
+      setUsersOnStep([]);
+    } else {
+      toast.info('Please provide all inputs!');
+    }
+  };
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, workFlow: processData?.workFlow }));
+  }, [processData?.workFlow]);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const submitWorkflow = async () => {
+    setSubmitLoading(true);
+    const url = backendUrl + '/updateProcessWorkflow';
+    try {
+      const response = await axios.post(
+        url,
+        { processId: processData?._id, steps: formData?.workFlow },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
   return (
     <>
       {loading ? (
@@ -1917,14 +2158,17 @@ export default function ViewProcess(props) {
                         <Button
                           variant="contained"
                           color="error"
-                          disabled={rejectFileLoading}
+                          disabled={commanLoading}
                           onClick={() =>
                             reasonOfRejection
-                              ? handleRejectFile(processData._id, rejectFileId)
+                              ? handleRejectFile(
+                                  processData._id,
+                                  fileToBeOperated?.details?._id,
+                                )
                               : toast.warning('Provide remarks')
                           }
                         >
-                          {rejectFileLoading ? (
+                          {commanLoading ? (
                             <CircularProgress size={20} />
                           ) : (
                             ' Reject File'
@@ -1932,7 +2176,7 @@ export default function ViewProcess(props) {
                         </Button>
                         <Button
                           variant="contained"
-                          disabled={rejectFileLoading}
+                          disabled={commanLoading}
                           // color="error"
                           onClick={() => setRejectFileModalOpen(false)}
                         >
@@ -1959,10 +2203,10 @@ export default function ViewProcess(props) {
                       <Typography
                         variant="h5"
                         sx={{
-                          color: '#333',
+                          color: 'white',
                           marginBottom: '10px',
                           borderRadius: '5px',
-                          background: 'lightblue',
+                          background: 'var(--themeColor)',
                           width: '100%',
                           textAlign: 'center',
                         }}
@@ -2213,7 +2457,7 @@ export default function ViewProcess(props) {
                             onChange={handleBranchChange}
                           >
                             {branches
-                              .filter((item) => item.name === 'headOffice')
+                              .filter((item) => item.name === headOfficeName)
                               ?.map((branch) => (
                                 <MenuItem
                                   value={branch.name}
@@ -2369,7 +2613,7 @@ export default function ViewProcess(props) {
                             multiple
                             id="checkboxes-tags-demo"
                             options={branches
-                              .filter((item) => item.name !== 'headOffice')
+                              .filter((item) => item.name !== headOfficeName)
                               .filter(
                                 (item) => !processData.name.includes(item.name),
                               )
@@ -2549,7 +2793,7 @@ export default function ViewProcess(props) {
                     <MenuItem
                       disabled={
                         itemName.split('.').pop().trim() === 'zip' ||
-                        signLoading
+                        commanLoading
                       }
                       sx={{ gap: '5px' }}
                       onClick={() => {
@@ -2563,7 +2807,7 @@ export default function ViewProcess(props) {
                     <MenuItem
                       disabled={
                         itemName?.split('.').pop().trim() === 'zip' ||
-                        signLoading
+                        commanLoading
                       }
                       sx={{ gap: '5px' }}
                       onClick={() => {
@@ -2574,16 +2818,18 @@ export default function ViewProcess(props) {
                       <IconDownload />
                       Download
                     </MenuItem>
-                    <MenuItem
-                      sx={{ gap: '5px' }}
-                      onClick={() => {
-                        handleOpenReplaceDialog();
-                      }}
-                      disabled={signLoading}
-                    >
-                      <IconReplace />
-                      Replace
-                    </MenuItem>
+                    {initiator && !processData?.completed ? (
+                      <MenuItem
+                        sx={{ gap: '5px' }}
+                        onClick={() => {
+                          handleOpenReplaceDialog();
+                        }}
+                        disabled={commanLoading}
+                      >
+                        <IconReplace />
+                        Replace
+                      </MenuItem>
+                    ) : null}
                     {operable &&
                       username !== 'admin' &&
                       processData.currentActorUser === username && (
@@ -2591,12 +2837,13 @@ export default function ViewProcess(props) {
                           <MenuItem
                             sx={{ gap: '5px' }}
                             onClick={async () => {
-                              await handleSignClick();
+                              // await handleSignClick();
+                              setSignModalOpen(true);
                             }}
                             disabled={
                               checkFileIsOperable() ||
                               publishCheck?.work === 'upload' ||
-                              signLoading
+                              commanLoading
                             }
                           >
                             <IconWritingSign />
@@ -2605,18 +2852,38 @@ export default function ViewProcess(props) {
                           <MenuItem
                             sx={{ gap: '5px' }}
                             onClick={() => {
-                              setRejectFileId(fileToBeOperated.details._id);
                               handleClose();
                               openRejectFileModal();
                             }}
                             disabled={
                               checkFileIsOperable() ||
                               publishCheck?.work === 'upload' ||
-                              signLoading
+                              commanLoading
                             }
                           >
                             <IconFileOff />
                             Reject
+                          </MenuItem>
+                          {/* revoke */}
+                          <MenuItem
+                            sx={{ gap: '5px' }}
+                            onClick={async () => {
+                              handleSignRevoke() || commanLoading;
+                            }}
+                            disabled={revokeOperable('sign')}
+                          >
+                            <IconWritingSign />
+                            Sign Revoke
+                          </MenuItem>
+                          <MenuItem
+                            sx={{ gap: '5px' }}
+                            onClick={() => {
+                              handleRejectFileRevoke() || commanLoading;
+                            }}
+                            disabled={revokeOperable('reject')}
+                          >
+                            <IconFileOff />
+                            Reject Revoke
                           </MenuItem>
                         </div>
                       )}
@@ -2654,6 +2921,37 @@ export default function ViewProcess(props) {
                 </Stack>
               </>
             )}
+            <Dialog fullWidth open={signModalOpen} maxWidth="xs">
+              <form>
+                <DialogTitle
+                  sx={{ background: 'var(--themeColor)', m: 1, color: 'white' }}
+                >
+                  Sign Remarks
+                </DialogTitle>
+                <DialogContent>
+                  <TextField
+                    onChange={(e) => setSignRemarks(e.target.value)}
+                    fullWidth
+                    required
+                  />
+                </DialogContent>
+                <DialogActions>
+                  <Button
+                    disabled={commanLoading}
+                    onClick={() => setSignModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={commanLoading}
+                    variant="contained"
+                    onClick={handleSignClick}
+                  >
+                    {commanLoading ? <CircularProgress size={22} /> : 'Submit'}
+                  </Button>
+                </DialogActions>
+              </form>
+            </Dialog>
             <Dialog open={openC}>
               <Typography
                 variant="h6"
@@ -2904,6 +3202,12 @@ export default function ViewProcess(props) {
                     >
                       View Timeline
                     </Button>
+                    <Button
+                      onClick={() => setWorkFlowDialogOpen((prev) => !prev)}
+                      variant="contained"
+                    >
+                      Update Workflow
+                    </Button>
                   </Stack>
                 ) : (
                   <Stack alignItems="center">
@@ -2923,6 +3227,48 @@ export default function ViewProcess(props) {
                 )}
               </div>
             )}
+            <Drawer
+              PaperProps={{
+                sx: { padding: 2 }, // Adjust the value as per your needs (e.g., 1, 2, 3 for Material-UI spacing)
+              }}
+              anchor="right"
+              open={workFlowDialogOpen}
+              onClose={() =>
+                submitLoading ? null : setWorkFlowDialogOpen(false)
+              }
+            >
+              <IconButton
+                onClick={() => setWorkFlowDialogOpen(false)}
+                sx={{ position: 'absolute', right: '5px', top: '5px' }}
+              >
+                <IconCircleDashedX />
+              </IconButton>
+              <Typography variant="h6" textAlign={'center'}>
+                Update Workflow
+              </Typography>
+              <Workflow
+                workFlow={formData?.workFlow}
+                workFlowLength={formData?.workFlow?.length || 0}
+                handleWorkFlow={handleWorkFlow}
+                setWorkFLow={setFormData}
+                flow={flow}
+                setFlow={setFlow}
+                usersOnStep={usersOnStep}
+                setUsersOnStep={setUsersOnStep}
+                branches={branches}
+                setBranches={setBranches}
+                fullState={formData}
+                maxStepNumberReached={processData?.maxStepNumberReached}
+              />
+              <Button
+                disabled={submitLoading}
+                variant="contained"
+                onClick={submitWorkflow}
+                sx={{ display: 'block', mx: 'auto', width: '250px' }}
+              >
+                {submitLoading ? <CircularProgress size={22} /> : 'Update'}
+              </Button>
+            </Drawer>
           </div>
           <Dialog
             maxWidth="md"
@@ -3103,7 +3449,7 @@ export default function ViewProcess(props) {
               controls={true}
             />
           )}
-          {signLoading ? <TopLoader /> : null}
+          {commanLoading ? <TopLoader /> : null}
         </Stack>
       )}
     </>

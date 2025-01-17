@@ -150,6 +150,17 @@ export default function List(props) {
       return `${users[0].user}, ...`;
     }
   }
+  function truncateUsername(username, maxLength = 12) {
+    if (!username || typeof username !== 'string') return '';
+
+    // Check if truncation is needed
+    if (username.length <= maxLength) {
+      return username;
+    }
+
+    // Truncate and append "..."
+    return `${username.substring(0, maxLength)}...`;
+  }
 
   const renderWorkFlow = () => {
     return (
@@ -226,26 +237,23 @@ export default function List(props) {
                             <p>{item.work}</p>
                           </div>
                           <div className={styles.workFlowElements}>
-                            <p style={{ width: '30%' }}>
+                            <p style={{ width: '60px' }}>
                               <strong>Users :</strong>
                             </p>
-                            <p style={{ width: '70%', whiteSpace: 'pre-line' }}>
+                            <p style={{ whiteSpace: 'pre-line' }}>
                               {item?.users?.length
-                                ? item?.users
-                                    ?.map((user) => user.user)
-                                    .join('\n')
+                                ? item.users.map((user, index) => (
+                                    <Tooltip
+                                      key={index}
+                                      title={
+                                        user.user.length > 12 ? user.user : ''
+                                      }
+                                    >
+                                      <span>{truncateUsername(user.user)}</span>
+                                    </Tooltip>
+                                  ))
                                 : '---'}
                             </p>
-
-                            {/* <Tooltip
-                              title={
-                                item?.users
-                                  ?.map((user) => `${user.user} (${user.role})`)
-                                  .join(", ") // Format user names with roles
-                              }
-                            >
-                              <p>{formatUserNames(item?.users || [])}</p>
-                            </Tooltip> */}
                           </div>
                         </div>
                       </Paper>
@@ -290,32 +298,6 @@ export default function List(props) {
               overflow: 'auto',
             }}
           >
-            {/* <Stack
-            alignItems="center"
-            sx={{
-              // mx: 1,
-              borderRadius: "10px",
-              width: { xs: "300px" },
-              mx: "auto",
-            }}
-          >
-            <Typography
-              variant="h4"
-              component="span"
-              gutterBottom
-              sx={{
-                textAlign: "center",
-                width: 270,
-                height: 35,
-                fontWeight: 700,
-                borderRadius: "10px",
-                m: "5px",
-                // color: "lightblue",
-              }}
-            >
-              Departments
-            </Typography>
-          </Stack> */}
             {!isLoading && (
               <Stack
                 flexWrap="wrap"

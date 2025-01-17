@@ -45,11 +45,25 @@ import { FaRegTrashAlt } from 'react-icons/fa';
 import Workflow from '../../components/Workflow';
 
 export default function InitiateForm() {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const meetingId = queryParams.get('meetingId');
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
+
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDepartment, setSelectedDepartment] = useState({});
   const [workFlow, setWorkFlow] = useState('');
@@ -57,17 +71,18 @@ export default function InitiateForm() {
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState([]);
   const [departments, setDepartments] = useState([]);
+  console.log(departments);
+
   const [departmentSelection, setDepartmentSelection] = useState('');
+  const [approverDepartment, setApproverDepartment] = useState('');
   const headOfficeDepartments = branches?.find(
-    (item) => item.name === 'headOffice',
+    (item) => item.name === headOfficeName,
   )?.departments;
   const [processType, setProcessType] = useState();
   const [headofficeInclude, setHeadofficeInclude] = useState();
   const [managerDep, setManagerDep] = useState();
   const depBelongsToHeadoffice =
-    departmentSelection.split('_')[0].toLowerCase() === 'headoffice'
-      ? true
-      : false;
+    departmentSelection.split('_')[0] === headOfficeName ? true : false;
 
   // ---------------** when deparmtent outside headoffice
   // headoffice is not included branches select
@@ -80,7 +95,7 @@ export default function InitiateForm() {
     if (e.target.checked) {
       const nonHeadOfficeBranches = branches
         ?.filter(
-          (item) => item.name !== 'headOffice' && item.departments.length > 0,
+          (item) => item.name !== headOfficeName && item.departments.length > 0,
         )
         ?.filter((item) => !departmentSelection.includes(item.name))
         .map((item) => item.name);
@@ -167,6 +182,26 @@ export default function InitiateForm() {
       .then((response) => {
         if (response.status === 200) {
           setDepartments(response.data.departments);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        setLoading(false);
+        console.error('error', error);
+      });
+  };
+  const [allDepartments, setAllDepartments] = useState([]);
+  const getAllDepartments = async () => {
+    const url = backendUrl + '/getDepartments';
+    axios
+      .post(url, null, {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+        },
+      })
+      .then((response) => {
+        if (response.status === 200) {
+          setAllDepartments(response.data.departments);
         }
         setLoading(false);
       })
@@ -332,6 +367,7 @@ export default function InitiateForm() {
   useEffect(() => {
     fetchBranches();
     getDepartments();
+    getAllDepartments();
     setFlow((prevFlow) => ({
       ...prevFlow,
       step: selectedDepartment?.workFlow?.length + 1,
@@ -346,6 +382,30 @@ export default function InitiateForm() {
 
   // mom option
   const [isMom, setIsMom] = useState(false);
+
+  // approver department selection
+  const [selectApproverLoading, setSelectApproverLoading] = useState('');
+  const selectApproverDepartment = async (e) => {
+    const url = backendUrl + '/getMergedWorkFlow';
+    setApproverDepartment(e.target?.value?.department);
+    const data = {
+      approver: e.target?.value?.department,
+      initiator: departmentSelection,
+    };
+
+    setSelectApproverLoading(true);
+    try {
+      const response = await axios.post(url, data);
+      setSelectedDepartment((prev) => ({
+        ...prev,
+        workFlow: response?.data?.steps || [],
+      }));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setSelectApproverLoading(false);
+    }
+  };
   return (
     <>
       {loading ? (
@@ -511,6 +571,49 @@ export default function InitiateForm() {
                         </Button>
                       </div>
                     </div>
+                    {isDynamicFlow &&
+                    selectedDepartment.branch !== headOfficeName ? (
+                      <div style={{ marginBottom: '25px' }}>
+                        <Typography
+                          variant="body1"
+                          component="span"
+                          gutterBottom
+                          sx={{
+                            textAlign: 'center',
+                            width: 350,
+                            height: 50,
+                            fontWeight: 400,
+
+                            margin: '10px',
+                          }}
+                        >
+                          Select approver department
+                        </Typography>
+                        <div className={styles.departmentList}>
+                          <Select
+                            value={approverDepartment}
+                            size="small"
+                            sx={{ maxWidth: '400px', backgroundColor: 'white' }}
+                            onChange={selectApproverDepartment}
+                            displayEmpty
+                            renderValue={(selected) =>
+                              selected === '' ? 'Select Department' : selected
+                            }
+                          >
+                            {allDepartments
+                              ?.filter((dep) => dep.branch == headOfficeName)
+                              ?.map((department) => (
+                                <MenuItem
+                                  key={department.department}
+                                  value={department}
+                                >
+                                  {department.department}
+                                </MenuItem>
+                              ))}
+                          </Select>
+                        </div>
+                      </div>
+                    ) : null}
                     {meetingId ? (
                       <div style={{ marginBottom: '25px' }}>
                         <Typography
@@ -827,7 +930,7 @@ export default function InitiateForm() {
                                     options={branches
                                       ?.filter(
                                         (item) =>
-                                          item.name !== 'headOffice' &&
+                                          item.name !== headOfficeName &&
                                           item.departments.length > 0,
                                       )
                                       ?.filter(
@@ -1051,6 +1154,7 @@ export default function InitiateForm() {
                     {(processType === 'intra' || isDynamicFlow) && (
                       <Stack alignItems="center">
                         <Button
+                          disabled={selectApproverLoading}
                           variant="contained"
                           onClick={() => handleProceed('1')}
                           sx={{ width: 'fit-content', minWidth: '200px' }}

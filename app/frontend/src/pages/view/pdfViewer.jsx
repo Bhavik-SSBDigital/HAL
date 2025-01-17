@@ -31,6 +31,7 @@ function PdfContainer({
   processId,
   currentStep,
   controls,
+  signed,
 }) {
   const username = sessionStorage.getItem('username');
   const initiator = sessionStorage.getItem('initiator') == 'true';
@@ -43,7 +44,7 @@ function PdfContainer({
   const [highlights, setHighlights] = useState([]);
   const [signAreas, setSignAreas] = useState([]); // NEW STATE
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState('textSelection'); // NEW STATE
+  const [mode, setMode] = useState(''); // NEW STATE
   const [drawing, setDrawing] = useState(false); // For sign area drawing
   const [currentSignArea, setCurrentSignArea] = useState(null); // For active rectangle
   const pageRefs = useRef([]);
@@ -72,8 +73,8 @@ function PdfContainer({
     const handleTextSelection = () => {
       if (mode !== 'textSelection') return; // Only handle text selection in text mode
       const selection = window.getSelection();
-      const selectedText = selection.toString();
-      if (selectedText.length > 0) {
+      const selectedText = selection.toString()?.trim() || '';
+      if (selectedText.length > 0 && selectedText) {
         const range = selection.getRangeAt(0);
         const rects = range.getClientRects();
         const newCoordinates = [];
@@ -217,8 +218,21 @@ function PdfContainer({
     setLoading(false);
   };
 
-  const removeSignArea = (index) => {
-    setSignAreas((prev) => prev.filter((_, i) => i !== index));
+  const removeSignArea = async (signArea, index) => {
+    const url = backendUrl + '/removeCoordinates';
+
+    try {
+      const response = await axios.post(
+        url,
+        { documentId, coordinates: signArea },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSignAreas((prev) => prev.filter((_, i) => i !== index));
+      toast.success(response?.data?.message);
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
 
   const [openTooltip, setOpenTooltip] = useState(false);
@@ -231,7 +245,6 @@ function PdfContainer({
           ref={(el) => (pageRefs.current[i - 1] = el)}
           className="pdf-page"
           position="relative"
-          sx={{ zIndex: 99 }}
         >
           <Page pageNumber={i} renderTextLayer />
           {highlights.map((highlight, index1) =>
@@ -254,7 +267,7 @@ function PdfContainer({
                       padding: '2px',
                       top: coord.y + coord.height,
                       left: coord.x,
-                      zIndex: 999,
+                      zIndex: 3,
                     }}
                   >
                     <Typography fontWeight={700} fontSize={14} color="black">
@@ -272,6 +285,7 @@ function PdfContainer({
                     style={{
                       userSelect: 'none',
                       position: 'absolute',
+                      zIndex: 2,
                       top: coord.y,
                       left: coord.x,
                       width: coord.width,
@@ -280,7 +294,6 @@ function PdfContainer({
                       backgroundBlendMode: 'lighten',
                       borderRadius: '2px',
                       cursor: 'pointer',
-                      zIndex: 99,
                     }}
                   />
                 </>
@@ -298,7 +311,6 @@ function PdfContainer({
                   height: currentSignArea.height,
                   border: '2px dashed red',
                   backgroundColor: 'rgba(255, 0, 0, 0.3)',
-                  zIndex: 1000,
                 }}
               />
             )}
@@ -306,39 +318,52 @@ function PdfContainer({
           {signAreas
             ?.filter((signArea) => signArea.page === i)
             ?.map((signArea, index) => (
-              <Box
-                key={index}
-                sx={{
-                  position: 'absolute',
-                  top: signArea.y,
-                  left: signArea.x,
-                  width: signArea.width,
-                  height: signArea.height,
-                  border: '2px solid red',
-                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
-                }}
+              <Tooltip
+                title={
+                  signArea?.isSigned
+                    ? signArea.signedBy
+                    : workflow
+                        ?.find((item) => item.step == signArea.stepNo)
+                        ?.users?.map((user) => user.user)
+                        .join(',')
+                }
               >
-                {initiator ? (
-                  <Button
-                    onClick={() => removeSignArea(index)}
-                    sx={{
-                      position: 'absolute',
-                      top: -10,
-                      right: -10,
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      width: '20px',
-                      height: '20px',
-                      minWidth: '0',
-                      padding: '0',
-                      zIndex: 9999,
-                      border: '2px solid red',
-                    }}
-                  >
-                    X
-                  </Button>
-                ) : null}
-              </Box>
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'absolute',
+                    top: signArea.y,
+                    left: signArea.x,
+                    width: signArea.width,
+                    height: signArea.height,
+                    border: workflow?.length ? '2px solid red' : null,
+                    backgroundColor:
+                      signed && workflow?.length ? '#FAD4D477' : null,
+                    zIndex: 20,
+                  }}
+                >
+                  {initiator ? (
+                    <Button
+                      onClick={() => removeSignArea(signArea, index)}
+                      sx={{
+                        position: 'absolute',
+                        top: -10,
+                        right: -10,
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        width: '20px',
+                        height: '20px',
+                        minWidth: '0',
+                        padding: '0',
+                        border: '2px solid red',
+                        zIndex: 9,
+                      }}
+                    >
+                      X
+                    </Button>
+                  ) : null}
+                </Box>
+              </Tooltip>
             ))}
         </Box>,
       );
@@ -376,6 +401,7 @@ function PdfContainer({
           docId: documentId,
           processId: processId,
           stepNo: currentStep,
+          initiator,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -434,7 +460,7 @@ function PdfContainer({
             background: 'white',
             position: 'sticky',
             top: '2px',
-            zIndex: 999,
+            zIndex: 21,
             padding: '10px',
             mb: 1,
           }}
@@ -482,7 +508,8 @@ function PdfContainer({
         {renderPages()}
       </Document>
       <Dialog
-        sx={{ zIndex: '999999' }}
+        fullWidth
+        maxWidth="xs"
         open={openRemarksMenu}
         onClose={() => setOpenRemarksMenu(false)}
       >
@@ -498,6 +525,9 @@ function PdfContainer({
         <Stack spacing={2} sx={{ p: 2 }}>
           <TextField
             value={remark}
+            fullWidth
+            multiline
+            rows={3}
             onChange={(e) => setRemark(e.target.value)}
           />
           <Button
@@ -509,11 +539,7 @@ function PdfContainer({
           </Button>
         </Stack>
       </Dialog>
-      <Dialog
-        open={userSignDialogOpen}
-        sx={{ zIndex: '100' }}
-        onClose={onSignAreaDialogClose}
-      >
+      <Dialog open={userSignDialogOpen} onClose={onSignAreaDialogClose}>
         <form>
           <DialogTitle
             sx={{ bgcolor: 'var(--themeColor)', margin: 1, color: 'white' }}
@@ -536,7 +562,7 @@ function PdfContainer({
                 .filter((item) => item.step <= maxReceiverStepNumber)
                 .map((item) => (
                   <MenuItem key={item.step} value={item.step}>
-                    forward to{' '}
+                    forward to
                     <b
                       style={{
                         marginRight: '3px',
@@ -544,8 +570,8 @@ function PdfContainer({
                       }}
                     >
                       {item.users.map((user) => user.user).join(',')}
-                    </b>{' '}
-                    for work{' '}
+                    </b>
+                    for work
                     <b
                       style={{
                         marginRight: '3px',

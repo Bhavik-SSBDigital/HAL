@@ -29,6 +29,8 @@ import {
   IconSend2,
   IconPin,
   IconPinnedOff,
+  IconDeviceComputerCamera,
+  IconDeviceComputerCameraOff,
 } from '@tabler/icons-react';
 import io from 'socket.io-client';
 import { useForm } from 'react-hook-form';
@@ -38,6 +40,7 @@ import userSocket from '../Socket_Connection';
 import { socketData } from '../../Store';
 import axios from 'axios';
 import History from './History';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
 // Define the ICE server configuration
 const configuration = {
   iceServers: [
@@ -531,6 +534,97 @@ const MeetingManager = () => {
       getDetails();
     }
   }, [showChat]);
+
+  // screen recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const startRecording = async () => {
+    try {
+      // Request screen capture
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true, // Include audio if available
+      });
+
+      // Initialize MediaRecorder
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        if (chunks.length) {
+          saveRecording(chunks);
+        }
+      };
+      recorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting screen recording:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    // Stop all media stream tracks
+    mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+
+    // Stop the MediaRecorder
+    mediaRecorder.stop();
+    setIsRecording(false);
+  };
+
+  const saveRecording = async (chunks) => {
+    try {
+      // Create a Blob from the recorded chunks
+      const blob = new Blob(chunks, { type: 'video/webm' });
+
+      // Create a download URL for user convenience
+      // const url = URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = 'screen-recording.webm';
+      // a.click();
+
+      // Prepare the recorded file for upload
+      const file = new File([blob], 'example1.mp4', { type: 'video/mp4' });
+      // const formData = new FormData();
+      // formData.append('file', blob, 'screen-recording.webm');
+
+      // Simulate a progress handler
+      const onProgress = () => {
+        console.log('Uploading...');
+      };
+
+      // Perform the upload
+      const response = await upload(
+        [file],
+        '../meetings',
+        onProgress,
+        'recording.mp4',
+        true,
+      );
+      const uploadUrl = backendUrl + '/uploadMeetRecording';
+      const res = await axios.post(
+        uploadUrl,
+        {
+          meetingId,
+          recordingId: response[0],
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      toast.success(
+        response?.data?.message || 'Recording uploaded sucessfully',
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+
   return (
     <div>
       {!inRoom ? (
@@ -866,6 +960,20 @@ const MeetingManager = () => {
                   }}
                 >
                   <IconUsersGroup />
+                </IconButton>
+
+                {/* screen recording */}
+                <IconButton
+                  color={isRecording ? 'primary' : 'default'}
+                  onClick={() => {
+                    isRecording ? stopRecording() : startRecording();
+                  }}
+                >
+                  {isRecording ? (
+                    <IconDeviceComputerCameraOff />
+                  ) : (
+                    <IconDeviceComputerCamera />
+                  )}
                 </IconButton>
 
                 {/* Leave/End Button */}

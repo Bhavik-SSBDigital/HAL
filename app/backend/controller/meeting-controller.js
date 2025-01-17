@@ -7,6 +7,12 @@ import { getSocketInstance } from "../socketHandler.js";
 import moment from "moment";
 import Process from "../models/process.js";
 import Document from "../models/document.js";
+import { extname } from "path";
+import dotnev from "dotenv";
+
+dotnev.config();
+
+const fileURL = process.env.FILE_URL;
 
 const checkIfRoomHasParticipants = (roomId) => {
   const io = getSocketInstance(); // Get the Socket.io instance
@@ -497,31 +503,43 @@ export const get_meeting_details = async (req, res, next) => {
 
     meet.associatedProcesses = associatedProcesses;
 
-    // Retrieve momUploadedBy
-    const momUploadedBy = await User.findOne({
-      _id: meet.momUploadedBy,
-    }).select("username");
-    meet.momUploadedBy = momUploadedBy ? momUploadedBy.username : null;
-
-    // Retrieve mom details
-    const mom = await Document.findOne({ _id: meet.mom }).select(
-      "_id name path"
+    meet.associatedRecordings = await Promise.all(
+      meet.associatedRecordings.map(async (item) => {
+        const document = await Document.findOne({ _id: item }).select(
+          "name path"
+        );
+        return {
+          url: `${fileURL}${document.path.substring(19)}`,
+          fileType: extname(document.name).slice(1).toLowerCase(),
+        };
+      })
     );
 
-    const parts = mom.path.split("/"); // Split the path by "/"
+    // Retrieve momUploadedBy
+    // const momUploadedBy = await User.findOne({
+    //   _id: meet.momUploadedBy,
+    // }).select("username");
+    // meet.momUploadedBy = momUploadedBy ? momUploadedBy.username : null;
 
-    // Remove the last part (whether it’s a file name or folder name)
-    parts.pop();
+    // // Retrieve mom details
+    // const mom = await Document.findOne({ _id: meet.mom }).select(
+    //   "_id name path"
+    // );
 
-    const updatedPath = parts.join("/"); // Join the remaining parts back
+    // const parts = mom.path.split("/"); // Split the path by "/"
 
-    meet.mom = mom
-      ? {
-          docId: mom._id,
-          name: mom.name,
-          path: `..${updatedPath.substring(19)}`,
-        }
-      : null;
+    // // Remove the last part (whether it’s a file name or folder name)
+    // parts.pop();
+
+    // const updatedPath = parts.join("/"); // Join the remaining parts back
+
+    // meet.mom = mom
+    //   ? {
+    //       docId: mom._id,
+    //       name: mom.name,
+    //       path: `..${updatedPath.substring(19)}`,
+    //     }
+    //   : null;
 
     return res.status(200).json({
       meetingDetails: meet,
@@ -599,6 +617,59 @@ export const upload_mom_in_meeting = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating MOM:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const upload_meeting_recording = async (req, res, next) => {
+  try {
+    // Extract and verify access token
+    const accessToken = req.headers["authorization"]?.substring(7);
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ message: "Authorization token is required" });
+    }
+
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { meetingId, recordingId } = req.body;
+
+    // Validate required data
+    if (!meetingId || !recordingId) {
+      return res
+        .status(400)
+        .json({ message: "Meeting ID and Recording ID are required" });
+    }
+
+    // Check if meeting exists
+    const meeting = await Meeting.findOne({ meetingId: meetingId });
+    console.log("meeting", meeting);
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    // Check if recording exists (optional validation)
+    const recordingExists = await Document.findById(recordingId);
+    if (!recordingExists) {
+      return res.status(404).json({ message: "Recording document not found" });
+    }
+
+    // Add recording to the meeting's associated recordings
+    meeting.associatedRecordings = meeting.associatedRecordings || [];
+
+    meeting.associatedRecordings.push(recordingId);
+    await meeting.save();
+
+    return res.status(200).json({
+      message: "Recording successfully uploaded to the meeting",
+      meeting,
+    });
+  } catch (error) {
+    console.error("Error uploading recording:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

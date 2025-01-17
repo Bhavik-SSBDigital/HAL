@@ -5,8 +5,14 @@ import Work from "../models/work.js";
 import mongoose from "mongoose";
 import { verifyUser } from "../utility/verifyUser.js";
 import Role from "../models/role.js";
-import { format_workflow_step } from "./department-controller.js";
+import {
+  format_workflow_steps,
+  format_workflow_step,
+} from "./department-controller.js";
+import LogWork from "../models/logWork.js";
+
 import { format_process_documents } from "./processes-controller.js";
+import Edition from "../models/process-edition.js";
 import { ObjectId } from "mongodb";
 export const addLog = async (
   processId,
@@ -26,6 +32,11 @@ export const addLog = async (
       currentWorkName = currentWork.name;
     }
 
+    const logWork = await LogWork.findOne({
+      process: processId,
+      user: currentStep.actorUser,
+    });
+
     let logData = {
       processId: processId,
       time: Date.now(),
@@ -34,6 +45,20 @@ export const addLog = async (
       documents: documents,
       belongingDepartment: belongingDepartment,
     };
+
+    if (logWork) {
+      if (logWork.workflowChanges) {
+        logData.workflowChanges = {
+          previous: logWork.workflowChanges.previous,
+          updated: logWork.workflowChanges.updated,
+        };
+      }
+    }
+
+    await LogWork.deleteOne({
+      process: processId,
+      user: currentStep.actorUser,
+    });
 
     if (nextStep) {
       logData.nextStep = nextStep;
@@ -161,6 +186,7 @@ export const formatUserLogs = async (workDone_, detailed) => {
       if (!process) {
         continue;
       }
+
       completedWork.processName = process.name;
       completedWork.time = log.time;
       completedWork.reverted = log.reverted;
@@ -198,6 +224,18 @@ export const formatUserLogs = async (workDone_, detailed) => {
         if (finalStep !== null) {
           completedWork.nextStep = finalStep;
         }
+      }
+
+      if (log.workflowChanges) {
+        completedWork.didChangeWorkFlow = true;
+        completedWork.workflowChanges = {
+          previous: await format_workflow_steps(
+            log.workflowChanges.previous.workflow
+          ),
+          updated: await format_workflow_steps(
+            log.workflowChanges.updated.workflow
+          ),
+        };
       }
       worksDone.push(completedWork);
     }
@@ -396,6 +434,43 @@ export const get_user_logs = async (req, res, next) => {
   }
 };
 
+export const format_edition_logs = async (editions) => {
+  try {
+    let formattedEditions = [];
+    for (let i = 0; i < editions.length; i++) {
+      let edition = editions[i];
+      let process = await Process.findOne({ _id: edition.processId }).select(
+        "name"
+      );
+
+      let actorUser = await User.findOne({ _id: edition.actorUser }).select(
+        "username"
+      );
+
+      let previousWorkflow = await format_workflow_steps(
+        edition.workflowChanges.previous.workflow
+      );
+
+      let updatedWorkflow = await format_workflow_steps(
+        edition.workflowChanges.updated.workflow
+      );
+
+      formattedEditions.push({
+        processName: process.name,
+        actorUser: actorUser.username,
+        time: edition.time,
+        previousWorkflow: previousWorkflow,
+        updatedWorkflow: updatedWorkflow,
+      });
+    }
+
+    return formattedEditions;
+  } catch (error) {
+    console.log("error in formatting edition logs", error);
+    throw new Error(error);
+  }
+};
+
 export const get_user_log = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -420,5 +495,59 @@ export const get_user_log = async (req, res, next) => {
     return res.status(500).json({
       message: "error getting a log",
     });
+  }
+};
+
+// Function to fetch and format edition details
+export const get_edition_details = async (processId) => {
+  try {
+    // Fetch editions for the process, sorted by time
+    const editions = await Edition.find({
+      processId: new mongoose.Types.ObjectId(processId),
+    })
+      // .populate("actorUser", "username") // Populate actorUser's username
+      .sort({ time: 1 }); // Sort by time in ascending order
+
+    const actorUser = await User.findOne({ _id: editions[0].actorUser }).select(
+      "username"
+    );
+
+    if (!editions || editions.length === 0) {
+      return [];
+    }
+
+    // Format edition details
+    const formattedEditions = await Promise.all(
+      editions.map(async (edition) => {
+        console.log("edition", edition);
+        const previousWorkflow = edition.workflowChanges.previous
+          ? await format_workflow_steps(
+              edition.workflowChanges.previous.workflow
+            )
+          : [];
+        const updatedWorkflow = edition.workflowChanges.updated
+          ? await format_workflow_steps(
+              edition.workflowChanges.updated.workflow
+            )
+          : [];
+
+        console.log("prev", previousWorkflow);
+        console.log("updated", updatedWorkflow);
+
+        return {
+          time: edition.time,
+          actorUser: actorUser.username,
+          previousWorkflow,
+          updatedWorkflow,
+          isEdition: true,
+          isWorkFlowChange: true,
+        };
+      })
+    );
+
+    return formattedEditions;
+  } catch (error) {
+    console.error("Error fetching edition details:", error);
+    throw new Error("Unable to fetch edition details");
   }
 };

@@ -3,6 +3,7 @@ import Log from "../models/log.js";
 import {
   format_department_data,
   format_workflow_step,
+  format_workflow_steps,
 } from "./department-controller.js";
 import Department from "../models/department.js";
 import Work from "../models/work.js";
@@ -12,6 +13,8 @@ import User from "../models/user.js";
 import Role from "../models/role.js";
 import { ObjectId } from "mongodb";
 import { is_branch_head_office } from "../utility/branch-handlers.js";
+import { get_edition_details } from "./log-controller.js";
+import { verifyUser } from "../utility/verifyUser.js";
 
 export const get_process_history = async (req, res, next) => {
   try {
@@ -55,7 +58,25 @@ export const get_process_history = async (req, res, next) => {
     // looping over each log
     for (let i = 0; i < logs.length; i++) {
       let history = {};
+
       const currentLog = logs[i];
+      history.didChangeWorkFlow = false;
+      if (currentLog.workflowChanges) {
+        console.log("reached heaven");
+        const previous_workflow = await format_workflow_steps(
+          currentLog.workflowChanges.previous.workflow
+        );
+        const updated_workflow = await format_workflow_steps(
+          currentLog.workflowChanges.updated.workflow
+        );
+
+        history.didChangeWorkFlow = true;
+
+        history.workflowChanges = {
+          previous: previous_workflow,
+          updated: updated_workflow,
+        };
+      }
       const stepDone = currentLog.currentStep;
 
       // getting the department from where the work mentioned in log is done
@@ -223,7 +244,7 @@ export const get_process_history = async (req, res, next) => {
           nextFormattedStep !== undefined
             ? `was forwarded to ${nextFormattedStep.receivers}.`
             : `was completed`;
-        history.description = `process initiated by ${currentFormattedStep.user} and ${completedOrForwardedStatement}`;
+        history.description = `process initiated by ${currentFormattedStep.user}`;
         history.documentsInvolved = await Promise.all(
           documentsInvolvedInCurrentLog.map(async (item) => {
             let documentName = await Document.findOne({

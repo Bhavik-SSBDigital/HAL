@@ -209,7 +209,9 @@ const FileSystem = () => {
           >
             <Box sx={{ textAlign: 'center', mb: 2 }}>
               {isFetching ? (
-                <CircularProgress color="inherit" size={30} />
+                <div className={styles.fetchingContainer}>
+                  <CircularProgress color="inherit" size={30} />
+                </div>
               ) : error ? (
                 <Typography>{error}</Typography>
               ) : fileFolders.length === 0 ? (

@@ -2,7 +2,7 @@ import Branch from "../models/branch.js";
 
 export const is_branch_head_office = async (name) => {
   try {
-    const branch = Branch.findOne({ name: name }).select("isHeadOffice");
+    const branch = await Branch.findOne({ name: name }).select("isHeadOffice");
 
     return branch.isHeadOffice;
   } catch (error) {

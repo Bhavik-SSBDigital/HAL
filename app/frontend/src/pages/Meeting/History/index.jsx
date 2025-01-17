@@ -203,16 +203,20 @@ export default function History({ joinMeet }) {
                               <strong>Duration :</strong>
                               {item.duration}
                             </Typography>
+                            <Typography
+                              variant="subtitle1"
+                              className={styles.info}
+                            >
+                              <strong>Description :</strong>
+                              {item.agenda}
+                            </Typography>
                           </div>
-                          <Typography className={styles.info}>
-                            <strong>Description :</strong>
-                            {item.agenda}
-                          </Typography>
                         </div>
                         <Stack
                           sx={{
                             marginLeft: 'auto',
                             gap: 1,
+                            minWidth: 'fit-content',
                             flexDirection: 'row',
                             flexWrap: 'wrap',
                           }}
@@ -273,6 +277,7 @@ export default function History({ joinMeet }) {
       {/* meeting details dialog */}
       <MeetingDetailsDialog
         open={openMeetingDetails}
+        setOpen={setOpenMeetingDetails}
         meetingId={meetingId}
         onClose={handleCloseMeetingDetails}
         id={meetingId}

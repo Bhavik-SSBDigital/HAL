@@ -14,6 +14,7 @@ import {
   Stack,
   FormControlLabel,
   Checkbox,
+  Grid2,
 } from '@mui/material';
 import axios from 'axios';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -41,9 +42,22 @@ export default function NewUser() {
   const [roles, setRoles] = useState([]);
   const [specialUserCheck, setSpecialUserCheck] = useState(false);
   // console.log(JSON.stringify(roles) + 'roles');
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const handleSelectSpecialUser = (e) => {
     if (e.target.checked) {
-      setFormData((prev) => ({ ...prev, branch: 'headOffice' }));
+      setFormData((prev) => ({ ...prev, branch: headOfficeName }));
       setSpecialUserCheck(true);
     } else {
       setSpecialUserCheck(false);
@@ -54,7 +68,6 @@ export default function NewUser() {
   const handleSelectPhysicalDocs = (e) => {
     console.log(e.target.checked);
     if (e.target.checked) {
-      //   setFormData((prev) => ({ ...prev, branch: 'headOffice' }));
       setPhysicalDocsCheck(true);
     } else {
       setPhysicalDocsCheck(false);
@@ -191,34 +204,8 @@ export default function NewUser() {
           boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
         }}
       >
-        {/* <Stack
-                        alignItems="center"
-                        sx={{
-                            // mx: 1,
-                            borderRadius: "10px",
-                            width: { xs: "300px" },
-                            mx: "auto",
-                        }}
-                    >
-                        <Typography
-                            variant="h4"
-                            component="span"
-                            gutterBottom
-                            sx={{
-                                textAlign: "center",
-                                width: 270,
-                                height: 35,
-                                fontWeight: 700,
-                                borderRadius: "10px",
-                                m: "5px",
-                                // color: "lightblue",
-                            }}
-                        >
-                            User details
-                        </Typography>
-                    </Stack> */}
-        <Grid container spacing={4} mt={1}>
-          <Grid item xs={12} sm={6} md={6}>
+        <Grid2 container spacing={4} mt={1}>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">User Name :</Typography>
             <TextField
               sx={{ background: 'whitesmoke' }}
@@ -230,8 +217,8 @@ export default function NewUser() {
               value={formData.username}
               onChange={handleInputChange}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">Normal Name :</Typography>
             <TextField
               sx={{ background: 'whitesmoke' }}
@@ -242,8 +229,8 @@ export default function NewUser() {
               value={formData.name}
               onChange={handleInputChange}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">Email :</Typography>
             <TextField
               sx={{ background: 'whitesmoke' }}
@@ -255,8 +242,8 @@ export default function NewUser() {
               value={formData.email}
               onChange={handleInputChange}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">User Branch :</Typography>
             <FormControl fullWidth variant="outlined">
               {/* <InputLabel>User Branch</InputLabel> */}
@@ -266,8 +253,8 @@ export default function NewUser() {
                 size="small"
                 value={formData.branch}
                 onChange={handleInputChange}
-              // disabled={specialUserCheck}
-              // label="branch"
+                // disabled={specialUserCheck}
+                // label="branch"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -277,8 +264,8 @@ export default function NewUser() {
                 ))}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">User Role :</Typography>
             <FormControl fullWidth variant="outlined">
               {/* <InputLabel>User Role</InputLabel> */}
@@ -288,7 +275,7 @@ export default function NewUser() {
                 sx={{ background: 'whitesmoke' }}
                 value={formData.role}
                 onChange={handleInputChange}
-              // label="Users role"
+                // label="Users role"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -298,8 +285,8 @@ export default function NewUser() {
                 ))}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <Typography variant="body1">Status :</Typography>
             <FormControl fullWidth variant="outlined">
               {/* <InputLabel>User Status</InputLabel> */}
@@ -309,7 +296,7 @@ export default function NewUser() {
                 sx={{ background: 'whitesmoke' }}
                 value={formData.status}
                 onChange={handleInputChange}
-              // label="Status"
+                // label="Status"
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -318,40 +305,34 @@ export default function NewUser() {
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <FormControlLabel
               control={
                 <Checkbox
                   checked={specialUserCheck}
-                  disabled={formData.branch !== 'headOffice'}
+                  disabled={formData.branch !== headOfficeName}
                   onChange={handleSelectSpecialUser}
                   name="specialUser"
                 />
               }
               label="SPECIAL USER?"
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          </Grid2>
+          <Grid2 size={{ xs: 12, sm: 6 }}>
             <FormControlLabel
               control={
                 <Checkbox
                   checked={physicalDocsCheck}
-                  //   disabled={formData.branch !== 'headOffice'}
                   onChange={handleSelectPhysicalDocs}
                   name="isKeeperOfPhysicalDocs"
                 />
               }
               label="Will this used to be responsible for maintaining physical documents?"
             />
-          </Grid>
-          {/* <Grid item xs={12}>
-                <Box sx={{ padding: '10px' }}>
-                  <Typography variant="body1">select permissions :</Typography>
-                  <Filefolders selection={selection} setSelection={setSelection}/>
-                </Box>
-              </Grid> */}
-          <Grid item xs={12} sx={{ textAlign: 'center' }}>
+          </Grid2>
+
+          <Grid2 item size={{ xs: 12 }} sx={{ textAlign: 'center' }}>
             <Button
               variant="contained"
               color="success"
@@ -381,8 +362,8 @@ export default function NewUser() {
                 Cancel
               </Button>
             </Link>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
         {/* </Paper> */}
         {/* </Box> */}
       </div>

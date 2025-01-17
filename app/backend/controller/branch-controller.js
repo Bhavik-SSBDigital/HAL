@@ -14,12 +14,23 @@ export const create_branch = async (req, res, next) => {
       });
     }
 
+    if (req.body.isHeadOffice) {
+      const branch = await Branch.findOne({ isHeadOffice: true });
+
+      if (branch) {
+        return res.status(400).json({
+          message: "head office branch already exists",
+        });
+      }
+    }
+
     if (userData.username === "admin") {
       const newBranch = new Branch({
         code: parseInt(req.body.code),
         name: req.body.name,
         status: req.body.status,
         createdAt: Date.now(),
+        isHeadOffice: req.body.isHeadOffice,
         totalCreditSourcingOfficer: parseInt(
           req.body.totalCreditSourcingOfficer
         ),
@@ -263,6 +274,7 @@ export const get_branch_details = async (req, res, next) => {
         status: branch.status,
         createdAt: branch.createdAt,
         updatedAt: branch.updatedAt,
+        isHeadOffice: branch.isHeadOffice,
       });
     } else {
       return res.status(404).json({
@@ -279,7 +291,9 @@ export const get_branch_details = async (req, res, next) => {
 
 export const get_head_office_name = async (req, res, next) => {
   try {
-    const branch = Branch.findOne({ isHeadOffice: true }).select("name");
+    const branch = await Branch.findOne({ isHeadOffice: true }).lean();
+
+    console.log("branch", branch);
 
     let branchName = branch ? branch.name : "";
     return res.status(200).json({

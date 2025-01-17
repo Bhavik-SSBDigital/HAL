@@ -175,6 +175,19 @@ export default function LabelBottomNavigation(props) {
 
   const [finalData, setFinalData] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [headOfficeName, setHeadOfficeName] = useState(false);
+  const getHeadOfficeName = async () => {
+    const url = backendUrl + '/getHeadOfficeName';
+    try {
+      const response = await axios.get(url);
+      setHeadOfficeName(response?.data?.branchName);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+  useEffect(() => {
+    getHeadOfficeName();
+  }, []);
   const uploadDoc = async () => {
     setUploadLoading(true);
     // Clear previous errors
@@ -206,8 +219,8 @@ export default function LabelBottomNavigation(props) {
       let department;
       const { branch, department: deptName } = props.selectedDepartment;
 
-      if (branch === 'headOffice') {
-        const [, outputString] = deptName.split('headOffice_');
+      if (branch === headOfficeName) {
+        const [, outputString] = deptName.split(`${headOfficeName}_`);
         department = outputString;
       } else {
         department = branch;
@@ -334,9 +347,10 @@ export default function LabelBottomNavigation(props) {
     const getPath = async () => {
       try {
         let department;
-        if (props.selectedDepartment.branch === 'headOffice') {
-          const [, outputString] =
-            props.selectedDepartment.department.split('headOffice_');
+        if (props.selectedDepartment.branch === headOfficeName) {
+          const [, outputString] = props.selectedDepartment.department.split(
+            `${headOfficeName}_`,
+          );
           department = outputString;
         } else {
           department = props.selectedDepartment.branch;
@@ -448,8 +462,7 @@ export default function LabelBottomNavigation(props) {
                       ? `${pathDetails.path}/${pathDetails.folderName}`
                       : `${pathDetails.path}`
                     : `/${
-                        props?.selectedDepartment?.branch?.toLowerCase() ===
-                        'headoffice'
+                        props?.selectedDepartment?.branch === headOfficeName
                           ? props?.selectedDepartment?.department?.split('_')[1]
                           : props?.selectedDepartment?.branch
                       }`}

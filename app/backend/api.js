@@ -33,12 +33,12 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-// const options = {
-//   key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-//   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-// };
+const options = {
+  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+};
 
-const server = http.createServer(app);
+const server = https.createServer(options, app);
 
 initializeSocket(server);
 
@@ -57,12 +57,8 @@ initializeSocket(server);
 // const io = io.of("/socket/");
 
 // Start the HTTP/2 server with spdy
-// const options = {
-//   key: await fs.readFile('./private-key.pem'),
-//   cert: await fs.readFile('./certificate.pem')
-// };
 
-server.listen(8000, () => console.log(`Listening on port ${8000}`));
+server.listen(5000, () => console.log(`Listening on port ${5000}`));
 
 server.on("error", (error) => {
   console.error("Server error:", error);
@@ -235,6 +231,10 @@ app.listen(PORT, () => {
       const updatedProcess = await Process.findOne({
         _id: change.documentKey._id,
       });
+
+      if (updatedProcess.steps && updatedProcess.steps.length > 0) {
+        return;
+      }
 
       const updatedConnectorPaths = Object.keys(
         change.updateDescription.updatedFields

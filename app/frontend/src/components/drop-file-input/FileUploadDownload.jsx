@@ -36,10 +36,12 @@ export const getFileSize = async (fileName, path, token) => {
   // console.log('getfilesize is called with', fileName);
   let response;
   try {
-    const url = backendUrl + '/download';
+    const url = backendUrl + '/getFileData';
     // console.log('url is', url);
-    response = await axios.post(url, null, {
-      headers: {
+
+
+     
+    response = await axios({method: 'get', url: url, headers:  {
         Range: `bytes=0-0`,
         'X-File-name': encodeURIComponent(fileName),
         'X-File-path': encodeURIComponent(path),
@@ -146,7 +148,8 @@ export const getFileSize = async (fileName, path, token) => {
 //         console.error('Error downloading file:', error);
 //     }
 // };
-export const download = async (fileName, path, view) => {
+
+export const get_file_data = async (fileName, path, view) => {
   let chunks = [];
   const token = sessionStorage.getItem('accessToken');
   let start = 0;
@@ -156,6 +159,7 @@ export const download = async (fileName, path, view) => {
   let fileSize = await getFileSize(fileName, path, token);
 
   if (fileSize === undefined) {
+    console.log('File does not exist');
     // alert("File does not exist, please check file name");
     return null; // Return null if the file doesn't exist
   }
@@ -164,7 +168,7 @@ export const download = async (fileName, path, view) => {
 
   try {
     while (start < fileSize) {
-      const url = backendUrl + '/download';
+      const url = backendUrl + '/getFileData';
       const config = {
         headers: {
           Range: `bytes=${start}-${end}`,
@@ -177,7 +181,14 @@ export const download = async (fileName, path, view) => {
         responseType: 'arraybuffer',
       };
 
-      const response = await axios.post(url, null, config);
+      const response = await axios({method: 'get', url: url,   headers: {
+          Range: `bytes=${start}-${end}`,
+          'x-file-name': encodeURIComponent(fileName),
+          'x-file-path': encodeURIComponent(path),
+          'content-type': getContentTypeFromExtension(fileExtension),
+          'x-authorization': `Bearer ${token}`,
+          'access-control-expose-headers': 'Content-Range',
+        },  responseType: 'arraybuffer',});
 
       // Push the chunk to the array
       let check = new Blob([response.data]);
@@ -229,6 +240,71 @@ export const download = async (fileName, path, view) => {
   }
 };
 
+export const download = async (fileName, path, view) => {
+  const token = sessionStorage.getItem('accessToken');
+
+  try {
+    const url = backendUrl + '/download';
+    const config = {
+      headers: {
+        'x-file-name': encodeURIComponent(fileName),
+        'x-file-path': encodeURIComponent(path),
+        'x-authorization': `Bearer ${token}`,
+      },
+    };
+
+    const response = await axios.post(url, null, config);
+
+    if (view) {
+      // Return the document data and file type as originally implemented
+      return {
+        data: response.data.data,
+        fileType: response.data.fileType,
+      };
+    } else {
+
+
+      await get_file_data(fileName, path, false);
+      // const file_url = response.data.data;
+
+      // const response2 = await axios.get(backendUrl + '/getFileData');
+
+      // console.log("response2", response2)
+
+      // // If view is false, trigger the download
+      // const downloadUrl = response2.data; // Assuming `data` contains the download URL
+
+      // if (!downloadUrl) {
+      //   throw new Error('No download URL provided in the response.');
+      // }
+      // const fileExtension = fileName.split('.').pop();
+
+      // const blob = new Blob([downloadUrl], {
+      //   type: getContentTypeFromExtension(fileExtension),
+      // }); // or the correct MIME type
+      // const blobUrl = URL.createObjectURL(blob);
+
+      // const anchor = document.createElement('a');
+      // anchor.href = blobUrl;
+      // anchor.download = fileName || 'downloaded_file.pdf'; // Suggested filename
+      // document.body.appendChild(anchor);
+      // anchor.click();
+      // document.body.removeChild(anchor);
+      // URL.revokeObjectURL(blobUrl); // Clean up the object URL after download
+
+      // const anchor = document.createElement('a');
+      // anchor.href = downloadUrl; // The file URL
+      // anchor.download = true; // Suggested filename for download
+      // document.body.appendChild(anchor);
+      // anchor.click();
+      // document.body.removeChild(anchor);
+    }
+  } catch (error) {
+    alert(`Download failed for ${fileName}`);
+    console.error('Error:', error);
+  }
+};
+
 export async function uploadFileWithChunks(
   file,
   path,
@@ -250,7 +326,7 @@ export async function uploadFileWithChunks(
       const contentType = getContentTypeFromExtension(
         file.name.split('.').pop(),
       );
-      console.log('content type', contentType);
+      
 
       const headers = {
         'X-File-Name':
@@ -274,7 +350,6 @@ export async function uploadFileWithChunks(
 
       const url = backendUrl + '/upload';
 
-
       // console.log('url is', url);
       const response = await fetch(url, {
         method: 'POST',
@@ -283,9 +358,9 @@ export async function uploadFileWithChunks(
       });
       // console.log('reseponse', response);
 
-      if(response.status === 409){
-        console.log("file exists, response received")
-        throw new Error("File with given name already exists")
+      if (response.status === 409) {
+
+        throw new Error('File with given name already exists');
       }
 
       if (response.ok) {
@@ -293,13 +368,13 @@ export async function uploadFileWithChunks(
         return data;
         // console.log(`Chunk ${chunkNumber + 1}/${totalChunks} uploaded successfully`);
       } else {
-        throw new Error("upload failed")
+        throw new Error('upload failed');
         console.error(`Chunk ${chunkNumber + 1}/${totalChunks} upload failed`);
       }
     }
   } catch (error) {
     console.log(error.message);
-    throw new Error(error.message)
+    throw new Error(error.message);
     return error;
   }
 }
@@ -335,19 +410,18 @@ export async function upload(
               undefined,
               isInvolvedInProcess,
             );
-        
-            // console.log("res", res)
+
+      // console.log("res", res)
       documentIds.push(res.documentId);
       // console.log("document ids", documentIds)
       // console.log(path)
       getData();
-      
 
       return documentIds;
     }
     // console.log('document ids', documentIds);
   } catch (error) {
-    console.log("error", error)
+    console.log('error', error);
     throw new Error(error);
   }
 }

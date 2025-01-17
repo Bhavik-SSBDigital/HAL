@@ -857,14 +857,14 @@ export const get_process_statistics = async (req, res, next) => {
       });
     });
 
-    // Convert total TAT to days (1 day = 86,400,000 milliseconds)
-    const averageTATInDays =
+    // Convert total TAT to hours (1 hour = 3,600,000 milliseconds)
+    const averageTATInHours =
       completedProcesses > 0
-        ? totalTAT / completedProcesses / (1000 * 60 * 60 * 24)
+        ? totalTAT / completedProcesses / (1000 * 60 * 60)
         : 0;
 
-    // Round the average TAT to the nearest 0.5
-    const roundedAverageTAT = Math.round(averageTATInDays * 2) / 2;
+    // Round the average TAT to 3 decimal places
+    const roundedAverageTAT = parseFloat(averageTATInHours.toFixed(3));
 
     // Calculate rejection percentage
     let rejectionPercentage =
@@ -873,7 +873,7 @@ export const get_process_statistics = async (req, res, next) => {
     rejectionPercentage = Math.round(rejectionPercentage * 2) / 2;
 
     return res.status(200).json({
-      average_TAT_to_complete_the_process: roundedAverageTAT, // in days
+      average_TAT_to_complete_the_process: `${roundedAverageTAT} Hours`, // in hours with 3 decimal places
       total_pending_processes: pendingProcesses,
       docsUploaded: docsUploaded, // total uploaded documents for all processes (completed and pending)
       rejectionPercentage: rejectionPercentage, // percentage of rejected documents

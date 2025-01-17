@@ -27,6 +27,7 @@ import LogWork from "../models/logWork.js";
 import { is_process_forwardable } from "./process-utility-controller.js";
 import { get_log_docs } from "./log-work-controller.js";
 import Meeting from "../models/Meeting.js";
+import { get_max_step_number } from "../utility/process-data-utility.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1095,8 +1096,9 @@ export const forwardProcess = async (
         new ObjectId(workFlowToBeFollowed).equals(process.workFlow))
     ) {
       if (currentStep === steps.length || completeBeforeLastStep) {
+        console.log("process id", processId);
         await Process.findOneAndUpdate(
-          { _id: process._id },
+          { _id: processId },
           {
             completed: true,
             completedAt: Date.now(),
@@ -1542,11 +1544,19 @@ export const forwardProcess = async (
       }
 
       if (log) {
+        const notification = {
+          processId: processId,
+          processName: process.name,
+          completed: process.completed,
+          receivedAt: Date.now(),
+        };
+
         await User.updateOne(
           { _id: log.currentStep.actorUser },
           {
             $push: {
               processes: newProcess,
+              notifications: notification,
               readable: {
                 $each: docs,
               },
@@ -1572,11 +1582,20 @@ export const forwardProcess = async (
       } else {
         for (let k = 0; k < nextStepUsers.length; k++) {
           const recepient = nextStepUsers[k];
+
+          let notification = {
+            processId: process._id,
+            processName: process.name,
+            completed: process.completed,
+            receivedAt: Date.now(),
+            isPending: true,
+          };
           await User.updateOne(
             { _id: recepient.user },
             {
               $push: {
                 processes: newProcess,
+                notifications: notification,
                 readable: {
                   $each: docs,
                 },
@@ -2182,6 +2201,13 @@ export const getProcess = async (
 
     process.replacementsWithRef = result.replacementsWithRef;
 
+    const max_step_number = await get_max_step_number(
+      process_id,
+      workFlowToBeFollowed
+    );
+
+    process.maxStepNumberReached = max_step_number;
+
     const logWork = await LogWork.findOne({
       process: process_id,
       user: userId,
@@ -2644,11 +2670,19 @@ export const revertProcess = async (
       workFlowToBeFollowed: workflow,
     };
 
+    const notification = {
+      processId: processId,
+      processName: process.name,
+      completed: process.completed,
+      receivedAt: Date.now(),
+    };
+
     await User.updateOne(
       { _id: nextActor },
       {
         $push: {
           processes: newProcess,
+          notifications: notification,
         },
       }
     );
@@ -2696,14 +2730,27 @@ export const revertProcess = async (
           processAnalytics.revertedProcesses || [];
 
         processAnalytics.revertedProcesses.push(process._id);
+
+        console.log(
+          "process analytics reverted processes",
+          processAnalytics.revertedProcesses
+        );
         if (process.steps && process.steps.length > 0) {
           // Document found, update the counts
-          const departmentIndex = processAnalytics.departmentsPendingProcess
-            ? processAnalytics.departmentsPendingProcess.findIndex(
-                (department) =>
-                  department.department.equals(new ObjectId(process.workFlow))
-              )
-            : -1;
+          const departmentIndex = -1;
+
+          try {
+            processAnalytics.departmentsPendingProcess
+              ? processAnalytics.departmentsPendingProcess.findIndex(
+                  (department) =>
+                    department.department.equals(new ObjectId(process.workFlow))
+                )
+              : -1;
+          } catch (error) {
+            console.log(
+              "process analytics has faulty departmentsPendingProcesses"
+            );
+          }
 
           if (departmentIndex !== -1) {
             // If the department is found, increment its count
@@ -2732,6 +2779,11 @@ export const revertProcess = async (
         }
 
         // Save the updated document back to the database
+        console.log(
+          "in existing analytics object",
+          processAnalytics.revertedProcesses
+        );
+
         await processAnalytics.save();
       } else {
         let newAnalyticsData =
@@ -2740,6 +2792,13 @@ export const revertProcess = async (
                 date: new Date(),
                 pendingProcesses: [],
                 revertedProcesses: [process._id],
+                departmentsPendingProcess: [
+                  {
+                    department: new ObjectId(process.workFlow),
+                    pendingProcesses: [],
+                    revertedProcesses: [process._id],
+                  },
+                ],
               }
             : {
                 date: new Date(),
@@ -2753,6 +2812,11 @@ export const revertProcess = async (
                   },
                 ],
               };
+
+        console.log(
+          "in new analytics object",
+          newAnalyticsData.revertedProcesses
+        );
 
         let newProcessAnalytics = new ProcessAnalytics(newAnalyticsData);
         // newProcessAnalytics = new ProcessAnalytics(newProcessAnalytics);
@@ -2834,6 +2898,15 @@ export const upload_documents_in_process = async (req, res, next) => {
         ];
       }
     }
+
+    const formattedDocuments = await format_process_documents(
+      process.documents
+    );
+    const result = await get_documents_with_replacements(formattedDocuments);
+
+    const documents = result.activeDocs;
+
+    const replacementsWithRef = result.replacementsWithRef;
 
     await process.save();
 
@@ -2991,11 +3064,13 @@ export const upload_documents_in_process = async (req, res, next) => {
       console.log("error updating process analytics", error);
     }
 
-    const process_result = await is_process_forwardable(process, userData._id);
+    // const process_result = await is_process_forwardable(process, userData._id);
     return res.status(200).json({
       message: "added newly uploaded documents successfully",
-      isForwardable: process_result.isForwardable,
-      isRevertable: process_result.isRevertable,
+      documents: documents,
+      replacementsWithRef: replacementsWithRef,
+      isForwardable: true,
+      isRevertable: true,
     });
   } catch (error) {
     console.log("error", error);
@@ -3004,6 +3079,21 @@ export const upload_documents_in_process = async (req, res, next) => {
     });
   }
 };
+
+function removeDuplicateNotifications(notifications) {
+  const seenProcessIds = new Set();
+  const uniqueNotifications = [];
+
+  notifications.forEach((notification) => {
+    const processIdStr = notification.processId.toString(); // Convert ObjectId to string
+    if (!seenProcessIds.has(processIdStr)) {
+      uniqueNotifications.push(notification);
+      seenProcessIds.add(processIdStr);
+    }
+  });
+
+  return uniqueNotifications;
+}
 
 export const get_user_notifications_for_processes = async (req, res, next) => {
   try {
@@ -3041,7 +3131,7 @@ export const get_user_notifications_for_processes = async (req, res, next) => {
     }
 
     return res.status(200).json({
-      notifications: notifications,
+      notifications: removeDuplicateNotifications(notifications),
     });
   } catch (error) {
     console.log("error getting user notifications for user", error);
@@ -3478,10 +3568,14 @@ export const pick_process = async (req, res, next) => {
 
     let workFlow;
 
+    console.log("process workflow", process.workFlow);
+
     if (!(process.steps && process.steps.length > 0)) {
-      workFlow = req.body.workFlowToBeFollowed
-        ? new ObjectId(req.body.workFlowToBeFollowed)
-        : process.workFlow;
+      workFlow =
+        req.body.workFlowToBeFollowed !== "null" &&
+        req.body.workFlowToBeFollowed
+          ? new ObjectId(req.body.workFlowToBeFollowed)
+          : process.workFlow;
     }
 
     if (

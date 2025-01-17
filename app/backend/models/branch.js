@@ -8,6 +8,7 @@ const branchSchema = new mongoose.Schema({
   },
   isHeadOffice: {
     type: Boolean,
+    default: false,
   },
   name: {
     type: String,

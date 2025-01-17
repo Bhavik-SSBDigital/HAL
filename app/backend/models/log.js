@@ -1,5 +1,38 @@
 import mongoose from "mongoose";
 
+export const workflowSchema = new mongoose.Schema({
+  workflow: {
+    type: [
+      {
+        work: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Work",
+          required: true,
+        },
+        stepNumber: {
+          type: Number,
+          required: true,
+        },
+        users: [
+          {
+            user: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              required: true,
+            },
+            role: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Role",
+              required: true,
+            },
+          },
+        ],
+      },
+    ],
+    required: true,
+  },
+});
+
 export const logSchema = new mongoose.Schema({
   processId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -94,6 +127,13 @@ export const logSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Department",
     required: false,
+  },
+  workflowChanges: {
+    type: {
+      previous: workflowSchema, // Ensures it matches the workflowSchema
+      updated: workflowSchema, // Ensures it matches the workflowSchema}
+    },
+    default: null,
   },
 });
 

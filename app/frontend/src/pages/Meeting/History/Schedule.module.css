@@ -11,55 +11,55 @@
     display: flex;
     flex-direction: row;
     gap: 10px;
-    flex-wrap: wrap;
     margin-top: 10px;
 }
 
 .dateContainer {
-    /* background-color: #F7F7F7; */
     background-color: #F7F7F7;
-    /* border: 1px solid lightgray; */
     border-radius: 8px;
     padding: 15px;
-    width: 150px;
+    min-width: 150px;
+    text-align: center;
 }
 
 .meetingCard {
-    /* border: 1px solid lightgray; */
     min-height: 85px;
     padding: 10px;
     border-radius: 8px;
     display: flex;
-    align-items: center;
+
+    align-items: stretch;
     flex-direction: row;
     gap: 10px;
     box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
+    flex: 1;
 }
 
 .meetingCardContainer {
-    min-width: calc(100% - 170px);
     display: flex;
     flex-direction: column;
     gap: 10px;
+    height: fit-content;
+    flex-grow: 1;
 }
 
 .highlight {
     padding-inline: 4px;
-    height: 100%;
     border-radius: 10px;
+    min-width: 4px;
 }
 
 .detailsContainer {
     display: flex;
-    justify-content: space-between;
     flex-direction: column;
+    justify-content: space-between;
 }
 
 .details {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 8px;
 }
 
 .info {
@@ -67,6 +67,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
 }
 
 .noHistory {
@@ -85,20 +86,69 @@
     width: 100px;
     border-radius: 5px;
     cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .selectedTab {
     background-color: white;
     box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+    transform: scale(1.05);
 }
 
+/* Responsive adjustments */
 @media only screen and (max-width: 800px) {
+    .meetingContainer {
+        flex-direction: column;
+    }
+
     .dateContainer {
         width: 100%;
+    }
 
+    .meetingCard {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .details {
+        flex-direction: column;
+        gap: 5px;
     }
 
     .meetingCardContainer {
         width: 100%;
+    }
+
+    .tab {
+        width: 100px;
+        text-align: center;
+    }
+
+    .highlight {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 500px) {
+    .tab {
+        width: auto;
+        padding: 10px;
+    }
+
+    .details {
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .meetingCard {
+        padding: 15px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .dateContainer {
+        padding: 10px;
+        text-align: center;
     }
 }
