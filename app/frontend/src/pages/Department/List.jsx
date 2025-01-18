@@ -27,6 +27,7 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import ShowWorkflow from '../../components/Workflow/ShowWorkflow';
 
 export default function List(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -179,7 +180,15 @@ export default function List(props) {
                   justifyContent="space-between"
                   sx={{ width: '100%' }}
                 >
-                  <Typography variant="body1">{i?.department}</Typography>
+                  <Box>
+                    <Typography variant="body1">
+                      <b>Department Name :</b> {i?.department}
+                    </Typography>
+
+                    <Typography>
+                      <b>Head :</b> {i?.head}
+                    </Typography>
+                  </Box>
                   {/* {!i.editable && ( */}
                   <div>
                     <IconButton
@@ -203,9 +212,6 @@ export default function List(props) {
               </AccordionSummary>
               {/* <AccordionDetails>hello</AccordionDetails> */}
               <AccordionDetails>
-                <p style={{ textAlign: 'center', marginBottom: '30px' }}>
-                  Head : {i?.head}
-                </p>
                 <Stack
                   flexDirection="row"
                   flexWrap="wrap"
@@ -214,51 +220,7 @@ export default function List(props) {
                   justifyContent="center"
                   sx={{ marginBottom: '40px', marginTop: '10px' }}
                 >
-                  {i.workFlow.map((item, index) => (
-                    <>
-                      <Paper
-                        key={index + 1}
-                        elevation={3}
-                        sx={{
-                          position: 'relative',
-                          width: { xs: 190, md: 250 },
-                          borderRadius: '15px',
-                          backgroundColor: 'white',
-                        }}
-                      >
-                        <h3 className={styles.workflowIndex}>{index + 1}</h3>
-                        {/* <Divider sx={{ my: 1 }} /> */}
-                        <div className={styles.workflowContent}>
-                          <div className={styles.workFlowElements}>
-                            <p style={{ width: '60px' }}>
-                              <strong>Work :</strong>
-                            </p>
-                            {/* <p style={{ margin: "0 6px" }}>:</p> */}
-                            <p>{item.work}</p>
-                          </div>
-                          <div className={styles.workFlowElements}>
-                            <p style={{ width: '60px' }}>
-                              <strong>Users :</strong>
-                            </p>
-                            <p style={{ whiteSpace: 'pre-line' }}>
-                              {item?.users?.length
-                                ? item.users.map((user, index) => (
-                                    <Tooltip
-                                      key={index}
-                                      title={
-                                        user.user.length > 12 ? user.user : ''
-                                      }
-                                    >
-                                      <span>{truncateUsername(user.user)}</span>
-                                    </Tooltip>
-                                  ))
-                                : '---'}
-                            </p>
-                          </div>
-                        </div>
-                      </Paper>
-                    </>
-                  ))}
+                  <ShowWorkflow workFlow={i.workFlow} />
                 </Stack>
               </AccordionDetails>
             </Accordion>
