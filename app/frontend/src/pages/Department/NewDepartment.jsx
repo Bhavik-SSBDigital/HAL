@@ -318,7 +318,7 @@ export default function NewDepartment(props) {
           }}
         >
           <Grid2 container spacing={3} sx={{ marginBottom: '20px' }}>
-            <Grid2 item size={{ xs: 6 }}>
+            <Grid2 item size={{ xs: 12, md: 6 }}>
               <Typography variant="body1">Department Branch:</Typography>
               <FormControl fullWidth variant="outlined">
                 <Select
@@ -338,7 +338,7 @@ export default function NewDepartment(props) {
                 </Select>
               </FormControl>
             </Grid2>
-            <Grid2 item size={{ xs: 6 }}>
+            <Grid2 item size={{ xs: 12, md: 6 }}>
               <Typography variant="body1">Department Name:</Typography>
               <TextField
                 fullWidth
@@ -370,7 +370,7 @@ export default function NewDepartment(props) {
                 alignItems: 'center',
               }}
             >
-              <Button onClick={() => setOpenH(true)}>
+              <Button variant="contained" onClick={() => setOpenH(true)}>
                 Select department head
               </Button>
             </Grid2>
