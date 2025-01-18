@@ -318,12 +318,11 @@ export default function NewDepartment(props) {
           }}
         >
           <Grid2 container spacing={3} sx={{ marginBottom: '20px' }}>
-            <Grid2 item size={{ xs: 12 }}>
+            <Grid2 item size={{ xs: 6 }}>
               <Typography variant="body1">Department Branch:</Typography>
               <FormControl fullWidth variant="outlined">
                 <Select
                   name="branch"
-                  size="small"
                   value={formData?.branch}
                   sx={{ backgroundColor: 'whitesmoke' }}
                   onChange={handleInputChange}
@@ -339,11 +338,10 @@ export default function NewDepartment(props) {
                 </Select>
               </FormControl>
             </Grid2>
-            <Grid2 item size={{ xs: 12 }}>
+            <Grid2 item size={{ xs: 6 }}>
               <Typography variant="body1">Department Name:</Typography>
               <TextField
                 fullWidth
-                size="small"
                 sx={{ backgroundColor: 'whitesmoke' }}
                 variant="outlined"
                 name="department"
@@ -356,7 +354,6 @@ export default function NewDepartment(props) {
               <TextField
                 fullWidth
                 sx={{ backgroundColor: 'whitesmoke' }}
-                size="small"
                 variant="outlined"
                 name="head"
                 disabled
@@ -391,11 +388,7 @@ export default function NewDepartment(props) {
               <Box width={300} padding={1}>
                 <Typography variant="body1">Head Branch:</Typography>
                 <FormControl fullWidth variant="outlined">
-                  <Select
-                    size="small"
-                    name="branch"
-                    onChange={handleSelectHead}
-                  >
+                  <Select name="branch" onChange={handleSelectHead}>
                     <MenuItem value="">
                       <em>None</em>
                     </MenuItem>
@@ -410,7 +403,7 @@ export default function NewDepartment(props) {
               <Box width={300} padding={1}>
                 <Typography variant="body1">Actor Role:</Typography>
                 <FormControl fullWidth variant="outlined">
-                  <Select name="role" size="small" onChange={handleSelectHead}>
+                  <Select name="role" onChange={handleSelectHead}>
                     <MenuItem value="" disabled>
                       <em>None</em>
                     </MenuItem>
@@ -425,7 +418,7 @@ export default function NewDepartment(props) {
               <Box width={300} padding={1}>
                 <Typography variant="body1">Head:</Typography>
                 <FormControl fullWidth variant="outlined">
-                  <Select name="head" size="small" onChange={handleSelectHead}>
+                  <Select name="head" onChange={handleSelectHead}>
                     <MenuItem value="" disabled>
                       <em>None</em>
                     </MenuItem>
