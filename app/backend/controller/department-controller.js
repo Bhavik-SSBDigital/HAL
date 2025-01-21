@@ -76,7 +76,7 @@ export const add_department = async (req, res, next) => {
 
     let details = req.body;
 
-    const isHeadOffice = await is_branch_head_office(details.branch);
+    // const isHeadOffice = await is_branch_head_office(details.branch);
 
     details.steps = details.workFlow;
 
