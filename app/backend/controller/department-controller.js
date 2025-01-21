@@ -297,9 +297,9 @@ export const format_department_data = async (departments) => {
 
     department.workFlow = steps_;
 
-    department.department = department.name;
+    // department.department = department.name;
 
-    delete department.name;
+    // delete department.name;
 
     const head = await User.findOne({ _id: department.head }).select(
       "username"
@@ -347,8 +347,8 @@ export const get_departments = async (req, res, next) => {
       });
     }
     const departments = req.body.type
-      ? await Department.find({ type: req.body.type })
-      : await Department.find({});
+      ? await Department.find({ type: req.body.type, admin: userData._id })
+      : await Department.find({ admin: userData._id });
     let departments_ = await format_department_data(departments);
 
     for (let i = 0; i < departments_.length; i++) {
@@ -389,12 +389,23 @@ export const edit_department = async (req, res, next) => {
     const departmentId = req.params.id;
 
     const department = await Department.findOne({ _id: departmentId }).select(
-      "_id"
+      "_id admin"
     );
 
     if (!department) {
       return res.status(400).json({
         message: "Department you are trying to edit doesn't exist",
+      });
+    }
+
+    if (
+      !department.admin ||
+      !department.admin.equals(new ObjectId(userData._id)) ||
+      userData.username !== "admin"
+    ) {
+      return res.status(400).json({
+        message:
+          "Only department/branch admin or super admin can do the edition",
       });
     }
 
