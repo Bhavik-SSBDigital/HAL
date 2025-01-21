@@ -355,8 +355,8 @@ export const get_departments = async (req, res, next) => {
       });
     }
     const departments = req.body.type
-      ? await Department.find({ type: req.body.type, admin: userData._id })
-      : await Department.find({ admin: userData._id });
+      ? await Department.find({ type: req.body.type })
+      : await Department.find({});
     let departments_ = await format_department_data(departments);
 
     for (let i = 0; i < departments_.length; i++) {
