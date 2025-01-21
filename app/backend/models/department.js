@@ -32,36 +32,41 @@ const departmentSchema = new mongoose.Schema({
   head: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+    default: null,
   },
   admin: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  steps: [
-    {
-      stepNumber: {
-        type: Number,
-        required: true,
-      },
-      users: [
-        {
-          user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-          },
-          role: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Role",
-            required: true,
-          },
+  steps: {
+    type: [
+      {
+        stepNumber: {
+          type: Number,
+          required: true,
         },
-      ],
-    },
-  ],
+        users: [
+          {
+            user: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "User",
+              required: true,
+            },
+            role: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Role",
+              required: true,
+            },
+          },
+        ],
+      },
+    ],
+    default: null,
+  },
   parentDepartment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Department",
+    default: null,
   },
   createdAt: {
     type: Date,

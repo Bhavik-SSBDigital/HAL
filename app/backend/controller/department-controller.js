@@ -99,90 +99,90 @@ export const add_department = async (req, res, next) => {
     }
     delete details.department;
 
-    const steps = details.workFlow;
+    // const steps = details.workFlow;
 
-    let updatedSteps = [];
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      let users = [];
+    // let updatedSteps = [];
+    // for (let i = 0; i < steps.length; i++) {
+    //   const step = steps[i];
+    //   let users = [];
 
-      for (let j = 0; j < step.users.length; j++) {
-        const currentUser = step.users[j].user;
-        const currentRole = step.users[j].role;
-        let user = await User.findOne({ username: currentUser }).select("id");
-        if (!user) {
-          return res.status(400).json({
-            message:
-              "one of the users mentioned in steps as an actor doesn't exist",
-          });
-        }
-        user = user._id;
+    //   for (let j = 0; j < step.users.length; j++) {
+    //     const currentUser = step.users[j].user;
+    //     const currentRole = step.users[j].role;
+    //     let user = await User.findOne({ username: currentUser }).select("id");
+    //     if (!user) {
+    //       return res.status(400).json({
+    //         message:
+    //           "one of the users mentioned in steps as an actor doesn't exist",
+    //       });
+    //     }
+    //     user = user._id;
 
-        let role = await Role.findOne({ role: currentRole }).select("id");
+    //     let role = await Role.findOne({ role: currentRole }).select("id");
 
-        if (!role) {
-          return res.status(400).json({
-            message:
-              "one of the roles mentioned in steps as an role doesn't exist",
-          });
-        }
+    //     if (!role) {
+    //       return res.status(400).json({
+    //         message:
+    //           "one of the roles mentioned in steps as an role doesn't exist",
+    //       });
+    //     }
 
-        role = role._id;
+    //     role = role._id;
 
-        users.push({
-          user: user,
-          role: role,
-        });
-      }
+    //     users.push({
+    //       user: user,
+    //       role: role,
+    //     });
+    //   }
 
-      // let work = await Work.findOne({ name: step.work });
+    //   // let work = await Work.findOne({ name: step.work });
 
-      // if (!work) {
-      //   const newWork = new Work({
-      //     name: step.work,
-      //   });
+    //   // if (!work) {
+    //   //   const newWork = new Work({
+    //   //     name: step.work,
+    //   //   });
 
-      //   work = await newWork.save();
-      // }
+    //   //   work = await newWork.save();
+    //   // }
 
-      // work = work._id;
+    //   // work = work._id;
 
-      updatedSteps.push({
-        users: users,
-        // work: work,
-        stepNumber: step.step,
-      });
-    }
+    //   updatedSteps.push({
+    //     users: users,
+    //     // work: work,
+    //     stepNumber: step.step,
+    //   });
+    // }
 
-    details.steps = updatedSteps;
+    // details.steps = updatedSteps;
 
-    delete details.workFlow;
+    // delete details.workFlow;
 
     details.createdAt = Date.now();
 
-    let head = req.body.head;
+    // let head = req.body.head;
 
-    head = await User.findOne({ username: head }).select("_id");
+    // head = await User.findOne({ username: head }).select("_id");
 
-    if (!head) {
-      return res.status(404).json({
-        message: "Selected head doesn't exist",
-      });
-    }
+    // if (!head) {
+    //   return res.status(404).json({
+    //     message: "Selected head doesn't exist",
+    //   });
+    // }
 
-    head = head._id;
+    // head = head._id;
 
-    details.head = head;
+    // details.head = head;
 
-    let admin = await User.findOne({ username: req.body.admin }).select("_id");
+    // let admin = await User.findOne({ username: req.body.admin }).select("_id");
 
-    if (!admin) {
-      return res.status(404).json({ message: "Selected admin is not found" });
-    }
+    // if (!admin) {
+    //   return res.status(404).json({ message: "Selected admin is not found" });
+    // }
 
-    admin = admin._id;
+    // admin = admin._id;
 
-    details.admin = admin;
+    // details.admin = admin;
 
     if (req.body.parentDepartment) {
       let parentDepartment = await Department.findOne({
