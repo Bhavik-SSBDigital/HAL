@@ -6,7 +6,6 @@ import User from "../models/user.js";
 import { getParents } from "../utility/accessFunction.js";
 import mongoose from "mongoose";
 import { format_department_data } from "./department-controller.js";
-import Branch from "../models/branch.js";
 import { addLog } from "./log-controller.js";
 import Log from "../models/log.js";
 import nodemailer from "nodemailer";
@@ -212,7 +211,7 @@ export const add_process = async (req, res, next) => {
 
     let isInitiatorDepartmentFromHeadOffice;
 
-    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+    const headOfficeBranch = Department.findOne({ isHeadOffice: true }).select(
       "name"
     );
     if (!ifProcessContainsCustomWorkFlow) {
@@ -737,7 +736,7 @@ export const publish_process = async (req, res, next) => {
       let branches = req.body.branches;
       for (let i = 0; i < branches.length; i++) {
         let branch = branches[i];
-        branch = await Branch.findOne({ name: branch }).select("_id");
+        branch = await Department.findOne({ name: branch }).select("_id");
 
         const department = await Department.findOne({
           branch: branch._id,
@@ -918,7 +917,7 @@ async function sendEmail(
     "username email branch"
   );
 
-  let senderBranch = await Branch.findOne({ _id: sender.branch }).select(
+  let senderBranch = await Department.findOne({ _id: sender.branch }).select(
     "name"
   );
   senderBranch = senderBranch.name;
@@ -1269,7 +1268,7 @@ export const forwardProcess = async (
               _id: currentStepObject.actorUser,
             }).select("username role branch");
 
-            let branchOfCompletor = await Branch.findOne({
+            let branchOfCompletor = await Department.findOne({
               _id: userProcessIsCompletedBy.branch,
             }).select("name");
             branchOfCompletor = branchOfCompletor.name;
@@ -1314,7 +1313,7 @@ export const forwardProcess = async (
 
     let isInitiatorDepartmentFromHeadOffice;
 
-    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+    const headOfficeBranch = Department.findOne({ isHeadOffice: true }).select(
       "name"
     );
 
@@ -1880,7 +1879,9 @@ export const format_process_documents = async (
           );
           user = {
             username: user.username,
-            branch: await Branch.findOne({ _id: user.branch }).select("name"),
+            branch: await Department.findOne({ _id: user.branch }).select(
+              "name"
+            ),
             role: await Role.findOne({ _id: user.role }).select("role"),
           };
 

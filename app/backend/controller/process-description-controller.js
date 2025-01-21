@@ -8,11 +8,9 @@ import {
 import Department from "../models/department.js";
 import Work from "../models/work.js";
 import Document from "../models/document.js";
-import Branch from "../models/branch.js";
 import User from "../models/user.js";
 import Role from "../models/role.js";
 import { ObjectId } from "mongodb";
-import { is_branch_head_office } from "../utility/branch-handlers.js";
 import { get_edition_details } from "./log-controller.js";
 import { verifyUser } from "../utility/verifyUser.js";
 
@@ -224,17 +222,9 @@ export const get_process_history = async (req, res, next) => {
       publishedTo = publishedTo.map(async (item) => {
         const department = await Department.findOne({
           _id: item.department,
-        }).select("branch name");
-        const branch = await Branch.findOne({ _id: department.branch }).select(
-          "name"
-        );
+        }).select("name");
 
-        const isHeadOffice = await is_branch_head_office(branch.name);
-        if (isHeadOffice) {
-          return department.name;
-        } else {
-          return branch.name;
-        }
+        return department.name;
       });
 
       publishedTo = await Promise.all(publishedTo);

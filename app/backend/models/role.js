@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const roleSchema = new mongoose.Schema({
   branch: {
     type: mongoose.Schema.Types.ObjectId, // Refers to the ID of a Branch document
-    ref: "Branch", // Refers to the 'Branch' model
+    ref: "Department", // Refers to the 'Branch' model
     required: true,
   },
   status: {

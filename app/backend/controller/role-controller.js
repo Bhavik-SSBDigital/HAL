@@ -6,10 +6,11 @@ import {
   fullAccess,
   getParents,
 } from "../utility/accessFunction.js";
-import Branch from "../models/branch.js";
+
 import { ObjectId } from "mongodb";
 
 import { verifyUser } from "../utility/verifyUser.js";
+import Department from "../models/department.js";
 function removeDuplicates(array) {
   return Array.from(new Set(array));
 }
@@ -20,7 +21,7 @@ export const add_role = async (req, res, next) => {
     const { branch, role } = req.body;
 
     // Check if a role with the same branch and role already exists
-    let branchId = await Branch.findOne({ name: branch });
+    let branchId = await Department.findOne({ name: branch });
     const existingRole = await Role.findOne({ branchId, role });
 
     if (!branchId) {
@@ -111,7 +112,7 @@ export const edit_role = async (req, res, next) => {
 
     const updatedData = req.body;
 
-    const branchId = await Branch.findOne({ name: updatedData.branch });
+    const branchId = await Department.findOne({ name: updatedData.branch });
 
     // Update access rights, fullAccess, and other properties
     const uploads = await uploadAccess(updatedData.selectedUpload, true);
@@ -243,7 +244,7 @@ export const get_roles = async (req, res) => {
 
     roles = await Promise.all(
       roles.map(async (role) => {
-        const branch = await Branch.findOne({ _id: role.branch });
+        const branch = await Department.findOne({ _id: role.branch });
         let name;
         if (branch) {
           name = branch.name;
@@ -305,7 +306,7 @@ export const get_role = async (req, res, next) => {
     const role = await Role.findOne({ _id: roleId });
 
     if (role) {
-      const branchName = await Branch.findOne({ _id: role.branch }).select(
+      const branchName = await Department.findOne({ _id: role.branch }).select(
         "name"
       );
       if (!branchName) {

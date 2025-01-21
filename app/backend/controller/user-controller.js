@@ -10,7 +10,6 @@ import {
   viewAccess,
   fullAccess,
 } from "../utility/accessFunction.js";
-import Branch from "../models/branch.js";
 import nodemailer from "nodemailer";
 import { verifyUser } from "../utility/verifyUser.js";
 import Role from "../models/role.js";
@@ -91,7 +90,7 @@ export const signup_POST = async (req, res) => {
     const randomPassword = generateRandomPassword(passwordLength);
     const encrytedPassword = await bcrypt.hash(randomPassword, 10);
     const userRef = req.body;
-    const branch = await Branch.findOne({ name: userRef.branch });
+    const branch = await Department.findOne({ name: userRef.branch });
     if (!branch) {
       return res.status(400).json({
         message: "please select the valid branch name",
@@ -273,7 +272,7 @@ export const get_users = async (req, res) => {
 
     users = await Promise.all(
       users.map(async (user) => {
-        const branch = await Branch.findOne({ _id: user.branch });
+        const branch = await Department.findOne({ _id: user.branch });
         let name = branch === null ? "N/A" : branch.name;
         let user_ = { ...user.toObject() };
         user_.branch = name;
@@ -310,10 +309,10 @@ export const get_usernames = async (req, res) => {
         }
 
         let branch = user.branch;
-        branch = await Branch.findOne({ _id: branch }).select("name");
+        branch = await Department.findOne({ _id: branch }).select("name");
 
         if (user.username === "admin") {
-          let branch = await Branch.findOne({ isHeadOffice: true }).select(
+          let branch = await Department.findOne({ isHeadOffice: true }).select(
             "name"
           );
 
@@ -374,7 +373,7 @@ export const edit_user = async (req, res, next) => {
       const userId = req.params.userId; // Assuming you pass the branch ID in the URL.
       let updatedData = req.body; // The client can send any fields they want to update.
 
-      const branch = await Branch.findOne({ name: updatedData.branch });
+      const branch = await Department.findOne({ name: updatedData.branch });
       const role = await Role.findOne({ role: updatedData.role });
 
       updatedData.branch = branch._id;
@@ -517,7 +516,7 @@ export const get_users_by_role_of_branch = async (req, res, next) => {
     }
     const branchId = req.body.branchId;
     const roleId = req.body.roleId;
-    const branch = await Branch.findOne({ _id: branchId });
+    const branch = await Department.findOne({ _id: branchId });
 
     if (!branch) {
       return res.status(400).json({
@@ -559,7 +558,9 @@ export const get_user_profile_data = async (req, res, next) => {
       });
     }
 
-    let branch = await Branch.findOne({ _id: userData.branch }).select("name");
+    let branch = await Department.findOne({ _id: userData.branch }).select(
+      "name"
+    );
 
     if (branch) {
       userData.branch = branch.name;
@@ -580,7 +581,7 @@ export const get_user_profile_data = async (req, res, next) => {
     for (let i = 0; i < allDepartments.length; i++) {
       const department = allDepartments[i];
 
-      const branchOfDepartment = await Branch.findOne({
+      const branchOfDepartment = await Department.findOne({
         _id: department.branch,
       }).select("name");
       let steps = department.steps;
@@ -717,7 +718,9 @@ export const get_user = async (req, res, next) => {
     const user = await User.findOne({ _id: userId });
 
     if (user) {
-      let branch = await Branch.findOne({ _id: user.branch }).select("name");
+      let branch = await Department.findOne({ _id: user.branch }).select(
+        "name"
+      );
       branch = branch.name;
       let role = await Role.findOne({ _id: user.role }).select("role");
       role = role.role;

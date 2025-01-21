@@ -1,6 +1,5 @@
 import Work from "../models/work.js";
 import { verifyUser } from "../utility/verifyUser.js";
-import Branch from "../models/branch.js";
 import User from "../models/user.js";
 import Role from "../models/role.js";
 import Department from "../models/department.js";
@@ -81,42 +80,13 @@ export const add_department = async (req, res, next) => {
 
     details.steps = details.workFlow;
 
-    let branchId = await Branch.findOne({ name: req.body.branch });
-
-    if (!branchId) {
-      return res.status(400).json({
-        message: "branch for which you are adding workflow doesn't exist",
-      });
-    }
-
-    branchId = branchId._id;
-
-    if (!isHeadOffice) {
-      let departments = await Department.find({ branch: branchId });
-      if (departments.length > 0) {
-        return res.status(400).json({
-          message:
-            "department can't be created as current branch has one department already",
-        });
-      }
-    }
-
-    details.name = `${details.branch}_${details.department}`;
+    details.name = details.department;
 
     let folderExists = false;
-    if (isHeadOffice) {
-      folderExists = await creatFolder(
-        true,
-        `../${details.department}`,
-        userData
-      );
-    } else {
-      folderExists = await creatFolder(true, `../${details.branch}`, userData);
-    }
 
-    let path_ = isHeadOffice
-      ? `../${details.department}`
-      : `../${details.branch}`;
+    folderExists = await creatFolder(true, `../${details.name}`, userData);
+
+    let path_ = `../${details.name}`;
 
     let folderPath = path.join(
       __dirname,
@@ -125,23 +95,9 @@ export const add_department = async (req, res, next) => {
     );
     if (folderExists === 409) {
       await fs.rm(folderPath, { recursive: true });
-      if (isHeadOffice) {
-        folderExists = await creatFolder(
-          true,
-          `../${details.department}`,
-          userData
-        );
-      } else {
-        folderExists = await creatFolder(
-          true,
-          `../${details.branch}`,
-          userData
-        );
-      }
+      folderExists = await creatFolder(true, `../${details.name}`, userData);
     }
     delete details.department;
-
-    details.branch = branchId;
 
     const steps = details.workFlow;
 
@@ -208,9 +164,41 @@ export const add_department = async (req, res, next) => {
 
     head = await User.findOne({ username: head }).select("_id");
 
+    if (!head) {
+      return res.status(404).json({
+        message: "Selected head doesn't exist",
+      });
+    }
+
     head = head._id;
 
     details.head = head;
+
+    let admin = await User.findOne({ username: req.body.admin }).select("_id");
+
+    if (!admin) {
+      return res.status(404).json({ message: "Selected admin is not found" });
+    }
+
+    admin = admin._id;
+
+    details.admin = admin;
+
+    if (req.body.parentDepartment) {
+      let parentDepartment = await Department.findOne({
+        name: req.body.parentDepartment,
+      }).select("_id");
+
+      if (!parentDepartment) {
+        return res
+          .status(404)
+          .json({ message: "selected parent department is not found" });
+      }
+
+      parentDepartment = parentDepartment._id;
+
+      details.parentDepartment = parentDepartment;
+    }
 
     const newDepartment = new Department(details);
 
@@ -296,16 +284,6 @@ export const format_department_data = async (departments) => {
   for (let i = 0; i < departments.length; i++) {
     let department = JSON.parse(JSON.stringify(departments[i]));
 
-    const branch = await Branch.findOne({
-      _id: department.branch,
-    }).select("name");
-
-    if (branch) {
-      department.branch = branch.name;
-    } else {
-      department.branch = "N/A";
-    }
-
     let steps_ = [];
     const steps = department.steps;
     for (let i = 0; i < steps.length; i++) {
@@ -331,6 +309,28 @@ export const format_department_data = async (departments) => {
       department.head = head.username;
     }
 
+    const admin = await User.findOne({ _id: department.admin }).select(
+      "username"
+    );
+
+    if (admin && admin.username) {
+      department.admin = admin.username;
+    } else {
+      department.admin = "N/A";
+    }
+
+    if (department.parentDepartment) {
+      const parentDepartment = await Department.findOne({
+        _id: department.parentDepartment,
+      }).select("name");
+
+      if (parentDepartment && parentDepartment.name) {
+        department.parentDepartment = parentDepartment.name;
+      } else {
+        department.parentDepartment = "N/A";
+      }
+    }
+
     departments_.push(department);
   }
   return departments_;
@@ -346,7 +346,9 @@ export const get_departments = async (req, res, next) => {
         message: "Unauthorized request",
       });
     }
-    const departments = await Department.find({});
+    const departments = req.body.type
+      ? await Department.find({ type: req.body.type })
+      : await Department.find({});
     let departments_ = await format_department_data(departments);
 
     for (let i = 0; i < departments_.length; i++) {
@@ -386,57 +388,58 @@ export const edit_department = async (req, res, next) => {
 
     const departmentId = req.params.id;
 
-    // const processes = await Process.find({
-    //   workFlow: departmentId,
-    //   completed: false,
-    // }).select("id");
-
-    // if (processes && processes.length > 0) {
-    //   return res.status(400).json({
-    //     message:
-    //       "Can't edit the department right now as there are pending processes following current department workflow",
-    //     processes: processes,
-    //   });
-    // }
-
-    const department = Department.findOne({ _id: departmentId }).select("_id");
+    const department = await Department.findOne({ _id: departmentId }).select(
+      "_id"
+    );
 
     if (!department) {
       return res.status(400).json({
-        message: "department you are trying to edit doesn't exist",
+        message: "Department you are trying to edit doesn't exist",
       });
     }
 
     let details = req.body;
 
-    const head = await User.findOne({ username: details.head }).select("id");
+    const head = await User.findOne({ username: details.head }).select("_id");
 
     if (!head) {
       return res.status(400).json({
         message:
-          "head selected for given department doesn't exist in users list",
+          "Head selected for the given department doesn't exist in users list",
       });
     }
 
     details.head = head._id;
 
-    if (details.department.split("_")[0] !== details.branch) {
-      details.name = `${details.branch}_${details.department}`;
+    let admin = await User.findOne({ username: req.body.admin }).select("_id");
+
+    if (!admin) {
+      return res.status(404).json({ message: "Selected admin is not found" });
     }
+
+    admin = admin._id;
+
+    details.admin = admin;
+
+    if (req.body.parentDepartment) {
+      let parentDepartment = await Department.findOne({
+        name: req.body.parentDepartment,
+      }).select("_id");
+
+      if (!parentDepartment) {
+        return res
+          .status(404)
+          .json({ message: "Selected parent department is not found" });
+      }
+
+      parentDepartment = parentDepartment._id;
+
+      details.parentDepartment = parentDepartment;
+    }
+
+    details.name = `${details.department}`;
 
     delete details.department;
-
-    let branchId = await Branch.findOne({ name: req.body.branch });
-
-    if (!branchId) {
-      return res.status(400).json({
-        message: "branch for which you are adding workflow doesn't exist",
-      });
-    }
-
-    branchId = branchId._id;
-
-    details.branch = branchId;
 
     const steps = details.workFlow;
 
@@ -452,7 +455,7 @@ export const edit_department = async (req, res, next) => {
         if (!user) {
           return res.status(400).json({
             message:
-              "one of the users mentioned in steps as an actor doesn't exist",
+              "One of the users mentioned in steps as an actor doesn't exist",
           });
         }
         user = user._id;
@@ -462,7 +465,7 @@ export const edit_department = async (req, res, next) => {
         if (!role) {
           return res.status(400).json({
             message:
-              "one of the roles mentioned in steps as an actor doesn't exist",
+              "One of the roles mentioned in steps as an actor doesn't exist",
           });
         }
 
@@ -474,21 +477,8 @@ export const edit_department = async (req, res, next) => {
         });
       }
 
-      // let work = await Work.findOne({ name: step.work });
-
-      // if (!work) {
-      //   const newWork = new Work({
-      //     name: step.work,
-      //   });
-
-      //   work = await newWork.save();
-      // }
-
-      // work = work._id;
-
       updatedSteps.push({
         users: users,
-        // work: work,
         stepNumber: step.step,
       });
     }
@@ -512,7 +502,7 @@ export const edit_department = async (req, res, next) => {
   } catch (error) {
     console.log("error editing department", error);
     return res.status(500).json({
-      message: "error editing department",
+      message: "Error editing department",
     });
   }
 };

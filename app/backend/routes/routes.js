@@ -192,12 +192,12 @@ router.post("/editUser/:userId", edit_user);
 router.post("/createPermissions", create_permissions);
 
 // branch controllers
-router.post("/createBranch", create_branch);
-router.post("/editBranch/:branchId", edit_branch);
-router.post("/deleteBranch/:branchId", delete_branch);
-router.post("/getAllBranches", get_all_branches);
+router.post("/createBranch", add_department);
+router.post("/editBranch/:branchId", edit_department);
+router.post("/deleteBranch/:branchId", delete_department);
+router.post("/getAllBranches", get_departments);
 router.post("/getBranchesWithDepartments", get_all_branches_with_departments);
-router.post("/getBranch/:branchId", get_branch_details);
+router.post("/getBranch/:branchId", get_department);
 
 router.post("/addWork", addWork);
 router.post("/getWorks", getWorks);

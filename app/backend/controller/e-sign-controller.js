@@ -133,9 +133,9 @@ export const sign_document = async (req, res, next) => {
     const documentId = req.body.documentId;
     const processId = req.body.processId;
 
-    let branchName = await Branch.findOne({ _id: userData.branch }).select(
-      "name"
-    );
+    let branchName = await Department.findOne({
+      _id: userData.branch,
+    }).select("name");
     branchName = branchName.name;
 
     let roleName = await Role.findOne({ _id: userData.role }).select("role");
@@ -210,14 +210,6 @@ export const sign_document = async (req, res, next) => {
     let date = Date.now();
     date = formatDate(date);
 
-    let departmentName;
-    if (!(process.steps && process.steps.length)) {
-      departmentName = await Department.findOne({
-        _id: new ObjectId(workFlowToBeFollowed),
-      }).select("name");
-      departmentName = departmentName.name;
-    }
-
     let documentName = await Document.findOne({
       _id: foundDocument.documentId,
     }).select("name");
@@ -226,7 +218,7 @@ export const sign_document = async (req, res, next) => {
     const signature =
       process.steps && process.steps.length > 0
         ? `[${userData.username}(branch-${branchName}, role-${roleName}, Timestamp: ${date}, fileName: ${documentName})]`
-        : `[${userData.username}(branch-${branchName}, department-${departmentName}, role-${roleName}, Timestamp: ${date}, fileName: ${documentName})]`;
+        : `[${userData.username}(branch-${branchName}, role-${roleName}, Timestamp: ${date}, fileName: ${documentName})]`;
 
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const pages = pdfDoc.getPages();
@@ -813,7 +805,7 @@ export const reject_document = async (req, res, next) => {
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const currentDate = new Date().toLocaleString();
-    const branch = await Branch.findById(userData.branch).select("name");
+    const branch = await Department.findById(userData.branch).select("name");
     const department = await Department.findById(workFlowToBeFollowed).select(
       "name"
     );

@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Branch", // Assuming you have a 'Branch' model
+    ref: "Department", // Assuming you have a 'Branch' model
   },
   role: {
     type: mongoose.Schema.Types.ObjectId,
