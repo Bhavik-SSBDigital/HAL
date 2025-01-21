@@ -285,36 +285,44 @@ export const format_department_data = async (departments) => {
     let department = JSON.parse(JSON.stringify(departments[i]));
 
     let steps_ = [];
-    const steps = department.steps;
-    for (let i = 0; i < steps.length; i++) {
-      let formattedStep = await format_workflow_step(steps[i]);
-      steps_.push(formattedStep);
+
+    if (department.steps) {
+      const steps = department.steps;
+      for (let i = 0; i < steps.length; i++) {
+        let formattedStep = await format_workflow_step(steps[i]);
+        steps_.push(formattedStep);
+      }
+      department.workFlow = steps_;
     }
 
     delete department.steps;
 
     delete department.__v;
 
-    department.workFlow = steps_;
-
     // department.department = department.name;
 
     // delete department.name;
 
-    const head = await User.findOne({ _id: department.head }).select(
-      "username"
-    );
+    if (department.head) {
+      const head = await User.findOne({ _id: department.head }).select(
+        "username"
+      );
 
-    if (head) {
-      department.head = head.username;
+      if (head) {
+        department.head = head.username;
+      }
     }
 
-    const admin = await User.findOne({ _id: department.admin }).select(
-      "username"
-    );
+    if (department.admin) {
+      const admin = await User.findOne({ _id: department.admin }).select(
+        "username"
+      );
 
-    if (admin && admin.username) {
-      department.admin = admin.username;
+      if (admin && admin.username) {
+        department.admin = admin.username;
+      } else {
+        department.admin = "N/A";
+      }
     } else {
       department.admin = "N/A";
     }
