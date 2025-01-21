@@ -47,10 +47,14 @@ export default function NewDepartment(props) {
 
   const [editObject, setEditObject] = useState({});
   const initialUser = {
-    department: '',
-    branch: '',
-    head: '',
-    workFlow: [],
+    code: null,
+    department: null,
+    parentDepartment: null,
+    head: null,
+    type: 'department',
+    workFlow: null,
+    isHeadOffice: false,
+    status: 'Active',
   };
   const [formData, setFormData] = useState({ ...initialUser });
   const [flow, setFlow] = useState({ step: '' });
@@ -66,6 +70,10 @@ export default function NewDepartment(props) {
   const [users, setUsers] = useState([]);
   const handleInputChange = (event) => {
     const { name, value } = event.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
     if (name !== 'userBranch') {
       setFormData((prevData) => ({
         ...prevData,
@@ -123,20 +131,7 @@ export default function NewDepartment(props) {
       console.error('unable to fetch branches');
     }
   };
-  const getWorks = async () => {
-    try {
-      const url = backendUrl + '/getWorks';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setWorks(data.works);
-    } catch (error) {
-      console.log(error);
-    }
-  };
+
   const getUsers = async (branchValue, roleValue) => {
     // const branchValue = value ? headInfo.branch : userBranch;
     // const roleValue = value ? headInfo.role : flow.role;
@@ -165,27 +160,17 @@ export default function NewDepartment(props) {
   };
   const navigate = useNavigate();
   const handleSubmit = async (id) => {
-    const finalData = {
-      department: formData.department,
-      branch: formData.branch,
-      workFlow: formData.workFlow,
-      head: formData.head,
-    };
     setLoading(true);
     const url =
       Object.keys(editObject).length > 0
         ? backendUrl + `/editDepartment/${id}`
         : backendUrl + '/addDepartment';
     try {
-      const response = await axios.post(
-        url,
-        { ...finalData },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
+      const response = await axios.post(url, formData, {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
         },
-      );
+      });
 
       if (response.status === 200) {
         setEditObject({});
@@ -319,10 +304,10 @@ export default function NewDepartment(props) {
         >
           <Grid2 container spacing={3} sx={{ marginBottom: '20px' }}>
             <Grid2 item size={{ xs: 12, md: 6 }}>
-              <Typography variant="body1">Department Branch:</Typography>
+              <Typography variant="body1">Parent Department:</Typography>
               <FormControl fullWidth variant="outlined">
                 <Select
-                  name="branch"
+                  name="parentDepartment"
                   value={formData?.branch}
                   sx={{ backgroundColor: 'whitesmoke' }}
                   onChange={handleInputChange}
@@ -339,6 +324,17 @@ export default function NewDepartment(props) {
               </FormControl>
             </Grid2>
             <Grid2 item size={{ xs: 12, md: 6 }}>
+              <Typography variant="body1">Department Code:</Typography>
+              <TextField
+                fullWidth
+                sx={{ backgroundColor: 'whitesmoke' }}
+                variant="outlined"
+                name="code"
+                value={formData?.code}
+                onChange={handleInputChange}
+              />
+            </Grid2>
+            <Grid2 item size={{ xs: 12, md: 6 }}>
               <Typography variant="body1">Department Name:</Typography>
               <TextField
                 fullWidth
@@ -349,7 +345,7 @@ export default function NewDepartment(props) {
                 onChange={handleInputChange}
               />
             </Grid2>
-            <Grid2 item size={{ xs: 12 }}>
+            <Grid2 item size={{ xs: 12, sm: 6 }}>
               <Typography variant="body1">Department Head:</Typography>
               <TextField
                 fullWidth
@@ -473,44 +469,41 @@ export default function NewDepartment(props) {
             setBranches={setBranches}
             fullState={formData}
           />
-          {formData?.branch &&
-            formData?.head &&
-            formData?.department &&
-            formData?.workFlow?.length > 0 && (
-              <Stack
-                flexDirection="row"
-                gap={2}
-                justifyContent="center"
-                sx={{ margin: 1 }}
-              >
-                <Box>
-                  <Button
-                    variant="contained"
-                    disabled={loading}
-                    onClick={
-                      Object.keys(editObject).length > 0
-                        ? () => handleSubmit(formData._id)
-                        : () => handleSubmit()
-                    }
-                    sx={{
-                      backgroundColor: '#65B741',
-                      ':hover': {
-                        backgroundColor: 'darkgreen',
-                      },
-                      minWidth: '150px',
-                    }}
-                  >
-                    {loading ? (
-                      <CircularProgress size={20} /> // Show this when loading is true
-                    ) : Object.keys(editObject).length > 0 ? (
-                      'Save'
-                    ) : (
-                      'ADD DEPARTMENT'
-                    )}
-                  </Button>
-                </Box>
-              </Stack>
-            )}
+          {true && (
+            <Stack
+              flexDirection="row"
+              gap={2}
+              justifyContent="center"
+              sx={{ margin: 1 }}
+            >
+              <Box>
+                <Button
+                  variant="contained"
+                  disabled={loading}
+                  onClick={
+                    Object.keys(editObject).length > 0
+                      ? () => handleSubmit(formData._id)
+                      : () => handleSubmit()
+                  }
+                  sx={{
+                    backgroundColor: '#65B741',
+                    ':hover': {
+                      backgroundColor: 'darkgreen',
+                    },
+                    minWidth: '150px',
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={20} /> // Show this when loading is true
+                  ) : Object.keys(editObject).length > 0 ? (
+                    'Save'
+                  ) : (
+                    'ADD DEPARTMENT'
+                  )}
+                </Button>
+              </Box>
+            </Stack>
+          )}
         </div>
       )}
     </>

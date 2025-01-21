@@ -139,7 +139,7 @@ const MyTable = ({ data, props, setData, searchTerm, setSearchTerm }) => {
 
     const getSortedData = () => {
         // Filter the data based on the search term
-        const filteredData = data.filter((row) =>
+        const filteredData = data?.filter((row) =>
             row.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
@@ -387,7 +387,7 @@ function List(props) {
 
             if (response.status === 200) {
                 setIsLoading(false);
-                setData(response.data.branches);
+                setData(response.data.departments);
             }
         } catch (error) {
             // alert('unable to fetch data')

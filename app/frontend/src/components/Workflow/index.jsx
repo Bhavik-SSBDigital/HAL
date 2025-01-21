@@ -37,7 +37,6 @@ export default function Workflow({
   setFlow,
   usersOnStep,
   setUsersOnStep,
-  branches,
   fullState,
   maxStepNumberReached,
 }) {
@@ -215,30 +214,6 @@ export default function Workflow({
   return (
     <div>
       <Grid2 container spacing={3} p={2}>
-        {/* <Grid2 item size={{ xs: 6 }}>
-          <Typography variant="body1">Work</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'row', gap: '3px' }}>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="work"
-                size="small"
-                sx={{ backgroundColor: 'whitesmoke' }}
-                fullWidth
-                value={flow && flow.work}
-                onChange={handleFlowChange}
-              >
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {works?.map((data) => (
-                  <MenuItem key={data.name} value={data.name}>
-                    {data.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Grid2> */}
         <Grid2 item size={{ xs: 12 }}>
           <Typography variant="body1">Step No:</Typography>
           <FormControl fullWidth variant="outlined">
@@ -477,13 +452,6 @@ export default function Workflow({
           </Button>
         </DialogActions>
       </Dialog>
-      {/* <Button
-        variant="contained"
-        onClick={handleNextClick}
-        sx={{ display: 'block', mx: 'auto' }}
-      >
-        Process
-      </Button> */}
     </div>
   );
 }

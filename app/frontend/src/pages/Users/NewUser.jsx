@@ -80,7 +80,7 @@ export default function NewUser() {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    setBranches(data.branches);
+    setBranches(data.departments);
     return data.branches;
   };
   const getRoles = async (id) => {

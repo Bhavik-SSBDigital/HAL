@@ -4,15 +4,17 @@ import {
   Button,
   CircularProgress,
   FormControl,
+  Grid2,
   MenuItem,
-  Select,
-  Stack,
   TextField,
+  Divider,
+  Typography,
+  Stack,
 } from '@mui/material';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useForm, Controller } from 'react-hook-form';
+import Workflow from '../../components/Workflow';
 
 const NewBranch = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -21,23 +23,85 @@ const NewBranch = () => {
   const [editObject, setEditObject] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // React Hook Form setup
-  const {
-    handleSubmit,
-    control,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      code: 0,
-      name: '',
-      status: 'Active',
-      isHeadOffice: false,
-    },
+  // Form State
+  const [formData, setFormData] = useState({
+    code: 0,
+    department: null,
+    parentDepartment: null,
+    type: 'branch',
+    status: 'Active',
+    head: null,
+    workFlow: [],
   });
 
-  const onSubmit = async (data) => {
+  const [userList, setUserList] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [flow, setFlow] = useState({ step: '' });
+  const [usersOnStep, setUsersOnStep] = useState([]);
+
+  // fetch all branches
+  const getBranches = async () => {
+    try {
+      const url = backendUrl + '/getAllBranches';
+      const accessToken = sessionStorage.getItem('accessToken');
+      const { data } = await axios.post(url, null, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      console.log(data.departments);
+      setBranches(data.departments);
+    } catch (error) {
+      console.error('unable to fetch branches');
+    }
+  };
+
+  // Fetch User List
+  const fetchData = async () => {
+    const url = `${backendUrl}/getUsernames`;
+    const { data } = await axios.get(url);
+    setUserList(data.users);
+  };
+
+  // Fetch Edit Details if ID exists
+  const getEditDetails = async () => {
+    setLoading(true);
+    try {
+      const url = `${backendUrl}/getBranch/${id}`;
+      const res = await axios.post(url, null, {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+        },
+      });
+      if (res.status === 200) {
+        setEditObject(res.data);
+        setFormData(res.data); // Populate form fields
+      }
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    getBranches();
+    if (id) getEditDetails();
+  }, []);
+
+  // Handle Input Change
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Handle Submit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
 
     try {
@@ -48,7 +112,7 @@ const NewBranch = () => {
           : '/createBranch');
       const accessToken = sessionStorage.getItem('accessToken');
 
-      const response = await axios.post(url, data, {
+      const response = await axios.post(url, formData, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -63,7 +127,16 @@ const NewBranch = () => {
         setEditObject({});
         setLoading(false);
         navigate('/branches/list');
-        reset();
+        setFormData({
+          code: 0,
+          name: '',
+          parentDepartment: '',
+          type: 'branch',
+          status: 'Active',
+          isHeadOffice: false,
+          head: '',
+          workFlow: [],
+        });
       } else {
         setLoading(false);
         toast.error('Error');
@@ -73,32 +146,6 @@ const NewBranch = () => {
       toast.error('Something went wrong');
     }
   };
-
-  const getEditDetails = async () => {
-    setLoading(true);
-    try {
-      const url = backendUrl + `/getBranch/${id}`;
-      const res = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
-      });
-      if (res.status === 200) {
-        setEditObject(res.data);
-        for (const [key, value] of Object.entries(res.data)) {
-          setValue(key, value); // Populate form fields
-        }
-      }
-    } catch (error) {
-      console.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (id) getEditDetails();
-  }, []);
 
   return (
     <div
@@ -112,120 +159,119 @@ const NewBranch = () => {
         boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
       }}
     >
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Stack alignItems="center" m="20px 0" gap={5}>
-          <Controller
-            name="code"
-            control={control}
-            rules={{ required: 'Branch code is required' }}
-            render={({ field }) => (
+      <form onSubmit={handleSubmit}>
+        <Grid2 container spacing={5} justifyContent="center" sx={{ mt: 2 }}>
+          {/* Branch Code */}
+          <Grid2 size={{ xs: 12, sm: 6 }}>
+            <TextField
+              name="code"
+              value={formData.code}
+              onChange={handleInputChange}
+              label="Branch Code"
+              type="number"
+              fullWidth
+              inputProps={{ min: '0' }}
+              sx={{ backgroundColor: 'whitesmoke' }}
+            />
+          </Grid2>
+
+          {/* Branch Name */}
+          <Grid2 size={{ xs: 12, sm: 6 }}>
+            <TextField
+              name="department"
+              value={formData.department}
+              onChange={handleInputChange}
+              label="Branch Name"
+              fullWidth
+              sx={{ backgroundColor: 'whitesmoke' }}
+            />
+          </Grid2>
+
+          {/* Parent Department */}
+          <Grid2 size={{ xs: 12, sm: 6 }}>
+            <TextField
+              name="parentDepartment"
+              value={formData.parentDepartment}
+              onChange={handleInputChange}
+              select
+              fullWidth
+              label="Parent Department"
+              sx={{ backgroundColor: 'whitesmoke' }}
+            >
+              {userList?.map((user, index) => (
+                <MenuItem value={user.username} key={index}>
+                  {user.username}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid2>
+
+          {/* Status */}
+          <Grid2 size={{ xs: 12, sm: 6 }}>
+            <FormControl fullWidth>
               <TextField
-                {...field}
-                label="Branch Code"
-                type="number"
-                fullWidth
-                inputProps={{ min: '0' }}
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                select
+                label="Status"
+                displayEmpty
                 sx={{ backgroundColor: 'whitesmoke' }}
-                error={!!errors.code}
-                helperText={errors.code?.message}
-              />
+              >
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="Deactive">Deactive</MenuItem>
+              </TextField>
+            </FormControl>
+          </Grid2>
+        </Grid2>
+        <Divider sx={{ my: 5 }} />
+        <Typography
+          variant="h6"
+          sx={{ textAlign: 'center', mb: 4 }}
+          gutterBottom
+        >
+          Work Flow :
+        </Typography>
+        <Workflow
+          workFlow={formData.workFlow}
+          workFlowLength={formData.workFlow.length}
+          handleWorkFlow={() => {}}
+          setWorkFLow={setFormData}
+          flow={flow}
+          setFlow={setFlow}
+          usersOnStep={usersOnStep}
+          setUsersOnStep={setUsersOnStep}
+          setBranches={setBranches}
+          fullState={formData}
+        />
+        {/* Buttons */}
+        <Grid2 xs={12} display="flex" justifyContent="center" gap={2}>
+          <Button
+            type="submit"
+            variant="contained"
+            color="success"
+            sx={{ width: '150px' }}
+            disabled={loading}
+          >
+            {loading ? (
+              <CircularProgress size={26} />
+            ) : Object.keys(editObject).length > 0 ? (
+              'Update'
+            ) : (
+              'Save'
             )}
-          />
-
-          <Controller
-            name="name"
-            control={control}
-            rules={{ required: 'Branch name is required' }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                fullWidth
-                label="Branch Name"
-                sx={{ backgroundColor: 'whitesmoke' }}
-                error={!!errors.name}
-                helperText={errors.name?.message}
-              />
-            )}
-          />
-
-          <Controller
-            name="status"
-            control={control}
-            rules={{ required: 'Status is required' }}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <TextField
-                  select
-                  label="Status"
-                  {...field}
-                  displayEmpty
-                  sx={{ backgroundColor: 'whitesmoke' }}
-                  error={!!errors.status}
-                >
-                  <MenuItem value="">
-                    <em>Select Status</em>
-                  </MenuItem>
-                  <MenuItem value="Active">Active</MenuItem>
-                  <MenuItem value="Deactive">Deactive</MenuItem>
-                </TextField>
-                {errors.status && (
-                  <p style={{ color: 'red' }}>{errors.status?.message}</p>
-                )}
-              </FormControl>
-            )}
-          />
-
-          <Controller
-            name="isHeadOffice"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <TextField
-                  select
-                  {...field}
-                  label="Is Headoffice?"
-                  sx={{ backgroundColor: 'whitesmoke' }}
-                  error={!!errors.isHeadOffice}
-                >
-                  <MenuItem value={true}>Yes</MenuItem>
-                  <MenuItem value={false}>No</MenuItem>
-                </TextField>
-                {errors.isHeadOffice && (
-                  <p style={{ color: 'red' }}>{errors.isHeadOffice?.message}</p>
-                )}
-              </FormControl>
-            )}
-          />
-
-          <Stack spacing={2} direction="row" justifyContent="center">
+          </Button>
+          <Link to="/branches/list">
             <Button
-              type="submit"
               variant="contained"
-              color="success"
               sx={{ width: '150px' }}
+              color="error"
               disabled={loading}
             >
-              {loading ? (
-                <CircularProgress size={26} />
-              ) : Object.keys(editObject).length > 0 ? (
-                'Update'
-              ) : (
-                'Save'
-              )}
+              Cancel
             </Button>
-
-            <Link to="/branches/list">
-              <Button
-                variant="contained"
-                sx={{ width: '150px' }}
-                color="error"
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </Link>
-          </Stack>
-        </Stack>
+          </Link>
+        </Grid2>
       </form>
     </div>
   );

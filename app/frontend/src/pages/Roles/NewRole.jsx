@@ -49,7 +49,7 @@ export default function NewRole() {
         },
       });
 
-      setBranches(data.branches);
+      setBranches(data.departments);
     } catch (error) {
       // Handle the error and show an alert
       // console.error('Error:', error);
