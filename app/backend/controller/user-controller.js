@@ -96,6 +96,7 @@ export const signup_POST = async (req, res) => {
         message: "please select the valid branch name",
       });
     }
+
     userRef.branch = branch._id;
     const role = await Role.findOne({ role: userRef.role, branch: branch._id });
     if (!role) {
@@ -309,6 +310,7 @@ export const get_usernames = async (req, res) => {
         }
 
         let branch = user.branch;
+
         branch = await Department.findOne({ _id: branch }).select("name");
 
         if (user.username === "admin") {
@@ -316,7 +318,7 @@ export const get_usernames = async (req, res) => {
             "name"
           );
 
-          branch = branch.name;
+          branch = "N/A";
         } else {
           branch = branch.name;
         }
@@ -558,7 +560,7 @@ export const get_user_profile_data = async (req, res, next) => {
       });
     }
 
-    let branch = await Department.findOne({ _id: userData.branch }).select(
+    let branch = await Department.findOne({ _id: userData.department }).select(
       "name"
     );
 
