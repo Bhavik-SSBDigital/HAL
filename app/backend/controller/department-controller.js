@@ -383,6 +383,58 @@ export const get_departments = async (req, res, next) => {
   }
 };
 
+export const get_department_names = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const departments = await Department.find({ type: "department" })
+      .select("_id name")
+      .lean();
+
+    return res.status(200).json({
+      names: departments,
+    });
+  } catch (error) {
+    console.log("error getting department names", error);
+    return res.status(500).json({
+      message: "error getting department names",
+    });
+  }
+};
+
+export const get_branch_names = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const departments = await Department.find({ type: "branch" })
+      .select("_id name")
+      .lean();
+
+    return res.status(200).json({
+      names: departments,
+    });
+  } catch (error) {
+    console.log("error getting department names", error);
+    return res.status(500).json({
+      message: "error getting department names",
+    });
+  }
+};
+
 export const edit_department = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);

@@ -65,6 +65,8 @@ import {
   delete_department,
   get_departments_for_initiator,
   get_merged_workflow,
+  get_department_names,
+  get_branch_names,
 } from "../controller/department-controller.js";
 
 import {
@@ -335,5 +337,9 @@ router.get("/getFileData", get_file_data);
 router.post("/updateProcessWorkflow", update_process_workflow);
 
 router.post("/removeCoordinates", remove_coordinate_from_doc);
+
+router.get("/getDepartmentNames", get_department_names);
+
+router.get("/getBranchNames", get_branch_names);
 
 export default router;
