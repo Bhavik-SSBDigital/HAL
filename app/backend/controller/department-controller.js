@@ -601,7 +601,7 @@ export const get_department = async (req, res, next) => {
 
     department = await format_department_data([department]);
 
-    let final_department = department[0].department;
+    let final_department = department[0];
 
     final_department.department = final_department.name;
 
