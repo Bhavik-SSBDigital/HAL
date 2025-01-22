@@ -18,6 +18,7 @@ import Workflow from '../../components/Workflow';
 
 const NewBranch = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const accessToken = sessionStorage.getItem('accessToken');
   const { id } = useParams();
   const navigate = useNavigate();
   const [editObject, setEditObject] = useState({});
@@ -44,7 +45,7 @@ const NewBranch = () => {
   const getBranches = async () => {
     try {
       const url = backendUrl + '/getAllBranches';
-      const accessToken = sessionStorage.getItem('accessToken');
+
       const { data } = await axios.post(url, null, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -65,7 +66,7 @@ const NewBranch = () => {
       const res = await axios({
         url: url,
         method: 'get',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       setDepartments(res?.data?.names);
     } catch (error) {
@@ -128,7 +129,6 @@ const NewBranch = () => {
         (Object.keys(editObject).length > 0
           ? `/editBranch/${editObject._id}`
           : '/createBranch');
-      const accessToken = sessionStorage.getItem('accessToken');
 
       const response = await axios.post(url, formData, {
         headers: {
