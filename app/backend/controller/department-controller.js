@@ -536,7 +536,10 @@ export const get_department = async (req, res, next) => {
         message: "Unauthorized request",
       });
     }
-    let department = await Department.findOne({ _id: req.params.id });
+
+    let department = await Department.findOne({
+      _id: new ObjectId(req.params.id),
+    });
 
     if (!department) {
       return res.status(500).json({

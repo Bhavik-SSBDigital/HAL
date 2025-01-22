@@ -197,7 +197,7 @@ router.post("/editBranch/:branchId", edit_department);
 router.post("/deleteBranch/:branchId", delete_department);
 router.post("/getAllBranches", get_departments);
 router.post("/getBranchesWithDepartments", get_all_branches_with_departments);
-router.post("/getBranch/:branchId", get_department);
+router.post("/getBranch/:id", get_department);
 
 router.post("/addWork", addWork);
 router.post("/getWorks", getWorks);
