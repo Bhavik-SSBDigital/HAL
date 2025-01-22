@@ -57,6 +57,22 @@ const NewBranch = () => {
     }
   };
 
+  // fetch parent departments
+  const [departments, setDepartments] = useState([]);
+  const getDepartments = async () => {
+    const url = backendUrl + '/getDepartmentNames';
+    try {
+      const res = await axios({
+        url: url,
+        method: 'get',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDepartments(res?.data?.names);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   // Fetch User List
   const fetchData = async () => {
     const url = `${backendUrl}/getUsernames`;
@@ -87,6 +103,7 @@ const NewBranch = () => {
 
   useEffect(() => {
     fetchData();
+    getDepartments();
     getBranches();
     if (id) getEditDetails();
   }, []);
@@ -244,9 +261,9 @@ const NewBranch = () => {
               label="Parent Department"
               sx={{ backgroundColor: 'whitesmoke' }}
             >
-              {userList?.map((user, index) => (
-                <MenuItem value={user.username} key={index}>
-                  {user.username}
+              {departments?.map((name, index) => (
+                <MenuItem value={name} key={index}>
+                  {name}
                 </MenuItem>
               ))}
             </TextField>

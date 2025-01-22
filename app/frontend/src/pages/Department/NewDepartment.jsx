@@ -41,6 +41,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import Workflow from '../../components/Workflow';
 
 export default function NewDepartment(props) {
+  const token = sessionStorage.getItem('accessToken');
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { id } = useParams();
   const location = useLocation();
@@ -103,10 +104,9 @@ export default function NewDepartment(props) {
     // setFieldsLoading(true);
     const urlRole = backendUrl + '/getRolesInBranch/';
     try {
-      const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await axios.post(urlRole + `${id}`, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setRoles(data.roles);
@@ -119,16 +119,30 @@ export default function NewDepartment(props) {
   const getBranches = async () => {
     try {
       const url = backendUrl + '/getAllBranches';
-      const accessToken = sessionStorage.getItem('accessToken');
+
       const { data } = await axios.post(url, null, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       setBranches(data.branches);
       return data.branches;
     } catch (error) {
       console.error('unable to fetch branches');
+    }
+  };
+  const [departments, setDepartments] = useState([]);
+  const getDepartments = async () => {
+    const url = backendUrl + '/getDepartmentNames';
+    try {
+      const res = await axios({
+        url: url,
+        method: 'get',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDepartments(res?.data?.names);
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -138,7 +152,7 @@ export default function NewDepartment(props) {
     // setFieldsLoading(true);
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
-      const accessToken = sessionStorage.getItem('accessToken');
+
       const { _id } = branches.find((item) => item.name === branchValue);
       const id = roles.find((item) => item.role === roleValue);
       const { data } = await axios.post(
@@ -149,7 +163,7 @@ export default function NewDepartment(props) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
         },
       );
@@ -168,7 +182,7 @@ export default function NewDepartment(props) {
     try {
       const response = await axios.post(url, formData, {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -260,7 +274,7 @@ export default function NewDepartment(props) {
       const url = backendUrl + `/getDepartment/${id}`;
       const res = await axios.post(url, null, {
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (res.status === 200) {
@@ -275,6 +289,7 @@ export default function NewDepartment(props) {
   };
   useEffect(() => {
     getBranches();
+    getDepartments();
     if (id) {
       getEditDetails();
     }
@@ -315,9 +330,9 @@ export default function NewDepartment(props) {
                   <MenuItem value="">
                     <em>None</em>
                   </MenuItem>
-                  {branches?.map((data) => (
-                    <MenuItem key={data.name} value={data.name}>
-                      {data.name}
+                  {departments?.map((name) => (
+                    <MenuItem key={name} value={name}>
+                      {name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -345,7 +360,7 @@ export default function NewDepartment(props) {
                 onChange={handleInputChange}
               />
             </Grid2>
-            <Grid2 item size={{ xs: 12, sm: 6 }}>
+            <Grid2 item size={{ xs: 12, md: 6 }}>
               <Typography variant="body1">Department Head:</Typography>
               <TextField
                 fullWidth
