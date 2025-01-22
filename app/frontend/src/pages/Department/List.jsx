@@ -39,11 +39,15 @@ export default function List(props) {
   const fetchDepartments = async () => {
     const url = backendUrl + '/getDepartments';
     try {
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+      const response = await axios.post(
+        url,
+        { type: 'department' },
+        {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+          },
         },
-      });
+      );
       if (response.status === 200) {
         setIsLoading(false);
         setDepartments(response.data.departments);
@@ -139,8 +143,8 @@ export default function List(props) {
     setDeleteDepLoading(false);
   };
   const [searchTerm, setSearchTerm] = useState('');
-  const filteredData = departments.filter((item) =>
-    item.department.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredData = departments?.filter((item) =>
+    item?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
   function formatUserNames(users) {
     if (users.length === 0) {
@@ -182,7 +186,7 @@ export default function List(props) {
                 >
                   <Box>
                     <Typography variant="body1">
-                      <b>Department Name :</b> {i?.department}
+                      <b>Department Name :</b> {i?.name}
                     </Typography>
 
                     <Typography>
@@ -227,7 +231,8 @@ export default function List(props) {
           ))
         ) : (
           <Stack
-            sx={{ height: '100%' }}
+            className={styles.card}
+            sx={{ height: 'calc(100vh - 300px)' }}
             justifyContent="center"
             alignItems="center"
           >

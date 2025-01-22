@@ -74,8 +74,8 @@ const NewBranch = () => {
         },
       });
       if (res.status === 200) {
-        setEditObject(res.data);
-        setFormData(res.data); // Populate form fields
+        setEditObject(res?.data);
+        setFormData(res?.data); // Populate form fields
       }
     } catch (error) {
       console.error(error.message);
@@ -196,6 +196,25 @@ const NewBranch = () => {
               select
               fullWidth
               label="Parent Department"
+              sx={{ backgroundColor: 'whitesmoke' }}
+            >
+              {userList?.map((user, index) => (
+                <MenuItem value={user.username} key={index}>
+                  {user.username}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid2>
+
+          {/* head */}
+          <Grid2 size={{ xs: 12, sm: 6 }}>
+            <TextField
+              name="head"
+              value={formData.head}
+              onChange={handleInputChange}
+              select
+              fullWidth
+              label="Branch Head"
               sx={{ backgroundColor: 'whitesmoke' }}
             >
               {userList?.map((user, index) => (
