@@ -40,7 +40,6 @@ export default function Workflow({
   fullState,
   maxStepNumberReached,
 }) {
-  console.log(maxStepNumberReached);
   // variable
   const token = sessionStorage.getItem('accessToken');
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -159,8 +158,8 @@ export default function Workflow({
           Authorization: `Bearer ${token}`,
         },
       });
-      setAllBranches(data.branches);
-      return data.branches;
+      setAllBranches(data.departments);
+      return data.departments;
     } catch (error) {
       console.error('unable to fetch branches');
     }

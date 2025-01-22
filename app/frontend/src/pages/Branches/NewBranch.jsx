@@ -22,6 +22,7 @@ const NewBranch = () => {
   const navigate = useNavigate();
   const [editObject, setEditObject] = useState({});
   const [loading, setLoading] = useState(false);
+  const [finalBranch, setFinalBranch] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -74,8 +75,8 @@ const NewBranch = () => {
         },
       });
       if (res.status === 200) {
-        setEditObject(res?.data);
-        setFormData(res?.data); // Populate form fields
+        setEditObject(res?.data?.department);
+        setFormData(res?.data?.department); // Populate form fields
       }
     } catch (error) {
       console.error(error.message);
@@ -143,7 +144,52 @@ const NewBranch = () => {
       }
     } catch (error) {
       setLoading(false);
-      toast.error('Something went wrong');
+      toast.error(error?.response?.data?.message);
+    }
+  };
+
+  // handleWorkflow
+  const handleWorkFlow = () => {
+    if (formData.workFlow.length === 0) {
+      setFinalBranch(formData.branch); // Set final branch if no workflow exists
+    }
+
+    // Ensure `usersOnStep` is not empty
+    if (usersOnStep.length > 0) {
+      setFormData((prev) => {
+        const updatedWorkFlow = [...(prev.workFlow || [])]; // Ensure workFlow is always an array
+
+        if (!flow.step || flow.step > updatedWorkFlow.length) {
+          // If step is not defined or greater than the length, append to the end
+          updatedWorkFlow.push({
+            ...flow,
+            users: usersOnStep,
+            step: updatedWorkFlow.length + 1,
+          });
+        } else {
+          // Insert at the specified step
+          updatedWorkFlow.splice(flow.step - 1, 0, {
+            ...flow,
+            users: usersOnStep,
+          });
+
+          // Update step numbers for all items after the insertion point
+          for (let i = flow.step; i < updatedWorkFlow.length; i++) {
+            updatedWorkFlow[i].step = i + 1;
+          }
+        }
+
+        return {
+          ...prev,
+          workFlow: updatedWorkFlow,
+        };
+      });
+
+      // Reset temporary states after adding workflow
+      setFlow({ step: '' });
+      setUsersOnStep([]);
+    } else {
+      toast.info('Please provide all inputs!');
     }
   };
 
@@ -254,13 +300,12 @@ const NewBranch = () => {
         <Workflow
           workFlow={formData.workFlow}
           workFlowLength={formData.workFlow.length}
-          handleWorkFlow={() => {}}
+          handleWorkFlow={handleWorkFlow}
           setWorkFLow={setFormData}
           flow={flow}
           setFlow={setFlow}
           usersOnStep={usersOnStep}
           setUsersOnStep={setUsersOnStep}
-          setBranches={setBranches}
           fullState={formData}
         />
         {/* Buttons */}
