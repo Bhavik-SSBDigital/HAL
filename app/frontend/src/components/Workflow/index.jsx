@@ -169,12 +169,11 @@ export default function Workflow({
     try {
       const url = backendUrl + '/getUsersByRoleInBranch';
       const { _id } = allBranches?.find((item) => item.name === userBranch);
-      const id = roles.find((item) => item.role === role);
       const { data } = await axios.post(
         url,
         {
           branchId: _id,
-          roleId: id._id,
+          roleId: role,
         },
         {
           headers: {
@@ -416,7 +415,7 @@ export default function Workflow({
                   <em>None</em>
                 </MenuItem>
                 {roles?.map((data) => (
-                  <MenuItem key={data.role} value={data.role}>
+                  <MenuItem key={data._id} value={data._id}>
                     {data.role}
                   </MenuItem>
                 ))}
