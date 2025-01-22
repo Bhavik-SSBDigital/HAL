@@ -190,7 +190,7 @@ export default function List(props) {
                     </Typography>
 
                     <Typography>
-                      <b>Head :</b> {i?.head}
+                      <b>Head :</b> {i?.head ? i?.head : 'N/A'}
                     </Typography>
                   </Box>
                   {/* {!i.editable && ( */}
@@ -216,16 +216,30 @@ export default function List(props) {
               </AccordionSummary>
               {/* <AccordionDetails>hello</AccordionDetails> */}
               <AccordionDetails>
-                <Stack
-                  flexDirection="row"
-                  flexWrap="wrap"
-                  rowGap={3}
-                  columnGap={1}
-                  justifyContent="center"
-                  sx={{ marginBottom: '40px', marginTop: '10px' }}
-                >
-                  <ShowWorkflow workFlow={i.workFlow} />
-                </Stack>
+                {i?.workFlow ? (
+                  <Stack
+                    flexDirection="row"
+                    flexWrap="wrap"
+                    rowGap={3}
+                    columnGap={1}
+                    justifyContent="center"
+                    sx={{ marginBottom: '40px', marginTop: '10px' }}
+                  >
+                    <ShowWorkflow workFlow={i.workFlow} />
+                  </Stack>
+                ) : (
+                  <Stack
+                    className={styles.card}
+                    sx={{
+                      minHeight: '100px',
+                      boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px',
+                    }}
+                    justifyContent={'center'}
+                    alignItems={'center'}
+                  >
+                    <Typography color="blue">Please Assign WorkFlow</Typography>
+                  </Stack>
+                )}
               </AccordionDetails>
             </Accordion>
           ))

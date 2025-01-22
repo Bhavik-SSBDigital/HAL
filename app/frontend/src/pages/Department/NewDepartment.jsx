@@ -53,7 +53,7 @@ export default function NewDepartment(props) {
     parentDepartment: null,
     head: null,
     type: 'department',
-    workFlow: null,
+    workFlow: [],
     isHeadOffice: false,
     status: 'Active',
   };
@@ -125,7 +125,7 @@ export default function NewDepartment(props) {
           Authorization: `Bearer ${token}`,
         },
       });
-      setBranches(data.branches);
+      setBranches(data.departments);
       return data.branches;
     } catch (error) {
       console.error('unable to fetch branches');
@@ -202,18 +202,26 @@ export default function NewDepartment(props) {
         : toast.error('Not able to add department');
     }
   };
+  // handleWorkflow
   const handleWorkFlow = () => {
     if (formData.workFlow.length === 0) {
-      setFinalBranch(formData.branch);
+      setFinalBranch(formData.branch); // Set final branch if no workflow exists
     }
+
+    // Ensure `usersOnStep` is not empty
     if (usersOnStep.length > 0) {
       setFormData((prev) => {
-        const updatedWorkFlow = [...prev.workFlow];
+        const updatedWorkFlow = [...(prev.workFlow || [])]; // Ensure workFlow is always an array
 
-        if (flow.step > prev.workFlow.length) {
-          // If step is greater than the length, insert at the end
-          updatedWorkFlow.push({ ...flow, users: usersOnStep });
+        if (!flow.step || flow.step > updatedWorkFlow.length) {
+          // If step is not defined or greater than the length, append to the end
+          updatedWorkFlow.push({
+            ...flow,
+            users: usersOnStep,
+            step: updatedWorkFlow.length + 1,
+          });
         } else {
+          // Insert at the specified step
           updatedWorkFlow.splice(flow.step - 1, 0, {
             ...flow,
             users: usersOnStep,
@@ -221,7 +229,7 @@ export default function NewDepartment(props) {
 
           // Update step numbers for all items after the insertion point
           for (let i = flow.step; i < updatedWorkFlow.length; i++) {
-            updatedWorkFlow[i].step++;
+            updatedWorkFlow[i].step = i + 1;
           }
         }
 
@@ -230,8 +238,9 @@ export default function NewDepartment(props) {
           workFlow: updatedWorkFlow,
         };
       });
+
+      // Reset temporary states after adding workflow
       setFlow({ step: '' });
-      // setUserBranch('');
       setUsersOnStep([]);
     } else {
       toast.info('Please provide all inputs!');
@@ -278,8 +287,8 @@ export default function NewDepartment(props) {
         },
       });
       if (res.status === 200) {
-        setEditObject(res.data.department[0]);
-        setFormData(res.data.department[0]);
+        setEditObject(res.data.department);
+        setFormData(res.data.department);
       }
     } catch (error) {
       console.error(error.message);
