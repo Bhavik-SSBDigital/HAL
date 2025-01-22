@@ -458,16 +458,16 @@ export const edit_department = async (req, res, next) => {
       });
     }
 
-    if (
-      !department.admin ||
-      !department.admin.equals(new ObjectId(userData._id)) ||
-      userData.username !== "admin"
-    ) {
-      return res.status(400).json({
-        message:
-          "Only department/branch admin or super admin can do the edition",
-      });
-    }
+    // if (
+    //   !department.admin ||
+    //   !department.admin.equals(new ObjectId(userData._id)) ||
+    //   userData.username !== "admin"
+    // ) {
+    //   return res.status(400).json({
+    //     message:
+    //       "Only department/branch admin or super admin can do the edition",
+    //   });
+    // }
 
     let details = req.body;
 
