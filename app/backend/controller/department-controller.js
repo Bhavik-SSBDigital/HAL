@@ -482,15 +482,15 @@ export const edit_department = async (req, res, next) => {
 
     details.head = head._id;
 
-    let admin = await User.findOne({ username: req.body.admin }).select("_id");
+    // let admin = await User.findOne({ username: req.body.admin }).select("_id");
 
-    if (!admin) {
-      return res.status(404).json({ message: "Selected admin is not found" });
-    }
+    // if (!admin) {
+    //   return res.status(404).json({ message: "Selected admin is not found" });
+    // }
 
-    admin = admin._id;
+    // admin = admin._id;
 
-    details.admin = admin;
+    // details.admin = admin;
 
     if (req.body.parentDepartment) {
       let parentDepartment = await Department.findOne({
