@@ -284,61 +284,56 @@ export const format_department_data = async (departments) => {
   for (let i = 0; i < departments.length; i++) {
     let department = JSON.parse(JSON.stringify(departments[i]));
 
+    // Initialize the steps array
     let steps_ = [];
-
     if (department.steps) {
       const steps = department.steps;
-      for (let i = 0; i < steps.length; i++) {
-        let formattedStep = await format_workflow_step(steps[i]);
+
+      for (let j = 0; j < steps.length; j++) {
+        let formattedStep = await format_workflow_step(steps[j]);
+
         steps_.push(formattedStep);
       }
-      department.workFlow = steps_;
     }
 
+    // Assign workFlow to department (empty array if no steps)
+    department.workFlow = steps_;
+
+    // Delete the steps property
     delete department.steps;
 
+    // Delete the __v property
     delete department.__v;
 
-    // department.department = department.name;
-
-    // delete department.name;
-
+    // Process the head field
     if (department.head) {
       const head = await User.findOne({ _id: department.head }).select(
         "username"
       );
-
-      if (head) {
-        department.head = head.username;
-      }
+      department.head = head ? head.username : null;
     }
 
+    // Process the admin field
     if (department.admin) {
       const admin = await User.findOne({ _id: department.admin }).select(
         "username"
       );
-
-      if (admin && admin.username) {
-        department.admin = admin.username;
-      } else {
-        department.admin = "N/A";
-      }
+      department.admin = admin ? admin.username : "N/A";
     } else {
       department.admin = "N/A";
     }
 
+    // Process the parentDepartment field
     if (department.parentDepartment) {
       const parentDepartment = await Department.findOne({
         _id: department.parentDepartment,
       }).select("name");
-
-      if (parentDepartment && parentDepartment.name) {
-        department.parentDepartment = parentDepartment.name;
-      } else {
-        department.parentDepartment = "N/A";
-      }
+      department.parentDepartment = parentDepartment
+        ? parentDepartment.name
+        : "N/A";
     }
 
+    // Push the modified department into the array
     departments_.push(department);
   }
   return departments_;
