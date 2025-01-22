@@ -601,8 +601,14 @@ export const get_department = async (req, res, next) => {
 
     department = await format_department_data([department]);
 
+    let final_department = department[0].department;
+
+    final_department.department = final_department.name;
+
+    delete final_department.name;
+
     return res.status(200).json({
-      department: department[0],
+      department: final_department,
     });
   } catch (error) {
     console.log("error", error);
