@@ -253,7 +253,7 @@ export default function Workflow({
                   <TableRow sx={{ height: '50px' }}>
                     <TableCell>Sr No</TableCell>
                     <TableCell>Username</TableCell>
-                    <TableCell>User Role</TableCell>
+                    {/* <TableCell>User Role</TableCell> */}
                     <TableCell>Delete</TableCell>
                   </TableRow>
                 </TableHead>
@@ -267,9 +267,9 @@ export default function Workflow({
                         <TableCell component="th" scope="row">
                           {row.user}
                         </TableCell>
-                        <TableCell component="th" scope="row">
+                        {/* <TableCell component="th" scope="row">
                           {row.role}
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell component="th" scope="row">
                           <Button onClick={() => deleteStepUser(index)}>
                             <FaRegTrashAlt color="red" />
