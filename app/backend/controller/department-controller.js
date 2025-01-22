@@ -602,7 +602,7 @@ export const get_department = async (req, res, next) => {
     department = await format_department_data([department]);
 
     return res.status(200).json({
-      department: department,
+      department: department[0],
     });
   } catch (error) {
     console.log("error", error);
