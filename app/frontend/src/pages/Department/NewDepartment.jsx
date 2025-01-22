@@ -339,9 +339,9 @@ export default function NewDepartment(props) {
                   <MenuItem value="">
                     <em>None</em>
                   </MenuItem>
-                  {departments?.map((name) => (
-                    <MenuItem key={name} value={name}>
-                      {name}
+                  {departments?.map((department) => (
+                    <MenuItem key={department?.name} value={department?.name}>
+                      {department?.name}
                     </MenuItem>
                   ))}
                 </Select>

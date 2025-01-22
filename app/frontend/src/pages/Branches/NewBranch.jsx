@@ -261,9 +261,9 @@ const NewBranch = () => {
               label="Parent Department"
               sx={{ backgroundColor: 'whitesmoke' }}
             >
-              {departments?.map((name, index) => (
-                <MenuItem value={name} key={index}>
-                  {name}
+              {departments?.map((department) => (
+                <MenuItem key={department?.name} value={department?.name}>
+                  {department?.name}
                 </MenuItem>
               ))}
             </TextField>
