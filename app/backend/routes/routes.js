@@ -195,7 +195,7 @@ router.post("/createPermissions", create_permissions);
 
 // branch controllers
 router.post("/createBranch", add_department);
-router.post("/editBranch/:branchId", edit_department);
+router.post("/editBranch/:id", edit_department);
 router.post("/deleteBranch/:branchId", delete_department);
 router.post("/getAllBranches", get_departments);
 router.post("/getBranchesWithDepartments", get_all_branches_with_departments);
