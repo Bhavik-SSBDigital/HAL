@@ -238,7 +238,7 @@ export const format_workflow_step = async (step, forLog) => {
 
         users.push({
           user: user ? user.username : "N/A",
-          role: role ? role.role : "N/A",
+          role: role ? currentRole : "N/A",
         });
       }
       finalStep.users = users;
@@ -482,6 +482,9 @@ export const edit_department = async (req, res, next) => {
 
     details.head = head._id;
 
+    // uncomment when you settle admin access management
+    delete details.admin;
+
     // let admin = await User.findOne({ username: req.body.admin }).select("_id");
 
     // if (!admin) {
@@ -531,7 +534,7 @@ export const edit_department = async (req, res, next) => {
         }
         user = user._id;
 
-        let role = await Role.findOne({ role: currentRole, branch: branchId });
+        let role = await Role.findOne({ _id: currentRole });
 
         if (!role) {
           return res.status(400).json({
