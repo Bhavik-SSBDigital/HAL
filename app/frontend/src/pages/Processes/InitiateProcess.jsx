@@ -129,7 +129,7 @@ export default function LabelBottomNavigation(props) {
           isMom: props.isMom,
           documentsPath: departmentPath,
           isHeadofficeIncluded: props.isHeadofficeIncluded,
-          departmentName: props.selectedDepartment.department,
+          departmentName: props.selectedDepartment.name,
           ...(selectedStep ? { nextStepNumber: selectedStep } : {}),
         },
         {
@@ -216,15 +216,7 @@ export default function LabelBottomNavigation(props) {
 
     try {
       // Prepare necessary variables
-      let department;
-      const { branch, department: deptName } = props.selectedDepartment;
-
-      if (branch === headOfficeName) {
-        const [, outputString] = deptName.split(`${headOfficeName}_`);
-        department = outputString;
-      } else {
-        department = branch;
-      }
+      let department = props.selectedDepartment.name;
 
       // Determine the path
       path = `../${department}`;
@@ -346,15 +338,8 @@ export default function LabelBottomNavigation(props) {
   useEffect(() => {
     const getPath = async () => {
       try {
-        let department;
-        if (props.selectedDepartment.branch === headOfficeName) {
-          const [, outputString] = props.selectedDepartment.department.split(
-            `${headOfficeName}_`,
-          );
-          department = outputString;
-        } else {
-          department = props.selectedDepartment.branch;
-        }
+        let department = props.selectedDepartment.name;
+
         const getPathUrl = backendUrl + '/getDocumentChildren';
         const res = await axios.post(
           getPathUrl,

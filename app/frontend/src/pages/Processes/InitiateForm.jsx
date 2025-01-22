@@ -469,7 +469,7 @@ export default function InitiateForm() {
                           sx={{ maxWidth: '400px', backgroundColor: 'white' }}
                           onChange={(e) => {
                             setSelectedDepartment(e.target?.value);
-                            setDepartmentSelection(e.target?.value?.department);
+                            setDepartmentSelection(e.target?.value?.name);
                           }}
                           displayEmpty
                           renderValue={(selected) =>
@@ -477,11 +477,8 @@ export default function InitiateForm() {
                           }
                         >
                           {departments.map((department) => (
-                            <MenuItem
-                              key={department.department}
-                              value={department}
-                            >
-                              {department.department}
+                            <MenuItem key={department.name} value={department}>
+                              {department.name}
                             </MenuItem>
                           ))}
                         </Select>
@@ -563,7 +560,7 @@ export default function InitiateForm() {
                       </div>
                     </div>
                     {isDynamicFlow &&
-                    selectedDepartment.branch !== headOfficeName ? (
+                    selectedDepartment.name !== headOfficeName ? (
                       <div style={{ marginBottom: '25px' }}>
                         <Typography
                           variant="body1"
