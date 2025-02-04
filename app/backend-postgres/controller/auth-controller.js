@@ -16,9 +16,30 @@ function generateRandomPassword(length) {
   return password;
 }
 
+/*
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "department": 1,
+  "roles": [1, 2],
+  "writable": [101, 102],
+  "readable": [101, 103],
+  "downloadable": [101],
+  "uploadable": [104]
+}
+*/
 export const sign_up = async (req, res) => {
   try {
-    const { username, email, department, role } = req.body;
+    const {
+      username,
+      email,
+      department,
+      roles,
+      writable,
+      readable,
+      downloadable,
+      uploadable,
+    } = req.body;
 
     // Generate a random password
     let password = generateRandomPassword(8);
@@ -50,16 +71,17 @@ export const sign_up = async (req, res) => {
       });
     }
 
-    // Check if the role exists and is active
-    const roleExists = await prisma.role.findUnique({
-      where: { id: role },
+    // Check if the provided roles exist
+    const validRoles = await prisma.role.findMany({
+      where: {
+        id: { in: roles },
+        isActive: true,
+      },
     });
 
-    if (!roleExists || !roleExists.isActive) {
+    if (validRoles.length !== roles.length) {
       return res.status(400).json({
-        message: roleExists
-          ? "The role is inactive"
-          : "Invalid role ID provided",
+        message: "One or more roles are invalid or inactive",
       });
     }
 
@@ -69,11 +91,12 @@ export const sign_up = async (req, res) => {
         username,
         email,
         password: hashedPassword,
-        departmentId: department,
-        roleId: role,
-        createdById: null,
-        // isRootLevel: true,
-        // isAdmin: true,
+        branches: { connect: { id: department } },
+        roles: { connect: roles.map((roleId) => ({ id: roleId })) },
+        writable,
+        readable,
+        downloadable,
+        uploadable,
       },
     });
 
@@ -95,7 +118,12 @@ export const sign_up = async (req, res) => {
   }
 };
 
-// Login Function
+/*
+{
+  "username": "john_doe",
+  "password": "password123"
+}
+*/
 export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -105,6 +133,7 @@ export const login = async (req, res) => {
       where: { username },
       include: {
         tokens: true,
+        roles: true,
       },
     });
 
@@ -138,6 +167,11 @@ export const login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        roles: user.roles.map((role) => role.id),
+        writable: user.writable,
+        readable: user.readable,
+        downloadable: user.downloadable,
+        uploadable: user.uploadable,
       },
       process.env.SECRET_ACCESS_KEY,
       {
@@ -151,6 +185,7 @@ export const login = async (req, res) => {
       email: user.email,
       userName: user.username,
       userId: user.id,
+      roles: user.roles.map((role) => role.name),
     });
   } catch (error) {
     console.error("Error during login", error);

@@ -93,11 +93,13 @@ model User {
   logs               Log[]         @relation("UserLogs") // Opposite relation for logs
   docHistory         DocHistory[]  @relation("ChangedBy") // Opposite relation for doc history
 
-  writable    Int[]      @default([])
-  readable    Int[]      @default([])
-  downloadable Int[]     @default([])
-  uploadable  Int[]      @default([])
+  // Arrays to store accessible document IDs
+  writable    Int[]      // IDs of documents the user can write
+  readable    Int[]      // IDs of documents the user can read
+  downloadable Int[]     // IDs of documents the user can download
+  uploadable  Int[]      // IDs of documents the user can upload
 }
+
 
 model Token {
   id     Int    @id @default(autoincrement())

@@ -7,7 +7,7 @@ const removeDuplicates = (arr) => [...new Set(arr)];
 /*
 {
   "role": "Project Manager",
-  "branch": "IT Department", // Only required if the role is not root-level
+  "department": "IT Department", // Only required if the role is not root-level
   "selectedUpload": [101, 102], // Document IDs with upload access
   "selectedDownload": [103, 104], // Document IDs with download access
   "selectedView": [105, 106], // Document IDs with view access
@@ -25,7 +25,7 @@ export const add_role = async (req, res) => {
     // Extract data from the request body
     const {
       role,
-      branch,
+      departmentName,
       selectedUpload,
       selectedDownload,
       selectedView,
@@ -38,7 +38,7 @@ export const add_role = async (req, res) => {
     let department = null;
     if (!isRootLevel) {
       department = await prisma.department.findUnique({
-        where: { name: branch },
+        where: { name: departmentName },
       });
       if (!department) {
         return res
@@ -53,7 +53,7 @@ export const add_role = async (req, res) => {
     });
     if (existingRole) {
       return res.status(400).json({
-        message: "Role with the same branch and role already exists.",
+        message: "Role with the same department and role already exists.",
       });
     }
 
