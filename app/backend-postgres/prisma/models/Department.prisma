@@ -1,0 +1,17 @@
+model Department {
+  id                Int       @id @default(autoincrement())
+  type              String
+  code              Int?      @unique
+  name              String    @unique
+  status            String
+  headId            Int?      @relation("User", fields: [headId], references: [id])
+  adminId           Int?      @relation("User", fields: [adminId], references: [id])
+  parentDepartmentId Int?     @relation("Department", fields: [parentDepartmentId], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime? @updatedAt
+  createdById       Int
+  head              User?     @relation("User")
+  admin             User?     @relation("User")
+  parentDepartment  Department? @relation("Department")
+  documents         Document[]
+}

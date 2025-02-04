@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id                 Int          @id @default(autoincrement())
+  type               String
+  code               String         @unique
+  name               String       @unique
+  status             String
+  headId             Int?
+  adminId            Int?
+  parentDepartmentId Int?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime?    @updatedAt
+  createdById        Int
+  head               User?        @relation("HeadOfDepartment", fields: [headId], references: [id])
+  admin              User?        @relation("AdminOfDepartment", fields: [adminId], references: [id])
+  parentDepartment   Department?  @relation("ParentDepartment", fields: [parentDepartmentId], references: [id])
+  subDepartments     Department[] @relation("ParentDepartment")
+  documents          Document[]
+  roles              Role[]       @relation("BranchRoles") // Opposite relation for `Role`
+  users              User[]       @relation("BranchUsers") // Opposite relation for `User`
+}
+
+model Document {
+  id                      Int          @id @default(autoincrement())
+  name                    String
+  type                    String
+  path                    String       @unique
+  createdById             Int
+  createdOn               DateTime     @default(now())
+  lastUpdatedOn           DateTime     @updatedAt
+  history                 DocHistory[]
+  children                Document[]   @relation("DocumentChildren")
+  parent                  Document?    @relation("DocumentChildren", fields: [parentId], references: [id])
+  parentId                Int?
+  departmentId            Int?
+  department              Department?  @relation(fields: [departmentId], references: [id])
+  isProject               Boolean?
+  isInvolvedInProcess     Boolean      @default(false)
+  minimumSignsOnFirstPage Int?
+  isRejected              Boolean      @default(false)
+  highlights              Highlight[]
+}
+
+model Role {
+  id                  Int         @id @default(autoincrement())
+  departmentId        Int?
+  status              String
+  role                String
+  isRootLevel         Boolean      @default(false) // Indicates if the role is root-level
+  parentRoleId        Int?         // Parent role ID for hierarchy
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime?    @updatedAt
+  branch              Department?  @relation("BranchRoles", fields: [departmentId], references: [id])
+  parentRole          Role?        @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childRoles          Role[]       @relation("RoleHierarchy")
+  users               UserRole[]
+  writable            Int[]        @default([])   // IDs of documents writable by the role
+  readable            Int[]        @default([])   // IDs of documents readable by the role
+  downloadable        Int[]        @default([])   // IDs of documents downloadable by the role
+  fullAccessWritable  Int[]        @default([])   // IDs of documents with full writable access
+  fullAccessReadable  Int[]        @default([])   // IDs of documents with full readable access
+  fullAccessDownloadable Int[]     @default([])   // IDs of documents with full downloadable access
+}
+
+
+model User {
+  id                 Int           @id @default(autoincrement())
+  username           String        @unique
+  email              String        @unique
+  password           String
+  name               String?
+  specialUser        Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  isRootLevel        Boolean?      // Optional field
+  isAdmin            Boolean?      // Optional field
+  tokens             Token[]       // One-to-many relationship: A user can have many tokens
+  updatedAt          DateTime?     @updatedAt
+  createdById        Int?
+  createdBy          User?         @relation("CreatedByRelation", fields: [createdById], references: [id]) // Relation for creator
+  createdUsers       User[]        @relation("CreatedByRelation") // Opposite relation for created users
+  roles              UserRole[]
+  branches           Department[]  @relation("BranchUsers") // Relation with Departments
+  headOfDepartments  Department[]  @relation("HeadOfDepartment") // Relation with head of departments
+  adminOfDepartments Department[]  @relation("AdminOfDepartment") // Relation with admin of departments
+  logs               Log[]         @relation("UserLogs") // Opposite relation for logs
+  docHistory         DocHistory[]  @relation("ChangedBy") // Opposite relation for doc history
+
+  writable    Int[]      @default([])
+  readable    Int[]      @default([])
+  downloadable Int[]     @default([])
+  uploadable  Int[]      @default([])
+}
+
+model Token {
+  id     Int    @id @default(autoincrement())
+  token  String
+  userId Int
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId]) // Ensure each user has only one token
+}
+
+model UserRole {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation("UserLogs", fields: [userId], references: [id]) // Added relation name
+}
+
+model DocHistory {
+  id          Int      @id @default(autoincrement())
+  documentId  Int
+  action      String
+  changedAt   DateTime @default(now())
+  changedById Int
+  document    Document @relation(fields: [documentId], references: [id])
+  changedBy   User     @relation("ChangedBy", fields: [changedById], references: [id]) // Added relation name
+}
+
+model Highlight {
+  id         Int      @id @default(autoincrement())
+  documentId Int
+  content    String
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id])
+}
+
+model Notification {
+  id                   Int      @id @default(autoincrement())
+  processId            Int?
+  processName          String
+  completed            Boolean
+  receivedAt           DateTime
+  isPending            Boolean
+  isAlert              Boolean  @default(false)
+  work                 Int?
+  workFlowToBeFollowed Int?
+  forMonitoring        Boolean  @default(false)
+  isPublished          Boolean  @default(false)
+  process              Process? @relation(fields: [processId], references: [id])
+}
+
+model Process {
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String
+  createdAt     DateTime       @default(now())
+  notifications Notification[]
+}
