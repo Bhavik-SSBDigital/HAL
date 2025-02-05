@@ -33,6 +33,8 @@ import {
   getRootDocumentsForEdit,
 } from "../controller/project-controller.js";
 
+import { add_role, get_roles } from "../controller/role-controller.js";
+
 const router = express.Router();
 
 router.post("/signup", sign_up);
@@ -43,7 +45,7 @@ router.post("/createAdmin", create_admin);
 router.post("/addDepartment", add_department);
 
 // change POST to GET
-router.post("/getDepartments", get_departments);
+router.get("/getDepartments", get_departments);
 
 router.post("/getAllBranches", get_departments);
 
@@ -74,5 +76,10 @@ router.post("/getDocumentChildren", getDocumentChildren);
 
 router.post("/getProjects", getRootDocumentsWithAccess);
 router.post("/getRootDocumentsForEdit", getRootDocumentsForEdit);
+
+// role-controller related routes
+
+router.post("/addRole", add_role);
+router.get("/getRoles", get_roles);
 
 export default router;
