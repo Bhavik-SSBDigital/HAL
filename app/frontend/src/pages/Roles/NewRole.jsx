@@ -258,17 +258,19 @@ export default function NewRole() {
         <Grid2 size={{ xs: 12 }} sx={{ textAlign: 'center' }}>
           <Button
             variant="contained"
+            fullWidth
             disabled={loading}
             onClick={handleSubmit(handleFormSubmit)}
-            sx={{ margin: '5px', width: '200px' }}
+            sx={{ margin: '5px', maxWidth: '250px' }}
           >
             {Object.keys(editObject).length > 0 ? 'Update' : 'Save'}
           </Button>
           <Link to="/roles/list">
             <Button
+              fullWidth
               variant="contained"
               disabled={loading}
-              sx={{ margin: '5px', width: '200px' }}
+              sx={{ margin: '5px', maxWidth: '250px' }}
             >
               Cancel
             </Button>
