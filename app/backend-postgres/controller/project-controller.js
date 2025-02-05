@@ -84,7 +84,7 @@ export const getRootDocumentsWithAccess = async (req, res) => {
         const fileAbsolutePath = path.join(
           __dirname,
           process.env.STORAGE_PATH,
-          doc.path.substring(3)
+          doc.path.substring(1)
         );
 
         try {
