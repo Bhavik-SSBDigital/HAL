@@ -71,7 +71,6 @@ export default function InitiateForm() {
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState([]);
   const [departments, setDepartments] = useState([]);
-  console.log(departments);
 
   const [departmentSelection, setDepartmentSelection] = useState('');
   const [approverDepartment, setApproverDepartment] = useState('');
@@ -190,26 +189,7 @@ export default function InitiateForm() {
         console.error('error', error);
       });
   };
-  const [allDepartments, setAllDepartments] = useState([]);
-  const getAllDepartments = async () => {
-    const url = backendUrl + '/getDepartments';
-    axios
-      .post(url, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
-      })
-      .then((response) => {
-        if (response.status === 200) {
-          setAllDepartments(response.data.departments);
-        }
-        setLoading(false);
-      })
-      .catch((error) => {
-        setLoading(false);
-        console.error('error', error);
-      });
-  };
+
   const navigate = useNavigate();
   const handleProceed = (type) => {
     let workFlow = '',
@@ -358,7 +338,6 @@ export default function InitiateForm() {
   useEffect(() => {
     fetchBranches();
     getDepartments();
-    getAllDepartments();
     setFlow((prevFlow) => ({
       ...prevFlow,
       step: selectedDepartment?.workFlow?.length + 1,
@@ -378,9 +357,9 @@ export default function InitiateForm() {
   const [selectApproverLoading, setSelectApproverLoading] = useState('');
   const selectApproverDepartment = async (e) => {
     const url = backendUrl + '/getMergedWorkFlow';
-    setApproverDepartment(e.target?.value?.department);
+    setApproverDepartment(e.target?.value);
     const data = {
-      approver: e.target?.value?.department,
+      approver: e.target?.value,
       initiator: departmentSelection,
     };
 
@@ -588,16 +567,14 @@ export default function InitiateForm() {
                               selected === '' ? 'Select Department' : selected
                             }
                           >
-                            {allDepartments
-                              ?.filter((dep) => dep.branch == headOfficeName)
-                              ?.map((department) => (
-                                <MenuItem
-                                  key={department.department}
-                                  value={department}
-                                >
-                                  {department.department}
-                                </MenuItem>
-                              ))}
+                            {departments?.map((department) => (
+                              <MenuItem
+                                key={department.name}
+                                value={department}
+                              >
+                                {department.name}
+                              </MenuItem>
+                            ))}
                           </Select>
                         </div>
                       </div>

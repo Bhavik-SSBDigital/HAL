@@ -11,7 +11,7 @@ import { verifyUser } from "../utility/verifyUser.js";
 import archiver from "archiver";
 import { promisify } from "util";
 import { pipeline } from "stream";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+// import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import dotnev from "dotenv";
 
 import { PrismaClient } from "@prisma/client";
