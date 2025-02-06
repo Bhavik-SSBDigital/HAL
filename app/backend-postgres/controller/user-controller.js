@@ -8,14 +8,14 @@
  */
 export const get_users = async (req, res) => {
   try {
-    const { isRootUser } = req.query; // Extract isRootUser from query params
+    const { isRootLevel } = req.query; // Extract isRootUser from query params
 
     // Convert `isRootUser` to boolean (optional if using a strict frontend)
     // const isRoot = isRootUser === "true";
 
     // Fetch users from the database
     const users = await prisma.user.findMany({
-      where: isRoot ? { isRootLevel: true } : {}, // Filter only root users if `isRootUser` is true
+      where: isRootLevel ? { isRootLevel: true } : {}, // Filter only root users if `isRootUser` is true
       select: {
         id: true,
         username: true,
