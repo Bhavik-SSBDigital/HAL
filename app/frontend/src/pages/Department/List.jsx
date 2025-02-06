@@ -28,6 +28,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import ShowWorkflow from '../../components/Workflow/ShowWorkflow';
+import { getDepartments } from '../../common/Apis';
 
 export default function List(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -39,15 +40,7 @@ export default function List(props) {
   const fetchDepartments = async () => {
     const url = backendUrl + '/getDepartments';
     try {
-      const response = await axios.post(
-        url,
-        { type: 'department' },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
-        },
-      );
+      const response = await getDepartments();
       if (response.status === 200) {
         setIsLoading(false);
         setDepartments(response.data.departments);

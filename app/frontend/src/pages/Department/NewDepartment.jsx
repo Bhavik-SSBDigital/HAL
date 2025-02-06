@@ -16,6 +16,7 @@ import {
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { getUsers } from '../../common/Apis';
 
 export default function NewDepartment() {
   const { id } = useParams();
@@ -57,10 +58,8 @@ export default function NewDepartment() {
 
     const fetchAdmins = async () => {
       try {
-        const { data } = await axios.get(`${backendUrl}/getAdmins`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setAdmins(data.admins);
+        const { data } = await getUsers();
+        setAdmins(data.data);
       } catch (error) {
         console.error('Error fetching admins', error);
       }
@@ -183,7 +182,7 @@ export default function NewDepartment() {
                       </MenuItem>
                       {admins.map((admin) => (
                         <MenuItem key={admin.id} value={admin.id}>
-                          {admin.name}
+                          {admin.username}
                         </MenuItem>
                       ))}
                     </Select>
