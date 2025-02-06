@@ -321,14 +321,21 @@ export const file_copy = async (req, res) => {
     }
 
     const bufferSize = 1024 * 1024; // 1 MB buffer size
-    const sourcePath =
-      process.env.STORAGE_PATH + req.body.sourcePath.substring(2);
-    const destinationPathParent =
-      process.env.STORAGE_PATH + req.body.destinationPath.substring(2);
+
+    const sourcePath = req.body.sourcePath.substring(2);
+
+    const destinationPathParent = req.body.destinationPath.substring(2);
+
     const name = req.body.name;
     const destinationPath = destinationPathParent + `/${name}`;
-    const absoluteSourcePath = path.join(__dirname, sourcePath);
-    const absoluteDestinationPath = path.join(__dirname, destinationPath);
+
+    const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
+
+    const absoluteDestinationPath = path.join(
+      __dirname,
+      STORAGE_PATH,
+      destinationPath
+    );
 
     const sourceStream = createReadStream(absoluteSourcePath, {
       highWaterMark: bufferSize,
@@ -406,23 +413,24 @@ export const file_copy = async (req, res) => {
 
 export const file_cut = async (req, res) => {
   try {
-    const accessToken = req.headers["authorization"].substring(7);
+    const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
+
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
     const bufferSize = 1024 * 1024; // 1 MB buffer size
-    const sourcePath =
-      process.env.STORAGE_PATH + req.body.sourcePath.substring(2);
-    const destinationPathParent =
-      process.env.STORAGE_PATH + req.body.destinationPath.substring(2);
+    const sourcePath = req.body.sourcePath.substring(2);
+    const destinationPathParent = req.body.destinationPath.substring(2);
     const name = req.body.name;
-    const destinationPath = destinationPathParent + `/${name}`;
-    const absoluteSourcePath = path.join(__dirname, sourcePath);
-    const absoluteDestinationPath = path.join(__dirname, destinationPath);
+    const destinationPath = `${destinationPathParent}/${name}`;
+    const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
+    const absoluteDestinationPath = path.join(
+      __dirname,
+      STORAGE_PATH,
+      destinationPath
+    );
 
     const sourceStream = createReadStream(absoluteSourcePath, {
       highWaterMark: bufferSize,
@@ -433,27 +441,23 @@ export const file_cut = async (req, res) => {
 
     sourceStream.on("error", (error) => {
       console.error("Error in source stream:", error);
-      res.status(500).json({
-        message: "Error copying file",
-      });
+      return res.status(500).json({ message: "Error copying file" });
     });
 
     destinationStream.on("error", (error) => {
       console.error("Error in destination stream:", error);
-      res.status(500).json({
-        message: "Error copying file",
-      });
+      return res.status(500).json({ message: "Error copying file" });
     });
 
     destinationStream.on("finish", async () => {
       try {
         const document = await prisma.document.create({
           data: {
-            name: name,
+            name,
             type: "file",
             path: destinationPath,
             createdById: userData.id,
-            departmentId: null, // Set this appropriately if the department is involved
+            departmentId: null, // Set appropriately if department is involved
           },
         });
 
@@ -479,71 +483,77 @@ export const file_cut = async (req, res) => {
         });
 
         if (!oldDocument) {
-          return res.status(404).json({
-            message: "Source document not found",
-          });
+          return res.status(404).json({ message: "Source document not found" });
         }
 
         const idToRemove = oldDocument.id;
 
-        // Clean up document references
-        await prisma.document.updateMany({
-          where: {
-            children: {
-              some: { id: idToRemove },
-            },
-          },
-          data: {
-            children: {
-              disconnect: { id: idToRemove },
-            },
-          },
+        // Clean up document references for parent documents
+        const parents = await prisma.document.findMany({
+          where: { children: { some: { id: idToRemove } } },
+          select: { id: true },
         });
 
-        await prisma.user.updateMany({
-          where: {
-            writable: { has: idToRemove },
-          },
-          data: {
-            writable: {
-              set: prisma.raw(`array_remove(writable, ${idToRemove})`),
+        for (const parent of parents) {
+          await prisma.document.update({
+            where: { id: parent.id },
+            data: {
+              children: {
+                disconnect: { id: idToRemove },
+              },
             },
-          },
+          });
+        }
+
+        // Remove `idToRemove` from users' writable arrays
+        const usersWithWritable = await prisma.user.findMany({
+          where: { writable: { has: idToRemove } },
+          select: { id: true, writable: true },
         });
 
-        await prisma.role.updateMany({
-          where: {
-            writable: { has: idToRemove },
-          },
-          data: {
-            writable: {
-              set: prisma.raw(`array_remove(writable, ${idToRemove})`),
-            },
-          },
+        for (const user of usersWithWritable) {
+          const updatedWritable = user.writable.filter(
+            (id) => id !== idToRemove
+          );
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { writable: updatedWritable },
+          });
+        }
+
+        // Remove `idToRemove` from roles' writable arrays
+        const rolesWithWritable = await prisma.role.findMany({
+          where: { writable: { has: idToRemove } },
+          select: { id: true, writable: true },
         });
 
+        for (const role of rolesWithWritable) {
+          const updatedWritable = role.writable.filter(
+            (id) => id !== idToRemove
+          );
+          await prisma.role.update({
+            where: { id: role.id },
+            data: { writable: updatedWritable },
+          });
+        }
+
+        // Delete the source file
         await fs.unlink(absoluteSourcePath);
-        await prisma.document.delete({
-          where: { id: idToRemove },
-        });
 
-        res.status(200).json({
-          message: "File cut successfully",
-        });
+        // Delete the document record
+        await prisma.document.delete({ where: { id: idToRemove } });
+
+        res.status(200).json({ message: "File cut successfully" });
       } catch (error) {
         console.error("Error in file cut operation:", error);
-        res.status(500).json({
-          message: "Error cutting file",
-        });
+        res.status(500).json({ message: "Error cutting file" });
       }
     });
 
     sourceStream.pipe(destinationStream);
   } catch (error) {
     console.error("Error in file cut handler:", error);
-    res.status(500).json({
-      message: "Error cutting file",
-    });
+    res.status(500).json({ message: "Error cutting file" });
   }
 };
 

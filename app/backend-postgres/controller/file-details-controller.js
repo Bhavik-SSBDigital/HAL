@@ -151,8 +151,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
 
     const documentPath = req.body.path.substring(2);
 
-    console.log("doc path", documentPath);
-
     const foundDocument = await prisma.document.findUnique({
       where: { path: documentPath },
       include: {
@@ -166,7 +164,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       });
     }
 
-    console.log("found doc", foundDocument);
     const children = await Promise.all(
       foundDocument.children.map(async (child) => {
         console.log("child", child);

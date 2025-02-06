@@ -80,7 +80,6 @@ export const getRootDocumentsWithAccess = async (req, res) => {
 
     const mappedDocuments = await Promise.all(
       accessibleRootDocuments.map(async (doc) => {
-        console.log("doc", doc.path);
         const fileAbsolutePath = path.join(
           __dirname,
           process.env.STORAGE_PATH,
