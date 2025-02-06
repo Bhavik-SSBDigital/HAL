@@ -11,7 +11,7 @@ export const get_users = async (req, res) => {
     const { isRootUser } = req.query; // Extract isRootUser from query params
 
     // Convert `isRootUser` to boolean (optional if using a strict frontend)
-    const isRoot = isRootUser === "true";
+    // const isRoot = isRootUser === "true";
 
     // Fetch users from the database
     const users = await prisma.user.findMany({
