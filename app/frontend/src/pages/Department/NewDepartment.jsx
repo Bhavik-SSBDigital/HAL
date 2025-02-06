@@ -16,7 +16,7 @@ import {
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getUsers } from '../../common/Apis';
+import { getDepartments, getUsers } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
 
 export default function NewDepartment() {
@@ -48,10 +48,9 @@ export default function NewDepartment() {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const { data } = await axios.get(`${backendUrl}/getDepartmentNames`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDepartments(data.names);
+        const { data } = await getDepartments();
+        console.log(data);
+        setDepartments(data?.departments);
       } catch (error) {
         console.error('Error fetching departments', error);
       }
