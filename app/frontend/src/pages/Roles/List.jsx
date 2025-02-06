@@ -124,17 +124,13 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     },
   ];
 
-  const filteredRoles = [
-    {
-      id: 1,
-      role: 'Administrator',
-      branch: 'New York HQ',
-      createdAt: '2024-02-06T10:30:00Z',
-      updatedAt: '2024-02-06T12:45:00Z',
-      status: 'Active',
-    },
-  ];
-
+  const filteredRoles = roles
+    .filter(
+      (row) =>
+        row?.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        row?.departmentName?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .map((row, index) => ({ ...row, id: index + 1 }));
   return (
     <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
       <Stack direction="row" justifyContent="space-between" mb={2} mt={2}>
