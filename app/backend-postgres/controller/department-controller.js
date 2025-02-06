@@ -35,9 +35,9 @@ export const add_department = async (req, res) => {
     const { code, type } = req.body;
 
     const parentDepartmentId =
-      req.body.parentDepartmentId !== "" ? parentDepartmentId : null;
+      req.body.parentDepartmentId !== "" ? parseInt(parentDepartmentId) : null;
 
-    const adminId = req.body.adminId !== "" ? adminId : null;
+    const adminId = req.body.adminId !== "" ? parseInt(req.body.adminId) : null;
 
     const name = req.body.department;
 
