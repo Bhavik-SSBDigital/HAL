@@ -1,3 +1,6 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 /**
  * Get users based on the `isRootUser` parameter.
  * - If `isRootUser` is true, return only root-level users.
