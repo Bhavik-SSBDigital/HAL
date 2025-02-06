@@ -23,10 +23,9 @@ const removeDuplicates = (arr) => [...new Set(arr)];
 */
 export const add_role = async (req, res) => {
   try {
-    // Extract data from the request body
     const {
       role,
-      departmentName,
+      department, // Changed to match payload
       selectedUpload,
       selectedDownload,
       selectedView,
@@ -36,12 +35,12 @@ export const add_role = async (req, res) => {
     } = req.body;
 
     // Check if a branch is required and exists
-    let department = null;
+    let departmentObj = null;
     if (!isRootLevel) {
-      department = await prisma.department.findUnique({
-        where: { name: departmentName },
+      departmentObj = await prisma.department.findUnique({
+        where: { id: department }, // Use department ID
       });
-      if (!department) {
+      if (!departmentObj) {
         return res
           .status(400)
           .json({ message: "Branch selected for role doesn't exist." });
@@ -50,7 +49,7 @@ export const add_role = async (req, res) => {
 
     // Check if the role already exists
     const existingRole = await prisma.role.findFirst({
-      where: { role, departmentId: department?.id || null },
+      where: { role, departmentId: departmentObj?.id || null },
     });
     if (existingRole) {
       return res.status(400).json({
@@ -72,7 +71,6 @@ export const add_role = async (req, res) => {
       .filter((doc) => doc.view)
       .map((doc) => doc.id);
 
-    // Combine all document IDs
     let allDocIds = [
       ...uploads,
       ...downloads,
@@ -82,7 +80,6 @@ export const add_role = async (req, res) => {
       ...fullAccessReadable,
     ];
 
-    // Fetch parent document IDs (simulating a getParents function)
     const parentDocs = await prisma.document.findMany({
       where: { id: { in: allDocIds } },
       select: { parentId: true },
@@ -92,17 +89,15 @@ export const add_role = async (req, res) => {
       parentDocs.map((doc) => doc.parentId).filter(Boolean)
     );
 
-    // Finalize readable, writable, and downloadable document arrays
     uploads = removeDuplicates([...uploads]);
     downloads = removeDuplicates([...downloads]);
     view = removeDuplicates([...view, ...parentIds]);
 
-    // Create the new role
     const newRole = await prisma.role.create({
       data: {
         role,
         status: "Active",
-        departmentId: department?.id || null,
+        departmentId: departmentObj?.id || null,
         isRootLevel: isRootLevel || false,
         parentRoleId: parentRoleId || null,
         writable: uploads,
@@ -167,12 +162,30 @@ export const get_roles = async (req, res) => {
         role: true,
         departmentId: true,
         isRootLevel: true,
+        createdAt: true,
+        updatedAt: true,
+        branch: {
+          select: {
+            name: true, // Fetch department name
+          },
+        },
       },
     });
 
+    // Format the response to include department name directly
+    const formattedRoles = roles.map((role) => ({
+      id: role.id,
+      role: role.role,
+      isRootLevel: role.isRootLevel,
+      departmentId: role.departmentId,
+      departmentName: role.branch?.name || null,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+    }));
+
     res.status(200).json({
       message: "Roles fetched successfully.",
-      roles,
+      roles: formattedRoles,
     });
   } catch (error) {
     console.error("Error fetching roles:", error);
