@@ -314,7 +314,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   letterSpacing: '0.5px',
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                  (pathname === '/meeting-manager' || pathname.includes('meeting-manager')) &&
+                  (pathname === '/meeting-manager' ||
+                    pathname.includes('meeting-manager')) &&
                   'bg-indigo-400 text-white'
                 }`}
               >
@@ -373,6 +374,91 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
               {show && (
                 <>
+                  <SidebarLinkGroup
+                    activeCondition={
+                      pathname === '/department' ||
+                      pathname.includes('department')
+                    }
+                  >
+                    {() => {
+                      return (
+                        <React.Fragment>
+                          <NavLink
+                            to="#"
+                            style={{
+                              fontWeight: 700,
+                              marginRight: '2px',
+                              borderRadius: '8px',
+                              fontSize: 16,
+                            }}
+                            className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 ${
+                              (pathname === '/department' ||
+                                pathname.includes('department')) &&
+                              'bg-indigo-400 text-white'
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              sidebarExpanded
+                                ? setOpen((prev) =>
+                                    prev === 'department' ? '' : 'department',
+                                  )
+                                : setSidebarExpanded(true);
+                            }}
+                          >
+                            <IconBuildingEstate
+                              size={26}
+                              className="duration-300 ease-in-out transform group-hover:scale-105"
+                            />
+                            <span className="duration-300 ease-in-out transform group-hover:scale-105">
+                              Departments
+                            </span>
+                            <IconCaretDown
+                              size={18}
+                              className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
+                                open === 'department'
+                                  ? 'rotate-180'
+                                  : 'rotate-0'
+                              }`}
+                            />
+                          </NavLink>
+
+                          {/* <!-- Dropdown Menu Start --> */}
+                          {open === 'department' && (
+                            <div className="translate transform overflow-hidden">
+                              <ul className="mt-4 mb-5.5 flex flex-col gap-2 pl-6">
+                                <li>
+                                  <NavLink
+                                    to="/departments/list"
+                                    className={({ isActive }) =>
+                                      'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                                      (isActive && '!text-white')
+                                    }
+                                  >
+                                    <IconCornerDownRight />
+                                    List Departments
+                                  </NavLink>
+                                </li>
+                                <li>
+                                  <NavLink
+                                    to="/departments/createNew"
+                                    className={({ isActive }) =>
+                                      'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                                      (isActive && '!text-white')
+                                    }
+                                  >
+                                    <IconCornerDownRight />
+                                    Create Department
+                                  </NavLink>
+                                </li>
+                              </ul>
+                            </div>
+                          )}
+                          {/* <!-- Dropdown Menu End --> */}
+                        </React.Fragment>
+                      );
+                    }}
+                  </SidebarLinkGroup>
+
                   <SidebarLinkGroup
                     activeCondition={
                       pathname === '/branches' || pathname.includes('branches')
@@ -458,95 +544,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       );
                     }}
                   </SidebarLinkGroup>
-
-                  <SidebarLinkGroup
-                    activeCondition={
-                      pathname === '/users' || pathname.includes('users')
-                    }
-                  >
-                    {() => {
-                      return (
-                        <React.Fragment>
-                          <NavLink
-                            to="#"
-                            style={{
-                              fontWeight: 700,
-                              marginRight: '2px',
-                              borderRadius: '8px',
-                              fontSize: 16,
-                            }}
-                            className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                              (pathname === '/users' ||
-                                pathname.includes('users')) &&
-                              'bg-indigo-400 text-white'
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              sidebarExpanded
-                                ? setOpen((prev) =>
-                                    prev === 'users' ? '' : 'users',
-                                  )
-                                : setSidebarExpanded(true);
-                            }}
-                          >
-                            <IconUser
-                              size={26}
-                              className="duration-300 ease-in-out transform group-hover:scale-105"
-                            />
-                            <span className="duration-300 ease-in-out transform group-hover:scale-105">
-                              Users
-                            </span>
-                            <IconCaretDown
-                              size={18}
-                              className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
-                                open === 'users' ? 'rotate-180' : 'rotate-0'
-                              }`}
-                            />
-                          </NavLink>
-
-                          {/* <!-- Dropdown Menu Start --> */}
-                          {open === 'users' && (
-                            <Stack gap={1} sx={{ ml: 4.2, mt: 1, mb: 1 }}>
-                              <div
-                                className={`translate transform overflow-hidden ${
-                                  !(open === 'users') && 'hidden'
-                                }`}
-                              >
-                                <NavLink
-                                  to="/users/list"
-                                  className={({ isActive }) =>
-                                    'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
-                                    (isActive && '!text-white')
-                                  }
-                                >
-                                  <IconCornerDownRight />
-                                  List Users
-                                </NavLink>
-                              </div>
-                              <div
-                                className={`translate transform overflow-hidden ${
-                                  !(open === 'users') && 'hidden'
-                                }`}
-                              >
-                                <NavLink
-                                  to="/users/createNew"
-                                  className={({ isActive }) =>
-                                    'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
-                                    (isActive && '!text-white')
-                                  }
-                                >
-                                  <IconCornerDownRight />
-                                  Create User
-                                </NavLink>
-                              </div>
-                            </Stack>
-                          )}
-                          {/* <!-- Dropdown Menu End --> */}
-                        </React.Fragment>
-                      );
-                    }}
-                  </SidebarLinkGroup>
-
                   <SidebarLinkGroup
                     activeCondition={
                       pathname === '/roles' || pathname.includes('roles')
@@ -631,11 +628,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       );
                     }}
                   </SidebarLinkGroup>
-
                   <SidebarLinkGroup
                     activeCondition={
-                      pathname === '/department' ||
-                      pathname.includes('department')
+                      pathname === '/users' || pathname.includes('users')
                     }
                   >
                     {() => {
@@ -649,67 +644,71 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               borderRadius: '8px',
                               fontSize: 16,
                             }}
-                            className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 ${
-                              (pathname === '/department' ||
-                                pathname.includes('department')) &&
+                            className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
+                              (pathname === '/users' ||
+                                pathname.includes('users')) &&
                               'bg-indigo-400 text-white'
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
                               sidebarExpanded
                                 ? setOpen((prev) =>
-                                    prev === 'department' ? '' : 'department',
+                                    prev === 'users' ? '' : 'users',
                                   )
                                 : setSidebarExpanded(true);
                             }}
                           >
-                            <IconBuildingEstate
+                            <IconUser
                               size={26}
                               className="duration-300 ease-in-out transform group-hover:scale-105"
                             />
                             <span className="duration-300 ease-in-out transform group-hover:scale-105">
-                              Departments
+                              Users
                             </span>
                             <IconCaretDown
                               size={18}
                               className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
-                                open === 'department'
-                                  ? 'rotate-180'
-                                  : 'rotate-0'
+                                open === 'users' ? 'rotate-180' : 'rotate-0'
                               }`}
                             />
                           </NavLink>
 
                           {/* <!-- Dropdown Menu Start --> */}
-                          {open === 'department' && (
-                            <div className="translate transform overflow-hidden">
-                              <ul className="mt-4 mb-5.5 flex flex-col gap-2 pl-6">
-                                <li>
-                                  <NavLink
-                                    to="/departments/list"
-                                    className={({ isActive }) =>
-                                      'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
-                                      (isActive && '!text-white')
-                                    }
-                                  >
-                                    <IconCornerDownRight />
-                                    List Departments
-                                  </NavLink>
-                                </li>
-                                <li>
-                                  <NavLink
-                                    to="/departments/createNew"
-                                    className={({ isActive }) =>
-                                      'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
-                                      (isActive && '!text-white')
-                                    }
-                                  >
-                                    <IconCornerDownRight />
-                                    Create Department
-                                  </NavLink>
-                                </li>
-                              </ul>
-                            </div>
+                          {open === 'users' && (
+                            <Stack gap={1} sx={{ ml: 4.2, mt: 1, mb: 1 }}>
+                              <div
+                                className={`translate transform overflow-hidden ${
+                                  !(open === 'users') && 'hidden'
+                                }`}
+                              >
+                                <NavLink
+                                  to="/users/list"
+                                  className={({ isActive }) =>
+                                    'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                                    (isActive && '!text-white')
+                                  }
+                                >
+                                  <IconCornerDownRight />
+                                  List Users
+                                </NavLink>
+                              </div>
+                              <div
+                                className={`translate transform overflow-hidden ${
+                                  !(open === 'users') && 'hidden'
+                                }`}
+                              >
+                                <NavLink
+                                  to="/users/createNew"
+                                  className={({ isActive }) =>
+                                    'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                                    (isActive && '!text-white')
+                                  }
+                                >
+                                  <IconCornerDownRight />
+                                  Create User
+                                </NavLink>
+                              </div>
+                            </Stack>
                           )}
                           {/* <!-- Dropdown Menu End --> */}
                         </React.Fragment>
