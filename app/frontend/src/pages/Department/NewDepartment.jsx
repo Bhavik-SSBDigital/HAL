@@ -17,6 +17,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getUsers } from '../../common/Apis';
+import TopLoader from '../../common/Loader/TopLoader';
 
 export default function NewDepartment() {
   const { id } = useParams();
@@ -109,107 +110,104 @@ export default function NewDepartment() {
   };
 
   return (
-    <Paper style={{ padding: 20, margin: 'auto' }}>
-      <Typography variant="h6" align="center" gutterBottom>
-        {id ? 'Edit Department' : 'Add Department'}
-      </Typography>
-      {loading ? (
-        <CircularProgress />
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Grid2 container spacing={2}>
-            <Grid2 size={{ xs: 12 }}>
-              <Controller
-                name="department"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Department Name"
-                    variant="outlined"
-                    required
-                  />
-                )}
-              />
-            </Grid2>
-            <Grid2 size={{ xs: 12 }}>
-              <Controller
-                name="code"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Department Code"
-                    variant="outlined"
-                    required
-                  />
-                )}
-              />
-            </Grid2>
-            <Grid2 size={{ xs: 12 }}>
-              <FormControl fullWidth>
-                <InputLabel>Parent Department</InputLabel>
+    <>
+      {isSubmitting ? <TopLoader /> : null}
+      <Paper style={{ padding: 20, margin: 'auto' }}>
+        <Typography variant="h6" align="center" gutterBottom>
+          {id ? 'Edit Department' : 'Add Department'}
+        </Typography>
+        {loading ? (
+          <CircularProgress />
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Grid2 container spacing={2}>
+              <Grid2 size={{ xs: 12 }}>
                 <Controller
-                  name="parentDepartmentId"
+                  name="department"
                   control={control}
                   render={({ field }) => (
-                    <Select {...field} label="Parent Department">
-                      <MenuItem value="">
-                        <em>None</em>
-                      </MenuItem>
-                      {departments.map((dept) => (
-                        <MenuItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Department Name"
+                      variant="outlined"
+                      required
+                    />
                   )}
                 />
-              </FormControl>
-            </Grid2>
-            <Grid2 size={{ xs: 12 }}>
-              <FormControl fullWidth>
-                <InputLabel>Admin</InputLabel>
+              </Grid2>
+              <Grid2 size={{ xs: 12 }}>
                 <Controller
-                  name="adminId"
+                  name="code"
                   control={control}
                   render={({ field }) => (
-                    <Select {...field} label="Admin">
-                      <MenuItem value="">
-                        <em>None</em>
-                      </MenuItem>
-                      {admins.map((admin) => (
-                        <MenuItem key={admin.id} value={admin.id}>
-                          {admin.username}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Department Code"
+                      variant="outlined"
+                      required
+                    />
                   )}
                 />
-              </FormControl>
+              </Grid2>
+              <Grid2 size={{ xs: 12 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Parent Department</InputLabel>
+                  <Controller
+                    name="parentDepartmentId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} label="Parent Department">
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {departments.map((dept) => (
+                          <MenuItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </FormControl>
+              </Grid2>
+              <Grid2 size={{ xs: 12 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Admin</InputLabel>
+                  <Controller
+                    name="adminId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} label="Admin">
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {admins.map((admin) => (
+                          <MenuItem key={admin.id} value={admin.id}>
+                            {admin.username}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </FormControl>
+              </Grid2>
+              <Grid2 size={{ xs: 12 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  disabled={isSubmitting}
+                >
+                  {id ? 'Save Changes' : 'Create Department'}
+                </Button>
+              </Grid2>
             </Grid2>
-            <Grid2 size={{ xs: 12 }}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                fullWidth
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <CircularProgress size={24} />
-                ) : id ? (
-                  'Save Changes'
-                ) : (
-                  'Create Department'
-                )}
-              </Button>
-            </Grid2>
-          </Grid2>
-        </form>
-      )}
-    </Paper>
+          </form>
+        )}
+      </Paper>
+    </>
   );
 }

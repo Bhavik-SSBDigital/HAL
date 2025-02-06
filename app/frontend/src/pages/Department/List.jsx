@@ -252,7 +252,7 @@ export default function List(props) {
   const navigate = useNavigate();
   const handleEdit = (row) => {
     // setEditObject(row);
-    navigate(`/departments/edit/${row._id}`);
+    navigate(`/departments/edit/${row.id}`);
   };
   useEffect(() => {
     fetchDepartments();
