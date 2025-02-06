@@ -26,10 +26,22 @@ export const getDepartments = async () => {
 
 // users endpoints
 export const getUsers = async () => {
-  return apiClient.get('/getUsers', { params: { isRootUser: true } });
+  return apiClient.get('/getUsers', { params: { isRootLevel: false } });
+};
+export const getAllUsers = async () => {
+  return apiClient.get('/getUsers');
+};
+export const getRootLevelUsers = () => {
+  return apiClient.get('/getUsers', { params: { isRootLevel: true } });
 };
 
 // roles endpoints
 export const GetRoles = async () => {
-  return apiClient.get('/getRoles', { params: { isRootUser: true } });
+  return apiClient.get('/getRoles', { params: { isRootLevel: false } });
+};
+export const GetAllUsers = async () => {
+  return apiClient.get('/getRoles', { params: { isRootLevel: false } });
+};
+export const GetRootLevelRoles = async () => {
+  return apiClient.get('/getRoles', { params: { isRootLevel: true } });
 };

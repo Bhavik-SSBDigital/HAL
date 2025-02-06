@@ -45,8 +45,20 @@ export default function NewRole() {
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      role: '',
+      department: '',
+      parentRoleId: '',
+      isRootLevel: false,
+      selectedView: [],
+      selectedDownload: [],
+      selectedUpload: [],
+      fullAccess: [],
+    },
+  });
 
   const getBranches = async () => {
     try {
@@ -142,6 +154,11 @@ export default function NewRole() {
     getRoles();
   }, [id]);
 
+  const [isRootLevel] = watch(['isRootLevel']);
+
+  useEffect(() => {
+    setValue('department', '');
+  }, [isRootLevel]);
   return (
     <>
       {isSubmitting ? <TopLoader /> : null}
@@ -158,27 +175,48 @@ export default function NewRole() {
         <Grid2 container spacing={2} mt={1}>
           <Grid2 size={{ xs: 12 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              User Branch :
+              Is Root Level:
             </Typography>
             <FormControl fullWidth variant="outlined">
               <Controller
-                name="department"
+                name="isRootLevel"
                 control={control}
                 render={({ field }) => (
                   <Select {...field}>
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {branches?.map((data) => (
-                      <MenuItem value={data.id} key={data.id}>
-                        {data.name}
-                      </MenuItem>
-                    ))}
+                    <MenuItem value={true}>Yes</MenuItem>
+                    <MenuItem value={false}>No</MenuItem>
                   </Select>
                 )}
               />
             </FormControl>
           </Grid2>
+          {isRootLevel ? null : (
+            <>
+              <Grid2 size={{ xs: 12 }}>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  User Branch :
+                </Typography>
+                <FormControl fullWidth variant="outlined">
+                  <Controller
+                    name="department"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field}>
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
+                        {branches?.map((data) => (
+                          <MenuItem value={data.id} key={data.id}>
+                            {data.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </FormControl>
+              </Grid2>
+            </>
+          )}
 
           <Grid2 size={{ xs: 12 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
@@ -209,24 +247,6 @@ export default function NewRole() {
                 </TextField>
               )}
             />
-          </Grid2>
-
-          <Grid2 size={{ xs: 12 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              Is Root Level:
-            </Typography>
-            <FormControl fullWidth variant="outlined">
-              <Controller
-                name="isRootLevel"
-                control={control}
-                render={({ field }) => (
-                  <Select {...field}>
-                    <MenuItem value={true}>Yes</MenuItem>
-                    <MenuItem value={false}>No</MenuItem>
-                  </Select>
-                )}
-              />
-            </FormControl>
           </Grid2>
 
           <Grid2 size={{ xs: 12 }}>

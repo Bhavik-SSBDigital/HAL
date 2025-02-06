@@ -18,7 +18,7 @@ import {
 import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getDepartments, GetRoles } from '../../common/Apis';
+import { getDepartments, GetRoles, GetRootLevelRoles } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
 
 export default function NewUser() {
@@ -46,26 +46,32 @@ export default function NewUser() {
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
 
+  const fetchDepartments = async () => {
+    try {
+      const { data } = await getDepartments();
+      setDepartments(data.departments);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const fetchRoles = async () => {
+    try {
+      const { data } = isRootLevel
+        ? await GetRootLevelRoles()
+        : await GetRoles();
+      setRoles(data.roles);
+    } catch (error) {
+      console.log(error);
+    }
+  };
   useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const { data } = await getDepartments();
-        setDepartments(data.departments);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    const fetchRoles = async () => {
-      try {
-        const { data } = await GetRoles();
-        setRoles(data.roles);
-      } catch (error) {
-        console.log(error);
-      }
-    };
     fetchDepartments();
     fetchRoles();
   }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [isRootLevel]);
 
   const onSubmit = async (data) => {
     try {
@@ -134,6 +140,22 @@ export default function NewUser() {
                 )}
               />
             </Grid2>
+            <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body1">Roles:</Typography>
+              <Controller
+                name="roles"
+                control={control}
+                render={({ field }) => (
+                  <Select {...field} fullWidth multiple>
+                    {roles.map((role) => (
+                      <MenuItem key={role.id} value={role.id}>
+                        {role.role}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+              />
+            </Grid2>
 
             {!isRootLevel && (
               <>
@@ -147,22 +169,6 @@ export default function NewUser() {
                         {departments.map((dep) => (
                           <MenuItem key={dep.id} value={dep.id}>
                             {dep.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                </Grid2>
-                <Grid2 size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="body1">Roles:</Typography>
-                  <Controller
-                    name="roles"
-                    control={control}
-                    render={({ field }) => (
-                      <Select {...field} fullWidth multiple>
-                        {roles.map((role) => (
-                          <MenuItem key={role.id} value={role.id}>
-                            {role.role}
                           </MenuItem>
                         ))}
                       </Select>
