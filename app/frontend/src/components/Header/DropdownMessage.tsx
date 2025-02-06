@@ -86,7 +86,7 @@ const DropdownMessage = () => {
       </div>
       {dropdownOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-0"
+          className="fixed inset-0 bg-black opacity-0 z-20"
           onClick={() => setDropdownOpen(false)}
           style={{ height: '100vh', width: '100vw' }}
         ></div>
@@ -96,7 +96,7 @@ const DropdownMessage = () => {
         ref={dropdown}
         onFocus={() => setDropdownOpen(true)}
         onBlur={() => setDropdownOpen(false)}
-        className={`absolute -right-16 mt-2.5 flex h-90 w-75 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark sm:right-0 sm:w-80 ${
+        className={`absolute z-30 -right-16 mt-2.5 flex h-90 w-75 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark sm:right-0 sm:w-80 ${
           dropdownOpen === true ? 'block' : 'hidden'
         }`}
       >
