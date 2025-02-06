@@ -35,6 +35,8 @@ import {
 
 import { add_role, get_roles } from "../controller/role-controller.js";
 
+import { get_users } from "../controller/user-controller.js";
+
 const router = express.Router();
 
 router.post("/signup", sign_up);
@@ -81,5 +83,9 @@ router.post("/getRootDocumentsForEdit", getRootDocumentsForEdit);
 
 router.post("/addRole", add_role);
 router.get("/getRoles", get_roles);
+
+// user-controller related routes
+
+router.get("/getUsers", get_users);
 
 export default router;
