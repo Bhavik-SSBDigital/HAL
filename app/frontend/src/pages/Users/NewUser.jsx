@@ -18,12 +18,20 @@ import {
 import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { getDepartments, GetRoles } from '../../common/Apis';
+import TopLoader from '../../common/Loader/TopLoader';
 
 export default function NewUser() {
   const { id } = useParams();
   const navigate = useNavigate();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const { control, handleSubmit, watch, setValue } = useForm({
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { isSubmitting },
+  } = useForm({
     defaultValues: {
       username: '',
       email: '',
@@ -39,19 +47,27 @@ export default function NewUser() {
   const [roles, setRoles] = useState([]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDepartments = async () => {
       try {
-        const depResponse = await axios.get(`${backendUrl}/departments`);
-        setDepartments(depResponse.data);
+        const { data } = await getDepartments();
+        setDepartments(data.departments);
       } catch (error) {
         console.error(error);
       }
     };
-    fetchData();
+    const fetchRoles = async () => {
+      try {
+        const { data } = await GetRoles();
+        setRoles(data.roles);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchDepartments();
+    fetchRoles();
   }, []);
 
   const onSubmit = async (data) => {
-    setLoading(true);
     try {
       const url = id ? `${backendUrl}/editUser/${id}` : `${backendUrl}/signup`;
       await axios.post(url, data);
@@ -59,122 +75,125 @@ export default function NewUser() {
       navigate('/users/list');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error occurred');
-    } finally {
-      setLoading(false);
     }
   };
 
-  return (
-    <Paper style={{ padding: '20px', borderRadius: '10px' }}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, sm: 6 }}>
-            <Typography variant="body1">Username:</Typography>
-            <Controller
-              name="username"
-              control={control}
-              render={({ field }) => <TextField {...field} fullWidth />}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: 6 }}>
-            <Typography variant="body1">Email:</Typography>
-            <Controller
-              name="email"
-              control={control}
-              render={({ field }) => <TextField {...field} fullWidth />}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: 6 }}>
-            <Typography variant="body1">Status:</Typography>
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} fullWidth>
-                  <MenuItem value="Active">Active</MenuItem>
-                  <MenuItem value="Inactive">Inactive</MenuItem>
-                </Select>
-              )}
-            />
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: 6 }}>
-            <Typography variant="body1">Is Root Level:</Typography>
-            <Controller
-              name="isRootLevel"
-              control={control}
-              render={({ field }) => (
-                <TextField {...field} select fullWidth>
-                  <MenuItem value={true}>Yes</MenuItem>
-                  <MenuItem value={false}>No</MenuItem>
-                </TextField>
-              )}
-            />
-          </Grid2>
+  useEffect(() => {
+    if (isRootLevel) {
+      setValue('department', ''); // Reset department when isRootLevel is true
+      setValue('roles', []); // Reset roles when isRootLevel is true
+    }
+  }, [isRootLevel, setValue]);
 
-          {!isRootLevel && (
-            <>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <Typography variant="body1">Department:</Typography>
-                <Controller
-                  name="department"
-                  control={control}
-                  render={({ field }) => (
-                    <Select {...field} fullWidth>
-                      {departments.map((dep) => (
-                        <MenuItem key={dep.id} value={dep.id}>
-                          {dep.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <Typography variant="body1">Roles:</Typography>
-                <Controller
-                  name="roles"
-                  control={control}
-                  render={({ field }) => (
-                    <Select {...field} fullWidth multiple>
-                      {roles.map((role) => (
-                        <MenuItem key={role.id} value={role.id}>
-                          {role.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </Grid2>
-            </>
-          )}
-          <Grid2 size={{ xs: 12 }} sx={{ textAlign: 'center' }}>
-            <Button
-              variant="contained"
-              sx={{ maxWidth: 250, m: 1 }}
-              fullWidth
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <CircularProgress size={20} />
-              ) : id ? (
-                'Update'
-              ) : (
-                'Save'
-              )}
-            </Button>
-            <Link to="/users/list">
+  return (
+    <>
+      {isSubmitting ? <TopLoader /> : null}
+
+      <Paper style={{ padding: '20px', borderRadius: '10px' }}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Grid2 container spacing={2}>
+            <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body1">Username:</Typography>
+              <Controller
+                name="username"
+                control={control}
+                render={({ field }) => <TextField {...field} fullWidth />}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body1">Email:</Typography>
+              <Controller
+                name="email"
+                control={control}
+                render={({ field }) => <TextField {...field} fullWidth />}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body1">Status:</Typography>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <Select {...field} fullWidth>
+                    <MenuItem value="Active">Active</MenuItem>
+                    <MenuItem value="Inactive">Inactive</MenuItem>
+                  </Select>
+                )}
+              />
+            </Grid2>
+            <Grid2 size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body1">Is Root Level:</Typography>
+              <Controller
+                name="isRootLevel"
+                control={control}
+                render={({ field }) => (
+                  <TextField {...field} select fullWidth>
+                    <MenuItem value={true}>Yes</MenuItem>
+                    <MenuItem value={false}>No</MenuItem>
+                  </TextField>
+                )}
+              />
+            </Grid2>
+
+            {!isRootLevel && (
+              <>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="body1">Department:</Typography>
+                  <Controller
+                    name="department"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} fullWidth>
+                        {departments.map((dep) => (
+                          <MenuItem key={dep.id} value={dep.id}>
+                            {dep.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="body1">Roles:</Typography>
+                  <Controller
+                    name="roles"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} fullWidth multiple>
+                        {roles.map((role) => (
+                          <MenuItem key={role.id} value={role.id}>
+                            {role.role}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Grid2>
+              </>
+            )}
+            <Grid2 size={{ xs: 12 }} sx={{ textAlign: 'center' }}>
               <Button
                 variant="contained"
                 sx={{ maxWidth: 250, m: 1 }}
                 fullWidth
+                type="submit"
+                disabled={isSubmitting}
               >
-                Cancel
+                {id ? 'Update' : 'Save'}
               </Button>
-            </Link>
+              <Link to="/users/list">
+                <Button
+                  variant="contained"
+                  sx={{ maxWidth: 250, m: 1 }}
+                  fullWidth
+                >
+                  Cancel
+                </Button>
+              </Link>
+            </Grid2>
           </Grid2>
-        </Grid2>
-      </form>
-    </Paper>
+        </form>
+      </Paper>
+    </>
   );
 }
