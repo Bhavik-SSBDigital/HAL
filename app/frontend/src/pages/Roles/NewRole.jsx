@@ -23,6 +23,7 @@ import Filefolders from '../Filefolders/Filefolders';
 import { toast } from 'react-toastify';
 import { useForm, Controller } from 'react-hook-form';
 import TopLoader from '../../common/Loader/TopLoader';
+import { GetRoles } from '../../common/Apis';
 
 export default function NewRole() {
   const { id } = useParams();
@@ -64,11 +65,7 @@ export default function NewRole() {
   const getRoles = async () => {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(`${backendUrl}/getRoleNames`, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const { data } = await GetRoles();
       setRoles(data.roles);
     } catch (error) {
       console.error('Error', error);
@@ -187,35 +184,30 @@ export default function NewRole() {
             <Typography variant="body1" sx={{ mb: 1 }}>
               User Role:
             </Typography>
+
             <Controller
               name="role"
               control={control}
-              render={({ field }) => (
-                <Autocomplete
-                  {...field}
-                  fullWidth
-                  id="role"
-                  options={roles}
-                  freeSolo
-                  onInputChange={(event, newValue) =>
-                    setValue('role', newValue)
-                  }
-                  renderInput={(params) => (
-                    <TextField {...params} variant="outlined" />
-                  )}
-                />
-              )}
+              render={({ field }) => <TextField {...field} fullWidth />}
             />
           </Grid2>
 
           <Grid2 size={{ xs: 12 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              Parent Role ID:
+              Parent Role:
             </Typography>
             <Controller
               name="parentRoleId"
               control={control}
-              render={({ field }) => <TextField {...field} fullWidth />}
+              render={({ field }) => (
+                <TextField select {...field} fullWidth>
+                  {roles.map((role) => (
+                    <MenuItem key={role.id} value={role.id}>
+                      {role.role}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             />
           </Grid2>
 

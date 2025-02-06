@@ -30,6 +30,6 @@ export const getUsers = async () => {
 };
 
 // roles endpoints
-export const getRoles = async () => {
+export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootUser: true } });
 };
