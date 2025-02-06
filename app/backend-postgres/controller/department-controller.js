@@ -9,6 +9,17 @@ const prisma = new PrismaClient();
  * @param {Object} res - Express response object.
  */
 // Add Department Function
+
+/*
+{
+  "department": "string",
+  "code": "string",
+  "type": "string",
+  "parentDepartmentId": "number (optional)",
+  "adminId": "number (optional)"
+}
+
+*/
 export const add_department = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -21,7 +32,12 @@ export const add_department = async (req, res) => {
     }
 
     console.log("User data", userData); // Full user details logged here
-    const { code, type, parentDepartmentId, adminId } = req.body;
+    const { code, type } = req.body;
+
+    const parentDepartmentId =
+      req.body.parentDepartmentId !== "" ? parentDepartmentId : null;
+
+    const adminId = req.body.adminId !== "" ? adminId : null;
 
     const name = req.body.department;
 
@@ -60,6 +76,12 @@ export const add_department = async (req, res) => {
   }
 };
 
+/*
+{
+  "id": "number"
+}
+
+*/
 export const get_department = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -94,6 +116,14 @@ export const get_department = async (req, res) => {
   }
 };
 
+/*
+{
+  "status": "string (optional)",
+  "type": "string (optional)",
+  "adminId": "number (optional)"
+}
+
+*/
 export const get_departments = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
