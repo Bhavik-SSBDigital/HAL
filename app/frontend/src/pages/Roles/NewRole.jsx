@@ -173,7 +173,7 @@ export default function NewRole() {
                       <em>None</em>
                     </MenuItem>
                     {branches?.map((data) => (
-                      <MenuItem value={data.name} key={data.name}>
+                      <MenuItem value={data.id} key={data.id}>
                         {data.name}
                       </MenuItem>
                     ))}

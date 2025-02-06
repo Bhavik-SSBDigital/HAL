@@ -28,3 +28,8 @@ export const getDepartments = async () => {
 export const getUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootUser: true } });
 };
+
+// roles endpoints
+export const getRoles = async () => {
+  return apiClient.get('/getRoles', { params: { isRootUser: true } });
+};
