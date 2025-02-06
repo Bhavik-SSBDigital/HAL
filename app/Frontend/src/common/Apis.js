@@ -39,7 +39,7 @@ export const getRootLevelUsers = () => {
 export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
 };
-export const GetAllUsers = async () => {
+export const GetAllRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
 };
 export const GetRootLevelRoles = async () => {

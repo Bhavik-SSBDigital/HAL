@@ -16,6 +16,7 @@ import { toast } from 'react-toastify';
 import moment from 'moment';
 import { DataGrid } from '@mui/x-data-grid';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import { getAllUsers } from '../../common/Apis';
 
 const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -95,54 +96,60 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
       flex: 1,
       renderCell: (params) => params.value || '--', // Display '--' if no value
     },
-    {
-      field: 'branch',
-      headerName: 'Branch',
-      flex: 1,
-      renderCell: (params) => params.value || '--',
-    },
-    {
-      field: 'role',
-      headerName: 'Role',
-      flex: 1,
-      renderCell: (params) => params.value || '--',
-    },
+    // {
+    //   field: 'branch',
+    //   headerName: 'Branch',
+    //   flex: 1,
+    //   renderCell: (params) => params.value || '--',
+    // },
+    // {
+    //   field: 'role',
+    //   headerName: 'Role',
+    //   flex: 1,
+    //   renderCell: (params) => params.value || '--',
+    // },
     {
       field: 'email',
       headerName: 'Email',
       flex: 1,
       renderCell: (params) => params.value || '--',
     },
-    {
-      field: 'status',
-      headerName: 'Status',
-      flex: 1,
-      renderCell: (params) => {
-        const status = params.value || '--';
-        const backgroundColor = status === 'Active' ? '#13a126' : 'red';
-        return (
-          <Typography
-            sx={{
-              backgroundColor,
-              padding: '2px 12px',
-              borderRadius: '50px',
-              color: 'white',
-            }}
-          >
-            {status}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: 'createdAt',
-      headerName: 'Created Date',
-      flex: 1,
-      renderCell: (params) =>
-        params.value
-          ? moment(params.value).format('DD-MMM-YYYY hh:mm A')
-          : '--', // Format date or show '--'
-    },
+    // {
+    //   field: 'status',
+    //   headerName: 'Status',
+    //   flex: 1,
+    //   renderCell: (params) => {
+    //     const status = params.value || '--';
+    //     const backgroundColor = status === 'Active' ? '#13a126' : 'red';
+    //     return (
+    //       <Stack
+    //         height={'100%'}
+    //         justifyContent={'center'}
+    //         alignItems={'center'}
+    //       >
+    //         <Typography
+    //           sx={{
+    //             backgroundColor,
+    //             padding: '2px 12px',
+    //             borderRadius: '50px',
+    //             color: 'white',
+    //           }}
+    //         >
+    //           {status}
+    //         </Typography>
+    //       </Stack>
+    //     );
+    //   },
+    // },
+    // {
+    //   field: 'createdAt',
+    //   headerName: 'Created Date',
+    //   flex: 1,
+    //   renderCell: (params) =>
+    //     params.value
+    //       ? moment(params.value).format('DD-MMM-YYYY hh:mm A')
+    //       : '--', // Format date or show '--'
+    // },
     {
       field: 'edit',
       headerName: 'Edit',
@@ -186,15 +193,14 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
 
   return (
     <>
-      <Box>
+      <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
         <Stack
           alignContent="flex-end"
           flexWrap="wrap"
           flexDirection="row"
           justifyContent="space-between"
           alignItems="flex-end"
-          marginBottom={1}
-          marginTop={1}
+          mb={1}
         >
           <Box sx={{ width: { lg: '250px', sm: '200px', xs: '170px' } }}>
             <TextField
@@ -220,7 +226,6 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
           rows={filteredData}
           columns={columns}
           pageSize={10}
-          checkboxSelection
           disableSelectionOnClick
           pagination
           rowsPerPageOptions={[10]}
@@ -260,17 +265,9 @@ function List() {
   const fetchData = async () => {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
-      const { data, status } = await axios.post(
-        backendUrl + '/getUsers',
-        null,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
-      if (status === 200) {
-        setData(data.users);
-        setIsLoading(false);
-      }
+      const { data } = await getAllUsers();
+      setData(data.data);
+      setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
       toast.error('Unable to fetch data. Please try again.');

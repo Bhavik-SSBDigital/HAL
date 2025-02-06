@@ -133,7 +133,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     .map((row, index) => ({ ...row, id: index + 1 }));
   return (
     <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
-      <Stack direction="row" justifyContent="space-between" mb={2} mt={2}>
+      <Stack direction="row" justifyContent="space-between" mb={1}>
         <TextField
           label="Search"
           variant="outlined"

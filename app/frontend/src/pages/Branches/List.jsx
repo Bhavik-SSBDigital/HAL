@@ -179,7 +179,7 @@ const List = (props) => {
             flexDirection="row"
             justifyContent="space-between"
             gap={2}
-            marginBottom={2}
+            marginBottom={1}
           >
             <TextField
               label="Search"
