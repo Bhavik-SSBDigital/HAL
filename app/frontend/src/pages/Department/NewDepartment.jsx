@@ -112,7 +112,7 @@ export default function NewDepartment() {
     <>
       {isSubmitting ? <TopLoader /> : null}
       <Paper style={{ padding: 20, margin: 'auto' }}>
-        <Typography variant="h6" align="center" gutterBottom>
+        <Typography variant="h5" textAlign={'center'} mb={1}>
           {id ? 'Edit Department' : 'Add Department'}
         </Typography>
         {loading ? (

@@ -142,7 +142,7 @@ const List = (props) => {
       width: 120,
       sortable: false,
       renderCell: (params) => (
-        <IconButton onClick={() => handleEdit(params.row)}>
+        <IconButton onClick={() => handleEdit(params.row.id)}>
           <IconEdit color="#2860e0" />
         </IconButton>
       ),

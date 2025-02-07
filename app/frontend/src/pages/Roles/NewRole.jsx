@@ -167,25 +167,26 @@ export default function NewRole() {
           width: '100%',
           backgroundColor: 'white',
           padding: '25px',
-          border: '1px solid lightgray',
+          // border: '1px solid lightgray',
           borderRadius: '10px',
           boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
         }}
       >
+        <Typography variant="h5" textAlign={'center'} color="black">
+          Role Details
+        </Typography>
+
         <Grid2 container spacing={2} mt={1}>
           <Grid2 size={{ xs: 12 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              Is Root Level:
-            </Typography>
             <FormControl fullWidth variant="outlined">
               <Controller
                 name="isRootLevel"
                 control={control}
                 render={({ field }) => (
-                  <Select {...field}>
+                  <TextField select {...field} label="Is Root Level ?">
                     <MenuItem value={true}>Yes</MenuItem>
                     <MenuItem value={false}>No</MenuItem>
-                  </Select>
+                  </TextField>
                 )}
               />
             </FormControl>
@@ -193,15 +194,12 @@ export default function NewRole() {
           {isRootLevel ? null : (
             <>
               <Grid2 size={{ xs: 12 }}>
-                <Typography variant="body1" sx={{ mb: 1 }}>
-                  User Branch :
-                </Typography>
                 <FormControl fullWidth variant="outlined">
                   <Controller
                     name="department"
                     control={control}
                     render={({ field }) => (
-                      <Select {...field}>
+                      <TextField {...field} select label="User Branch">
                         <MenuItem value="">
                           <em>None</em>
                         </MenuItem>
@@ -210,7 +208,7 @@ export default function NewRole() {
                             {data.name}
                           </MenuItem>
                         ))}
-                      </Select>
+                      </TextField>
                     )}
                   />
                 </FormControl>
@@ -219,26 +217,21 @@ export default function NewRole() {
           )}
 
           <Grid2 size={{ xs: 12 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              User Role:
-            </Typography>
-
             <Controller
               name="role"
               control={control}
-              render={({ field }) => <TextField {...field} fullWidth />}
+              render={({ field }) => (
+                <TextField label="User Role" {...field} fullWidth />
+              )}
             />
           </Grid2>
 
           <Grid2 size={{ xs: 12 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              Parent Role:
-            </Typography>
             <Controller
               name="parentRoleId"
               control={control}
               render={({ field }) => (
-                <TextField select {...field} fullWidth>
+                <TextField select label="Parent Role" {...field} fullWidth>
                   {roles.map((role) => (
                     <MenuItem key={role.id} value={role.id}>
                       {role.role}
@@ -250,9 +243,6 @@ export default function NewRole() {
           </Grid2>
 
           <Grid2 size={{ xs: 12 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              Select permissions:
-            </Typography>
             <Box
               sx={{
                 padding: '10px',

@@ -154,7 +154,7 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
       field: 'edit',
       headerName: 'Edit',
       renderCell: (params) => (
-        <IconButton onClick={() => navigate(`/users/edit/${params.row._id}`)}>
+        <IconButton onClick={() => navigate(`/users/edit/${params.row.id}`)}>
           <IconEdit color="#2860e0" />
         </IconButton>
       ),
