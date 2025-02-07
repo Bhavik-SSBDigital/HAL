@@ -37,12 +37,10 @@ export default function NewDepartment() {
       code: '',
       type: 'department',
       parentDepartmentId: '',
-      adminId: '',
     },
   });
 
   const [departments, setDepartments] = useState([]);
-  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,17 +54,7 @@ export default function NewDepartment() {
       }
     };
 
-    const fetchAdmins = async () => {
-      try {
-        const { data } = await getUsers();
-        setAdmins(data.data);
-      } catch (error) {
-        console.error('Error fetching admins', error);
-      }
-    };
-
     fetchDepartments();
-    fetchAdmins();
 
     if (id) {
       setLoading(true);
@@ -171,27 +159,7 @@ export default function NewDepartment() {
                   />
                 </FormControl>
               </Grid2>
-              <Grid2 size={{ xs: 12 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Admin</InputLabel>
-                  <Controller
-                    name="adminId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select {...field} label="Admin">
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {admins.map((admin) => (
-                          <MenuItem key={admin.id} value={admin.id}>
-                            {admin.username}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                </FormControl>
-              </Grid2>
+
               <Grid2 size={{ xs: 12 }}>
                 <Button
                   type="submit"
