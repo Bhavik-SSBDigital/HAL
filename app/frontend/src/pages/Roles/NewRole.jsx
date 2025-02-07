@@ -51,6 +51,7 @@ export default function NewRole() {
     defaultValues: {
       role: '',
       department: '',
+      isAdmin: false,
       parentRoleId: '',
       isRootLevel: false,
       selectedView: [],
@@ -155,6 +156,9 @@ export default function NewRole() {
   }, [id]);
 
   const [isRootLevel] = watch(['isRootLevel']);
+  const isSuperAdmin =
+    sessionStorage.getItem('isRootLevel') == 'true' &&
+    sessionStorage.getItem('isAdmin') == 'true';
 
   useEffect(() => {
     setValue('department', '');
@@ -177,22 +181,38 @@ export default function NewRole() {
         </Typography>
 
         <Grid2 container spacing={2} mt={1}>
-          <Grid2 size={{ xs: 12 }}>
-            <FormControl fullWidth variant="outlined">
-              <Controller
-                name="isRootLevel"
-                control={control}
-                render={({ field }) => (
-                  <TextField select {...field} label="Is Root Level ?">
-                    <MenuItem value={true}>Yes</MenuItem>
-                    <MenuItem value={false}>No</MenuItem>
-                  </TextField>
-                )}
-              />
-            </FormControl>
-          </Grid2>
+          {isSuperAdmin ? null : (
+            <Grid2 size={{ xs: 12 }}>
+              <FormControl fullWidth variant="outlined">
+                <Controller
+                  name="isRootLevel"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField select {...field} label="Is Root Level ?">
+                      <MenuItem value={true}>Yes</MenuItem>
+                      <MenuItem value={false}>No</MenuItem>
+                    </TextField>
+                  )}
+                />
+              </FormControl>
+            </Grid2>
+          )}
           {isRootLevel ? null : (
             <>
+              <Grid2 size={{ xs: 12 }}>
+                <FormControl fullWidth variant="outlined">
+                  <Controller
+                    name="isAdmin"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField select {...field} label="Is Admin ?">
+                        <MenuItem value={true}>Yes</MenuItem>
+                        <MenuItem value={false}>No</MenuItem>
+                      </TextField>
+                    )}
+                  />
+                </FormControl>
+              </Grid2>
               <Grid2 size={{ xs: 12 }}>
                 <FormControl fullWidth variant="outlined">
                   <Controller
