@@ -122,22 +122,19 @@ export default function NewUser() {
               />
             </Grid2>
 
-            <Grid2 size={{ xs: 12 }} sx={{ textAlign: 'center' }}>
+            <Grid2 size={{ xs: 12, sm: 6 }} sx={{ textAlign: 'center' }}>
               <Button
                 variant="contained"
-                sx={{ maxWidth: 250, m: 1 }}
                 fullWidth
                 type="submit"
                 disabled={isSubmitting}
               >
                 {id ? 'Update' : 'Save'}
               </Button>
+            </Grid2>
+            <Grid2 size={{ xs: 12, sm: 6 }} sx={{ textAlign: 'center' }}>
               <Link to="/users/list">
-                <Button
-                  variant="contained"
-                  sx={{ maxWidth: 250, m: 1 }}
-                  fullWidth
-                >
+                <Button variant="outlined" fullWidth>
                   Cancel
                 </Button>
               </Link>

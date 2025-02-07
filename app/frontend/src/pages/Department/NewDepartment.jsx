@@ -160,7 +160,7 @@ export default function NewDepartment() {
                 </FormControl>
               </Grid2>
 
-              <Grid2 size={{ xs: 12 }}>
+              <Grid2 size={{ xs: 12, sm: 6 }}>
                 <Button
                   type="submit"
                   variant="contained"
@@ -169,6 +169,17 @@ export default function NewDepartment() {
                   disabled={isSubmitting}
                 >
                   {id ? 'Save Changes' : 'Create Department'}
+                </Button>
+              </Grid2>
+              <Grid2 size={{ xs: 12, sm: 6 }}>
+                <Button
+                  variant="outlined"
+                  color="info"
+                  onClick={() => navigate('/roles/createNew')}
+                  fullWidth
+                  disabled={isSubmitting}
+                >
+                  Redirect to create role
                 </Button>
               </Grid2>
             </Grid2>
