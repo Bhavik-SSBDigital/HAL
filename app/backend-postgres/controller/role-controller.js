@@ -257,8 +257,8 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
       };
     }
 
-    // Send the response
-    res.json({ data: responseHierarchy });
+    // Wrap the response in an array
+    res.json({ data: [responseHierarchy] });
   } catch (error) {
     console.error("Error fetching department roles:", error);
     res.status(500).json({ error: "An error occurred while fetching roles." });
