@@ -34,7 +34,11 @@ import {
   getRootDocumentsForEdit,
 } from "../controller/project-controller.js";
 
-import { add_role, get_roles } from "../controller/role-controller.js";
+import {
+  add_role,
+  get_roles,
+  getRolesHierarchyInDepartment,
+} from "../controller/role-controller.js";
 
 import { get_users } from "../controller/user-controller.js";
 
@@ -86,6 +90,10 @@ router.post("/getRootDocumentsForEdit", getRootDocumentsForEdit);
 
 router.post("/addRole", add_role);
 router.get("/getRoles", get_roles);
+router.get(
+  "/getRolesHierarchyInDepartment/:departmentId",
+  getRolesHierarchyInDepartment
+);
 
 // user-controller related routes
 
