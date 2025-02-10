@@ -234,7 +234,6 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
         .filter((role) => role.parentRoleId === parentRoleId) // Filter roles by parentRoleId
         .map((role) => ({
           name: role.role,
-          department: role.departmentId,
           children: buildHierarchy(roles, role.id), // Recursive call for children
         }));
 
@@ -244,7 +243,6 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
     // Include the external parent role (if exists)
     let responseHierarchy = {
       name: definitiveTopRole.role,
-      department: definitiveTopRole.departmentId,
       children: hierarchy,
     };
 
@@ -254,7 +252,6 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
     ) {
       responseHierarchy = {
         name: definitiveTopRole.parentRole.role,
-        department: definitiveTopRole.parentRole.departmentId,
         children: [responseHierarchy],
         external: true, // Mark it as an external parent role
       };
