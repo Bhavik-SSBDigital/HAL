@@ -42,7 +42,7 @@ export default function List() {
   const [isHierarchyModalOpen, setHierarchyModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  const getDepartmentsHierarchy = async () => {
+  const getHierarchy = async () => {
     try {
       const res = await getDepartmentsHierarchy();
       setData(res.data.data);
@@ -54,7 +54,7 @@ export default function List() {
   };
 
   useEffect(() => {
-    getDepartmentsHierarchy();
+    getHierarchy();
     fetchDepartments();
   }, []);
 
@@ -94,7 +94,6 @@ export default function List() {
   const handleViewHierarchy = async (id) => {
     try {
       const response = await getRolesHierarchyInDepartment(id);
-
       console.log(response.data.data);
       setSelectedDepartmentData(response.data.data);
       setHierarchyModalOpen(true);
@@ -209,6 +208,8 @@ export default function List() {
       {/* Hierarchy Modal */}
       <Dialog
         open={isHierarchyModalOpen}
+        fullWidth
+        maxWidth="md"
         onClose={() => setHierarchyModalOpen(false)}
       >
         <div>

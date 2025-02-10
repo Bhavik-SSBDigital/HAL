@@ -125,18 +125,16 @@ export default function NewRole() {
 
       const response = await axios.post(url, combinedData);
 
-      if (response.status === 200) {
-        setEditObject({});
-        toast.success(response?.data?.message);
-        navigate('/roles/list');
-        reset();
-        setSelection({
-          selectedView: [],
-          selectedDownload: [],
-          selectedUpload: [],
-          fullAccess: [],
-        });
-      }
+      setEditObject({});
+      toast.success(response?.data?.message);
+      navigate('/roles/list');
+      reset();
+      setSelection({
+        selectedView: [],
+        selectedDownload: [],
+        selectedUpload: [],
+        fullAccess: [],
+      });
     } catch (error) {
       toast.error(error?.response?.data?.message);
     }
