@@ -6,6 +6,7 @@ import {
   add_department,
   get_department,
   get_departments,
+  getDepartmentsHierarchy,
 } from "../controller/department-controller.js";
 
 import {
@@ -66,6 +67,8 @@ router.get("/getFileData", get_file_data);
 // file details related routes
 
 router.post("/accessFolder", getDocumentDetailsOnTheBasisOfPath);
+
+router.get("/getDepartmentsHierarchy", getDepartmentsHierarchy);
 router.post("/createPermissions", create_permissions);
 router.post("/getAllDocuments", getDocumentDetailsForAdmin);
 router.post(

@@ -137,6 +137,8 @@ export const get_departments = async (req, res) => {
       });
     }
 
+    console.log("user data", userData);
+
     const { status, type, adminId } = req.query;
 
     // Build filters dynamically
@@ -156,5 +158,32 @@ export const get_departments = async (req, res) => {
     res.status(500).json({
       error: "An error occurred while retrieving the departments.",
     });
+  }
+};
+
+// Fetch hierarchical department data
+export const getDepartmentsHierarchy = async (req, res) => {
+  try {
+    const departments = await prisma.department.findMany({
+      include: {
+        subDepartments: true, // Fetch related sub-departments
+      },
+    });
+
+    const buildHierarchy = (departments, parentId = null) =>
+      departments
+        .filter((dep) => dep.parentDepartmentId === parentId)
+        .map((dep) => ({
+          name: dep.name,
+          children: buildHierarchy(departments, dep.id),
+        }));
+
+    const hierarchy = buildHierarchy(departments);
+
+    res.json({ data: hierarchy });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching departments." });
   }
 };
