@@ -23,6 +23,12 @@ apiClient.interceptors.request.use((config) => {
 export const getDepartments = async () => {
   return apiClient.get('/getdepartments', { params: { type: 'department' } });
 };
+export const getRolesHierarchyInDepartment = async (id) => {
+  return apiClient.get(`/getRolesHierarchyInDepartment/${id}`);
+};
+export const getDepartmentsHierarchy = () => {
+  return apiClient.get('/getDepartmentsHierarchy');
+};
 
 // users endpoints
 export const getUsers = async () => {

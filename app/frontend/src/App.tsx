@@ -45,6 +45,7 @@ import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
+import TreeGraph from './components/TreeGraph';
 
 function App() {
   const dispatch = useDispatch();
@@ -372,7 +373,6 @@ function App() {
             </DefaultLayout>
           }
         />
-
         {/* editors route */}
         {/* <Route
           path="/editor"
@@ -425,61 +425,6 @@ function App() {
         />
 
         <Route path="*" element={<NotFoundPage />} />
-        {/* <Route
-          path="/calendar"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Calendar" />
-              <Calendar />
-            </DefaultLayout>
-          }
-        />
-         */}
-        {/* <Route
-          path="/tables"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Tables" />
-              <Tables />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Settings" />
-              <Settings />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/chart"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Basic Chart" />
-              <Chart />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/ui/alerts"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Alerts" />
-              <Alerts />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/ui/buttons"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Buttons" />
-              <Buttons />
-            </DefaultLayout>
-          }
-        /> */}
       </Routes>
     </>
   );

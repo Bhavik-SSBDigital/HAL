@@ -127,9 +127,7 @@ export default function NewRole() {
 
       if (response.status === 200) {
         setEditObject({});
-        Object.keys(editObject).length > 0
-          ? toast.success('Role edited')
-          : toast.success('Role created');
+        toast.success(response?.data?.message);
         navigate('/roles/list');
         reset();
         setSelection({
@@ -140,10 +138,7 @@ export default function NewRole() {
         });
       }
     } catch (error) {
-      console.error('Error:', error);
-      Object.keys(editObject).length > 0
-        ? toast.error('Error editing role')
-        : toast.error('Error creating role');
+      toast.error(error?.response?.data?.message);
     }
   };
 
