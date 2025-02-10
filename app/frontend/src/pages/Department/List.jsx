@@ -41,6 +41,7 @@ export default function List() {
   const [selectedDepartmentData, setSelectedDepartmentData] = useState(null);
   const [isHierarchyModalOpen, setHierarchyModalOpen] = useState(false);
   const navigate = useNavigate();
+  const [selectedTab, setSelectedTab] = useState('list');
 
   const getHierarchy = async () => {
     try {
@@ -112,96 +113,141 @@ export default function List() {
       {isLoading ? (
         <ComponentLoader />
       ) : (
-        <Stack flexDirection="row" className={styles.container}>
-          <Box sx={{ width: '100%' }}>
+        <Stack className={styles.container}>
+          <Stack
+            justifyContent={{ xs: 'center', sm: 'space-between' }}
+            flexDirection={'row'}
+            flexWrap={'wrap'}
+            gap={1}
+            mb={1}
+          >
             <Stack
-              flexDirection="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{ marginBottom: 2 }}
+              gap={1}
+              sx={{
+                bgcolor: '#EEEEEE',
+                p: 0.6,
+                borderRadius: '8px',
+              }}
+              flexDirection={'row'}
             >
-              <TextField
-                label="Search Departments"
-                variant="outlined"
-                size="small"
-                sx={{ backgroundColor: 'white' }}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Link to="/departments/createNew">
-                <Button variant="contained" sx={{ borderRadius: '8px' }}>
-                  Create Department
-                </Button>
-              </Link>
-            </Stack>
-
-            <TreeGraph data={data} loading={isLoading} />
-
-            {filteredData.length > 0 ? (
-              filteredData.map((i) => (
-                <Accordion
-                  key={i._id}
-                  elevation={1}
-                  sx={{ borderRadius: '10px', marginBottom: 2 }}
+              <div
+                onClick={() => setSelectedTab('list')}
+                className={`${styles.tab} ${
+                  selectedTab == 'list' && styles.selectedTab
+                }`}
+              >
+                <Typography
+                  variant="body1"
+                  color="initial"
+                  textAlign={'center'}
                 >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Stack
-                      flexDirection="row"
-                      justifyContent="space-between"
-                      width="100%"
-                    >
-                      <Box>
-                        <Typography variant="h6" fontWeight="bold">
-                          {i.name}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Head: {i.head || 'N/A'}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={1}>
-                        <Tooltip title="View Roles Hierarchy">
-                          <IconButton onClick={() => handleViewHierarchy(i.id)}>
-                            <IconEye color="#2860e0" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <IconButton
-                            onClick={() =>
-                              navigate(`/departments/edit/${i.id}`)
-                            }
-                          >
-                            <IconEdit color="#2860e0" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            onClick={() => {
-                              setDeleteItemId(i._id);
-                              setModalOpen(true);
-                            }}
-                          >
-                            <IconTrash color="red" />
-                          </IconButton>
-                        </Tooltip>
+                  List
+                </Typography>
+              </div>
+              <div
+                onClick={() => setSelectedTab('tree')}
+                className={`${styles.tab} ${
+                  selectedTab == 'tree' && styles.selectedTab
+                }`}
+              >
+                <Typography
+                  variant="body1"
+                  color="initial"
+                  textAlign={'center'}
+                >
+                  Tree
+                </Typography>
+              </div>
+            </Stack>
+          </Stack>
+          {selectedTab == 'tree' ? (
+            <TreeGraph data={data} loading={isLoading} />
+          ) : (
+            <Box sx={{ width: '100%' }}>
+              <Stack
+                flexDirection="row"
+                justifyContent={'flex-end'}
+                sx={{ marginBottom: 2 }}
+                gap={1}
+              >
+                <TextField
+                  label="Search Departments"
+                  variant="outlined"
+                  size="small"
+                  sx={{ backgroundColor: 'white' }}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Link to="/departments/createNew">
+                  <Button variant="contained" sx={{ borderRadius: '8px' }}>
+                    Create Department
+                  </Button>
+                </Link>
+              </Stack>
+              {filteredData.length > 0 ? (
+                filteredData.map((i) => (
+                  <Accordion key={i._id} elevation={1} sx={{ marginBottom: 2 }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Stack
+                        flexDirection="row"
+                        justifyContent="space-between"
+                        width="100%"
+                      >
+                        <Box>
+                          <Typography variant="h6" fontWeight="bold">
+                            {i.name}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            Head: {i.head || 'N/A'}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1}>
+                          <Tooltip title="View Roles Hierarchy">
+                            <IconButton
+                              onClick={() => handleViewHierarchy(i.id)}
+                            >
+                              <IconEye color="#2860e0" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit">
+                            <IconButton
+                              onClick={() =>
+                                navigate(`/departments/edit/${i.id}`)
+                              }
+                            >
+                              <IconEdit color="#2860e0" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              onClick={() => {
+                                setDeleteItemId(i._id);
+                                setModalOpen(true);
+                              }}
+                            >
+                              <IconTrash color="red" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       </Stack>
-                    </Stack>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {i.workFlow ? (
-                      <ShowWorkflow workFlow={i.workFlow} />
-                    ) : (
-                      <Typography color="blue">
-                        Please Assign WorkFlow
-                      </Typography>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              ))
-            ) : (
-              <Typography variant="h6" align="center" color="textSecondary">
-                No departments found
-              </Typography>
-            )}
-          </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {i.workFlow ? (
+                        <ShowWorkflow workFlow={i.workFlow} />
+                      ) : (
+                        <Typography color="blue">
+                          Please Assign WorkFlow
+                        </Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                ))
+              ) : (
+                <Typography variant="h6" align="center" color="textSecondary">
+                  No departments found
+                </Typography>
+              )}
+            </Box>
+          )}
         </Stack>
       )}
 
