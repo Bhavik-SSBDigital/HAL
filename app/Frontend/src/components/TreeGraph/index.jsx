@@ -3,11 +3,12 @@ import ReactECharts from 'echarts-for-react';
 import styles from './TreeGraph.module.css';
 
 const TreeGraph = ({ data, loading }) => {
+  const controls = false;
   const [sequence, setSequence] = useState([]);
-  const [expandedNodes, setExpandedNodes] = useState(new Set()); // Track expanded nodes
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
 
-  // Function to handle node selection
   const handleNodeSelect = (node) => {
+    if (!controls) return; // Only allow selection if controls are enabled
     console.log(node.name);
     setSequence((prev) => {
       if (prev.includes(node.name)) {
@@ -18,14 +19,13 @@ const TreeGraph = ({ data, loading }) => {
     });
   };
 
-  // Function to toggle expand/collapse on double-click
   const handleNodeExpand = (node) => {
     setExpandedNodes((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(node.name)) {
-        newSet.delete(node.name); // Collapse node
+        newSet.delete(node.name);
       } else {
-        newSet.add(node.name); // Expand node
+        newSet.add(node.name);
       }
       return newSet;
     });
@@ -48,7 +48,7 @@ const TreeGraph = ({ data, loading }) => {
         symbolSize: 12,
         orient: 'TB',
         expandAndCollapse: true,
-        initialTreeDepth: -1, // Initially collapsed
+        initialTreeDepth: -1,
         label: {
           position: 'top',
           rotate: 0,
@@ -56,6 +56,7 @@ const TreeGraph = ({ data, loading }) => {
           align: 'center',
           fontSize: 16,
           formatter: (params) => {
+            if (!controls) return params.name; // If controls are disabled, show only the name
             const isChecked = sequence.includes(params.name);
             return `{checkbox|${isChecked ? '☑' : '☐'}} ${params.name}`;
           },
@@ -88,16 +89,22 @@ const TreeGraph = ({ data, loading }) => {
           <ReactECharts
             option={getOption()}
             style={{ height: 'calc(100vh - 240px)' }}
-            onEvents={{
-              contextmenu: (params) => {
-                params.event.event.preventDefault(); // Prevent default right-click menu
-                handleNodeSelect(params.data); // Right click: Expand/Collapse
-              },
-            }}
+            onEvents={
+              controls
+                ? {
+                    contextmenu: (params) => {
+                      params.event.event.preventDefault();
+                      handleNodeSelect(params.data);
+                    },
+                  }
+                : {}
+            }
           />
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <strong>Selected Nodes Order:</strong> {sequence.join(' → ')}
-          </div>
+          {controls && (
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <strong>Selected Nodes Order:</strong> {sequence.join(' → ')}
+            </div>
+          )}
         </>
       )}
     </div>
