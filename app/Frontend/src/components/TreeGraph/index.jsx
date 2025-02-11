@@ -1,10 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import axios from 'axios';
 import styles from './TreeGraph.module.css';
-import { getDepartmentsHierarchy } from '../../common/Apis';
 
 const TreeGraph = ({ data, loading }) => {
+  const [sequence, setSequence] = useState([]);
+  const [expandedNodes, setExpandedNodes] = useState(new Set()); // Track expanded nodes
+
+  // Function to handle node selection
+  const handleNodeSelect = (node) => {
+    console.log(node.name);
+    setSequence((prev) => {
+      if (prev.includes(node.name)) {
+        return prev.filter((item) => item !== node.name);
+      } else {
+        return [node.name, ...prev];
+      }
+    });
+  };
+
+  // Function to toggle expand/collapse on double-click
+  const handleNodeExpand = (node) => {
+    setExpandedNodes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(node.name)) {
+        newSet.delete(node.name); // Collapse node
+      } else {
+        newSet.add(node.name); // Expand node
+      }
+      return newSet;
+    });
+  };
+
   const getOption = () => ({
     tooltip: {
       trigger: 'item',
@@ -13,21 +39,32 @@ const TreeGraph = ({ data, loading }) => {
     series: [
       {
         type: 'tree',
-        data: data ? data : [],
+        data: data || [],
         left: '2%',
         right: '2%',
         top: '8%',
         bottom: '20%',
         symbol: 'emptyCircle',
         symbolSize: 12,
-        orient: 'TB', // Changed to vertical layout (Top to Bottom)
+        orient: 'TB',
         expandAndCollapse: true,
+        initialTreeDepth: -1, // Initially collapsed
         label: {
           position: 'top',
-          rotate: 0, // Ensuring readability
+          rotate: 0,
           verticalAlign: 'middle',
           align: 'center',
           fontSize: 16,
+          formatter: (params) => {
+            const isChecked = sequence.includes(params.name);
+            return `{checkbox|${isChecked ? '☑' : '☐'}} ${params.name}`;
+          },
+          rich: {
+            checkbox: {
+              fontSize: 24,
+              color: '#000',
+            },
+          },
         },
         leaves: {
           label: {
@@ -47,10 +84,21 @@ const TreeGraph = ({ data, loading }) => {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
       ) : (
-        <ReactECharts
-          option={getOption()}
-          style={{ height: 'calc(100vh - 240px)' }}
-        />
+        <>
+          <ReactECharts
+            option={getOption()}
+            style={{ height: 'calc(100vh - 240px)' }}
+            onEvents={{
+              contextmenu: (params) => {
+                params.event.event.preventDefault(); // Prevent default right-click menu
+                handleNodeSelect(params.data); // Right click: Expand/Collapse
+              },
+            }}
+          />
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <strong>Selected Nodes Order:</strong> {sequence.join(' → ')}
+          </div>
+        </>
       )}
     </div>
   );
