@@ -170,18 +170,27 @@ export const getDepartmentsHierarchy = async (req, res) => {
       },
     });
 
+    // Recursive function to build hierarchy
     const buildHierarchy = (departments, parentId = null) =>
       departments
-        .filter((dep) => dep.parentDepartmentId === parentId)
+        .filter((dep) => dep.parentDepartmentId === parentId) // Filter by parent department
         .map((dep) => ({
           name: dep.name,
-          children: buildHierarchy(departments, dep.id),
+          children: buildHierarchy(departments, dep.id), // Recursive call for sub-departments
         }));
 
+    // Build the full hierarchy starting from the root
     const hierarchy = buildHierarchy(departments);
 
-    res.json({ data: hierarchy });
+    // Add a top-level "Organization" node
+    const responseHierarchy = {
+      name: "Organization",
+      children: hierarchy,
+    };
+
+    res.json({ data: [responseHierarchy] });
   } catch (error) {
+    console.error("Error fetching department hierarchy:", error);
     res
       .status(500)
       .json({ error: "An error occurred while fetching departments." });
