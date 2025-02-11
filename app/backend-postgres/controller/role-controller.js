@@ -200,6 +200,15 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
   const { departmentId } = req.params; // Get departmentId from request params
 
   try {
+    // Fetch the department to get its name
+    const department = await prisma.department.findUnique({
+      where: { id: Number(departmentId) },
+    });
+
+    if (!department) {
+      return res.status(404).json({ message: "Department not found." });
+    }
+
     // Fetch all roles for the department and their relationships
     const roles = await prisma.role.findMany({
       where: { departmentId: Number(departmentId) },
@@ -209,26 +218,22 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
       },
     });
 
-    // Find all potential "top roles"
+    // Check if there are roles in the department
+    if (!roles || roles.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No roles found for this department." });
+    }
+
+    // Identify top-level roles (roles with no parent in the same department)
     const topRoles = roles.filter(
       (role) =>
         !role.parentRoleId || // No parent role
         (role.parentRole &&
-          role.parentRole.departmentId !== Number(departmentId)) // Parent role from another department
+          role.parentRole.departmentId !== Number(departmentId)) // Parent role is external
     );
 
-    // Determine the definitive top role (based on your chosen criteria)
-    const definitiveTopRole = topRoles.sort(
-      (a, b) => a.createdAt - b.createdAt
-    )[0]; // Example: Pick the oldest
-
-    if (!definitiveTopRole) {
-      return res
-        .status(404)
-        .json({ message: "No top role found for this department." });
-    }
-
-    // Recursive function to build hierarchy within the department
+    // Recursive function to build hierarchy
     const buildHierarchy = (roles, parentRoleId) =>
       roles
         .filter((role) => role.parentRoleId === parentRoleId) // Filter roles by parentRoleId
@@ -237,27 +242,18 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
           children: buildHierarchy(roles, role.id), // Recursive call for children
         }));
 
-    // Build the hierarchy starting from the definitive top role
-    const hierarchy = buildHierarchy(roles, definitiveTopRole.id);
+    // Build hierarchies for all top-level roles
+    const hierarchies = topRoles.map((topRole) => ({
+      name: topRole.role,
+      children: buildHierarchy(roles, topRole.id),
+    }));
 
-    // Include the external parent role (if exists)
-    let responseHierarchy = {
-      name: definitiveTopRole.role,
-      children: hierarchy,
+    // Final response with department name as root
+    const responseHierarchy = {
+      name: department.name, // Use the actual department name
+      children: hierarchies,
     };
 
-    if (
-      definitiveTopRole.parentRole &&
-      definitiveTopRole.parentRole.departmentId !== Number(departmentId)
-    ) {
-      responseHierarchy = {
-        name: definitiveTopRole.parentRole.role,
-        children: [responseHierarchy],
-        external: true, // Mark it as an external parent role
-      };
-    }
-
-    // Wrap the response in an array
     res.json({ data: [responseHierarchy] });
   } catch (error) {
     console.error("Error fetching department roles:", error);
