@@ -6,9 +6,11 @@ const TreeGraph = ({ data, loading }) => {
   const controls = false;
   const [sequence, setSequence] = useState([]);
   const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [selectionEnabled, setSelectionEnabled] = useState(controls);
 
+  // Function to handle node selection
   const handleNodeSelect = (node) => {
-    if (!controls) return; // Only allow selection if controls are enabled
+    if (!selectionEnabled) return; // Disable selection if switch is off
     console.log(node.name);
     setSequence((prev) => {
       if (prev.includes(node.name)) {
@@ -16,18 +18,6 @@ const TreeGraph = ({ data, loading }) => {
       } else {
         return [node.name, ...prev];
       }
-    });
-  };
-
-  const handleNodeExpand = (node) => {
-    setExpandedNodes((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(node.name)) {
-        newSet.delete(node.name);
-      } else {
-        newSet.add(node.name);
-      }
-      return newSet;
     });
   };
 
@@ -56,16 +46,18 @@ const TreeGraph = ({ data, loading }) => {
           align: 'center',
           fontSize: 16,
           formatter: (params) => {
-            if (!controls) return params.name; // If controls are disabled, show only the name
+            if (!controls) return params.name;
             const isChecked = sequence.includes(params.name);
             return `{checkbox|${isChecked ? '☑' : '☐'}} ${params.name}`;
           },
-          rich: {
-            checkbox: {
-              fontSize: 24,
-              color: '#000',
-            },
-          },
+          rich: controls
+            ? {
+                checkbox: {
+                  fontSize: 24,
+                  color: '#000',
+                },
+              }
+            : {},
         },
         leaves: {
           label: {
