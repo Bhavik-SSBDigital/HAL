@@ -24,7 +24,7 @@ import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
 import ViewLog from './pages/Logs/ViewLog';
 import MonitorView from './pages/Monitor/View';
-import InitiateForm from './pages/Processes/InitiateForm';
+import ProcessInitForm from './pages/Processes/ProcessInitForm';
 import Monitor from './pages/Monitor/Monitor';
 import { useDispatch } from 'react-redux';
 import { onReload } from './Slices/PathSlice';
@@ -45,7 +45,6 @@ import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
-import TreeGraph from './components/TreeGraph';
 
 function App() {
   const dispatch = useDispatch();
@@ -288,7 +287,7 @@ function App() {
           element={
             <DefaultLayout>
               <PageTitle title="Initiate Process" />
-              <InitiateForm />
+              <ProcessInitForm />
             </DefaultLayout>
           }
         />
