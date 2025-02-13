@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
-import { useQuery, useQueryClient } from 'react-query';
+import { useQuery } from 'react-query';
 import {
   Box,
   Button,
@@ -23,7 +23,6 @@ import styles from './List.module.css';
 export default function List() {
   const { setNotifications, notifications } = sessionData();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [fileListOpen, setFileListOpen] = useState(false);
@@ -136,7 +135,7 @@ export default function List() {
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{ backgroundColor: 'white', mb: 1 }}
           />
-          <Box sx={{ height: 400, width: '100%' }}>
+          <Box>
             <DataGrid
               rows={rows || []}
               columns={columns}

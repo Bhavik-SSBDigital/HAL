@@ -95,7 +95,7 @@ export default function List() {
             value={searchTerm}
             size="small"
             onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ mb: 2, width: '100%' }}
+            sx={{ mb: 1 }}
           />
           <DataGrid
             rows={rows || []}
