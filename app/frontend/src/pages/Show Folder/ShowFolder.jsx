@@ -158,7 +158,6 @@ export default function ShowFolder(props) {
       setError(error?.response?.data?.message);
     }
   };
-
   useEffect(() => {
     if (loaded && pathValue !== '..') {
       getData();
