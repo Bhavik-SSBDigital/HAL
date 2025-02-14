@@ -114,7 +114,7 @@ const Monitor = () => {
           </Box>
           <Box
             className={styles.tableContainer}
-            style={{ height: 500, width: '100%' }}
+            style={{ width: '100%' }}
           >
             <DataGrid
               rows={rows.filter((row) =>
