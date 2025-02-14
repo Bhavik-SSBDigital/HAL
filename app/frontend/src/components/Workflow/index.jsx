@@ -118,7 +118,7 @@ export default function Workflow({
             </button>
           </div>
         ))} */}
-        <ShowWorkflow workFlow={workFlow} />
+        <ShowWorkflow workFlow={workFlow} handleDelete={handleDelete} />
       </div>
     </div>
   );

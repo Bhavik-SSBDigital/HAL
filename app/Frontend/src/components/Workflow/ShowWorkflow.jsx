@@ -2,7 +2,7 @@ import { IconButton, Paper, Stack, Tooltip } from '@mui/material';
 import React from 'react';
 import styles from './ShowWorkflow.module.css';
 
-export default function ShowWorkflow({ workFlow }) {
+export default function ShowWorkflow({ workFlow, handleDelete }) {
   function truncateText(text, maxLength = 12) {
     if (!text || typeof text !== 'string') return '---';
     return text.length <= maxLength
@@ -31,6 +31,12 @@ export default function ShowWorkflow({ workFlow }) {
               backgroundColor: 'white',
             }}
           >
+            <button
+              onClick={() => handleDelete(index)}
+              className="text-red-500 absolute top-2 right-4"
+            >
+              ✖
+            </button>
             <h3 className={styles.workflowIndex}>{index + 1}</h3>
             <div className={styles.workflowContent}>
               <div className={styles.workFlowElements}>
