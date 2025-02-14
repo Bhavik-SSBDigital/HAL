@@ -1,229 +1,60 @@
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  Grid2,
-  IconButton,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-} from '@mui/material';
 import React, { useEffect, useState } from 'react';
-import { FaRegTrashAlt } from 'react-icons/fa';
-import styles from './Workflow.module.css';
-import { IconX } from '@tabler/icons-react';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
 export default function Workflow({
   workFlow,
-  setWorkFLow,
-  workFlowLength,
-  handleWorkFlow,
-  flow,
-  setFlow,
-  usersOnStep,
-  setUsersOnStep,
-  fullState,
+  setWorkFlow,
   maxStepNumberReached,
 }) {
-  // variable
   const token = sessionStorage.getItem('accessToken');
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-  // states
-  const [works, setWorks] = useState([]);
-  const [userSelection, setUserSelection] = useState({ user: '', role: '' });
-  const [fieldsLoading, setFieldsLoading] = useState(false);
-  const [userDialogOpen, setUserDialogOpen] = useState(false);
-  const [userBranch, setUserBranch] = useState('');
-  const [allBranches, setAllBranches] = useState([]);
-  const [users, setUsers] = useState([]);
+  const { control, handleSubmit, watch, setValue } = useForm({
+    defaultValues: { step: workFlow.length + 1, role: '' },
+  });
   const [roles, setRoles] = useState([]);
 
-  // handlers
-  const handleFlowChange = (event) => {
-    const { name, value } = event.target;
-    setFlow((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-  const deleteStepUser = (index) => {
-    const updatedUsersOnStep = usersOnStep.filter((_, i) => i !== index);
-    setUsersOnStep(updatedUsersOnStep);
-  };
-  const onUserDialogClose = () => {
-    setUserDialogOpen(false);
-  };
-  function truncateUsername(username, maxLength = 12) {
-    if (!username || typeof username !== 'string') return '';
-
-    // Check if truncation is needed
-    if (username.length <= maxLength) {
-      return username;
-    }
-
-    // Truncate and append "..."
-    return `${username.substring(0, maxLength)}...`;
-  }
-  const handleDelete = (index) => {
-    const updatedWorkFlow = [...workFlow];
-    updatedWorkFlow.splice(index, 1);
-    setWorkFLow({
-      ...fullState,
-      workFlow: updatedWorkFlow.map((step, i) => ({ ...step, step: i + 1 })),
-    });
-  };
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    if (name === 'branch') {
-      if (!userBranch) {
-        setUserBranch(value);
-        if (value) {
-          const { _id } = allBranches.find((data) => data.name === value);
-          getRoles(_id);
-        }
+  useEffect(() => {
+    const getRoles = async () => {
+      try {
+        const { data } = await axios.post(`${backendUrl}/getRoles`, null, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRoles(data.roles);
+      } catch (error) {
+        console.error('Error fetching roles:', error);
       }
-    }
-    if (name === 'userBranch') {
-      if (value) {
-        const { _id } = allBranches.find((data) => data.name === value);
-        setRoles([]);
-        getRoles(_id);
-      }
-      setUserSelection({ user: '', role: '' });
-      setUserBranch(value);
-    }
-  };
-  const handleUserSelection = (event) => {
-    const { name, value } = event.target;
-    if (name === 'role') {
-      setUserSelection((prev) => ({ ...prev, user: '' }));
-      getUsers(value);
-      setUsers([]);
-    }
-    setUserSelection((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-  const handleUserAdd = () => {
-    if (!userSelection.user || !userSelection.role) {
-      toast.info('Please select user & role');
+    };
+    getRoles();
+  }, []);
+
+  const onSubmit = (data) => {
+    if (!data.role) {
+      toast.info('Please select a role');
       return;
     }
-    const newUser = {
-      user: userSelection.user,
-      role: userSelection.role,
-    };
-    // Update the state with the new user object
-    setUsersOnStep((prevData) => [...prevData, newUser]);
-    setUserSelection({ user: '', role: '' });
-    setUserDialogOpen(false);
+    setWorkFlow([...workFlow, { step: data.step, role: data.role }]);
+    setValue('role', '');
   };
 
-  // network calls
-  const getWorks = async () => {
-    try {
-      const url = backendUrl + '/getWorks';
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setWorks(data.works);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  const getBranches = async () => {
-    try {
-      const url = backendUrl + '/getAllBranches';
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setAllBranches(data.departments);
-      return data.departments;
-    } catch (error) {
-      console.error('unable to fetch branches');
-    }
-  };
-  const getUsers = async (role) => {
-    setFieldsLoading(true);
-    try {
-      const url = backendUrl + '/getUsersByRoleInBranch';
-      const { _id } = allBranches?.find((item) => item.name === userBranch);
-      const { data } = await axios.post(
-        url,
-        {
-          branchId: _id,
-          roleId: role,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      setUsers(data.users);
-    } catch (error) {
-      toast.error(error);
-    } finally {
-      setFieldsLoading(false);
-    }
-  };
-  const getRoles = async (id) => {
-    setFieldsLoading(true);
-    const urlRole = backendUrl + '/getRolesInBranch/';
-    try {
-      const { data } = await axios.post(urlRole + `${id}`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setRoles(data.roles);
-    } catch {
-      console.error('Error getting roles for selected branch');
-    } finally {
-      setFieldsLoading(false);
-    }
+  const handleDelete = (index) => {
+    setWorkFlow(workFlow.filter((_, i) => i !== index));
   };
 
-  useEffect(() => {
-    getWorks();
-    getBranches();
-  }, []);
   return (
-    <div>
-      <Grid2 container spacing={3} p={2}>
-        <Grid2 item size={{ xs: 12 }}>
-          <Typography variant="body1">Step No:</Typography>
-          <FormControl fullWidth variant="outlined">
-            <Select
-              name="step"
-              // size="small"
-              sx={{ backgroundColor: 'whitesmoke' }}
-              onChange={handleFlowChange}
-              value={+flow.step ? +flow.step : workFlowLength + 1}
+    <div className="p-6 max-w-lg mx-auto">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Controller
+          name="step"
+          control={control}
+          render={({ field }) => (
+            <select
+              {...field}
+              className="w-full p-2 border rounded-md bg-gray-100"
             >
-              {Array.from({ length: workFlowLength + 1 }, (_, index) => (
-                <MenuItem
+              {[...Array(workFlow.length + 1)].map((_, index) => (
+                <option
                   key={index}
                   value={index + 1}
                   disabled={
@@ -231,225 +62,62 @@ export default function Workflow({
                   }
                 >
                   {index + 1}
-                </MenuItem>
+                </option>
               ))}
-            </Select>
-          </FormControl>
-        </Grid2>
-        <Grid2 item size={{ xs: 12 }}>
-          <div>
-            <Typography variant="h6">This step users :</Typography>
-            <TableContainer
-              sx={{
-                maxHeight: '300px',
-                overflow: 'auto',
-                width: '100%',
-                borderRadius: '5px',
-                border: '1px solid lightgray',
-              }}
+            </select>
+          )}
+        />
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <select
+              {...field}
+              className="w-full p-2 border rounded-md bg-gray-100"
             >
-              <Table size="small" aria-label="a dense table">
-                <TableHead>
-                  <TableRow sx={{ height: '50px' }}>
-                    <TableCell>Sr No</TableCell>
-                    <TableCell>Username</TableCell>
-                    {/* <TableCell>User Role</TableCell> */}
-                    <TableCell>Delete</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {usersOnStep.length ? (
-                    usersOnStep.map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell component="th" scope="row">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell component="th" scope="row">
-                          {row.user}
-                        </TableCell>
-                        {/* <TableCell component="th" scope="row">
-                          {row.role}
-                        </TableCell> */}
-                        <TableCell component="th" scope="row">
-                          <Button onClick={() => deleteStepUser(index)}>
-                            <FaRegTrashAlt color="red" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4}>Please add users</TableCell>
-                    </TableRow>
-                  )}
-                  <TableRow>
-                    <TableCell colSpan={4} align="right">
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        size="small"
-                        onClick={() => setUserDialogOpen(true)}
-                      >
-                        Add Users
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </div>
-        </Grid2>
-        <Grid2 item size={{ xs: 12 }}>
-          <Box sx={{ mx: 'auto', width: 'fit-content' }}>
-            <Button variant="contained" onClick={handleWorkFlow}>
-              Add Step
-            </Button>
-          </Box>
-        </Grid2>
-      </Grid2>
-      <Stack
-        flexDirection="row"
-        flexWrap="wrap"
-        rowGap={3}
-        columnGap={1}
-        justifyContent="center"
-        sx={{ marginBottom: '20px', marginTop: '40px' }}
-      >
-        {workFlow?.map((item, index) => (
-          <>
-            <Paper
-              key={index + 1}
-              elevation={3}
-              sx={{
-                position: 'relative',
-                width: { xs: 230, sm: 250, md: 280 },
-                border: '1px solid purple',
-                borderRadius: '15px',
-                backgroundColor: 'white',
-              }}
-            >
-              {(!maxStepNumberReached || maxStepNumberReached < index + 1) && (
-                <IconButton
-                  sx={{
-                    position: 'absolute',
-                    right: '0px',
-                    top: '0px',
-                  }}
-                  onClick={() => handleDelete(index)}
-                >
-                  <IconX />
-                </IconButton>
-              )}
+              <option value="" disabled>
+                Select a role
+              </option>
+              {roles.map((role) => (
+                <option key={role._id} value={role._id}>
+                  {role.role}
+                </option>
+              ))}
+            </select>
+          )}
+        />
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white p-2 rounded-md"
+        >
+          Add Step
+        </button>
+      </form>
 
-              <h3 className={styles.workflowIndex}>{index + 1}</h3>
-              <div className={styles.workflowContent}>
-                <div className={styles.workFlowElements}>
-                  <p style={{ width: '60px' }}>
-                    <strong>Step :</strong>
-                  </p>
-                  <p>{index + 1}</p>
-                </div>
-                <div className={styles.workFlowElements}>
-                  <p style={{ width: '60px' }}>
-                    <strong>Users :</strong>
-                  </p>
-                  <p style={{ whiteSpace: 'pre-line' }}>
-                    {item?.users?.length
-                      ? item.users.map((user, index) => (
-                          <Tooltip
-                            key={index}
-                            title={user.user.length > 12 ? user.user : ''}
-                          >
-                            <span>{truncateUsername(user.user)}</span>
-                          </Tooltip>
-                        ))
-                      : '---'}
-                  </p>
-                </div>
-              </div>
-            </Paper>
-          </>
+      <div className="mt-6 space-y-4">
+        {workFlow.map((item, index) => (
+          <div
+            key={index}
+            className="p-4 border rounded-md flex justify-between items-center"
+          >
+            <div>
+              <p>
+                <strong>Step:</strong> {item.step}
+              </p>
+              <p>
+                <strong>Role:</strong>{' '}
+                {roles.find((r) => r._id === item.role)?.role || 'Unknown'}
+              </p>
+            </div>
+            <button
+              onClick={() => handleDelete(index)}
+              className="text-red-500"
+            >
+              ✖
+            </button>
+          </div>
         ))}
-      </Stack>
-      <Dialog
-        maxWidth="sm"
-        fullWidth
-        open={userDialogOpen}
-        onClose={onUserDialogClose}
-      >
-        <DialogTitle>Add users</DialogTitle>
-        <DialogContent>
-          <Stack gap={1}>
-            <Typography variant="body1">User Branch:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="userBranch"
-                size="small"
-                fullWidth
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={userBranch}
-                onChange={handleInputChange}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {allBranches?.map((data) => (
-                  <MenuItem key={data.name} value={data.name}>
-                    {data.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Typography variant="body1">Actor Role:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="role"
-                fullWidth
-                size="small"
-                disabled={fieldsLoading}
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={userSelection.role}
-                onChange={handleUserSelection}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {roles?.map((data) => (
-                  <MenuItem key={data._id} value={data._id}>
-                    {data.role}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Typography variant="body1">User:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="user"
-                fullWidth
-                size="small"
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={userSelection.user}
-                disabled={fieldsLoading}
-                onChange={handleUserSelection}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {users?.map((data) => (
-                  <MenuItem key={data.username} value={data.username}>
-                    {data.username}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" onClick={handleUserAdd}>
-            Add User
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </div>
     </div>
   );
 }
