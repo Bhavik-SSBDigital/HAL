@@ -15,7 +15,11 @@ function ProcessInitForm() {
   });
 
   const { fields, append } = useFieldArray({ control, name: 'documents' });
-  const [workFlow, setWorkFlow] = useState([]);
+  const [workFlow, setWorkFlow] = useState([
+    { step: 1, role: 'hey' },
+    { step: 2, role: 'hello' },
+    { step: 3, role: 'check' },
+  ]);
 
   const watchSavedWorkflow = watch('useSavedWorkflow');
   const watchSelectedWorkflow = watch('selectedWorkflow');

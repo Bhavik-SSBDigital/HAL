@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import ShowWorkflow from './ShowWorkflow';
 
 export default function Workflow({
   workFlow,
@@ -43,7 +44,7 @@ export default function Workflow({
   };
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
+    <div className="p-6 max-w-full mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Controller
           name="step"
@@ -95,7 +96,7 @@ export default function Workflow({
       </form>
 
       <div className="mt-6 space-y-4">
-        {workFlow.map((item, index) => (
+        {/* {workFlow.map((item, index) => (
           <div
             key={index}
             className="p-4 border rounded-md flex justify-between items-center"
@@ -116,7 +117,8 @@ export default function Workflow({
               ✖
             </button>
           </div>
-        ))}
+        ))} */}
+        <ShowWorkflow workFlow={workFlow} />
       </div>
     </div>
   );

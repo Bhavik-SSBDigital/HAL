@@ -3,17 +3,13 @@ import React from 'react';
 import styles from './ShowWorkflow.module.css';
 
 export default function ShowWorkflow({ workFlow }) {
-  function truncateUsername(username, maxLength = 12) {
-    if (!username || typeof username !== 'string') return '';
-
-    // Check if truncation is needed
-    if (username.length <= maxLength) {
-      return username;
-    }
-
-    // Truncate and append "..."
-    return `${username.substring(0, maxLength)}...`;
+  function truncateText(text, maxLength = 12) {
+    if (!text || typeof text !== 'string') return '---';
+    return text.length <= maxLength
+      ? text
+      : `${text.substring(0, maxLength)}...`;
   }
+
   return (
     <Stack
       flexDirection="row"
@@ -21,7 +17,6 @@ export default function ShowWorkflow({ workFlow }) {
       rowGap={3}
       columnGap={1}
       justifyContent="center"
-      sx={{ marginBottom: '20px', marginTop: '40px' }}
     >
       {workFlow?.map((item, index) => (
         <>
@@ -39,27 +34,17 @@ export default function ShowWorkflow({ workFlow }) {
             <h3 className={styles.workflowIndex}>{index + 1}</h3>
             <div className={styles.workflowContent}>
               <div className={styles.workFlowElements}>
-                <p style={{ width: '60px' }}>
-                  <strong>Step :</strong>
+                <p>
+                  <strong>Step:</strong> {item.step}
                 </p>
-                <p>{index + 1}</p>
               </div>
               <div className={styles.workFlowElements}>
-                <p style={{ width: '60px' }}>
-                  <strong>Users :</strong>
+                <p>
+                  <strong>Role:</strong>
                 </p>
-                <p style={{ whiteSpace: 'pre-line' }}>
-                  {item?.users?.length
-                    ? item.users.map((user, index) => (
-                        <Tooltip
-                          key={index}
-                          title={user.user.length > 12 ? user.user : ''}
-                        >
-                          <span>{truncateUsername(user.user)}</span>
-                        </Tooltip>
-                      ))
-                    : '---'}
-                </p>
+                <Tooltip title={item.role.length > 12 ? item.role : ''}>
+                  <span>{truncateText(item.role)}</span>
+                </Tooltip>
               </div>
             </div>
           </Paper>

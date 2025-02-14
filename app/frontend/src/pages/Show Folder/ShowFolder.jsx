@@ -932,99 +932,96 @@ export default function ShowFolder(props) {
             sx={{ position: 'relative' }}
             onContextMenu={(e) => handleContextMenu(e, 'viraj')}
           >
-            <Box
-              sx={{
-                backgroundColor: 'white',
-                padding: '8px',
-                borderRadius: '15px',
-                border: '1px solid lightgray',
-                mb: 1,
-              }}
+            <Stack
+              flexDirection="row"
+              // justifyContent="space-between"
+              sx={{justifyContent: {xs: "center", sm: "space-between"}}}
+              flexWrap="wrap"
+              gap={1}
+              alignItems={'center'}
+              mb={1}
             >
-              <Path />
-              <Stack
-                flexDirection="row"
-                justifyContent="space-between"
-                flexWrap="wrap"
-              >
-                <Tabs
-                  value={selectedTab}
-                  onChange={handleTabChange}
-                  aria-label="file folders tabs"
-                  sx={{
-                    backgroundColor: 'white',
-                    minWidth: 'fit-content',
-                    border: '1px solid lightgray',
-                    mt: 1,
-                    borderRadius: '10px',
-                  }}
+              <div className="flex flex-wrap gap-2 bg-gray-200 rounded-lg">
+                <button
+                  onClick={() => setSelectedTab(0)}
+                  className={`px-7 h-10 rounded-lg transition-colors duration-300 text-center ${
+                    selectedTab === 0
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-700'
+                  }`}
                 >
-                  <Tab label="Normal" />
-                  <Tab label="Rejected" />
-                </Tabs>
-                <Box>
-                  <TextField
-                    label="Search"
-                    sx={{
-                      maxWidth: { lg: '250px', xs: '150px' },
-                      background: 'white',
-                      marginTop: '10px',
-                      mr: 1,
-                    }}
-                    disabled={fileFolders.length === 0 || loading}
-                    variant="outlined"
-                    size="small"
-                    value={searchQuery}
-                    onChange={handleSearchQueryChange}
-                  />
+                  Normal
+                </button>
+                <button
+                  onClick={() => setSelectedTab(1)}
+                  className={`px-7 h-10 rounded-lg transition-colors duration-300 text-center ${
+                    selectedTab === 1
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white text-gray-700'
+                  }`}
+                >
+                  Rejected
+                </button>
+              </div>
 
-                  <FormControl
+              <Box>
+                <TextField
+                  label="Search"
+                  sx={{
+                    maxWidth: { lg: '250px', xs: '150px' },
+                    background: 'white',
+                    mr: 1,
+                  }}
+                  disabled={fileFolders.length === 0 || loading}
+                  variant="outlined"
+                  size="small"
+                  value={searchQuery}
+                  onChange={handleSearchQueryChange}
+                />
+
+                <FormControl size="small" variant="outlined">
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
                     size="small"
-                    variant="outlined"
-                    sx={{ mt: '10px' }}
+                    value={sortBy}
+                    sx={{ background: 'white' }}
+                    disabled={fileFolders.length === 0 || loading}
+                    onChange={handleSortByChange}
+                    label="Sort By"
+                    style={{ minWidth: '150px' }}
                   >
-                    <InputLabel>Sort By</InputLabel>
-                    <Select
-                      size="small"
-                      value={sortBy}
-                      sx={{ background: 'white' }}
-                      disabled={fileFolders.length === 0 || loading}
-                      onChange={handleSortByChange}
-                      label="Sort By"
-                      style={{ minWidth: '150px' }}
+                    {sortOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                    <RadioGroup
+                      aria-label="sort-order"
+                      name="sortOrder"
+                      defaultValue={sortOrder}
+                      onChange={handleSortOrderChange}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '10px',
+                      }}
                     >
-                      {sortOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                      <RadioGroup
-                        aria-label="sort-order"
-                        name="sortOrder"
-                        defaultValue={sortOrder}
-                        onChange={handleSortOrderChange}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          padding: '10px',
-                        }}
-                      >
-                        <FormControlLabel
-                          value="asc"
-                          control={<Radio />}
-                          label="Ascending"
-                        />
-                        <FormControlLabel
-                          value="desc"
-                          control={<Radio />}
-                          label="Descending"
-                        />
-                      </RadioGroup>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Stack>
-            </Box>
+                      <FormControlLabel
+                        value="asc"
+                        control={<Radio />}
+                        label="Ascending"
+                      />
+                      <FormControlLabel
+                        value="desc"
+                        control={<Radio />}
+                        label="Descending"
+                      />
+                    </RadioGroup>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Stack>
+            <Path />
             <Stack
               direction="row"
               gap="10px"
@@ -1032,6 +1029,7 @@ export default function ShowFolder(props) {
               sx={{ justifyContent: 'flex-start' }}
               className={styles.customScrollContainer}
               overflow="auto"
+              mt={1}
               maxHeight="calc(100vh - 290px)"
             >
               {!loading && selectedTab == 0
