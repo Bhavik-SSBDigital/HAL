@@ -935,7 +935,7 @@ export default function ShowFolder(props) {
             <Stack
               flexDirection="row"
               // justifyContent="space-between"
-              sx={{justifyContent: {xs: "center", sm: "space-between"}}}
+              sx={{ justifyContent: { xs: 'center', sm: 'space-between' } }}
               flexWrap="wrap"
               gap={1}
               alignItems={'center'}
@@ -944,7 +944,7 @@ export default function ShowFolder(props) {
               <div className="flex flex-wrap gap-2 bg-gray-200 rounded-lg">
                 <button
                   onClick={() => setSelectedTab(0)}
-                  className={`px-7 h-10 rounded-lg transition-colors duration-300 text-center ${
+                  className={`px-11 h-10 rounded-lg transition-colors duration-300 text-center ${
                     selectedTab === 0
                       ? 'bg-blue-500 text-white'
                       : 'bg-white text-gray-700'
@@ -954,7 +954,7 @@ export default function ShowFolder(props) {
                 </button>
                 <button
                   onClick={() => setSelectedTab(1)}
-                  className={`px-7 h-10 rounded-lg transition-colors duration-300 text-center ${
+                  className={`px-11 h-10 rounded-lg transition-colors duration-300 text-center ${
                     selectedTab === 1
                       ? 'bg-red-500 text-white'
                       : 'bg-white text-gray-700'
