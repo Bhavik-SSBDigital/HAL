@@ -364,8 +364,6 @@ const MeetingManager = () => {
         username: username,
       });
       console.log('leaving room');
-      // socketRef.current.disconnect(); // Close the socket connection
-      // socketRef.current = null;
     }
     setIsAudioEnabled(false);
     setIsVideoEnabled(false);
@@ -386,13 +384,6 @@ const MeetingManager = () => {
         setIsAudioEnabled(audioTrack.enabled);
       }
     }
-    // if (localStreamRef.current) {
-    //     localStreamRef.current.getAudioTracks().forEach((track) => {
-    //         track.enabled = isAudioEnabled;
-    //     });
-    //     setIsAudioEnabled(!isAudioEnabled);
-    //     console.log(`Microphone ${!isAudioEnabled ? 'muted' : 'unmuted'}`);
-    // }
   };
 
   // Toggle camera
@@ -404,13 +395,6 @@ const MeetingManager = () => {
         setIsVideoEnabled(videoTrack.enabled);
       }
     }
-    // if (localStreamRef.current) {
-    //     localStreamRef.current.getVideoTracks().forEach((track) => {
-    //         track.enabled = isVideoEnabled;
-    //     });
-    //     setIsVideoEnabled(!isVideoEnabled);
-    //     console.log(`Camera ${!isVideoEnabled ? 'off' : 'on'}`);
-    // }
   };
 
   // Handle sending chat messages
@@ -581,13 +565,6 @@ const MeetingManager = () => {
     try {
       // Create a Blob from the recorded chunks
       const blob = new Blob(chunks, { type: 'video/webm' });
-
-      // Create a download URL for user convenience
-      // const url = URL.createObjectURL(blob);
-      // const a = document.createElement('a');
-      // a.href = url;
-      // a.download = 'screen-recording.webm';
-      // a.click();
 
       // Prepare the recorded file for upload
       const file = new File([blob], 'example1.mp4', { type: 'video/mp4' });

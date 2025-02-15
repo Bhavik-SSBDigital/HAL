@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, IconButton } from '@mui/material';
 import { toast } from 'react-toastify';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'; // Import the library
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import '@cyntler/react-doc-viewer/dist/index.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
