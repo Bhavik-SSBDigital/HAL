@@ -58,9 +58,9 @@ export default function Workflow({
                 <option
                   key={index}
                   value={index + 1}
-                  disabled={
-                    maxStepNumberReached && index + 1 <= maxStepNumberReached
-                  }
+                  // disabled={
+                  //   maxStepNumberReached && index + 1 <= maxStepNumberReached
+                  // }
                 >
                   {index + 1}
                 </option>

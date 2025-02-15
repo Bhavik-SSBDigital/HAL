@@ -180,11 +180,11 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   // Handle the search filter
   const filteredData = data.filter((row) => {
     return (
-      row.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.branch.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      moment(row.createdAt)
+      row?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row?.branch?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row?.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      moment(row?.createdAt)
         .format('DD-MMM-YYYY hh:mm A')
         .toLowerCase()
         .includes(searchTerm.toLowerCase())

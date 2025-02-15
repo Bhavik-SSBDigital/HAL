@@ -33,7 +33,7 @@ export default function ShowWorkflow({ workFlow, handleDelete }) {
           >
             <button
               onClick={() => handleDelete(index)}
-              className="text-red-500 absolute top-2 right-4"
+              className="text-red-500 absolute top-1 right-2 text-xl"
             >
               ✖
             </button>
