@@ -15,25 +15,6 @@
       "assignments": [
         { "assigneeType": "ROLE", "assigneeId": 2 }
       ]
-    },
-    {
-      "stepName": "Approval",
-      "stepType": "APPROVAL",
-      "approverType": "USER",
-      "allowParallel": true,
-      "assignments": [
-        { "assigneeType": "USER", "assigneeId": 3 },
-        { "assigneeType": "USER", "assigneeId": 4 }
-      ]
-    },
-    {
-      "stepName": "Final Sign-Off",
-      "stepType": "APPROVAL",
-      "approverType": "DEPARTMENT",
-      "allowParallel": false,
-      "assignments": [
-        { "assigneeType": "DEPARTMENT", "assigneeId": 1 }
-      ]
     }
   ]
 }
