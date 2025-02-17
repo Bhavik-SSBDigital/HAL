@@ -196,3 +196,21 @@ export const getDepartmentsHierarchy = async (req, res) => {
       .json({ error: "An error occurred while fetching departments." });
   }
 };
+
+export const add_workflow = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+  } catch (error) {
+    console.log("Error adding workflow:", error);
+    return res.status(500).json({
+      message: "Error adding workflow",
+    });
+  }
+};
