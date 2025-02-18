@@ -2,33 +2,47 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-/* Add Workflow Payload
+/*
 {
-  "name": "Document Approval Workflow",
-  "description": "A workflow for document approval process",
-  "createdById": 1,
+  "name": "Workflow Name",
+  "description": "Description of the workflow (optional)",
   "steps": [
     {
-      "stepName": "Initial Review",
+      "stepName": "Step 1",
+      "allowParallel": true,
+      "assignments": [
+        {
+          "assigneeType": "user", // possible values: user, role, department, etc.
+          "assigneeIds": [1, 2], // Array of user IDs, role IDs, or department IDs
+          "actionType": "approve" // possible values: approve, reject, recommend, etc.
+        },
+        {
+          "assigneeType": "role",
+          "assigneeIds": [3],
+          "actionType": "approve"
+        }
+      ]
+    },
+    {
+      "stepName": "Step 2",
       "allowParallel": false,
       "assignments": [
-        { 
-          "assigneeType": "ROLE", 
-          "assigneeId": 2,
-          "actionType": "APPROVAL"
+        {
+          "assigneeType": "department",
+          "assigneeIds": [5],
+          "actionType": "approve"
         }
       ]
     }
   ]
 }
+
 */
 export const add_workflow = async (req, res) => {
   const accessToken = req.headers["authorization"].substring(7);
   const userData = await verifyUser(accessToken);
   if (userData === "Unauthorized") {
-    return res.status(401).json({
-      message: "Unauthorized request",
-    });
+    return res.status(401).json({ message: "Unauthorized request" });
   }
 
   const createdById = userData.id;
@@ -66,7 +80,7 @@ export const add_workflow = async (req, res) => {
             data: assignments.map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeId: assignee.assigneeId,
+              assigneeIds: assignee.assigneeIds, // Updated to store an array
               actionType: assignee.actionType,
             })),
           });
@@ -85,6 +99,28 @@ export const add_workflow = async (req, res) => {
   }
 };
 
+/*
+{
+  "workflowId": 1, // ID of the workflow to edit
+  "name": "Updated Workflow Name",
+  "description": "Updated description of the workflow (optional)",
+  "steps": [
+    {
+      "stepName": "Updated Step 1",
+      "allowParallel": true,
+      "assignments": [
+        {
+          "assigneeType": "user", // possible values: user, role, department, etc.
+          "assigneeIds": [1, 2], // Array of user IDs, role IDs, or department IDs
+          "actionType": "approve" // possible values: approve, reject, recommend, etc.
+        }
+      ]
+    }
+  ],
+  "updatedById": 3 // The user who is updating the workflow
+}
+
+*/
 export const edit_workflow = async (req, res) => {
   const { workflowId, name, description, steps, updatedById } = req.body;
 
@@ -94,8 +130,9 @@ export const edit_workflow = async (req, res) => {
       include: { steps: true },
     });
 
-    if (!oldWorkflow)
+    if (!oldWorkflow) {
       return res.status(404).json({ error: "Workflow not found" });
+    }
 
     const newWorkflow = await prisma.$transaction(async (tx) => {
       const latestVersion = await tx.workflow.findFirst({
@@ -133,7 +170,7 @@ export const edit_workflow = async (req, res) => {
             data: assignments.map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeId: assignee.assigneeId,
+              assigneeIds: assignee.assigneeIds, // Updated to store an array
               actionType: assignee.actionType,
             })),
           });
@@ -143,8 +180,8 @@ export const edit_workflow = async (req, res) => {
       return newWorkflow;
     });
 
-    return res.status(201).json({
-      message: "Workflow updated with a new version",
+    return res.status(200).json({
+      message: "Workflow updated successfully",
       workflow: newWorkflow,
     });
   } catch (error) {
@@ -188,7 +225,7 @@ export const view_workflow = async (req, res) => {
         nextStep: step.nextStep?.stepName,
         assignments: step.assignments.map((assignee) => ({
           assigneeType: assignee.assigneeType,
-          assigneeId: assignee.assigneeId,
+          assigneeIds: assignee.assigneeIds, // Now returns an array
           actionType: assignee.actionType,
         })),
       })),
@@ -234,7 +271,7 @@ export const get_workflows = async (req, res) => {
       include: {
         steps: {
           include: {
-            assignments: true,
+            assignments: true, // Fetch assignments
           },
         },
         createdBy: {
@@ -273,7 +310,7 @@ export const get_workflows = async (req, res) => {
             assignments: step.assignments.map((assignment) => ({
               id: assignment.id,
               assigneeType: assignment.assigneeType,
-              assigneeId: assignment.assigneeId,
+              assigneeIds: assignment.assigneeIds, // Now using assigneeIds instead of assigneeId
               actionType: assignment.actionType,
             })),
           })),
