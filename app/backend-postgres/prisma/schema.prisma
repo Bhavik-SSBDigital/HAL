@@ -144,7 +144,6 @@ model WorkflowStep {
   workflow      Workflow @relation(fields: [workflowId], references: [id])
   stepNumber    Int
   stepName      String
-  approverType  ApproverType
   allowParallel Boolean  @default(false) // Allows multiple approvals
   nextStepId    String?  // Nullable for dynamic workflows
   nextStep      WorkflowStep? @relation(fields: [nextStepId], references: [id])
