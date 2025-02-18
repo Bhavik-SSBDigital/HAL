@@ -51,3 +51,11 @@ export const GetAllRoles = async () => {
 export const GetRootLevelRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: true } });
 };
+
+// workflow endpoints
+export const CreateWorkflow = async (data) => {
+  return apiClient.post('/workflows/addWorkflow', data);
+};
+export const GetWorkflows = async () => {
+  return apiClient.get('/workflows/getWorkflows');
+};
