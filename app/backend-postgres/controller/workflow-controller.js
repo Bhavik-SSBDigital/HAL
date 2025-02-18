@@ -226,3 +226,62 @@ export const delete_workflow = async (req, res) => {
     return res.status(500).json({ error: "Failed to delete workflow" });
   }
 };
+
+export const get_workflows = async (req, res) => {
+  try {
+    const workflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      include: {
+        steps: {
+          include: {
+            assignments: true,
+          },
+        },
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Group workflows by name and arrange versions
+    const groupedWorkflows = workflows.reduce((acc, workflow) => {
+      if (!acc[workflow.name]) {
+        acc[workflow.name] = [];
+      }
+      acc[workflow.name].push(workflow);
+      return acc;
+    }, {});
+
+    return res.status(200).json({
+      message: "Workflows retrieved successfully",
+      workflows: Object.keys(groupedWorkflows).map((name) => ({
+        name,
+        versions: groupedWorkflows[name].map((wf) => ({
+          id: wf.id,
+          version: wf.version,
+          description: wf.description,
+          createdBy: wf.createdBy,
+          createdAt: wf.createdAt,
+          steps: wf.steps.map((step) => ({
+            id: step.id,
+            stepNumber: step.stepNumber,
+            stepName: step.stepName,
+            allowParallel: step.allowParallel,
+            assignments: step.assignments.map((assignment) => ({
+              id: assignment.id,
+              assigneeType: assignment.assigneeType,
+              assigneeId: assignment.assigneeId,
+              actionType: assignment.actionType,
+            })),
+          })),
+        })),
+      })),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Failed to retrieve workflows" });
+  }
+};

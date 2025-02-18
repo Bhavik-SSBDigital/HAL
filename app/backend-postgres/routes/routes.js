@@ -14,6 +14,7 @@ import {
   edit_workflow,
   view_workflow,
   delete_workflow,
+  get_workflows,
 } from "../controller/workflow-controller.js";
 
 import {
@@ -108,5 +109,6 @@ router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
 router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
 router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
 router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
+router.get("/workflows/getWorkflows", get_workflows); // Get all workflows
 
 export default router;
