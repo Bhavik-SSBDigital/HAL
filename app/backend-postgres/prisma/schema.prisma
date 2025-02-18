@@ -10,7 +10,7 @@ datasource db {
 model Department {
   id                 Int          @id @default(autoincrement())
   type               String
-  code               String         @unique
+  code               String       @unique
   name               String       @unique
   status             String
   headId             Int?
@@ -24,8 +24,8 @@ model Department {
   parentDepartment   Department?  @relation("ParentDepartment", fields: [parentDepartmentId], references: [id])
   subDepartments     Department[] @relation("ParentDepartment")
   documents          Document[]
-  roles              Role[]       @relation("BranchRoles") // Opposite relation for `Role`
-  users              User[]       @relation("BranchUsers") // Opposite relation for `User`
+  roles              Role[]       @relation("BranchRoles")
+  users              User[]       @relation("BranchUsers")
 }
 
 model Document {
@@ -36,7 +36,6 @@ model Document {
   createdById             Int
   createdOn               DateTime     @default(now())
   lastUpdatedOn           DateTime     @updatedAt
-  history                 DocHistory[]
   children                Document[]   @relation("DocumentChildren")
   parent                  Document?    @relation("DocumentChildren", fields: [parentId], references: [id])
   parentId                Int?
@@ -46,7 +45,7 @@ model Document {
   isInvolvedInProcess     Boolean      @default(false)
   minimumSignsOnFirstPage Int?
   isRejected              Boolean      @default(false)
-  highlights              Highlight[]
+  processDocuments        ProcessDocument[]
 }
 
 model Role {
@@ -54,22 +53,21 @@ model Role {
   departmentId        Int?
   status              String
   role                String
-  isRootLevel         Boolean      @default(false) // Indicates if the role is root-level
-  parentRoleId        Int?         // Parent role ID for hierarchy
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime?    @updatedAt
-  branch              Department?  @relation("BranchRoles", fields: [departmentId], references: [id])
-  parentRole          Role?        @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
-  childRoles          Role[]       @relation("RoleHierarchy")
+  isRootLevel         Boolean     @default(false)
+  parentRoleId        Int?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime?   @updatedAt
+  branch              Department? @relation("BranchRoles", fields: [departmentId], references: [id])
+  parentRole          Role?       @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childRoles          Role[]      @relation("RoleHierarchy")
   users               UserRole[]
-  writable            Int[]        @default([])   // IDs of documents writable by the role
-  readable            Int[]        @default([])   // IDs of documents readable by the role
-  downloadable        Int[]        @default([])   // IDs of documents downloadable by the role
-  fullAccessWritable  Int[]        @default([])   // IDs of documents with full writable access
-  fullAccessReadable  Int[]        @default([])   // IDs of documents with full readable access
-  fullAccessDownloadable Int[]     @default([])   // IDs of documents with full downloadable access
+  writable            Int[]       @default([])
+  readable            Int[]       @default([])
+  downloadable        Int[]       @default([])
+  fullAccessWritable  Int[]       @default([])
+  fullAccessReadable  Int[]       @default([])
+  fullAccessDownloadable Int[]    @default([])
 }
-
 
 model User {
   id                 Int           @id @default(autoincrement())
@@ -79,27 +77,25 @@ model User {
   name               String?
   specialUser        Boolean       @default(false)
   createdAt          DateTime      @default(now())
-  isRootLevel        Boolean?      // Optional field
-  isAdmin            Boolean?      // Optional field
-  tokens             Token[]       // One-to-many relationship: A user can have many tokens
+  isRootLevel        Boolean?
+  isAdmin            Boolean?
+  tokens             Token[]
   updatedAt          DateTime?     @updatedAt
   createdById        Int?
-  createdBy          User?         @relation("CreatedByRelation", fields: [createdById], references: [id]) // Relation for creator
-  createdUsers       User[]        @relation("CreatedByRelation") // Opposite relation for created users
+  createdBy          User?         @relation("CreatedByRelation", fields: [createdById], references: [id])
+  createdUsers       User[]        @relation("CreatedByRelation")
   roles              UserRole[]
-  branches           Department[]  @relation("BranchUsers") // Relation with Departments
-  headOfDepartments  Department[]  @relation("HeadOfDepartment") // Relation with head of departments
-  adminOfDepartments Department[]  @relation("AdminOfDepartment") // Relation with admin of departments
-  logs               Log[]         @relation("UserLogs") // Opposite relation for logs
-  docHistory         DocHistory[]  @relation("ChangedBy") // Opposite relation for doc history
-
-  // Arrays to store accessible document IDs
-  writable    Int[]      // IDs of documents the user can write
-  readable    Int[]      // IDs of documents the user can read
-  downloadable Int[]     // IDs of documents the user can download
-  uploadable  Int[]      // IDs of documents the user can upload
+  branches           Department[]  @relation("BranchUsers")
+  headOfDepartments  Department[]  @relation("HeadOfDepartment")
+  adminOfDepartments Department[]  @relation("AdminOfDepartment")
+  workflowsCreated   Workflow[]
+  initiatedProcesses ProcessInstance[]
+  qaInitiations      ProcessQA[]
+  writable           Int[]
+  readable           Int[]
+  downloadable       Int[]
+  uploadable         Int[]
 }
-
 
 model Token {
   id     Int    @id @default(autoincrement())
@@ -107,7 +103,7 @@ model Token {
   userId Int
   user   User   @relation(fields: [userId], references: [id])
 
-  @@unique([userId]) // Ensure each user has only one token
+  @@unique([userId])
 }
 
 model UserRole {
@@ -118,37 +114,50 @@ model UserRole {
   role   Role @relation(fields: [roleId], references: [id])
 }
 
-
 model Workflow {
-  id                 String    @id @default(uuid())
+  id                 String      @id @default(uuid())
   name               String
   description        String?
-  version           Int       // Tracks the version
-  previousWorkflowId String?   @unique @default(null) // Links to old workflow if updated
-  previousWorkflow   Workflow? @relation("WorkflowHistory", fields: [previousWorkflowId], references: [id])
-  createdById       String
-  createdBy         User      @relation(fields: [createdById], references: [id])
-  isActive          Boolean   @default(true)
-
-  steps             WorkflowStep[]
-  processes        ProcessInstance[]
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  version            Int
+  previousWorkflowId String?
+  previousWorkflow   Workflow?   @relation("WorkflowHistory", fields: [previousWorkflowId], references: [id])
+  createdById        Int
+  createdBy          User        @relation(fields: [createdById], references: [id])
+  isActive           Boolean     @default(true)
+  steps              WorkflowStep[]
+  processes          ProcessInstance[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  nextWorkflows      Workflow[]  @relation("WorkflowHistory")
 }
-
 
 model WorkflowStep {
-  id            String   @id @default(uuid())
-  workflowId    String
-  workflow      Workflow @relation(fields: [workflowId], references: [id])
-  stepNumber    Int
-  stepName      String
-  allowParallel Boolean  @default(false) // Allows multiple approvals
-  nextStepId    String?  // Nullable for dynamic workflows
-  nextStep      WorkflowStep? @relation(fields: [nextStepId], references: [id])
-  assignments   WorkflowAssignment[]
+  id                  String         @id @default(uuid())
+  workflowId          String
+  workflow            Workflow       @relation(fields: [workflowId], references: [id])
+  stepNumber          Int
+  stepName            String
+  allowParallel       Boolean        @default(false)
+
+  // Additional fields
+  assignments         WorkflowAssignment[]
+  processSteps        ProcessStepInstance[]
+  currentProcessInstances   ProcessInstance[]
+
+  @@unique([workflowId, stepNumber])  // Ensure the steps are ordered by stepNumber
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 enum StepType {
   APPROVAL
@@ -164,17 +173,14 @@ enum ApproverType {
   UNIT
 }
 
-
-
 model WorkflowAssignment {
   id            String   @id @default(uuid())
   stepId        String
   step          WorkflowStep @relation(fields: [stepId], references: [id])
   actionType    ActionType
-  assigneeIds   Int[]   // Store multiple assignees in an array instead of multiple rows
-  assigneeType  AssigneeType // All assignees in this entry share the same type
+  assigneeIds   Int[]
+  assigneeType  AssigneeType
 }
-
 
 enum AssigneeType {
   USER
@@ -199,12 +205,13 @@ model ProcessInstance {
   currentStepId  String?
   currentStep    WorkflowStep? @relation(fields: [currentStepId], references: [id])
   status         ProcessStatus @default(PENDING)
-  escalationTime DateTime? // User-defined escalation time
+  escalationTime DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime? @updatedAt
   stepInstances  ProcessStepInstance[]
   documents      ProcessDocument[]
   qaChannels     ProcessQA[]
+  trackings      ProcessTracking[]
 }
 
 enum ProcessStatus {
@@ -215,16 +222,18 @@ enum ProcessStatus {
 }
 
 model ProcessStepInstance {
-  id          String   @id @default(uuid())
-  processId   String
-  process     ProcessInstance @relation(fields: [processId], references: [id])
-  stepId      String
-  step        WorkflowStep @relation(fields: [stepId], references: [id])
-  assignedTo  Int
+  id           String   @id @default(uuid())
+  processId    String
+  process      ProcessInstance @relation(fields: [processId], references: [id])
+  stepId       String
+  step         WorkflowStep @relation(fields: [stepId], references: [id])
+  assignedTo   Int
   assignedType AssigneeType
-  status      StepStatus @default(PENDING)
-  comments    String?
-  updatedAt   DateTime? @updatedAt
+  status       StepStatus @default(PENDING)
+  comments     String?
+  updatedAt    DateTime? @updatedAt
+  escalations  Escalation[]
+  qaChannels   ProcessQA[]
 }
 
 enum StepStatus {
@@ -256,47 +265,34 @@ enum EscalationStatus {
 }
 
 model ProcessTracking {
-  id          String   @id @default(uuid())
-  processId   String
-  process     ProcessInstance @relation(fields: [processId], references: [id])
-  userId      Int
-  actionType  ActionType
-  timestamp   DateTime @default(now())
+  id         String   @id @default(uuid())
+  processId  String
+  process    ProcessInstance @relation(fields: [processId], references: [id])
+  userId     Int
+  actionType ActionType
+  timestamp  DateTime @default(now())
 }
 
-enum ActionType {
-  SIGNED
-  REJECTED
-  RECOMMENDED
-  FORWARDED
-}
-
-/// ✅ **Multiple Documents in a Process**
 model ProcessDocument {
-  id          String   @id @default(uuid())
-  processId   String
-  process     ProcessInstance @relation(fields: [processId], references: [id])
-  documentId  Int
-  document    Document @relation(fields: [documentId], references: [id])
+  id         String   @id @default(uuid())
+  processId  String
+  process    ProcessInstance @relation(fields: [processId], references: [id])
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id])
 }
 
-/// ✅ **Q/A Channel between Initiator and Entities**
 model ProcessQA {
-  id           String   @id @default(uuid())
-  processId    String
-  process      ProcessInstance @relation(fields: [processId], references: [id])
+  id            String   @id @default(uuid())
+  processId     String
+  process       ProcessInstance @relation(fields: [processId], references: [id])
   stepInstanceId String
-  stepInstance ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
-  initiatorId  Int
-  initiator    User @relation(fields: [initiatorId], references: [id])
-  entityId     Int  // Can be a user, role, department, or unit
-  entityType   AssigneeType
-  question     String
-  answer       String?
-  createdAt    DateTime @default(now())
-  answeredAt   DateTime?
+  stepInstance  ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
+  initiatorId   Int
+  initiator     User @relation(fields: [initiatorId], references: [id])
+  entityId      Int
+  entityType    AssigneeType
+  question      String
+  answer        String?
+  createdAt     DateTime @default(now())
+  answeredAt    DateTime?
 }
-
-
-
-

@@ -59,7 +59,7 @@ export const add_workflow = async (req, res) => {
   try {
     const workflow = await prisma.$transaction(async (tx) => {
       const newWorkflow = await tx.workflow.create({
-        data: { name, description, createdById },
+        data: { name, description, createdById, version: 1 },
       });
 
       const stepRecords = await Promise.all(
@@ -69,7 +69,8 @@ export const add_workflow = async (req, res) => {
               workflowId: newWorkflow.id,
               stepNumber: index + 1,
               stepName: step.stepName,
-              allowParallel: step.allowParallel || false,
+              allowParallel:
+                (step.allowParallel === "true" ? true : false) || false,
             },
           });
         })
