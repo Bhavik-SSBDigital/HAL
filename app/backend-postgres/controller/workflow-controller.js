@@ -1,3 +1,7 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
 /* Add Workflow Payload
 {
   "name": "Document Approval Workflow",
