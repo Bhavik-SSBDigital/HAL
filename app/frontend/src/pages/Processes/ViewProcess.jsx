@@ -77,7 +77,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { useForm } from 'react-hook-form';
 import Replacements from './Components/Replacements';
 import TopLoader from '../../common/Loader/TopLoader';
-import Workflow from '../../components/Workflow';
+import Workflow from '../../common/Workflow';
 
 export default function ViewProcess(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;

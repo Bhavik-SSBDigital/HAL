@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import ShowWorkflow from '../../components/Workflow/ShowWorkflow';
+import ShowWorkflow from '../../common/Workflow/ShowWorkflow';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import {
   getDepartments,

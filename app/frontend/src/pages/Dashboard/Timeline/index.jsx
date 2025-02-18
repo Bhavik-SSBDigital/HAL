@@ -43,7 +43,7 @@ import {
 } from 'react-vertical-timeline-component';
 import 'react-vertical-timeline-component/style.min.css';
 import ComponentLoader from '../../../common/Loader/ComponentLoader';
-import ShowWorkflow from '../../../components/Workflow/ShowWorkflow';
+import ShowWorkflow from '../../../common/Workflow/ShowWorkflow';
 const accessToken = sessionStorage.getItem('accessToken');
 
 const index = () => {

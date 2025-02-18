@@ -45,6 +45,7 @@ import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
+import Workflows from './pages/workflows';
 
 function App() {
   const dispatch = useDispatch();
@@ -419,6 +420,16 @@ function App() {
             <DefaultLayout>
               <PageTitle title="TinyMCE Editor" />
               <TinyMCEEditor />
+            </DefaultLayout>
+          }
+        />
+        
+        <Route
+          path="/test"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Workflow form" />
+              <Workflows />
             </DefaultLayout>
           }
         />

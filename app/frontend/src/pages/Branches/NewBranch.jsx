@@ -14,7 +14,7 @@ import {
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Workflow from '../../components/Workflow';
+import Workflow from '../../common/Workflow';
 
 const NewBranch = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;

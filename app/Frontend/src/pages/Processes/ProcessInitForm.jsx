@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import Workflow from '../../components/Workflow';
+import Workflow from '../../common/Workflow';
 
 function ProcessInitForm() {
   const { control, register, handleSubmit, watch } = useForm({
