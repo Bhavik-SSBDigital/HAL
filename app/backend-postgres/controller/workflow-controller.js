@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
+import { verifyUser } from "../utility/verifyUser.js";
+
 const prisma = new PrismaClient();
 
 /*
