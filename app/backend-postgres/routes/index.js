@@ -6,6 +6,7 @@ import fileDetailsRoutes from "./file-details-routes.js";
 import projectRoutes from "./project-routes.js";
 import roleRoutes from "./role-routes.js";
 import userRoutes from "./user-routes.js";
+import workflowRoutes from "./workflow-routes.js";
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use("/file-details", fileDetailsRoutes);
 router.use("/projects", projectRoutes);
 router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
+router.use("/workflows", workflowRoutes);
 
 export default router;

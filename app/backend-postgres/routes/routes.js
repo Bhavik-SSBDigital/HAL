@@ -10,6 +10,13 @@ import {
 } from "../controller/department-controller.js";
 
 import {
+  add_workflow,
+  edit_workflow,
+  view_workflow,
+  delete_workflow,
+} from "../controller/workflow-controller.js";
+
+import {
   getDocumentDetailsOnTheBasisOfPath,
   create_permissions,
   getDocumentDetailsForAdmin,
@@ -98,5 +105,10 @@ router.get(
 // user-controller related routes
 
 router.get("/getUsers", get_users);
+
+router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
+router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
+router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
+router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
 
 export default router;
