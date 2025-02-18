@@ -19,7 +19,16 @@
 }
 */
 export const add_workflow = async (req, res) => {
-  const { name, description, steps, createdById } = req.body;
+  const accessToken = req.headers["authorization"].substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({
+      message: "Unauthorized request",
+    });
+  }
+
+  const createdById = userData.id;
+  const { name, description, steps } = req.body;
 
   if (!name || !steps || !steps.length) {
     return res
