@@ -23,6 +23,7 @@
     "@tabler/icons-react": "^3.1.0",
     "@tanstack/react-query-devtools": "^4.36.1",
     "@tinymce/tinymce-react": "^5.1.1",
+    "@xyflow/react": "^12.4.3",
     "apexcharts": "^3.41.0",
     "axios": "^1.6.8",
     "ckeditor5": "^44.1.0",
