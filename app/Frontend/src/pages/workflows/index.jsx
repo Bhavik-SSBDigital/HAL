@@ -63,37 +63,47 @@ export default function WorkflowVisualizer() {
             key={wIndex}
             className="bg-gray-50 rounded-xl shadow-md p-6 mb-6 border"
           >
-            <h3 className="text-xl font-semibold text-gray-800">
-              Name : {workflow.name}
-            </h3>
-
             {workflow.versions.map((version, wfIndex) => (
               <div
                 key={wfIndex}
-                className="mt-4 p-5 rounded-xl bg-white shadow-sm"
+                className="mt-4 rounded-xl bg-white shadow-sm relative"
               >
-                <div className="flex justify-between items-center">
-                  <h4 className="text-lg font-semibold text-gray-700">
-                    Version {version.version}
-                  </h4>
-                  <p className="text-sm text-gray-500">
+                {/* Version Chip - Positioned at the Top Right */}
+                <span className="absolute top-4 right-4 bg-blue-100 text-blue-700 text-sm font-semibold px-3 py-1 rounded-full shadow-sm">
+                  Version {version.version}
+                </span>
+
+                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                  {/* Workflow Name */}
+                  <h3 className="text-2xl font-semibold text-gray-800">
+                    {workflow.name}
+                  </h3>
+
+                  {/* Date */}
+                  <p className="text-xs text-gray-500 mt-1">
                     {new Date(version.createdAt).toLocaleString()}
+                  </p>
+
+                  {/* Description */}
+                  {version.description && (
+                    <p className="text-gray-600 mt-3 text-sm leading-relaxed">
+                      <b className="text-gray-700">Description:</b>{' '}
+                      {version.description}
+                    </p>
+                  )}
+
+                  {/* Created By */}
+                  <p className="text-gray-500 text-sm mt-2">
+                    <b className="text-gray-700">Created By:</b>
+                    <span className="font-medium text-gray-800">
+                      {' '}
+                      {version.createdBy.email}
+                    </span>
                   </p>
                 </div>
 
-                <p className="text-sm text-gray-600 mt-2">
-                  <b> Description :</b> {version.description}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  <b>Created By:</b>
-                  <span className="font-medium">
-                    {' '}
-                    {version.createdBy.email}
-                  </span>
-                </p>
-
                 {/* Workflow Visualizer */}
-                <div className="mt-5 border-t border-gray-200 pt-5">
+                <div className="border-gray-200 pt-5">
                   <Show steps={version.steps} />
                 </div>
               </div>

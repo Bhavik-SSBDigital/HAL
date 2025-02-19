@@ -106,7 +106,7 @@ export default function Show({ steps }) {
   );
 
   return (
-    <div className="h-[500px] border rounded-lg shadow-md overflow-hidden">
+    <div className="h-[500px] border rounded-lg shadow-8 overflow-hidden">
       <ReactFlow
         onNodesChange={onNodesChange}
         nodes={nodes}
