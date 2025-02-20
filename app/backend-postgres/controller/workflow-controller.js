@@ -83,7 +83,7 @@ export const add_workflow = async (req, res) => {
             data: assignments.map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds, // Updated to store an array
+              assigneeIds: assignee.assigneeIds.map((item) => Number(item)), // Updated to store an array
               actionType: assignee.actionType,
             })),
           });
@@ -269,8 +269,14 @@ export const delete_workflow = async (req, res) => {
 
 export const get_workflows = async (req, res) => {
   try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
     const workflows = await prisma.workflow.findMany({
-      where: { isActive: true },
+      where: { isActive: true, createdById: userData.id },
       include: {
         steps: {
           include: {
@@ -310,12 +316,14 @@ export const get_workflows = async (req, res) => {
             stepNumber: step.stepNumber,
             stepName: step.stepName,
             allowParallel: step.allowParallel,
-            assignments: step.assignments.map((assignment) => ({
-              id: assignment.id,
-              assigneeType: assignment.assigneeType,
-              assigneeIds: assignment.assigneeIds, // Now using assigneeIds instead of assigneeId
-              actionType: assignment.actionType,
-            })),
+            assignments: step.assignments.map((assignment) => {
+              return {
+                id: assignment.id,
+                assigneeType: assignment.assigneeType,
+                assigneeIds: assignment.assigneeIds.map((item) => Number(item)), // Now using assigneeIds instead of assigneeId
+                actionType: assignment.actionType,
+              };
+            }),
           })),
         })),
       })),
