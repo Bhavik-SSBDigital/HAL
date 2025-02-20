@@ -119,20 +119,19 @@ export default function WorkflowVisualizer() {
               </div>
 
               <div className="mt-4 bg-gray-50 p-6 rounded-lg border">
-                <p className="text-xs text-gray-500">
-                  Created on:{' '}
+                <p className="text-sm text-gray-500">
+                  <b className="text-gray-700">Created on :</b>
                   {new Date(selectedVersion.createdAt).toLocaleString()}
                 </p>
                 {selectedVersion.description && (
-                  <p className="text-gray-600 mt-3 text-sm leading-relaxed">
-                    <b className="text-gray-700">Description:</b>{' '}
+                  <p className="text-gray-600 mt-2 text-sm leading-relaxed">
+                    <b className="text-gray-700">Description :</b>{' '}
                     {selectedVersion.description}
                   </p>
                 )}
                 <p className="text-gray-500 text-sm mt-2">
-                  <b className="text-gray-700">Author:</b>
+                  <b className="text-gray-700">Author :</b>
                   <span className="font-medium text-gray-800">
-                    {' '}
                     {selectedVersion.createdBy.email}
                   </span>
                 </p>
