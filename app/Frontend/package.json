@@ -32,6 +32,7 @@
     "echarts-for-react": "^3.0.2",
     "flatpickr": "^4.6.13",
     "font-awesome": "^4.7.0",
+    "framer-motion": "^12.4.5",
     "froala-editor": "^4.3.1",
     "headlessui": "^0.0.0",
     "jsvectormap": "^1.5.3",
