@@ -425,10 +425,10 @@ function App() {
         />
 
         <Route
-          path="/test"
+          path="/workflows"
           element={
             <DefaultLayout>
-              <PageTitle title="Workflow form" />
+              <PageTitle title="Workflows" />
               <Workflows />
             </DefaultLayout>
           }

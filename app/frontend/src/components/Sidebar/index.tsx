@@ -18,6 +18,7 @@ import {
   IconUserSquareRounded,
   IconDatabaseCog,
   IconCalendarStats,
+  IconChartDots3,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -344,6 +345,28 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 />
                 <span className="duration-300 ease-in-out transform group-hover:scale-105">
                   Monitor Processes
+                </span>
+              </NavLink>
+              <NavLink
+                to="/workflows"
+                style={{
+                  fontWeight: 700,
+                  marginRight: '2px',
+                  borderRadius: '8px',
+                  fontSize: 16,
+                  letterSpacing: '0.5px',
+                }}
+                className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
+                  (pathname === '/workflows' || pathname.includes('workflows')) &&
+                  'bg-indigo-400 text-white'
+                }`}
+              >
+                <IconChartDots3
+                  size={26}
+                  className="duration-300 ease-in-out transform group-hover:scale-105"
+                />
+                <span className="duration-300 ease-in-out transform group-hover:scale-105">
+                  Workflows
                 </span>
               </NavLink>
               {isPhysicalDocumentKeeper ? (
