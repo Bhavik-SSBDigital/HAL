@@ -1,12 +1,13 @@
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
   CreateWorkflow,
   GetAllRoles,
   GetUsersWithDetails,
 } from '../../common/Apis';
+import { Autocomplete, TextField } from '@mui/material';
 
 export default function WorkflowForm({ handleCloseForm }) {
   const { register, handleSubmit, control, setValue, reset } = useForm({
@@ -32,16 +33,11 @@ export default function WorkflowForm({ handleCloseForm }) {
   };
 
   const handleAssignmentSubmit = (assignment) => {
+    console.log(assignment);
     const updatedSteps = [...stepFields];
     updatedSteps[currentStepIndex].assignments = [
       ...(updatedSteps[currentStepIndex].assignments || []),
-      {
-        ...assignment,
-        assigneeIds: assignment.assigneeIds
-          .split(',')
-          .map((id) => id.trim())
-          .filter((id) => id),
-      },
+      assignment,
     ];
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
@@ -132,9 +128,10 @@ export default function WorkflowForm({ handleCloseForm }) {
                   {/* Scrollable Container */}
                   <div className="overflow-x-auto">
                     {/* Table Headers */}
-                    <div className="min-w-[500px] grid grid-cols-4 gap-4 font-semibold text-sm bg-gray-200 p-2 border-b">
+                    <div className="min-w-[500px] grid grid-cols-5 gap-4 font-semibold text-sm bg-gray-200 p-2 border-b">
                       <span className="whitespace-nowrap">Assignee Type</span>
                       <span className="whitespace-nowrap">Action Type</span>
+                      <span className="whitespace-nowrap">Access Type</span>
                       <span className="whitespace-nowrap">Assignee IDs</span>
                       <span className="whitespace-nowrap">Action</span>
                     </div>
@@ -144,13 +141,16 @@ export default function WorkflowForm({ handleCloseForm }) {
                       {step.assignments.map((assignment, index) => (
                         <li
                           key={index}
-                          className="grid grid-cols-4 gap-4 items-center p-2 text-sm border-b"
+                          className="grid grid-cols-5 gap-4 items-center p-2 text-sm border-b"
                         >
                           <span className="whitespace-nowrap">
                             {assignment.assigneeType}
                           </span>
                           <span className="whitespace-nowrap">
                             {assignment.actionType}
+                          </span>
+                          <span className="whitespace-nowrap">
+                            {assignment.accessTypes?.join(', ') || 'N/A'}
                           </span>
                           <span className="whitespace-nowrap">
                             {assignment.assigneeIds?.join(', ') || 'N/A'}
@@ -229,16 +229,20 @@ export default function WorkflowForm({ handleCloseForm }) {
 
 // Assignment Form (Modal)
 function AssignmentForm({ onSubmit, onClose }) {
-  const { register, handleSubmit, watch } = useForm({
+  const { register, handleSubmit, watch, control } = useForm({
     defaultValues: {
       assigneeType: 'user',
       actionType: 'APPROVAL',
-      assigneeIds: '',
+      assigneeIds: [],
+      accessTypes: [],
     },
   });
 
-  const [assigneeType] = watch(['assigneeType']);
-
+  const [assigneeType, assigneeIds, accessTypes] = watch([
+    'assigneeType',
+    'assigneeIds',
+    'accessTypes',
+  ]);
   // network calls
   const [userList, setUserList] = useState([]);
   const GetUserList = async () => {
@@ -274,51 +278,92 @@ function AssignmentForm({ onSubmit, onClose }) {
           </label>
           <select
             {...register('assigneeType')}
-            className="border p-2 sm:p-3 w-full rounded-md mb-3"
+            className="border p-2 w-full rounded-sm mb-3"
           >
             <option value="user">User</option>
             <option value="role">Role</option>
             <option value="departmemt">Department</option>
           </select>
 
-          {/* Assignee IDs */}
-          {assigneeType == 'user' && (
+          {/* Assignee Selection */}
+          {assigneeType === 'user' && (
             <>
               <label className="block text-sm font-semibold mb-2">Users</label>
-              <select
-                {...register('assigneeIds')}
-                className="border p-2 sm:p-3 w-full rounded-md mb-3"
-                placeholder="Enter assignee IDs (comma separated)"
-              >
-                {userList?.map((user) => (
-                  <option value={user.id}>{user.username}</option>
-                ))}
-              </select>
+              <Controller
+                name="assigneeIds"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    multiple
+                    className="mb-3"
+                    size="small"
+                    options={userList || []}
+                    getOptionLabel={(option) => option.username}
+                    onChange={(_, value) =>
+                      field.onChange(value.map((v) => v.id))
+                    }
+                    renderInput={(params) => (
+                      <TextField {...params} variant="outlined" />
+                    )}
+                  />
+                )}
+              />
             </>
           )}
-          {assigneeType == 'role' && (
+
+          {assigneeType === 'role' && (
             <>
               <label className="block text-sm font-semibold mb-2">Roles</label>
-              <select
-                {...register('assigneeIds')}
-                className="border p-2 sm:p-3 w-full rounded-md mb-3"
-                placeholder="Enter assignee IDs (comma separated)"
-              >
-                {roleList?.map((role) => (
-                  <option
-                    value={role.id}
-                  >{`${role.role} ( department - ${role.departmentName} )`}</option>
-                ))}
-              </select>
+              <Controller
+                name="assigneeIds"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    multiple
+                    className="mb-3"
+                    size="small"
+                    options={roleList || []}
+                    getOptionLabel={(option) => option.role}
+                    onChange={(_, value) =>
+                      field.onChange(value.map((v) => v.id))
+                    }
+                    renderInput={(params) => (
+                      <TextField {...params} variant="outlined" />
+                    )}
+                  />
+                )}
+              />
             </>
           )}
+
+          {/* Access Types Selection */}
+          <label className="block text-sm font-semibold mb-2">
+            Access Type
+          </label>
+          <Controller
+            name="accessTypes"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                multiple
+                className="mb-3"
+                size="small"
+                options={['READ', 'EDIT', 'DOWNLOAD']}
+                onChange={(_, value) => field.onChange(value)}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" />
+                )}
+              />
+            )}
+          />
+
           {/* Action Type */}
           <label className="block text-sm font-semibold mb-2">
             Action Type
           </label>
           <select
             {...register('actionType')}
-            className="border p-2 sm:p-3 w-full rounded-md mb-3"
+            className="border p-2 w-full rounded-sm mb-3"
           >
             <option value="APPROVAL">APPROVAL</option>
             <option value="VIEW">VIEW</option>
