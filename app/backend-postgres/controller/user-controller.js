@@ -44,6 +44,7 @@ export const get_users_with_details = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: {
+        id: true,
         username: true,
         branches: {
           select: {
@@ -63,6 +64,7 @@ export const get_users_with_details = async (req, res) => {
     });
 
     const formattedUsers = users.map((user) => ({
+      id: user.id,
       username: user.username,
       departments: user.branches.map((branch) => branch.name),
       roles: user.roles.map((role) => role.role.role),
