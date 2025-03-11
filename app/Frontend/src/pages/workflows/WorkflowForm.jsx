@@ -1,8 +1,12 @@
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { CreateWorkflow } from '../../common/Apis';
+import {
+  CreateWorkflow,
+  GetAllRoles,
+  GetUsersWithDetails,
+} from '../../common/Apis';
 
 export default function WorkflowForm({ handleCloseForm }) {
   const { register, handleSubmit, control, setValue, reset } = useForm({
@@ -225,13 +229,36 @@ export default function WorkflowForm({ handleCloseForm }) {
 
 // Assignment Form (Modal)
 function AssignmentForm({ onSubmit, onClose }) {
-  const { register, handleSubmit } = useForm({
+  const { register, handleSubmit, watch } = useForm({
     defaultValues: {
-      assigneeType: 'USER',
+      assigneeType: 'user',
       actionType: 'APPROVAL',
       assigneeIds: '',
     },
   });
+
+  const [assigneeType] = watch(['assigneeType']);
+
+  // network calls
+  const [userList, setUserList] = useState([]);
+  const GetUserList = async () => {
+    const response = await GetUsersWithDetails();
+    setUserList(response?.data);
+  };
+
+  const [roleList, setRoleList] = useState([]);
+  const GetRoleList = async () => {
+    const response = await GetAllRoles();
+    setRoleList(response?.data?.roles);
+  };
+
+  useEffect(() => {
+    if (userList.length == 0 && assigneeType == 'user') {
+      GetUserList();
+    } else if (roleList.length == 0 && assigneeType == 'role') {
+      GetRoleList();
+    }
+  }, [assigneeType]);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4">
@@ -249,31 +276,54 @@ function AssignmentForm({ onSubmit, onClose }) {
             {...register('assigneeType')}
             className="border p-2 sm:p-3 w-full rounded-md mb-3"
           >
-            <option value="USER">User</option>
-            <option value="ROLE">Role</option>
-            <option value="DEPARTMENT">Department</option>
-            <option value="UNIT">Unit</option>
+            <option value="user">User</option>
+            <option value="role">Role</option>
+            <option value="departmemt">Department</option>
           </select>
 
           {/* Assignee IDs */}
-          <label className="block text-sm font-semibold mb-2">
-            Assignee IDs
-          </label>
-          <input
-            {...register('assigneeIds')}
-            className="border p-2 sm:p-3 w-full rounded-md mb-3"
-            placeholder="Enter assignee IDs (comma separated)"
-          />
-
+          {assigneeType == 'user' && (
+            <>
+              <label className="block text-sm font-semibold mb-2">Users</label>
+              <select
+                {...register('assigneeIds')}
+                className="border p-2 sm:p-3 w-full rounded-md mb-3"
+                placeholder="Enter assignee IDs (comma separated)"
+              >
+                {userList?.map((user) => (
+                  <option value={user.id}>{user.username}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {assigneeType == 'role' && (
+            <>
+              <label className="block text-sm font-semibold mb-2">Roles</label>
+              <select
+                {...register('assigneeIds')}
+                className="border p-2 sm:p-3 w-full rounded-md mb-3"
+                placeholder="Enter assignee IDs (comma separated)"
+              >
+                {roleList?.map((role) => (
+                  <option
+                    value={role.id}
+                  >{`${role.role} ( department - ${role.departmentName} )`}</option>
+                ))}
+              </select>
+            </>
+          )}
           {/* Action Type */}
           <label className="block text-sm font-semibold mb-2">
             Action Type
           </label>
-          <input
+          <select
             {...register('actionType')}
             className="border p-2 sm:p-3 w-full rounded-md mb-3"
-            placeholder="Enter Action Type"
-          />
+          >
+            <option value="APPROVAL">APPROVAL</option>
+            <option value="VIEW">VIEW</option>
+            <option value="RECOMMENDATION">RECOMMENDATION</option>
+          </select>
 
           {/* Submit & Cancel Buttons */}
           <div className="flex justify-end space-x-2">

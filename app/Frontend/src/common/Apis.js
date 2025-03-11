@@ -59,3 +59,8 @@ export const CreateWorkflow = async (data) => {
 export const GetWorkflows = async () => {
   return apiClient.get('/workflows/getWorkflows');
 };
+
+// usernames endpoints
+export const GetUsersWithDetails = async () =>{
+  return apiClient.get('/getUsersWithDetails')
+}
