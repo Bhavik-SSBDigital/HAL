@@ -190,7 +190,7 @@ model WorkflowAssignment {
   assigneeIds   Int[]
   assigneeType  AssigneeType
   selectedRoles Int[]        @default([])  // Specific role IDs within the department
-   documentAccesses DocumentAccess[] @relation("AssignmentDocumentAccess")
+  documentAccesses DocumentAccess[] @relation("AssignmentDocumentAccess")
   direction     Direction?   // Document flow direction for these roles
 }
 

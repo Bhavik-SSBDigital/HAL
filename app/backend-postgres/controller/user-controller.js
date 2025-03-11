@@ -39,3 +39,38 @@ export const get_users = async (req, res) => {
     });
   }
 };
+
+export const get_users_with_details = async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        username: true,
+        branches: {
+          select: {
+            name: true,
+          },
+        },
+        roles: {
+          select: {
+            role: {
+              select: {
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const formattedUsers = users.map((user) => ({
+      username: user.username,
+      departments: user.branches.map((branch) => branch.name),
+      roles: user.roles.map((role) => role.role.role),
+    }));
+
+    res.json(formattedUsers);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

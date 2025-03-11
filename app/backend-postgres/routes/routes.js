@@ -48,7 +48,11 @@ import {
   getRolesHierarchyInDepartment,
 } from "../controller/role-controller.js";
 
-import { get_users } from "../controller/user-controller.js";
+import {
+  get_users,
+  get_users_with_details,
+} from "../controller/user-controller.js";
+import { initiate_process } from "../controller/process-controller.js";
 
 const router = express.Router();
 
@@ -110,5 +114,9 @@ router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workfl
 router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
 router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
 router.get("/workflows/getWorkflows", get_workflows); // Get all workflows
+
+router.post("/initiateProcess", initiate_process);
+
+router.get("/getUsersWithDetails", get_users_with_details);
 
 export default router;

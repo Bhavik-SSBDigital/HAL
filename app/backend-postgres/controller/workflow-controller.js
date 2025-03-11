@@ -32,7 +32,10 @@ const prisma = new PrismaClient();
         {
           "assigneeType": "department",
           "assigneeIds": [5],
-          "actionType": "approve"
+          "actionType": "approve",
+          "accessTypes": ["READ", "EDIT", "DOWNLOAD"] 
+          "selectedRoles": [1, 2], 
+          "direction": "UPWARDS" // possible values: UPWARDS, DOWNWARDS
         }
       ]
     }
