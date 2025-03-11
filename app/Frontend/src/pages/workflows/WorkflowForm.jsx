@@ -235,14 +235,11 @@ function AssignmentForm({ onSubmit, onClose }) {
       actionType: 'APPROVAL',
       assigneeIds: [],
       accessTypes: [],
+      direction: '',
     },
   });
 
-  const [assigneeType, assigneeIds, accessTypes] = watch([
-    'assigneeType',
-    'assigneeIds',
-    'accessTypes',
-  ]);
+  const [assigneeType] = watch(['assigneeType']);
   // network calls
   const [userList, setUserList] = useState([]);
   const GetUserList = async () => {
@@ -282,7 +279,7 @@ function AssignmentForm({ onSubmit, onClose }) {
           >
             <option value="user">User</option>
             <option value="role">Role</option>
-            <option value="departmemt">Department</option>
+            <option value="department">Department</option>
           </select>
 
           {/* Assignee Selection */}
@@ -369,6 +366,22 @@ function AssignmentForm({ onSubmit, onClose }) {
             <option value="VIEW">VIEW</option>
             <option value="RECOMMENDATION">RECOMMENDATION</option>
           </select>
+
+          {/* Direction */}
+          {assigneeType == 'department' && (
+            <>
+              <label className="block text-sm font-semibold mb-2">
+                Direction Of Flow
+              </label>
+              <select
+                {...register('direction')}
+                className="border p-2 w-full rounded-sm mb-3"
+              >
+                <option value="UPWARDS">UPWARDS</option>
+                <option value="DOWNWARDS">DOWNWARDS</option>
+              </select>
+            </>
+          )}
 
           {/* Submit & Cancel Buttons */}
           <div className="flex justify-end space-x-2">
