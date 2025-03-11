@@ -46,6 +46,7 @@ model Document {
   minimumSignsOnFirstPage Int?
   isRejected              Boolean      @default(false)
   processDocuments        ProcessDocument[]
+  documentAccesses        DocumentAccess[] @relation("DocumentAccesses")
 }
 
 model Role {
@@ -95,7 +96,16 @@ model User {
   readable           Int[]
   downloadable       Int[]
   uploadable         Int[]
+  processNotifications ProcessNotification[] @relation("UserNotifications")
+  processClaims        ProcessClaim[]        @relation("UserClaims")
+  systemLogs           SystemLog[]           @relation("UserSystemLogs")
+  pickedProcessSteps   ProcessStepInstance[] @relation("UserPickedSteps")
+  rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
+  signatures         DocumentSignature[] @relation("UserSignatures")
+
 }
+
+
 
 model Token {
   id     Int    @id @default(autoincrement())
@@ -115,20 +125,22 @@ model UserRole {
 }
 
 model Workflow {
-  id                 String      @id @default(uuid())
+  id                 String        @id @default(uuid())
   name               String
   description        String?
-  version            Int
-  previousWorkflowId String?
-  previousWorkflow   Workflow?   @relation("WorkflowHistory", fields: [previousWorkflowId], references: [id])
+  version            Int           @default(1)
+  previousVersionId  String?
+  previousVersion    Workflow?     @relation("WorkflowVersion", fields: [previousVersionId], references: [id])
   createdById        Int
-  createdBy          User        @relation(fields: [createdById], references: [id])
-  isActive           Boolean     @default(true)
+  createdBy          User          @relation(fields: [createdById], references: [id])
+  isActive           Boolean       @default(true)
   steps              WorkflowStep[]
   processes          ProcessInstance[]
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  nextWorkflows      Workflow[]  @relation("WorkflowHistory")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  nextVersions       Workflow[]    @relation("WorkflowVersion")
+  escalationTime     Int?          @default(48)
+  autoApprovalAfter  Int?          @default(168)
 }
 
 model WorkflowStep {
@@ -137,27 +149,19 @@ model WorkflowStep {
   workflow            Workflow       @relation(fields: [workflowId], references: [id])
   stepNumber          Int
   stepName            String
+  stepType            StepType       @default(APPROVAL)
   allowParallel       Boolean        @default(false)
-
-  // Additional fields
+  isHierarchical      Boolean        @default(false)
+  direction           String?        @default("downwards")
+  selectedRoles       Int[]          @default([])
   assignments         WorkflowAssignment[]
   processSteps        ProcessStepInstance[]
-  currentProcessInstances   ProcessInstance[]
-
-  @@unique([workflowId, stepNumber])  // Ensure the steps are ordered by stepNumber
+  escalationTime      Int?           @default(24)
+  autoApprovalAfter   Int?           @default(72)
+  requiresDocument    Boolean        @default(true)
+currentStepProcessInstances ProcessInstance[] @relation("CurrentStepRelation")
+  @@unique([workflowId, stepNumber])
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 enum StepType {
   APPROVAL
@@ -173,6 +177,11 @@ enum ApproverType {
   UNIT
 }
 
+
+enum Direction {
+  UPWARDS   // Document flows from lower to higher roles
+  DOWNWARDS // Document flows from higher to lower roles
+}
 model WorkflowAssignment {
   id            String   @id @default(uuid())
   stepId        String
@@ -180,6 +189,67 @@ model WorkflowAssignment {
   actionType    ActionType
   assigneeIds   Int[]
   assigneeType  AssigneeType
+  selectedRoles Int[]        @default([])  // Specific role IDs within the department
+   documentAccesses DocumentAccess[] @relation("AssignmentDocumentAccess")
+  direction     Direction?   // Document flow direction for these roles
+}
+
+model ProcessWorkflowVersion {
+  id          String   @id @default(uuid())
+  processId   String
+  oldVersion  Int
+  newVersion  Int
+  migratedAt  DateTime @default(now())
+}
+
+model DocumentAccess {
+  id            String   @id @default(uuid())
+  stepInstanceId String?
+  stepInstance  ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id])
+  assignmentId  String?
+  assignment    WorkflowAssignment? @relation("AssignmentDocumentAccess", fields: [assignmentId], references: [id])
+  documentId    Int
+  document      Document @relation("DocumentAccesses", fields: [documentId], references: [id])
+  accessType    AccessType
+  processInstance   ProcessInstance? @relation(fields: [processId], references: [id])
+  processId         String?
+  userId          Int?     // Add target fields
+  roleId          Int?
+  departmentId    Int?
+}
+
+model ProcessNotification {
+  id        String   @id @default(uuid())
+  stepId    String
+  stepInstance ProcessStepInstance @relation("StepInstanceNotifications", fields: [stepId], references: [id])
+  userId    Int
+  user      User @relation("UserNotifications", fields: [userId], references: [id])
+  notifiedAt DateTime @default(now())
+  removedAt DateTime?
+  status    String @default("ACTIVE")
+}
+
+model ProcessClaim {
+  id        String   @id @default(uuid())
+  stepId    String
+  userId    Int
+  user      User @relation("UserClaims", fields: [userId], references: [id])
+  claimedAt DateTime @default(now())
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  userId    Int?
+  user      User?    @relation("UserSystemLogs", fields: [userId], references: [id])
+  action    String
+  details   Json?
+  timestamp DateTime @default(now())
+}
+
+enum AccessType {
+  READ
+  EDIT
+  DOWNLOAD
 }
 
 enum AssigneeType {
@@ -198,20 +268,23 @@ enum ActionType {
 
 model ProcessInstance {
   id             String   @id @default(uuid())
+  name           String
   workflowId     String
   workflow       Workflow @relation(fields: [workflowId], references: [id])
   initiatorId    Int
   initiator      User     @relation(fields: [initiatorId], references: [id])
   currentStepId  String?
-  currentStep    WorkflowStep? @relation(fields: [currentStepId], references: [id])
+  currentStep    WorkflowStep? @relation("CurrentStepRelation", fields: [currentStepId], references: [id])
   status         ProcessStatus @default(PENDING)
-  escalationTime DateTime?
+  customizations Json?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime? @updatedAt
   stepInstances  ProcessStepInstance[]
   documents      ProcessDocument[]
   qaChannels     ProcessQA[]
   trackings      ProcessTracking[]
+  documentAccess DocumentAccess[]
+  // Removed duplicate currentStep field
 }
 
 enum ProcessStatus {
@@ -222,18 +295,23 @@ enum ProcessStatus {
 }
 
 model ProcessStepInstance {
-  id           String   @id @default(uuid())
+  id           String       @id @default(uuid())
   processId    String
   process      ProcessInstance @relation(fields: [processId], references: [id])
   stepId       String
   step         WorkflowStep @relation(fields: [stepId], references: [id])
-  assignedTo   Int
+  assignedTo   Int[]
   assignedType AssigneeType
   status       StepStatus @default(PENDING)
   comments     String?
-  updatedAt    DateTime? @updatedAt
+  pickedById   Int?
+  pickedBy     User?       @relation("UserPickedSteps", fields: [pickedById], references: [id])
+  pickedAt     DateTime?
+  deadline     DateTime?
   escalations  Escalation[]
-  qaChannels   ProcessQA[]
+  documentAccess DocumentAccess[] @relation("StepInstanceDocumentAccess")
+  qaChannels   ProcessQA[]  @relation("StepInstanceQA")
+  notifications ProcessNotification[] @relation("StepInstanceNotifications")
 }
 
 enum StepStatus {
@@ -274,11 +352,26 @@ model ProcessTracking {
 }
 
 model ProcessDocument {
-  id         String   @id @default(uuid())
-  processId  String
-  process    ProcessInstance @relation(fields: [processId], references: [id])
-  documentId Int
-  document   Document @relation(fields: [documentId], references: [id])
+  id              String   @id @default(uuid())
+  processId       String
+  process         ProcessInstance @relation(fields: [processId], references: [id])
+  documentId      Int
+  document        Document @relation(fields: [documentId], references: [id])
+  signatures      DocumentSignature[]
+  rejectedById    Int?
+  rejectionReason String?
+  rejectedAt      DateTime?
+  rejectedBy      User?    @relation("RejectedByUser", fields: [rejectedById], references: [id])  // Single field
+}
+
+model DocumentSignature {
+  id                String           @id @default(uuid())
+  processDocument   ProcessDocument  @relation(fields: [processDocumentId], references: [id])
+  processDocumentId String
+  userId            Int
+  user              User             @relation("UserSignatures", fields: [userId], references: [id])  // Single field
+  reason            String?
+  signedAt          DateTime         @default(now())
 }
 
 model ProcessQA {
@@ -286,7 +379,7 @@ model ProcessQA {
   processId     String
   process       ProcessInstance @relation(fields: [processId], references: [id])
   stepInstanceId String
-  stepInstance  ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
+  stepInstance  ProcessStepInstance @relation("StepInstanceQA", fields: [stepInstanceId], references: [id])  // Single field
   initiatorId   Int
   initiator     User @relation(fields: [initiatorId], references: [id])
   entityId      Int

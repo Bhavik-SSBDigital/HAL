@@ -69,8 +69,8 @@ export const add_workflow = async (req, res) => {
               workflowId: newWorkflow.id,
               stepNumber: index + 1,
               stepName: step.stepName,
-              allowParallel:
-                (step.allowParallel === "true" ? true : false) || false,
+              allowParallel: step.allowParallel || false,
+              requiresDocument: step.requiresDocument !== false,
             },
           });
         })
@@ -83,8 +83,11 @@ export const add_workflow = async (req, res) => {
             data: assignments.map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds.map((item) => Number(item)), // Updated to store an array
+              assigneeIds: assignee.assigneeIds.map(Number),
               actionType: assignee.actionType,
+              accessTypes: assignee.accessTypes, // Store multiple access types
+              selectedRoles: assignee.selectedRoles?.map(Number) || [],
+              direction: assignee.direction,
             })),
           });
         }
