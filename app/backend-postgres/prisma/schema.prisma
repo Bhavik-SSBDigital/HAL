@@ -26,6 +26,7 @@ model Department {
   documents          Document[]
   roles              Role[]       @relation("BranchRoles")
   users              User[]       @relation("BranchUsers")
+  DepartmentRoleAssignment DepartmentRoleAssignment[]
 }
 
 model Document {
@@ -68,6 +69,7 @@ model Role {
   fullAccessWritable  Int[]       @default([])
   fullAccessReadable  Int[]       @default([])
   fullAccessDownloadable Int[]    @default([])
+  departmentRoleAssignment DepartmentRoleAssignment[]
 }
 
 model User {
@@ -189,9 +191,24 @@ model WorkflowAssignment {
   actionType    ActionType
   assigneeIds   Int[]
   assigneeType  AssigneeType
+  departmentRoles DepartmentRoleAssignment[]
   selectedRoles Int[]        @default([])  // Specific role IDs within the department
-  documentAccesses DocumentAccess[] @relation("AssignmentDocumentAccess")
+  accessTypes AccessType[] @default([])
   direction     Direction?   // Document flow direction for these roles
+  allowParallel Boolean @default(false)
+}
+
+model DepartmentRoleAssignment {
+  id                   Int              @id @default(autoincrement())
+  workflowAssignment   WorkflowAssignment @relation(fields: [workflowAssignmentId], references: [id])
+  workflowAssignmentId String
+  department           Department       @relation(fields: [departmentId], references: [id])
+  departmentId         Int
+  role                 Role             @relation(fields: [roleId], references: [id])
+  roleId               Int
+
+  // Enforce unique combination of assignment-department-role
+  @@unique([workflowAssignmentId, departmentId, roleId])
 }
 
 model ProcessWorkflowVersion {
@@ -206,8 +223,6 @@ model DocumentAccess {
   id            String   @id @default(uuid())
   stepInstanceId String?
   stepInstance  ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id])
-  assignmentId  String?
-  assignment    WorkflowAssignment? @relation("AssignmentDocumentAccess", fields: [assignmentId], references: [id])
   documentId    Int
   document      Document @relation("DocumentAccesses", fields: [documentId], references: [id])
   accessType    AccessType

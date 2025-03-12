@@ -77,9 +77,22 @@ async function initiateProcess(workflowId, initiatorId, documentIds, name) {
     );
 
     // 3. Get First Workflow Step
+    const firstStep = await tx.workflowStep.findFirstOrThrow({
+      where: { workflowId, stepNumber: 1 },
+      include: { assignments: true },
+    });
+    // 3. Get Next(Second) Workflow Step
     const secondStep = await tx.workflowStep.findFirstOrThrow({
       where: { workflowId, stepNumber: 2 },
       include: { assignments: true },
+    });
+
+    const firstStepInstance = await tx.processStepInstance.create({
+      data: {
+        processId: processInstance.id,
+        stepId: firstStep.id,
+        status: "COMPLETED",
+      },
     });
 
     // 4. Create Step Instance

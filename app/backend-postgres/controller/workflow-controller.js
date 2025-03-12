@@ -81,7 +81,9 @@ export const add_workflow = async (req, res) => {
 
       for (let i = 0; i < steps.length; i++) {
         const assignments = steps[i].assignments || [];
+
         if (assignments.length) {
+          // Insert WorkflowAssignments
           await tx.workflowAssignment.createMany({
             data: assignments.map((assignee) => ({
               stepId: stepRecords[i].id,
@@ -91,8 +93,37 @@ export const add_workflow = async (req, res) => {
               accessTypes: assignee.accessTypes, // Store multiple access types
               selectedRoles: assignee.selectedRoles?.map(Number) || [],
               direction: assignee.direction,
+              allowParallel: assignee.allowParallel || false,
             })),
           });
+
+          // Fetch created WorkflowAssignments to get their IDs
+          const createdAssignments = await tx.workflowAssignment.findMany({
+            where: { stepId: stepRecords[i].id },
+            select: { id: true, assigneeType: true },
+          });
+
+          // Prepare DepartmentRoleAssignments
+          const departmentRoleAssignments = assignments
+            .filter((assignee) => assignee.assigneeType === "DEPARTMENT")
+            .flatMap((assignee, index) => {
+              const assignment = createdAssignments[index]; // Get corresponding WorkflowAssignment
+              return assignee.departmentRoleAssignments.flatMap(
+                ({ departmentId, roleIds }) =>
+                  roleIds.map((roleId) => ({
+                    workflowAssignmentId: assignment.id,
+                    departmentId,
+                    roleId,
+                  }))
+              );
+            });
+
+          // Insert DepartmentRoleAssignments if there are any
+          if (departmentRoleAssignments.length > 0) {
+            await tx.departmentRoleAssignment.createMany({
+              data: departmentRoleAssignments,
+            });
+          }
         }
       }
 
