@@ -44,6 +44,10 @@ export default function WorkflowForm({ handleCloseForm }) {
   };
 
   const createWorkflow = async (data) => {
+    if (data?.steps?.length == 0) {
+      toast.info('Please add steps to continue');
+      return;
+    }
     try {
       const res = await CreateWorkflow(data);
       toast.success(res?.data?.message);
@@ -320,7 +324,9 @@ function AssignmentForm({ onSubmit, onClose }) {
                     className="mb-3"
                     size="small"
                     options={roleList || []}
-                    getOptionLabel={(option) => option.role}
+                    getOptionLabel={(option) =>
+                      `${option.role} (department - ${option.departmentName})`
+                    }
                     onChange={(_, value) =>
                       field.onChange(value.map((v) => v.id))
                     }

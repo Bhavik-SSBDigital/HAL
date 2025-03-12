@@ -11,7 +11,6 @@ const TreeGraph = ({ data, loading }) => {
   // Function to handle node selection
   const handleNodeSelect = (node) => {
     if (!selectionEnabled) return; // Disable selection if switch is off
-    console.log(node.name);
     setSequence((prev) => {
       if (prev.includes(node.name)) {
         return prev.filter((item) => item !== node.name);
