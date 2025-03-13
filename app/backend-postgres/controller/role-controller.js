@@ -196,11 +196,75 @@ export const get_roles = async (req, res) => {
   }
 };
 
+// export const getRolesHierarchyInDepartment = async (req, res) => {
+//   const { departmentId } = req.params; // Get departmentId from request params
+
+//   try {
+//     // Fetch the department to get its name
+//     const department = await prisma.department.findUnique({
+//       where: { id: Number(departmentId) },
+//     });
+
+//     if (!department) {
+//       return res.status(404).json({ message: "Department not found." });
+//     }
+
+//     // Fetch all roles for the department and their relationships
+//     const roles = await prisma.role.findMany({
+//       where: { departmentId: Number(departmentId) },
+//       include: {
+//         parentRole: true, // Include parent role for reference
+//         childRoles: true, // Include child roles to build hierarchy
+//       },
+//     });
+
+//     // Check if there are roles in the department
+//     if (!roles || roles.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "No roles found for this department." });
+//     }
+
+//     // Identify top-level roles (roles with no parent in the same department)
+//     const topRoles = roles.filter(
+//       (role) =>
+//         !role.parentRoleId || // No parent role
+//         (role.parentRole &&
+//           role.parentRole.departmentId !== Number(departmentId)) // Parent role is external
+//     );
+
+//     // Recursive function to build hierarchy
+//     const buildHierarchy = (roles, parentRoleId) =>
+//       roles
+//         .filter((role) => role.parentRoleId === parentRoleId) // Filter roles by parentRoleId
+//         .map((role) => ({
+//           name: role.role,
+//           children: buildHierarchy(roles, role.id), // Recursive call for children
+//         }));
+
+//     // Build hierarchies for all top-level roles
+//     const hierarchies = topRoles.map((topRole) => ({
+//       name: topRole.role,
+//       children: buildHierarchy(roles, topRole.id),
+//     }));
+
+//     // Final response with department name as root
+//     const responseHierarchy = {
+//       name: department.name, // Use the actual department name
+//       children: hierarchies,
+//     };
+
+//     res.json({ data: [responseHierarchy] });
+//   } catch (error) {
+//     console.error("Error fetching department roles:", error);
+//     res.status(500).json({ error: "An error occurred while fetching roles." });
+//   }
+// };
+
 export const getRolesHierarchyInDepartment = async (req, res) => {
-  const { departmentId } = req.params; // Get departmentId from request params
+  const { departmentId } = req.params;
 
   try {
-    // Fetch the department to get its name
     const department = await prisma.department.findUnique({
       where: { id: Number(departmentId) },
     });
@@ -209,48 +273,47 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
       return res.status(404).json({ message: "Department not found." });
     }
 
-    // Fetch all roles for the department and their relationships
     const roles = await prisma.role.findMany({
       where: { departmentId: Number(departmentId) },
       include: {
-        parentRole: true, // Include parent role for reference
-        childRoles: true, // Include child roles to build hierarchy
+        parentRole: true,
+        childRoles: true,
       },
     });
 
-    // Check if there are roles in the department
     if (!roles || roles.length === 0) {
       return res
         .status(404)
         .json({ message: "No roles found for this department." });
     }
 
-    // Identify top-level roles (roles with no parent in the same department)
     const topRoles = roles.filter(
       (role) =>
-        !role.parentRoleId || // No parent role
+        !role.parentRoleId ||
         (role.parentRole &&
-          role.parentRole.departmentId !== Number(departmentId)) // Parent role is external
+          role.parentRole.departmentId !== Number(departmentId))
     );
 
-    // Recursive function to build hierarchy
+    // Modified buildHierarchy to include IDs
     const buildHierarchy = (roles, parentRoleId) =>
       roles
-        .filter((role) => role.parentRoleId === parentRoleId) // Filter roles by parentRoleId
+        .filter((role) => role.parentRoleId === parentRoleId)
         .map((role) => ({
+          id: role.id, // Add role ID
           name: role.role,
-          children: buildHierarchy(roles, role.id), // Recursive call for children
+          children: buildHierarchy(roles, role.id),
         }));
 
-    // Build hierarchies for all top-level roles
+    // Include IDs in top roles
     const hierarchies = topRoles.map((topRole) => ({
+      id: topRole.id, // Add top role ID
       name: topRole.role,
       children: buildHierarchy(roles, topRole.id),
     }));
 
-    // Final response with department name as root
     const responseHierarchy = {
-      name: department.name, // Use the actual department name
+      id: department.id, // Optional: include department ID in root
+      name: department.name,
       children: hierarchies,
     };
 
