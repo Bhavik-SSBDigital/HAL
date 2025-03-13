@@ -363,21 +363,46 @@ function AssignmentForm({
                 <Controller
                   name="assigneeIds"
                   control={control}
-                  render={({ field }) => (
-                    <Autocomplete
-                      multiple
-                      className="mb-3"
-                      size="small"
-                      options={userList || []}
-                      getOptionLabel={(option) => option.username}
-                      onChange={(_, value) =>
-                        field.onChange(value.map((v) => v.id))
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} variant="outlined" />
-                      )}
-                    />
-                  )}
+                  render={({ field }) => {
+                    const allSelected =
+                      field.value?.length === userList?.length; // Check if all users are selected
+
+                    // Add "Select All" option at the top
+                    const enhancedOptions = [
+                      {
+                        id: 'all',
+                        username: allSelected ? 'Deselect All' : 'Select All',
+                      },
+                      ...(userList || []),
+                    ];
+
+                    return (
+                      <Autocomplete
+                        multiple
+                        className="mb-3"
+                        size="small"
+                        options={enhancedOptions}
+                        getOptionLabel={(option) => option.username}
+                        value={
+                          allSelected
+                            ? userList
+                            : userList.filter((u) => field.value.includes(u.id))
+                        }
+                        onChange={(_, value) => {
+                          if (value.some((v) => v.id === 'all')) {
+                            field.onChange(
+                              allSelected ? [] : userList.map((u) => u.id),
+                            ); // Select/Deselect all
+                          } else {
+                            field.onChange(value.map((v) => v.id)); // Normal selection
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} variant="outlined" />
+                        )}
+                      />
+                    );
+                  }}
                 />
               </>
             )}
@@ -390,23 +415,51 @@ function AssignmentForm({
                 <Controller
                   name="assigneeIds"
                   control={control}
-                  render={({ field }) => (
-                    <Autocomplete
-                      multiple
-                      className="mb-3"
-                      size="small"
-                      options={roleList || []}
-                      getOptionLabel={(option) =>
-                        `${option.role} (department - ${option.departmentName})`
-                      }
-                      onChange={(_, value) =>
-                        field.onChange(value.map((v) => v.id))
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} variant="outlined" />
-                      )}
-                    />
-                  )}
+                  render={({ field }) => {
+                    const allSelected =
+                      field.value?.length === roleList?.length; // Check if all are selected
+
+                    // Add "Select All" option at the top
+                    const enhancedOptions = [
+                      {
+                        id: 'all',
+                        role: allSelected ? 'Deselect All' : 'Select All',
+                        departmentName: '',
+                      },
+                      ...(roleList || []),
+                    ];
+
+                    return (
+                      <Autocomplete
+                        multiple
+                        className="mb-3"
+                        size="small"
+                        options={enhancedOptions}
+                        getOptionLabel={(option) =>
+                          option.id === 'all'
+                            ? option.role
+                            : `${option.role} (department - ${option.departmentName})`
+                        }
+                        value={
+                          allSelected
+                            ? roleList
+                            : roleList.filter((r) => field.value.includes(r.id))
+                        }
+                        onChange={(_, value) => {
+                          if (value.some((v) => v.id === 'all')) {
+                            field.onChange(
+                              allSelected ? [] : roleList.map((r) => r.id),
+                            ); // Select/Deselect all
+                          } else {
+                            field.onChange(value.map((v) => v.id)); // Normal selection
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} variant="outlined" />
+                        )}
+                      />
+                    );
+                  }}
                 />
               </>
             )}
@@ -419,23 +472,53 @@ function AssignmentForm({
                 <Controller
                   name="assigneeIds"
                   control={control}
-                  render={({ field }) => (
-                    <Autocomplete
-                      multiple
-                      className="mb-3"
-                      size="small"
-                      options={departmentList || []}
-                      getOptionLabel={(option) =>
-                        `${option.name} (code - ${option.id})`
-                      }
-                      onChange={(_, value) =>
-                        field.onChange(value.map((v) => v.id))
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} variant="outlined" />
-                      )}
-                    />
-                  )}
+                  render={({ field }) => {
+                    const allSelected =
+                      field.value?.length === departmentList?.length; // Check if all are selected
+
+                    const enhancedOptions = [
+                      {
+                        id: 'all',
+                        name: allSelected ? 'Deselect All' : 'Select All',
+                      },
+                      ...(departmentList || []),
+                    ];
+
+                    return (
+                      <Autocomplete
+                        multiple
+                        className="mb-3"
+                        size="small"
+                        options={enhancedOptions}
+                        getOptionLabel={(option) =>
+                          option.id === 'all'
+                            ? option.name
+                            : `${option.name} (code - ${option.id})`
+                        }
+                        value={
+                          allSelected
+                            ? departmentList
+                            : departmentList.filter((d) =>
+                                field.value.includes(d.id),
+                              )
+                        }
+                        onChange={(_, value) => {
+                          if (value.some((v) => v.id === 'all')) {
+                            field.onChange(
+                              allSelected
+                                ? []
+                                : departmentList.map((d) => d.id),
+                            ); // Select/Deselect all
+                          } else {
+                            field.onChange(value.map((v) => v.id)); // Normal selection
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} variant="outlined" />
+                        )}
+                      />
+                    );
+                  }}
                 />
 
                 {assigneeIds?.length !== 0 ? (
@@ -591,6 +674,7 @@ function AssignmentForm({
             <button
               onClick={() => {
                 setOpenWorkflows(false);
+                setCurrentPage(0);
               }}
               className="absolute right-2 top-2"
             >
