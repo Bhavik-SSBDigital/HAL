@@ -330,7 +330,7 @@ function AssignmentForm({
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4">
-        <div className="bg-white p-4 sm:p-6 rounded-md shadow-lg w-[90%] sm:w-2/3 max-w-md max-h-[95vh] overflow-auto">
+        <div className="bg-white p-4 sm:p-6 rounded-md shadow-lg w-full max-w-2xl max-h-[95vh] overflow-auto">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Add Assignment
           </h3>
@@ -465,7 +465,7 @@ function AssignmentForm({
                               {node.department}
                             </span>
                             <span className="whitespace-nowrap">
-                              {node.roles.join(' -> ')}
+                              {node.roles.map((role) => role.name).join(' -> ')}
                             </span>
                           </li>
                         ))}
@@ -565,13 +565,13 @@ function AssignmentForm({
               <IconSquareLetterX />
             </button>
             {/* Show Single Department */}
-            <div className="mb-4 p-4 max-h-[80vh] overflow-auto">
+            <div className="mb-4 max-h-[80vh] overflow-auto">
               <h3 className="font-bold">
                 Department : {currentDepartment.name}
               </h3>
 
               {/* Show Hierarchy if Available */}
-              <div className="mb-4 p-4">
+              <div className="mb-4 p-1">
                 {/* Show Hierarchy in TreeGraph */}
                 <TreeGraph
                   data={hierarchyData[currentDepartment.id] || []}

@@ -14,25 +14,23 @@ const TreeGraph = ({
   console.log(selectedHierarchy);
   // Function to handle node selection
   const handleNodeSelect = (node) => {
-    console.log(node);
     if (!controls) return;
 
     setSelectedHierarchy((prevHierarchy) => {
-      // Find existing department object
       const existingIndex = prevHierarchy.findIndex(
         (dept) => dept.department === departmentId,
       );
       let updatedHierarchy;
 
       if (existingIndex !== -1) {
-        // Department exists, update its roles
-        const updatedRoles = prevHierarchy[existingIndex].roles.includes(
-          node.name,
+        // Check if the node is already selected
+        const updatedRoles = prevHierarchy[existingIndex].roles.some(
+          (role) => role.id === node.id,
         )
           ? prevHierarchy[existingIndex].roles.filter(
-              (role) => role !== node.name,
-            ) // Remove role
-          : [...prevHierarchy[existingIndex].roles, node.name]; // Add role
+              (role) => role.id !== node.id,
+            ) // Remove
+          : [...prevHierarchy[existingIndex].roles, node]; // Add full node
 
         updatedHierarchy = [...prevHierarchy];
         updatedHierarchy[existingIndex] = {
@@ -40,10 +38,10 @@ const TreeGraph = ({
           roles: updatedRoles,
         };
       } else {
-        // New department, add it with the selected role
+        // New department, add it with the selected full node object
         updatedHierarchy = [
           ...prevHierarchy,
-          { department: departmentId, roles: [node.name] },
+          { department: departmentId, roles: [node] },
         ];
       }
 
@@ -51,6 +49,17 @@ const TreeGraph = ({
       onHierarchyUpdate(updatedHierarchy);
       return updatedHierarchy;
     });
+  };
+
+  const findRoleName = (nodes, id) => {
+    for (const node of nodes) {
+      if (node.id === id) return node.name;
+      if (node.children) {
+        const found = findRoleName(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   const getOption = () => ({
@@ -81,7 +90,7 @@ const TreeGraph = ({
             if (!controls) return params.name;
             const isChecked = selectedHierarchy
               .find((dept) => dept.department === departmentId)
-              ?.roles.includes(params.name);
+              ?.roles?.find((role) => role.id == params.data.id);
             return `{checkbox|${isChecked ? '☑' : '☐'}} ${params.name}`;
           },
           rich: controls
@@ -117,12 +126,81 @@ const TreeGraph = ({
       setSelectedHierarchy(selectedNodes);
     }
   }, [selectedNodes]);
+
+  // select all nodes
+  const selectAllNodes = () => {
+    const allNodes = getAllNodes(data); // Get all node objects
+
+    setSelectedHierarchy((prevHierarchy) => {
+      const updatedHierarchy = [...prevHierarchy];
+      const departmentIndex = updatedHierarchy.findIndex(
+        (dept) => dept.department === departmentId,
+      );
+
+      if (departmentIndex !== -1) {
+        // Update existing department selection with full objects
+        updatedHierarchy[departmentIndex] = {
+          department: departmentId,
+          roles: allNodes,
+        };
+      } else {
+        // Add new department selection
+        updatedHierarchy.push({
+          department: departmentId,
+          roles: allNodes,
+        });
+      }
+
+      onHierarchyUpdate(updatedHierarchy); // Notify parent
+      return updatedHierarchy;
+    });
+  };
+
+  // Function to get all node objects recursively
+  const getAllNodes = (nodes) => {
+    let allNodes = [];
+    nodes.forEach((node) => {
+      allNodes.push(node); // Store full object
+      if (node.children) {
+        allNodes = allNodes.concat(getAllNodes(node.children));
+      }
+    });
+    return allNodes;
+  };
+
+  const deselectAllNodes = () => {
+    setSelectedHierarchy((prevHierarchy) => {
+      const updatedHierarchy = prevHierarchy.filter(
+        (dept) => dept.department !== departmentId, // Remove the department entry
+      );
+
+      onHierarchyUpdate(updatedHierarchy); // Notify parent
+      return updatedHierarchy;
+    });
+  };
+
   return (
     <div className={styles.container}>
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
       ) : (
         <>
+          {controls && (
+            <div className="ml-auto flex w-full justify-end">
+              <button
+                className="bg-purple-600 hover:bg-purple-700 px-3 m-1 py-2 rounded-md text-white"
+                onClick={selectAllNodes}
+              >
+                Select All
+              </button>
+              <button
+                className="bg-red-500 px-3 m-1 py-2 rounded-md text-white"
+                onClick={deselectAllNodes}
+              >
+                Deselect All
+              </button>
+            </div>
+          )}
           <ReactECharts
             option={getOption()}
             style={{ height: 'calc(100vh - 240px)' }}
@@ -141,8 +219,10 @@ const TreeGraph = ({
             <div style={{ marginTop: '20px', textAlign: 'center' }}>
               <strong>Selected Roles Order:</strong>{' '}
               {selectedHierarchy
-                .filter((dept) => dept.department === departmentId) // ✅ Show only current department
-                .map((dept) => dept.roles.join(' → ')) // ✅ Display selected roles
+                .filter((dept) => dept.department === departmentId)
+                .map(
+                  (dept) => dept.roles.map((role) => role.name).join(' → '), // Use `role.name` instead of finding it from `id`
+                )
                 .join('')}
             </div>
           )}
