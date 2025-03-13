@@ -220,7 +220,7 @@ export default function WorkflowForm({ handleCloseForm }) {
           </button>
           <button
             type="submit"
-            className="bg-green-600 flex-1 py-2 text-white rounded-md"
+            className="bg-purple-600 hover:bg-purple-700 flex-1 py-2 text-white rounded-md"
           >
             Submit
           </button>
@@ -544,7 +544,7 @@ function AssignmentForm({
               </button>
               <button
                 type="submit"
-                className="bg-blue-500 hover:bg-blue-600 px-4 py-2 text-white rounded-md"
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-white rounded-md"
               >
                 Save
               </button>
