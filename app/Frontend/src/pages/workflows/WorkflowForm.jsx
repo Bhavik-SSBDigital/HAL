@@ -1,4 +1,9 @@
-import { IconPlus, IconSquareLetterX, IconTrash } from '@tabler/icons-react';
+import {
+  IconInfoCircle,
+  IconPlus,
+  IconSquareLetterX,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -443,35 +448,62 @@ function AssignmentForm({
                   </button>
                 ) : null}
                 {selectedNodes && selectedNodes.length > 0 ? (
-                  <div className="mb-3 mt-1 border rounded-md">
-                    {/* Scrollable Container */}
-                    <div className="overflow-x-auto">
-                      {/* Table Headers */}
-                      <div className="min-w-[500px] grid grid-cols-2 gap-4 font-semibold text-sm bg-gray-200 p-2 border-b">
-                        <span className="whitespace-nowrap">
-                          Department Code
-                        </span>
-                        <span className="whitespace-nowrap">Flow</span>
-                      </div>
-
-                      {/* Assignment List */}
-                      <ul className="min-w-[500px]">
-                        {selectedNodes.map((node, index) => (
-                          <li
-                            key={index}
-                            className="grid grid-cols-2 gap-4 items-center p-2 text-sm border-b"
-                          >
-                            <span className="whitespace-nowrap">
-                              {node.department}
-                            </span>
-                            <span className="whitespace-nowrap">
-                              {node.roles.map((role) => role.name).join(' -> ')}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                  <>
+                    <div className="flex mt-2 items-center bg-purple-100 border-l-4 border-purple-500 text-blue-800 p-3 rounded-md">
+                      <IconInfoCircle size={20} className="mr-2" />
+                      <span>
+                        Selected roles will take part on behalf of the selected
+                        department
+                      </span>
                     </div>
-                  </div>
+
+                    <div className="mb-3 mt-1 border rounded-md overflow-x-auto">
+                      <table className="min-w-[500px] w-full border-collapse">
+                        {/* Table Head */}
+                        <thead>
+                          <tr className="bg-gray-200 text-sm font-semibold border-b">
+                            <th className="p-2 text-left">Department Code</th>
+                            <th className="p-2 text-left">Flow</th>
+                            <th className="p-2 text-center">
+                              Allow Parallel ( Process will be sent to all roles
+                              at the same time )
+                            </th>
+                          </tr>
+                        </thead>
+
+                        {/* Table Body */}
+                        <tbody>
+                          {selectedNodes.map((node, index) => (
+                            <tr key={index} className="border-b text-sm">
+                              <td className="p-3 whitespace-nowrap">
+                                {node.department}
+                              </td>
+                              <td className="p-3 whitespace-nowrap">
+                                {node.roles
+                                  .map((role) => role.name)
+                                  .join(' → ')}
+                              </td>
+                              <td className="p-3 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={node.allowParallel || false}
+                                  onChange={(e) => {
+                                    const updatedNodes = [...selectedNodes];
+                                    updatedNodes[index] = {
+                                      ...node,
+                                      allowParallel: e.target.checked, // Toggle allowParallel
+                                    };
+                                    setSelectedNodes(updatedNodes); // Notify parent component
+                                  }}
+                                  className="cursor-pointer"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-gray-500 my-3 text-sm mt-2 italic border p-2 rounded-md">
                     No Roles Selected.
