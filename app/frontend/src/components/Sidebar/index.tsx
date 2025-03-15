@@ -357,7 +357,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   letterSpacing: '0.5px',
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                  (pathname === '/workflows' || pathname.includes('workflows')) &&
+                  (pathname === '/workflows' ||
+                    pathname.includes('workflows')) &&
                   'bg-indigo-400 text-white'
                 }`}
               >
@@ -839,20 +840,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                                 Published
                               </NavLink>
                             </li>
-                            {sessionStorage.getItem('initiator') === 'true' && (
-                              <li>
-                                <NavLink
-                                  to="/processes/initiate"
-                                  className={({ isActive }) =>
-                                    'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
-                                    (isActive && '!text-white')
-                                  }
-                                >
-                                  <IconCornerDownRight />
-                                  Initiate Process
-                                </NavLink>
-                              </li>
-                            )}
+                            <li>
+                              <NavLink
+                                to="/processes/initiate"
+                                className={({ isActive }) =>
+                                  'group relative flex items-center gap-2.5 rounded-md pl-2 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                                  (isActive && '!text-white')
+                                }
+                              >
+                                <IconCornerDownRight />
+                                Initiate Process
+                              </NavLink>
+                            </li>
                           </ul>
                         </div>
                       )}

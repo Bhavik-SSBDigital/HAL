@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { GetWorkflows } from '../../common/Apis';
 
-const workflowData = [
-  {
-    name: 'testing',
-    versions: [
-      {
-        id: '4786b342-779d-4bcd-95be-db9e4cea8229',
-        version: 1,
-        description: '1212',
-        createdAt: '2025-03-12T06:31:10.411Z',
-      },
-    ],
-  },
-];
+// const workflowData = [
+//   {
+//     name: 'testing',
+//     versions: [
+//       {
+//         id: '4786b342-779d-4bcd-95be-db9e4cea8229',
+//         version: 1,
+//         description: '1212',
+//         createdAt: '2025-03-12T06:31:10.411Z',
+//       },
+//     ],
+//   },
+// ];
 
 export default function InitiateProcess() {
+  const [workflowData, setWorkflowData] = useState([]);
   const {
     control,
     handleSubmit,
@@ -56,6 +58,19 @@ export default function InitiateProcess() {
     console.log('Form Data:', data);
   };
 
+  // network calls
+
+  const getWorkflowsData = async () => {
+    try {
+      const response = await GetWorkflows();
+      setWorkflowData(response?.data?.workflows || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  useEffect(() => {
+    getWorkflowsData();
+  }, []);
   return (
     <div className="border border-gray-300 bg-white p-6 rounded-md shadow-md w-full max-w-6xl mx-auto">
       <h2 className="text-2xl text-center font-semibold mb-4">
