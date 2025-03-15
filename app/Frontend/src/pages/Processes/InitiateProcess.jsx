@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { GetWorkflows } from '../../common/Apis';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
+import Show from '../workflows/Show';
 
 export default function InitiateProcess() {
   const [workflowData, setWorkflowData] = useState([]);
@@ -16,6 +18,7 @@ export default function InitiateProcess() {
     register,
     setValue,
     getValues,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -24,7 +27,7 @@ export default function InitiateProcess() {
       documents: [],
     },
   });
-
+  const [selectedVersion] = watch(['selectedVersion']);
   const {
     fields: documentFields,
     append: addDocument,
@@ -37,7 +40,9 @@ export default function InitiateProcess() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    console.log(selectedFile);
     setUploading(true);
+    const response = await upload([selectedFile]);
     setTimeout(() => {
       const fakeDocId = `doc-${Date.now()}`;
       addDocument({ docId: fakeDocId, tags: [] });
@@ -133,6 +138,16 @@ export default function InitiateProcess() {
             </p>
           )}
         </div>
+
+        {selectedVersion && (
+          <Show
+            steps={
+              selectedWorkflow?.versions?.find(
+                (item) => item.id == selectedVersion,
+              ).steps
+            }
+          />
+        )}
 
         {/* Documents Upload Section */}
         <div className="space-y-6 bg-white rounded-lg">
