@@ -386,12 +386,14 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? userList
-                            : userList.filter((u) => field.value.includes(u.id))
+                            : userList?.filter((u) =>
+                                field.value.includes(u.id),
+                              )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
                             field.onChange(
-                              allSelected ? [] : userList.map((u) => u.id),
+                              allSelected ? [] : userList?.map((u) => u.id),
                             ); // Select/Deselect all
                           } else {
                             field.onChange(value.map((v) => v.id)); // Normal selection
@@ -443,12 +445,12 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? roleList
-                            : roleList.filter((r) => field.value.includes(r.id))
+                            : roleList?.filter((r) => field.value.includes(r.id))
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
                             field.onChange(
-                              allSelected ? [] : roleList.map((r) => r.id),
+                              allSelected ? [] : roleList?.map((r) => r.id),
                             ); // Select/Deselect all
                           } else {
                             field.onChange(value.map((v) => v.id)); // Normal selection
@@ -498,7 +500,7 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? departmentList
-                            : departmentList.filter((d) =>
+                            : departmentList?.filter((d) =>
                                 field.value.includes(d.id),
                               )
                         }
@@ -507,7 +509,7 @@ function AssignmentForm({
                             field.onChange(
                               allSelected
                                 ? []
-                                : departmentList.map((d) => d.id),
+                                : departmentList?.map((d) => d.id),
                             ); // Select/Deselect all
                           } else {
                             field.onChange(value.map((v) => v.id)); // Normal selection
