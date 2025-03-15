@@ -24,7 +24,7 @@ import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
 import ViewLog from './pages/Logs/ViewLog';
 import MonitorView from './pages/Monitor/View';
-import ProcessInitForm from './pages/Processes/ProcessInitForm';
+import ProcessInitForm from './pages/Processes/InitiateProcess';
 import Monitor from './pages/Monitor/Monitor';
 import { useDispatch } from 'react-redux';
 import { onReload } from './Slices/PathSlice';
