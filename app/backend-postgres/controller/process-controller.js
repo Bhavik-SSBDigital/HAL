@@ -251,7 +251,14 @@ export const initiate_process = async (req, res, next) => {
 
     const initiator = userData.id;
 
-    await initiateProcess(workflow_id, userData.id, documents, name);
+    await initiateProcess(
+      workflow_id,
+      userData.id,
+      documents.map((item) => ({
+        documentId: item.documentId,
+      })),
+      name
+    );
 
     return res.status(200).json({
       message: "Process initiated successfully",
