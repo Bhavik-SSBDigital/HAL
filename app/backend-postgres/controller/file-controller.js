@@ -131,7 +131,7 @@ export const file_upload = async (req, res) => {
                     connect: { name: departmentName },
                   }
                 : undefined,
-              highlights: { create: [] },
+              // highlights: { create: [] },
             },
           });
 
@@ -708,7 +708,7 @@ const storeDocumentDetailsToDatabase = async (
         isInvolvedInProcess: isInvolvedInProcess ?? false,
         departmentId: departmentId,
         // Optional fields can be set here if required
-        highlights: undefined, // Add as needed
+        // highlights: undefined, // Add as needed
         minimumSignsOnFirstPage: undefined, // Add as needed
       },
     });
