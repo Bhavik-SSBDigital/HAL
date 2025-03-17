@@ -249,12 +249,12 @@ export const initiate_process = async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { name, description, workflow_id, documents } = req.body;
+    const { processName, description, workflowId, documents } = req.body;
 
     const initiator = userData.id;
 
     await initiateProcess(
-      workflow_id,
+      workflowId,
       userData.id,
       documents.map((item) => ({
         documentId: item.documentId,
