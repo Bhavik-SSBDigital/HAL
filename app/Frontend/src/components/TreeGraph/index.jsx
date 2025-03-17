@@ -129,7 +129,7 @@ const TreeGraph = ({
 
   // select all nodes
   const selectAllNodes = () => {
-    const allNodes = getAllNodes(data); // Get all node objects
+    const allNodes = getAllNodes(data[0]?.children); // Get all node objects
 
     setSelectedHierarchy((prevHierarchy) => {
       const updatedHierarchy = [...prevHierarchy];
