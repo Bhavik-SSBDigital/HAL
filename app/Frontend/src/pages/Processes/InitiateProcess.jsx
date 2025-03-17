@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { GetWorkflows, uploadDocumentInProcess } from '../../common/Apis';
+import {
+  GetWorkflows,
+  ProcessInitiate,
+  uploadDocumentInProcess,
+} from '../../common/Apis';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
@@ -16,6 +20,7 @@ export default function InitiateProcess() {
   const defaultvalues = {
     processName: '',
     workflowId: '',
+    description: '',
     documents: [],
   };
 
@@ -81,8 +86,12 @@ export default function InitiateProcess() {
     }
   };
 
-  const onSubmit = (data) => {
-    console.log('Form Data:', data);
+  const onSubmit = async (data) => {
+    try {
+      const res = await ProcessInitiate(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
 
   return (
@@ -103,6 +112,19 @@ export default function InitiateProcess() {
           />
           {errors.processName && (
             <p className="text-red-500 text-sm">{errors.processName.message}</p>
+          )}
+        </div>
+        {/* description */}
+        <div>
+          <label className="block text-sm font-medium">Process Name</label>
+          <input
+            {...register('description', {
+              required: 'Process Name is required',
+            })}
+            className="w-full border p-2 rounded-md"
+          />
+          {errors.description && (
+            <p className="text-red-500 text-sm">{errors.description.message}</p>
           )}
         </div>
 
