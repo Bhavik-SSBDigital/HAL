@@ -316,7 +316,6 @@ model ProcessStepInstance {
   stepId       String
   step         WorkflowStep @relation(fields: [stepId], references: [id])
   assignedTo   Int[]
-  assignedType AssigneeType
   status       StepStatus @default(PENDING)
   comments     String?
   pickedById   Int?
