@@ -78,36 +78,23 @@ async function initiateProcess(workflowId, initiatorId, documentIds, name) {
       )
     );
 
-    // 3. Get First Workflow Step
+    // 3. Get Next(Second) Workflow Step
     const firstStep = await tx.workflowStep.findFirstOrThrow({
       where: { workflowId, stepNumber: 1 },
       include: { assignments: true },
-    });
-    // 3. Get Next(Second) Workflow Step
-    const secondStep = await tx.workflowStep.findFirstOrThrow({
-      where: { workflowId, stepNumber: 2 },
-      include: { assignments: true },
-    });
-
-    const firstStepInstance = await tx.processStepInstance.create({
-      data: {
-        processId: processInstance.id,
-        stepId: firstStep.id,
-        status: "COMPLETED",
-      },
     });
 
     // 4. Create Step Instance
     const stepInstance = await tx.processStepInstance.create({
       data: {
         processId: processInstance.id,
-        stepId: secondStep.id,
+        stepId: firstStep.id,
         status: "PENDING",
       },
     });
 
     // 5. Configure Document Access
-    for (const assignment of secondStep.assignments) {
+    for (const assignment of firstStep.assignments) {
       for (const assigneeId of assignment.assigneeIds) {
         for (const accessType of assignment.accessTypes) {
           for (const documentId of documentIds) {
@@ -147,7 +134,7 @@ async function initiateProcess(workflowId, initiatorId, documentIds, name) {
 
     // 6. Get Assignees for Notifications (existing logic)
     const allAssignees = await Promise.all(
-      secondStep.assignments.map(async (assignment) => {
+      firstStep.assignments.map(async (assignment) => {
         switch (assignment.assigneeType) {
           case "USER":
             return assignment.assigneeIds;
@@ -190,25 +177,25 @@ async function initiateProcess(workflowId, initiatorId, documentIds, name) {
     );
 
     // 8. Set Up Escalations (existing logic)
-    // if (secondStep.escalationTime) {
+    // if (firstStep.escalationTime) {
     //   await tx.escalation.create({
     //     data: {
     //       stepInstanceId: stepInstance.id,
     //       escalationType: "REMINDER",
     //       triggerTime: new Date(
-    //         Date.now() + secondStep.escalationTime * 60 * 60 * 1000
+    //         Date.now() + firstStep.escalationTime * 60 * 60 * 1000
     //       ),
     //     },
     //   });
     // }
 
-    // if (secondStep.autoApprovalAfter) {
+    // if (firstStep.autoApprovalAfter) {
     //   await tx.escalation.create({
     //     data: {
     //       stepInstanceId: stepInstance.id,
     //       escalationType: "AUTO_APPROVAL",
     //       triggerTime: new Date(
-    //         Date.now() + secondStep.autoApprovalAfter * 60 * 60 * 1000
+    //         Date.now() + firstStep.autoApprovalAfter * 60 * 60 * 1000
     //       ),
     //     },
     //   });
@@ -232,7 +219,7 @@ async function initiateProcess(workflowId, initiatorId, documentIds, name) {
     //   sendEmailNotification({
     //     email: user.email,
     //     subject: "New Process Assignment",
-    //     content: `You've been assigned to step ${secondStep.stepName} in process ${processInstance.id}`,
+    //     content: `You've been assigned to step ${firstStep.stepName} in process ${processInstance.id}`,
     //   });
     // });
 
