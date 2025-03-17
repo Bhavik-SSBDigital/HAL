@@ -42,7 +42,6 @@ export default function WorkflowForm({ handleCloseForm }) {
   };
 
   const handleAssignmentSubmit = (assignment) => {
-    console.log(assignment);
     const updatedSteps = [...stepFields];
     updatedSteps[currentStepIndex].assignments = [
       ...(updatedSteps[currentStepIndex].assignments || []),

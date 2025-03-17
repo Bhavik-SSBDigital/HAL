@@ -11,7 +11,6 @@ const TreeGraph = ({
   selectedNodes,
 }) => {
   const [selectedHierarchy, setSelectedHierarchy] = useState([]);
-  console.log(selectedHierarchy);
   // Function to handle node selection
   const handleNodeSelect = (node) => {
     if (!controls) return;
@@ -88,6 +87,7 @@ const TreeGraph = ({
           fontSize: 16,
           formatter: (params) => {
             if (!controls) return params.name;
+            if (params?.name == data[0]?.name) return params?.name;
             const isChecked = selectedHierarchy
               .find((dept) => dept.department === departmentId)
               ?.roles?.find((role) => role.id == params.data.id);
