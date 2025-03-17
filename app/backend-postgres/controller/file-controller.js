@@ -74,6 +74,7 @@ export const file_upload = async (req, res) => {
     const totalChunks = parseInt(req.headers["x-total-chunks"]);
     const chunkSize = parseInt(req.headers["x-chunk-size"]);
     let isInvolvedInProcess = req.headers["x-involved-in-process"];
+    const tags = req.headers["x-tags"];
     let departmentName = req.headers["x-department-name"];
     let workName = req.headers["x-work-name"];
     let cabinetNo = req.headers["x-cabinet-no"];
@@ -123,6 +124,7 @@ export const file_upload = async (req, res) => {
               path: extra + "/" + fileName,
               createdById: userData.id,
               isInvolvedInProcess: isInvolvedInProcess || false,
+              tags: tags,
               department: departmentName
                 ? {
                     connect: { name: departmentName },

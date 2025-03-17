@@ -46,6 +46,7 @@ model Document {
   isInvolvedInProcess     Boolean      @default(false)
   minimumSignsOnFirstPage Int?
   isRejected              Boolean      @default(false)
+  tags                    String[]     @default([])
   processDocuments        ProcessDocument[]
   documentAccesses        DocumentAccess[] @relation("DocumentAccesses")
 }
@@ -192,7 +193,6 @@ model WorkflowAssignment {
   assigneeIds   Int[]
   assigneeType  AssigneeType
   departmentRoles DepartmentRoleAssignment[]
-  selectedRoles Int[]        @default([])  // Specific role IDs within the department
   accessTypes AccessType[] @default([])
   direction     Direction?   // Document flow direction for these roles
   allowParallel Boolean @default(false)

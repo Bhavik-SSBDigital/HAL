@@ -91,7 +91,7 @@ export const add_workflow = async (req, res) => {
               assigneeIds: assignee.assigneeIds.map(Number),
               actionType: assignee.actionType,
               accessTypes: assignee.accessTypes, // Store multiple access types
-              selectedRoles: assignee.selectedRoles?.map(Number) || [],
+              // selectedRoles: assignee.selectedRoles?.map(Number) || [],
               direction: assignee.direction,
               allowParallel: assignee.allowParallel || false,
             })),
@@ -108,13 +108,12 @@ export const add_workflow = async (req, res) => {
             .filter((assignee) => assignee.assigneeType === "DEPARTMENT")
             .flatMap((assignee, index) => {
               const assignment = createdAssignments[index]; // Get corresponding WorkflowAssignment
-              return assignee.departmentRoleAssignments.flatMap(
-                ({ departmentId, roleIds }) =>
-                  roleIds.map((roleId) => ({
-                    workflowAssignmentId: assignment.id,
-                    departmentId,
-                    roleId,
-                  }))
+              return assignee.selectedRoles.flatMap(({ department, roles }) =>
+                roles.map((item) => ({
+                  workflowAssignmentId: assignment.id,
+                  departmentId: department,
+                  roleId: item.id,
+                }))
               );
             });
 

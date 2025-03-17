@@ -310,6 +310,7 @@ export async function uploadFileWithChunks(
   path,
   customName,
   isInvolvedInProcess,
+  tags
 ) {
   // console.log('file chunks', path)
   try {
@@ -344,6 +345,7 @@ export async function uploadFileWithChunks(
 
       if (chunkNumber === 0) {
         headers['x-involved-in-process'] = isInvolvedInProcess;
+        headers['x-tags'] = tags;
       }
 
       const chunk = file.slice(start, end + 1);
@@ -385,6 +387,7 @@ export async function upload(
   getData,
   customName,
   isInvolvedInProcess,
+  tags,
 ) {
   // console.log('path in upload', path);
   // console.log('function we need is called');
@@ -403,12 +406,14 @@ export async function upload(
               path,
               customName,
               isInvolvedInProcess,
+              tags
             )
           : await uploadFileWithChunks(
               file,
               path,
               undefined,
               isInvolvedInProcess,
+              tags
             );
 
       // console.log("res", res)

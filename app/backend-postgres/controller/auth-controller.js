@@ -202,7 +202,6 @@ export const create_admin = async (req, res) => {
       email: "bhavik.bhatt@ssbi.in",
       password: encryptedPassword,
       isRootLevel: true,
-      isRootLevel: true,
       isAdmin: true,
     };
 
