@@ -73,7 +73,7 @@ export const file_upload = async (req, res) => {
     const chunkNumber = parseInt(req.headers["x-current-chunk"]);
     const totalChunks = parseInt(req.headers["x-total-chunks"]);
     const chunkSize = parseInt(req.headers["x-chunk-size"]);
-    let isInvolvedInProcess = req.headers["x-involved-in-process"];
+    let isInvolvedInProcess = Boolean(req.headers["x-involved-in-process"]);
     const tags = req.headers["x-tags"];
     let departmentName = req.headers["x-department-name"];
     let workName = req.headers["x-work-name"];
