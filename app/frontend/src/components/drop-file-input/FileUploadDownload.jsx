@@ -32,16 +32,16 @@ export function getContentTypeFromExtension(extension) {
 }
 
 export const getFileSize = async (fileName, path, token) => {
-
   // console.log('getfilesize is called with', fileName);
   let response;
   try {
     const url = backendUrl + '/getFileData';
     // console.log('url is', url);
 
-
-     
-    response = await axios({method: 'get', url: url, headers:  {
+    response = await axios({
+      method: 'get',
+      url: url,
+      headers: {
         Range: `bytes=0-0`,
         'X-File-name': encodeURIComponent(fileName),
         'X-File-path': encodeURIComponent(path),
@@ -181,14 +181,19 @@ export const get_file_data = async (fileName, path, view) => {
         responseType: 'arraybuffer',
       };
 
-      const response = await axios({method: 'get', url: url,   headers: {
+      const response = await axios({
+        method: 'get',
+        url: url,
+        headers: {
           Range: `bytes=${start}-${end}`,
           'x-file-name': encodeURIComponent(fileName),
           'x-file-path': encodeURIComponent(path),
           'content-type': getContentTypeFromExtension(fileExtension),
           'x-authorization': `Bearer ${token}`,
           'access-control-expose-headers': 'Content-Range',
-        },  responseType: 'arraybuffer',});
+        },
+        responseType: 'arraybuffer',
+      });
 
       // Push the chunk to the array
       let check = new Blob([response.data]);
@@ -262,8 +267,6 @@ export const download = async (fileName, path, view) => {
         fileType: response.data.fileType,
       };
     } else {
-
-
       await get_file_data(fileName, path, false);
       // const file_url = response.data.data;
 
@@ -310,7 +313,7 @@ export async function uploadFileWithChunks(
   path,
   customName,
   isInvolvedInProcess,
-  tags
+  tags,
 ) {
   // console.log('file chunks', path)
   try {
@@ -327,7 +330,6 @@ export async function uploadFileWithChunks(
       const contentType = getContentTypeFromExtension(
         file.name.split('.').pop(),
       );
-      
 
       const headers = {
         'X-File-Name':
@@ -361,7 +363,6 @@ export async function uploadFileWithChunks(
       // console.log('reseponse', response);
 
       if (response.status === 409) {
-
         throw new Error('File with given name already exists');
       }
 
@@ -375,16 +376,13 @@ export async function uploadFileWithChunks(
       }
     }
   } catch (error) {
-    console.log(error.message);
-    throw new Error(error.message);
-    return error;
+    throw error;
   }
 }
 
 export async function upload(
   fileList,
   path,
-  getData,
   customName,
   isInvolvedInProcess,
   tags,
@@ -406,27 +404,25 @@ export async function upload(
               path,
               customName,
               isInvolvedInProcess,
-              tags
+              tags,
             )
           : await uploadFileWithChunks(
               file,
               path,
               undefined,
               isInvolvedInProcess,
-              tags
+              tags,
             );
 
       // console.log("res", res)
       documentIds.push(res.documentId);
       // console.log("document ids", documentIds)
       // console.log(path)
-      getData();
 
       return documentIds;
     }
     // console.log('document ids', documentIds);
   } catch (error) {
-    console.log('error', error);
-    throw new Error(error);
+    throw error;
   }
 }
