@@ -259,7 +259,7 @@ export const initiate_process = async (req, res, next) => {
       documents.map((item) => ({
         documentId: item.documentId,
       })),
-      name
+      processName
     );
 
     return res.status(200).json({
