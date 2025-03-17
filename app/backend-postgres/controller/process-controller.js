@@ -256,9 +256,7 @@ export const initiate_process = async (req, res, next) => {
     await initiateProcess(
       workflowId,
       userData.id,
-      documents.map((item) => ({
-        documentId: item.documentId,
-      })),
+      documents.map((item) => item.documentId),
       processName
     );
 
