@@ -26,9 +26,9 @@ export default function Show({ steps }) {
             <p className="font-semibold text-base">
               Step {step.stepNumber}: {step.stepName}
             </p>
-            <p className="text-sm">
+            {/* <p className="text-sm">
               Parallel Allowed: {step.allowParallel ? 'Yes' : 'No'}
-            </p>
+            </p> */}
             <p className="text-sm font-semibold mt-2">Assignments:</p>
             {step.assignments.length > 0 ? (
               <div className="overflow-auto">

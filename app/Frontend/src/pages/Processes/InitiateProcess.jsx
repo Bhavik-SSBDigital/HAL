@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { GetWorkflows } from '../../common/Apis';
+import { GetWorkflows, uploadDocumentInProcess } from '../../common/Apis';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
+import { toast } from 'react-toastify';
 
 export default function InitiateProcess() {
   const [workflowData, setWorkflowData] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [tagModal, setTagModal] = useState({ isOpen: false, index: null });
+  const [tags, setTags] = useState([]);
   const [newTag, setNewTag] = useState('');
+
+  const defaultvalues = {
+    processName: '',
+    workflowId: '',
+    documents: [],
+  };
 
   const {
     control,
@@ -19,60 +26,71 @@ export default function InitiateProcess() {
     setValue,
     getValues,
     watch,
+    reset,
     formState: { errors },
   } = useForm({
-    defaultValues: {
-      processName: '',
-      selectedVersion: '',
-      documents: [],
-    },
+    defaultValues: defaultvalues,
   });
-  const [selectedVersion] = watch(['selectedVersion']);
+
+  const [workflowId] = watch(['workflowId']);
   const {
     fields: documentFields,
     append: addDocument,
     remove: removeDocument,
   } = useFieldArray({ control, name: 'documents' });
 
+  useEffect(() => {
+    const getWorkflowsData = async () => {
+      try {
+        const response = await GetWorkflows();
+        setWorkflowData(response?.data?.workflows || []);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getWorkflowsData();
+  }, []);
+
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
   };
 
+  const inputRef = useRef(null);
   const handleUpload = async () => {
-    if (!selectedFile) return;
-    console.log(selectedFile);
+    if (!selectedFile || !tags.length) return;
     setUploading(true);
-    const response = await upload([selectedFile]);
-    setTimeout(() => {
-      const fakeDocId = `doc-${Date.now()}`;
-      addDocument({ docId: fakeDocId, tags: [] });
-      setUploading(false);
+    try {
+      // Pass tags along with file
+      const res = await uploadDocumentInProcess(
+        [selectedFile],
+        selectedFile?.name,
+        tags,
+      );
+      toast.success('File Uploaded');
+      addDocument({ documentId: res[0], name: selectedFile?.name, tags: tags });
+      setNewTag('');
+      setTags([]);
       setSelectedFile(null);
-    }, 1000);
+      if (inputRef.current) {
+        inputRef.current.value = null;
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setUploading(false);
+    }
   };
+
   const onSubmit = (data) => {
     console.log('Form Data:', data);
   };
 
-  // Fetch workflows from API
-  const getWorkflowsData = async () => {
-    try {
-      const response = await GetWorkflows();
-      setWorkflowData(response?.data?.workflows || []);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  useEffect(() => {
-    getWorkflowsData();
-  }, []);
-
   return (
-    <div className="border border-slate-300 bg-white p-6 rounded-lg shadow-sm w-full max-w-6xl mx-auto">
+    <div className="border border-slate-300 bg-white p-6 rounded-lg shadow-sm w-full max-w-4xl mx-auto">
       <h2 className="text-2xl text-center font-semibold mb-4">
         Initiate Process
       </h2>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Process Name */}
         <div>
@@ -98,7 +116,6 @@ export default function InitiateProcess() {
                 (wf) => wf.name === e.target.value,
               );
               setSelectedWorkflow(selected);
-              setValue('selectedVersion', ''); // Reset version selection
             }}
           >
             <option value="">Select a Workflow</option>
@@ -110,11 +127,11 @@ export default function InitiateProcess() {
           </select>
         </div>
 
-        {/* Version Selection (only enabled if workflow is selected) */}
+        {/* Version Selection */}
         <div>
           <label className="block text-sm font-medium">Select Version</label>
           <Controller
-            name="selectedVersion"
+            name="workflowId"
             control={control}
             rules={{ required: 'Version selection is required' }}
             render={({ field }) => (
@@ -132,165 +149,158 @@ export default function InitiateProcess() {
               </select>
             )}
           />
-          {errors.selectedVersion && (
-            <p className="text-red-500 text-sm">
-              {errors.selectedVersion.message}
-            </p>
+          {errors.workflowId && (
+            <p className="text-red-500 text-sm">{errors.workflowId.message}</p>
           )}
         </div>
 
-        {selectedVersion && (
-          <Show
-            steps={
-              selectedWorkflow?.versions?.find(
-                (item) => item.id == selectedVersion,
-              ).steps
-            }
-          />
+        {/* Show Workflow Steps */}
+        {workflowId && (
+          <div className="border border-slate-400 rounded-md p-2 shadow-xl">
+            <Show
+              steps={
+                selectedWorkflow?.versions?.find(
+                  (item) => item.id == workflowId,
+                )?.steps
+              }
+            />
+          </div>
         )}
 
-        {/* Documents Upload Section */}
-        <div className="space-y-6 bg-white rounded-lg">
-          {/* File Upload Section */}
-          <div className="p-6 bg-gray-50 border border-slate-500 rounded-lg shadow-sm">
-            <label className="block text-lg font-semibold text-gray-700">
-              Upload Document
-            </label>
-            <div className="flex items-center gap-3 mt-4">
-              {/* Choose File Button */}
-              <label className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg cursor-pointer transition duration-300 shadow-md">
-                📁 Choose File
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
+        {/* File Upload Section */}
+        <div className="p-6 bg-white border border-slate-300 rounded-lg shadow-xl mx-auto">
+          <label className="block text-lg font-semibold text-gray-800 mb-2">
+            Upload Document
+          </label>
 
-              {/* Selected File Name */}
-              {selectedFile && (
-                <span className="text-gray-700 text-sm font-medium truncate max-w-xs">
+          {/* File Selection */}
+          <div className="flex flex-col items-center gap-3 p-4 border border-dashed border-gray-400 rounded-lg bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
+            <label className="flex flex-col items-center gap-2 text-gray-700 font-medium cursor-pointer">
+              <span className="text-2xl">📂</span>
+              <span className="text-sm">Click to choose a file</span>
+              <input
+                type="file"
+                ref={inputRef}
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+
+            {/* Selected File Display */}
+            {selectedFile && (
+              <div className="mt-2 w-full text-center">
+                <span className="text-gray-800 font-medium text-sm truncate block">
                   {selectedFile.name}
                 </span>
-              )}
-
-              {/* Upload Button */}
-              <button
-                type="button"
-                onClick={handleUpload}
-                disabled={!selectedFile || uploading}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition duration-300 shadow-md disabled:opacity-50"
-              >
-                {uploading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0a12 12 0 00-12 12h4zm2 5.291A8 8 0 0112 20v4a12 12 0 01-12-12h4a8 8 0 002 5.291z"
-                      />
-                    </svg>
-                    Uploading...
-                  </span>
-                ) : (
-                  'Upload'
-                )}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="text-red-500 text-xs mt-1 hover:underline"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  Remove File
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Document List Section */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-700">Documents</h2>
-            {documentFields.length === 0 ? (
-              <div className="flex items-center gap-3 bg-blue-50 border border-blue-300 text-blue-700 px-4 py-3 rounded-lg mt-2">
-                <svg
-                  className="w-5 h-5 text-blue-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20 10 10 0 010-20z"
-                  />
-                </svg>
-                <p className="text-sm font-medium">
-                  No documents added yet. Upload files to proceed.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-3 space-y-4">
-                {documentFields.map((doc, index) => (
-                  <div
-                    key={doc.id}
-                    className="p-4 bg-gray-50 border border-slate-500 rounded-lg shadow-md"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-800">
-                        {doc.docId}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeDocument(index)}
-                        className="text-red-500 hover:text-red-600 text-sm transition"
-                      >
-                        ✖ Remove
-                      </button>
-                    </div>
+          {/* Tag Input */}
+          <div className="mt-4">
+            <label className="text-sm font-medium text-gray-700">
+              Add Tags
+            </label>
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => {
+                  const sanitizedValue = e.target.value.replace(
+                    /[^a-zA-Z0-9 ]/g,
+                    '',
+                  );
+                  setNewTag(sanitizedValue);
+                }}
+                className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter tag..."
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newTag.trim()) {
+                    setTags([...tags, newTag.trim()]);
+                    setNewTag('');
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+              >
+                Add
+              </button>
+            </div>
 
-                    {/* Tag Management */}
-                    <div className="mt-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Controller
-                          control={control}
-                          name={`documents.${index}.tags`}
-                          render={({ field }) => (
-                            <>
-                              {field.value.map((tag, i) => (
-                                <span
-                                  key={i}
-                                  className="bg-purple-600 text-white px-2 py-1 text-xs rounded-full cursor-pointer transition hover:bg-purple-700"
-                                  onClick={() => {
-                                    const newTags = field.value.filter(
-                                      (_, tagIndex) => tagIndex !== i,
-                                    );
-                                    setValue(
-                                      `documents.${index}.tags`,
-                                      newTags,
-                                    );
-                                  }}
-                                >
-                                  {tag} &times;
-                                </span>
-                              ))}
-                            </>
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setTagModal({ isOpen: true, index })}
-                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-xs rounded-lg transition"
-                        >
-                          + Add Tag
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+            {/* Tags List */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="bg-purple-600 text-white px-3 py-1 text-xs rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-700 transition"
+                    onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                  >
+                    {tag} <span className="text-xs">&times;</span>
+                  </span>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Upload Button */}
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={!selectedFile || uploading || !tags.length}
+            className="w-full mt-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {uploading ? 'Uploading...' : 'Upload Document'}
+          </button>
+
+          {/* Document List */}
+          <div className="mt-5">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Uploaded Documents
+            </h2>
+            {documentFields.length === 0 ? (
+              <p className="text-sm text-gray-500 mt-2">
+                No documents uploaded yet.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {documentFields.map((doc, index) => (
+                  <li
+                    key={doc.documentId}
+                    className="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full">
+                        📄
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {doc.name || 'Unnamed Document'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID: {doc.documentId}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(index)}
+                      className="text-red-500 hover:text-red-700 transition"
+                    >
+                      ✖
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -303,44 +313,6 @@ export default function InitiateProcess() {
           Submit
         </button>
       </form>
-
-      {/* Tag Modal */}
-      {tagModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm px-4">
-          <div className="bg-white p-6 max-w-md w-full rounded-md shadow-md">
-            <h3 className="text-lg font-semibold">Add Tag</h3>
-            <input
-              type="text"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              className="border p-2 rounded-md w-full mt-2"
-            />
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => setTagModal({ isOpen: false, index: null })}
-                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (newTag.trim()) {
-                    setValue(`documents.${tagModal.index}.tags`, [
-                      ...getValues('documents')[tagModal.index].tags,
-                      newTag.trim(),
-                    ]);
-                    setNewTag('');
-                    setTagModal({ isOpen: false, index: null });
-                  }
-                }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
