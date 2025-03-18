@@ -264,10 +264,10 @@ export default function InitiateProcess() {
                 {tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="bg-purple-600 text-white px-3 py-1 text-xs rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-700 transition"
+                    className="bg-purple-600 text-white px-3 py-1 text-sm rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-700 transition"
                     onClick={() => setTags(tags.filter((_, i) => i !== index))}
                   >
-                    {tag} <span className="text-xs">&times;</span>
+                    {tag} <span className="text-lg">&times;</span>
                   </span>
                 ))}
               </div>
