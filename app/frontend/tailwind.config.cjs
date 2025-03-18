@@ -1,4 +1,4 @@
-const defaultTheme = require('tailwindcss/defaultTheme')
+const defaultTheme = require('tailwindcss/defaultTheme');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -207,6 +207,8 @@ module.exports = {
       },
       backgroundImage: {
         video: "url('../images/video/video.png')",
+        'sidebar-gradient':
+          'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
       },
       content: {
         'icon-copy': 'url("../images/icon/icon-copy-alt.svg")',
@@ -251,4 +253,4 @@ module.exports = {
     },
   },
   plugins: [],
-}
+};
