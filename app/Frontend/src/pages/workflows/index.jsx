@@ -37,7 +37,7 @@ export default function WorkflowVisualizer() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h2 className="text-3xl font-semibold text-gray-900 text-center mb-6">
+      <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">
         Workflow Management
       </h2>
 
@@ -59,7 +59,7 @@ export default function WorkflowVisualizer() {
 
       <AnimatePresence>
         {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md px-4">
+          <div className="fixed inset-0  z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md px-4">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
