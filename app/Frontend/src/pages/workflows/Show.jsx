@@ -22,7 +22,7 @@ export default function Show({ steps }) {
       id: `${index}`,
       data: {
         label: (
-          <div className="p-2 bg-gray-100 shadow-lg rounded-xl border border-gray-300 w-full">
+          <div className="p-2 bg-gray-100 shadow-lg rounded-xl border border-gray-300">
             {/* Header Section */}
             <div className="bg-blue-600 text-white p-4 rounded-md shadow-sm flex justify-between items-center">
               <h3 className="text-lg font-semibold">
@@ -37,7 +37,7 @@ export default function Show({ steps }) {
               </p>
 
               {step.assignments.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="max-w-[300px] overflow-auto">
                   <table className="text-sm w-full border-collapse border border-gray-300">
                     <thead>
                       <tr className="bg-gray-100">
@@ -83,7 +83,7 @@ export default function Show({ steps }) {
       },
       position: { x: index * 300, y: 100 }, // Increase spacing
       style: {
-        minWidth: 300, // Make the node wider
+        minWidth: 'fit-content', // Make the node wider
         minHeight: 150, // Increase height
         padding: 12,
         borderRadius: 12,
