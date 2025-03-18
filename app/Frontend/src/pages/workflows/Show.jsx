@@ -22,7 +22,7 @@ export default function Show({ steps }) {
       id: `${index}`,
       data: {
         label: (
-          <div className="p-6 bg-gray-100 shadow-lg rounded-xl border border-gray-300 w-full">
+          <div className="p-2 bg-gray-100 shadow-lg rounded-xl border border-gray-300 w-full">
             {/* Header Section */}
             <div className="bg-blue-600 text-white p-4 rounded-md shadow-sm flex justify-between items-center">
               <h3 className="text-lg font-semibold">
@@ -31,7 +31,7 @@ export default function Show({ steps }) {
             </div>
 
             {/* Assignments Section */}
-            <div className="bg-blue-600 p-5 rounded-lg mt-4">
+            <div className="bg-blue-600 p-3 rounded-lg mt-4">
               <p className="text-sm font-semibold text-gray-700 mb-3">
                 Assignments
               </p>
