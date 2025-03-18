@@ -188,13 +188,13 @@ const TreeGraph = ({
           {controls && (
             <div className="ml-auto flex w-full justify-end">
               <button
-                className="bg-purple-600 hover:bg-purple-700 px-3 m-1 py-2 rounded-md text-white"
+                className="bg-button-primary-default hover:bg-button-primary-hover px-3 m-1 py-2 rounded-md text-white"
                 onClick={selectAllNodes}
               >
                 Select All
               </button>
               <button
-                className="bg-red-500 px-3 m-1 py-2 rounded-md text-white"
+                className="bg-button-danger-default hover:bg-button-danger-hover px-3 m-1 py-2 rounded-md text-white"
                 onClick={deselectAllNodes}
               >
                 Deselect All
