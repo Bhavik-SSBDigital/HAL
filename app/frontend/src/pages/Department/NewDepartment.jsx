@@ -1,23 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import {
-  Paper,
-  Button,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Typography,
-  Grid,
-  CircularProgress,
-  Grid2,
-} from '@mui/material';
-import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { toast } from 'react-toastify';
-import { getDepartments, getUsers } from '../../common/Apis';
-import TopLoader from '../../common/Loader/TopLoader';
+import { getDepartments } from '../../common/Apis';
 
 export default function NewDepartment() {
   const { id } = useParams();
@@ -47,7 +33,6 @@ export default function NewDepartment() {
     const fetchDepartments = async () => {
       try {
         const { data } = await getDepartments();
-        console.log(data);
         setDepartments(data?.departments);
       } catch (error) {
         console.error('Error fetching departments', error);
@@ -81,111 +66,90 @@ export default function NewDepartment() {
       const response = await axios.post(url, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success(
-        id
-          ? 'Department updated successfully'
-          : 'Department created successfully',
-      );
+      toast.success(response?.data?.message);
       navigate('/departments/list');
     } catch (error) {
-      toast.error(
-        id ? 'Failed to update department' : 'Failed to create department',
-      );
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      {isSubmitting ? <TopLoader /> : null}
-      <Paper style={{ padding: 20, margin: 'auto' }}>
-        <Typography variant="h5" textAlign={'center'} mb={1}>
-          {id ? 'Edit Department' : 'Add Department'}
-        </Typography>
-        {loading ? (
-          <CircularProgress />
-        ) : (
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Grid2 container spacing={2}>
-              <Grid2 size={{ xs: 12 }}>
-                <Controller
-                  name="department"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth
-                      label="Department Name"
-                      variant="outlined"
-                      required
-                    />
-                  )}
+    <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
+      <h2 className="text-xl font-semibold text-center mb-4">
+        {id ? 'Edit Department' : 'Add Department'}
+      </h2>
+      {loading ? (
+        <div className="flex justify-center items-center">
+          <div className="loader"></div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div>
+            <label className="block text-gray-700">Department Name</label>
+            <Controller
+              name="department"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  className="w-full p-2 border rounded"
+                  required
                 />
-              </Grid2>
-              <Grid2 size={{ xs: 12 }}>
-                <Controller
-                  name="code"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth
-                      label="Department Code"
-                      variant="outlined"
-                      required
-                    />
-                  )}
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Department Code</label>
+            <Controller
+              name="code"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  className="w-full p-2 border rounded"
+                  required
                 />
-              </Grid2>
-              <Grid2 size={{ xs: 12 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Parent Department</InputLabel>
-                  <Controller
-                    name="parentDepartmentId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select {...field} label="Parent Department">
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {departments.map((dept) => (
-                          <MenuItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                </FormControl>
-              </Grid2>
-
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  disabled={isSubmitting}
-                >
-                  {id ? 'Save Changes' : 'Create Department'}
-                </Button>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6 }}>
-                <Button
-                  variant="outlined"
-                  color="info"
-                  onClick={() => navigate('/roles/createNew')}
-                  fullWidth
-                  disabled={isSubmitting}
-                >
-                  Redirect to create role
-                </Button>
-              </Grid2>
-            </Grid2>
-          </form>
-        )}
-      </Paper>
-    </>
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Parent Department</label>
+            <Controller
+              name="parentDepartmentId"
+              control={control}
+              render={({ field }) => (
+                <select {...field} className="w-full p-2 border rounded">
+                  <option value="">None</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
+          </div>
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              className="w-full bg-button-primary-default hover:bg-button-primary-hover text-white p-2 rounded"
+              disabled={isSubmitting}
+            >
+              {id ? 'Save Changes' : 'Create Department'}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/roles/createNew')}
+              className="w-full borde bg-button-info-default hover:bg-button-info-hover p-2 rounde text-white"
+              disabled={isSubmitting}
+            >
+              Redirect to create role
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
