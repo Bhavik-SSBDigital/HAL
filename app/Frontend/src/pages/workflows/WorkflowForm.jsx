@@ -202,7 +202,7 @@ export default function WorkflowForm({ handleCloseForm }) {
           <button
             type="button"
             onClick={() => appendStep({ stepName: '', assignments: [] })}
-            className="bg-green-500 text-white px-4 py-2 rounded-md flex items-center justify-center w-full"
+            className="bg-button-secondary-default hover:bg-button-secondary-hover text-white px-4 py-2 rounded-md flex items-center justify-center w-full"
           >
             <IconPlus className="mr-2" size={18} /> Add Step
           </button>
@@ -224,7 +224,7 @@ export default function WorkflowForm({ handleCloseForm }) {
           </button>
           <button
             type="submit"
-            className="bg-purple-600 hover:bg-purple-700 flex-1 py-2 text-white rounded-md"
+            className="bg-button-primary-default hover:bg-button-primary-hover flex-1 py-2 text-white rounded-md"
           >
             Submit
           </button>
@@ -444,7 +444,9 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? roleList
-                            : roleList?.filter((r) => field.value.includes(r.id))
+                            : roleList?.filter((r) =>
+                                field.value.includes(r.id),
+                              )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
@@ -525,7 +527,7 @@ function AssignmentForm({
                 {assigneeIds?.length !== 0 ? (
                   <button
                     type="button"
-                    className="bg-blue-500 rounded-md text-white p-2 border ml-auto block hover:bg-blue-600"
+                    className="bg-button-secondary-default hover:bg-button-secondary-hover rounded-md text-white p-2 border ml-auto block"
                     onClick={() => setOpenWorkflows(true)}
                   >
                     Select Roles
@@ -654,13 +656,13 @@ function AssignmentForm({
                   onClose();
                   setSelectedNodes([]);
                 }}
-                className="border px-4 py-2 rounded-md"
+                className="border px-4 py-2 rounded-md bg-button-danger-default hover:bg-button-danger-hover text-white"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-white rounded-md"
+                className="bg-button-primary-default hover:bg-button-primary-hover px-4 py-2 text-white rounded-md"
               >
                 Save
               </button>
