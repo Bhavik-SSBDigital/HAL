@@ -22,55 +22,62 @@ export default function Show({ steps }) {
       id: `${index}`,
       data: {
         label: (
-          <div className="p-4 bg-blue-500 text-white rounded-md text-sm shadow-md w-full">
-            <p className="font-semibold text-base">
-              Step {step.stepNumber}: {step.stepName}
-            </p>
-            {/* <p className="text-sm">
-              Parallel Allowed: {step.allowParallel ? 'Yes' : 'No'}
-            </p> */}
-            <p className="text-sm font-semibold mt-2">Assignments:</p>
-            {step.assignments.length > 0 ? (
-              <div className="overflow-auto">
-                <table className="text-sm w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 px-3 py-2">
-                        Assignee Type
-                      </th>
-                      <th className="border border-gray-300 px-3 py-2">
-                        Action Type
-                      </th>
-                      <th className="border border-gray-300 px-3 py-2">
-                        Assignee IDs
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {step.assignments.map((assignment) => (
-                      <tr
-                        key={assignment.id}
-                        className="border border-gray-300"
-                      >
-                        <td className="border border-gray-300 px-3 py-2">
-                          {assignment.assigneeType}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2">
-                          {assignment.actionType}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2">
-                          {assignment.assigneeIds.length > 0
-                            ? assignment.assigneeIds.join(', ')
-                            : 'N/A'}
-                        </td>
+          <div className="p-6 bg-gray-100 shadow-lg rounded-xl border border-gray-300 w-full">
+            {/* Header Section */}
+            <div className="bg-blue-600 text-white p-4 rounded-md shadow-sm flex justify-between items-center">
+              <h3 className="text-lg font-semibold">
+                Step {step.stepNumber}: {step.stepName}
+              </h3>
+            </div>
+
+            {/* Assignments Section */}
+            <div className="bg-blue-600 p-5 rounded-lg mt-4">
+              <p className="text-sm font-semibold text-gray-700 mb-3">
+                Assignments
+              </p>
+
+              {step.assignments.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="text-sm w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-3 py-2">
+                          Assignee Type
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2">
+                          Action Type
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2">
+                          Assignee IDs
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm italic">No assignments</p>
-            )}
+                    </thead>
+                    <tbody>
+                      {step.assignments.map((assignment) => (
+                        <tr
+                          key={assignment.id}
+                          className="border border-gray-300"
+                        >
+                          <td className="border border-gray-300 px-3 py-2">
+                            {assignment.assigneeType}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2">
+                            {assignment.actionType}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2">
+                            {assignment.assigneeIds.length > 0
+                              ? assignment.assigneeIds.join(', ')
+                              : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm italic text-gray-500">No assignments</p>
+              )}
+            </div>
           </div>
         ),
       },
