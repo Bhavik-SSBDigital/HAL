@@ -1,25 +1,19 @@
 import {
   Box,
-  Button,
   CircularProgress,
-  Modal,
+  Dialog,
   Stack,
   TextField,
   Typography,
   IconButton,
   Tooltip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Dialog,
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { DataGrid } from '@mui/x-data-grid';
 import { IconTrash, IconEdit, IconEye } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import ShowWorkflow from '../../common/Workflow/ShowWorkflow';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import {
   getDepartments,
@@ -28,6 +22,7 @@ import {
 } from '../../common/Apis';
 import styles from './List.module.css';
 import TreeGraph from '../../components/TreeGraph';
+import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 
 export default function List() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -43,6 +38,11 @@ export default function List() {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('list');
 
+  useEffect(() => {
+    getHierarchy();
+    fetchDepartments();
+  }, []);
+
   const getHierarchy = async () => {
     try {
       const res = await getDepartmentsHierarchy();
@@ -53,11 +53,6 @@ export default function List() {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    getHierarchy();
-    fetchDepartments();
-  }, []);
 
   const fetchDepartments = async () => {
     try {
@@ -95,18 +90,52 @@ export default function List() {
   const handleViewHierarchy = async (id) => {
     try {
       const response = await getRolesHierarchyInDepartment(id);
-      console.log(response.data.data);
       setSelectedDepartmentData(response.data.data);
       setHierarchyModalOpen(true);
-      toast.success(response.data.message);
     } catch (error) {
       toast.error(error?.response?.data?.message);
     }
   };
 
-  const filteredData = departments.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const columns = [
+    { field: 'id', headerName: 'ID', flex: 0.5 },
+    { field: 'name', headerName: 'Department Name', flex: 1 },
+    { field: 'code', headerName: 'Code', flex: 0.5 },
+    { field: 'status', headerName: 'Status', flex: 0.5 },
+    { field: 'createdAt', headerName: 'Created At', flex: 1 },
+    { field: 'updatedAt', headerName: 'Updated At', flex: 1 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1,
+      renderCell: (params) => (
+        <div className="flex space-x-2 m-1">
+          <button
+            className="p-2 rounded-lg bg-button-primary-default hover:bg-button-primary-hover"
+            onClick={() => handleViewHierarchy(params.row.id)}
+          >
+            <IconEye color="white" />
+          </button>
+          <button
+            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
+            onClick={() => navigate(`/departments/edit/${params.row.id}`)}
+          >
+            <IconEdit color="white" />
+          </button>
+          <button
+            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
+            onClick={() => {
+              console.log(params.id);
+              setDeleteItemId(params.id);
+              setModalOpen(true);
+            }}
+          >
+            <IconTrash color="white" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -115,55 +144,43 @@ export default function List() {
       ) : (
         <Stack className={styles.container}>
           <Stack
-            justifyContent={{ xs: 'center', sm: 'space-between' }}
             flexDirection={'row'}
+            justifyContent={{ xs: 'center', sm: 'space-between' }}
             flexWrap={'wrap'}
             gap={1}
             mb={1}
           >
             <Stack
               gap={1}
-              sx={{
-                bgcolor: '#EEEEEE',
-                p: 0.6,
-                borderRadius: '8px',
-              }}
+              sx={{ bgcolor: '#EEEEEE', p: 0.6, borderRadius: '8px' }}
               flexDirection={'row'}
             >
               <div
                 onClick={() => setSelectedTab('list')}
                 className={`${styles.tab} ${
-                  selectedTab == 'list' && styles.selectedTab
+                  selectedTab === 'list' && styles.selectedTab
                 }`}
               >
-                <Typography
-                  variant="body1"
-                  color="initial"
-                  textAlign={'center'}
-                >
+                <Typography variant="body1" textAlign={'center'}>
                   List
                 </Typography>
               </div>
               <div
                 onClick={() => setSelectedTab('tree')}
                 className={`${styles.tab} ${
-                  selectedTab == 'tree' && styles.selectedTab
+                  selectedTab === 'tree' && styles.selectedTab
                 }`}
               >
-                <Typography
-                  variant="body1"
-                  color="initial"
-                  textAlign={'center'}
-                >
+                <Typography variant="body1" textAlign={'center'}>
                   Tree
                 </Typography>
               </div>
             </Stack>
           </Stack>
-          {selectedTab == 'tree' ? (
+          {selectedTab === 'tree' ? (
             <TreeGraph data={data} loading={isLoading} />
           ) : (
-            <Box sx={{ width: '100%' }}>
+            <Box sx={{ width: '100%', height: 400 }}>
               <Stack
                 flexDirection="row"
                 justifyContent={'flex-end'}
@@ -178,90 +195,39 @@ export default function List() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <Link to="/departments/createNew">
-                  <Button variant="contained" sx={{ borderRadius: '8px' }}>
+                  <button
+                    variant="contained"
+                    className="bg-button-primary-default hover:bg-button-primary-hover text-white p-2 rounded-md"
+                    sx={{ borderRadius: '8px' }}
+                  >
                     Create Department
-                  </Button>
+                  </button>
                 </Link>
               </Stack>
-              {filteredData.length > 0 ? (
-                filteredData.map((i) => (
-                  <Accordion key={i._id} elevation={1} sx={{ marginBottom: 2 }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Stack
-                        flexDirection="row"
-                        justifyContent="space-between"
-                        width="100%"
-                      >
-                        <Box>
-                          <Typography variant="h6" fontWeight="bold">
-                            {i.name}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            Head: {i.head || 'N/A'}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1}>
-                          <Tooltip title="View Roles Hierarchy">
-                            <IconButton
-                              onClick={() => handleViewHierarchy(i.id)}
-                            >
-                              <IconEye color="#2860e0" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              onClick={() =>
-                                navigate(`/departments/edit/${i.id}`)
-                              }
-                            >
-                              <IconEdit color="#2860e0" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              onClick={() => {
-                                setDeleteItemId(i._id);
-                                setModalOpen(true);
-                              }}
-                            >
-                              <IconTrash color="red" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </Stack>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      {i.workFlow ? (
-                        <ShowWorkflow workFlow={i.workFlow} />
-                      ) : (
-                        <Typography color="blue">
-                          Please Assign WorkFlow
-                        </Typography>
-                      )}
-                    </AccordionDetails>
-                  </Accordion>
-                ))
-              ) : (
-                <Typography variant="h6" align="center" color="textSecondary">
-                  No departments found
-                </Typography>
-              )}
+              <DataGrid
+                rows={departments}
+                columns={columns}
+                pageSize={5}
+                autoHeight
+              />
             </Box>
           )}
         </Stack>
       )}
-
-      {/* Hierarchy Modal */}
       <Dialog
         open={isHierarchyModalOpen}
         fullWidth
         maxWidth="md"
         onClose={() => setHierarchyModalOpen(false)}
       >
-        <div>
-          <TreeGraph data={selectedDepartmentData} loading={isLoading} />
-        </div>
+        <TreeGraph data={selectedDepartmentData} loading={isLoading} />
       </Dialog>
+      <DeleteConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={() => handleDepDelete(deleteItemId)}
+        isLoading={deleteDepLoading}
+      />
     </>
   );
 }

@@ -99,9 +99,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         width: '280px',
         zIndex: 21,
         // background: 'linear-gradient(63deg, #08203e, #557c93)',
-      
       }}
-      className={`absolute bg-sidebar-gradient left-0 top-0 z-10 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
+      className={`absolute bg-sidebar-gradient-9 left-0 top-0 z-10 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
@@ -188,7 +187,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                         className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                           (pathname === '/' ||
                             pathname.includes('dashboard')) &&
-                          'bg-indigo-400 text-white'
+                          'bg-sidebar-active text-white'
                         }`}
                         onClick={(e) => {
                           e.preventDefault();
@@ -271,7 +270,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                   (pathname === '/files' || pathname.includes('files')) &&
-                  'bg-indigo-400 text-white'
+                  'bg-sidebar-active text-white'
                 }`}
               >
                 <IconFolderOpen
@@ -293,7 +292,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                   (pathname === '/Search' || pathname.includes('Search')) &&
-                  'bg-indigo-400 text-white'
+                  'bg-sidebar-active text-white'
                 }`}
               >
                 <IconFolderSearch
@@ -317,7 +316,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                   (pathname === '/meeting-manager' ||
                     pathname.includes('meeting-manager')) &&
-                  'bg-indigo-400 text-white'
+                  'bg-sidebar-active text-white'
                 }`}
               >
                 <IconCalendarStats />
@@ -336,7 +335,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 }}
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                   (pathname === '/monitor' || pathname.includes('monitor')) &&
-                  'bg-indigo-400 text-white'
+                  'bg-sidebar-active text-white'
                 }`}
               >
                 <IconChartHistogram
@@ -359,7 +358,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                   (pathname === '/workflows' ||
                     pathname.includes('workflows')) &&
-                  'bg-indigo-400 text-white'
+                  'bg-sidebar-active text-white'
                 }`}
               >
                 <IconChartDots3
@@ -383,7 +382,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                     (pathname === '/meta-data' ||
                       pathname.includes('meta-data')) &&
-                    'bg-indigo-400 text-white'
+                    'bg-sidebar-active text-white'
                   }`}
                 >
                   <IconDatabaseCog
@@ -418,7 +417,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 ${
                               (pathname === '/department' ||
                                 pathname.includes('department')) &&
-                              'bg-indigo-400 text-white'
+                              'bg-sidebar-active text-white'
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -503,7 +502,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                               (pathname === '/branches' ||
                                 pathname.includes('branches')) &&
-                              'bg-indigo-400 text-white'
+                              'bg-sidebar-active text-white'
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -587,7 +586,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 ${
                               (pathname === '/roles' ||
                                 pathname.includes('roles')) &&
-                              'bg-indigo-400 text-white'
+                              'bg-sidebar-active text-white'
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -671,7 +670,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                               (pathname === '/users' ||
                                 pathname.includes('users')) &&
-                              'bg-indigo-400 text-white'
+                              'bg-sidebar-active text-white'
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -760,7 +759,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                         className={`group relative flex items-center gap-3 rounded-sm px-4 py-3 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 ${
                           (pathname === '/processes' ||
                             pathname.includes('processes')) &&
-                          'bg-indigo-400 text-white'
+                          'bg-sidebar-active text-white'
                         }`}
                         onClick={(e) => {
                           e.preventDefault();
@@ -877,7 +876,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
                     (pathname === '/physicalDocuments' ||
                       pathname.includes('physicalDocuments')) &&
-                    'bg-indigo-400 text-white'
+                    'bg-sidebar-active text-white'
                   }`}
                 >
                   <svg
