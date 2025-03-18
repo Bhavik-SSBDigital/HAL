@@ -89,7 +89,7 @@ const TreeGraph = ({
             if (!controls) return params.name;
             if (params?.name == data[0]?.name) return params?.name;
             const isChecked = selectedHierarchy
-              .find((dept) => dept.department === departmentId)
+              ?.find((dept) => dept.department === departmentId)
               ?.roles?.find((role) => role.id == params.data.id);
             return `{checkbox|${isChecked ? '☑' : '☐'}} ${params.name}`;
           },
@@ -116,13 +116,13 @@ const TreeGraph = ({
   });
 
   useEffect(() => {
-    const departmentData = selectedHierarchy.find(
+    const departmentData = selectedHierarchy?.find(
       (dept) => dept.department === departmentId,
     );
   }, [selectedHierarchy, departmentId]);
 
   useEffect(() => {
-    if (selectedNodes.length !== 0) {
+    if (selectedNodes?.length !== 0) {
       setSelectedHierarchy(selectedNodes);
     }
   }, [selectedNodes]);

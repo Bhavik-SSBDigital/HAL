@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { upload } from '../components/drop-file-input/FileUploadDownload';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -61,6 +62,17 @@ export const GetWorkflows = async () => {
 };
 
 // usernames endpoints
-export const GetUsersWithDetails = async () =>{
-  return apiClient.get('/getUsersWithDetails')
-}
+export const GetUsersWithDetails = async () => {
+  return apiClient.get('/getUsersWithDetails');
+};
+
+// upload documents apis
+export const uploadDocumentInProcess = async (fileList, name, tags) => {
+  const res = await upload(fileList, '../check', name, true, tags);
+  return res;
+};
+
+// processes endpoints
+export const ProcessInitiate = async (data) => {
+  return apiClient.post('/initiateProcess', data);
+};
