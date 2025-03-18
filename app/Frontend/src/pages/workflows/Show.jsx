@@ -119,7 +119,7 @@ export default function Show({ steps }) {
         nodes={nodes}
         edges={edges}
         onEdgesChange={onEdgesChange}
-        fitView
+        // fitView
       >
         <MiniMap zoomable pannable />
         <Controls />

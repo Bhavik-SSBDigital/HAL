@@ -3,6 +3,7 @@ import { GetWorkflows } from '../../common/Apis';
 import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IconX } from '@tabler/icons-react';
 
 export default function WorkflowVisualizer() {
   const [workflows, setWorkflows] = useState([]);
@@ -35,45 +36,59 @@ export default function WorkflowVisualizer() {
   };
 
   return (
-    <div className="p-8 mx-auto rounded-xl w-full">
-      <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
+    <div className="p-6 max-w-6xl mx-auto">
+      <h2 className="text-3xl font-semibold text-gray-900 text-center mb-6">
         Workflow Management
       </h2>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
         <input
           type="text"
           placeholder="Search workflows..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+          className="w-full sm:max-w-md p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
         />
         <button
-          className="bg-button-primary-default hover:bg-button-primary-hover text-white rounded-lg py-3 w-[200px] shadow-md transition"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 px-6 shadow-md transition"
           onClick={() => setShowForm(true)}
         >
           + Add Workflow
         </button>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm px-4">
-          <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-3xl relative overflow-y-auto max-h-[90vh]">
-            <WorkflowForm handleCloseForm={() => setShowForm(false)} />
+      <AnimatePresence>
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-md px-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white p-6 rounded-xl shadow-xl w-full max-w-2xl relative"
+            >
+              <button
+                className="absolute top-3 right-3 text-gray-600 hover:text-gray-800"
+                onClick={() => setShowForm(false)}
+              >
+                <IconX size={24} />
+              </button>
+              <WorkflowForm handleCloseForm={() => setShowForm(false)} />
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {filteredWorkflows.length > 0 ? (
-        filteredWorkflows.map((workflow, wIndex) => {
+        filteredWorkflows.map((workflow) => {
           const selectedVersion =
             selectedVersions[workflow.name] || workflow.versions[0];
           const isExpanded = expandedWorkflow === workflow.name;
 
           return (
             <motion.div
-              key={wIndex}
-              className="bg-white rounded-xl shadow-lg p-6 mb-8 border"
+              key={workflow.name}
+              className="bg-white rounded-xl shadow-lg p-6 mb-6 border"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -84,11 +99,11 @@ export default function WorkflowVisualizer() {
                   setExpandedWorkflow(isExpanded ? null : workflow.name)
                 }
               >
-                <h3 className="text-2xl font-semibold text-gray-800">
+                <h3 className="text-lg font-medium text-gray-800">
                   {workflow.name}
                 </h3>
                 <motion.span
-                  className="text-blue-600 text-lg font-semibold"
+                  className="text-gray-600"
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -96,45 +111,51 @@ export default function WorkflowVisualizer() {
                 </motion.span>
               </div>
 
-              <div className="mt-4">
-                <label className="text-gray-700 font-medium text-sm ml-0.5">
-                  Select Version :
-                </label>
-                <select
-                  value={selectedVersion.version}
-                  onChange={(e) => {
-                    const selected = workflow.versions.find(
-                      (v) => v.version === parseInt(e.target.value, 10),
-                    );
-                    handleVersionChange(workflow.name, selected);
-                  }}
-                  className="text-sm bg-gray-100 px-4 py-2 rounded-lg border focus:outline-none shadow-sm cursor-pointer w-full"
-                >
-                  {workflow.versions.map((version, index) => (
-                    <option key={index} value={version.version}>
-                      Version {version.version}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Select Version:
+                  </label>
+                  <select
+                    value={selectedVersion.version}
+                    onChange={(e) => {
+                      const selected = workflow.versions.find(
+                        (v) => v.version === parseInt(e.target.value, 10),
+                      );
+                      handleVersionChange(workflow.name, selected);
+                    }}
+                    className="mt-1 bg-gray-100 px-4 py-2 rounded-lg border focus:ring-blue-500 w-full"
+                  >
+                    {workflow.versions.map((version) => (
+                      <option key={version.version} value={version.version}>
+                        Version {version.version}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="mt-4 bg-gray-50 p-6 rounded-lg border">
-                <p className="text-sm text-gray-500">
-                  <b className="text-gray-700">Created on :</b>
-                  {new Date(selectedVersion?.createdAt).toLocaleString()}
-                </p>
-                {selectedVersion?.description && (
-                  <p className="text-gray-600 mt-2 text-sm leading-relaxed">
-                    <b className="text-gray-700">Description :</b>{' '}
-                    {selectedVersion?.description}
-                  </p>
-                )}
-                <p className="text-gray-500 text-sm mt-2">
-                  <b className="text-gray-700">Author :</b>
-                  <span className="font-medium text-gray-800">
-                    {selectedVersion?.createdBy?.email}
-                  </span>
-                </p>
+                <div className="bg-white p-5 rounded-lg border shadow-sm space-y-4">
+                  <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
+                    <span className="font-bold">Created on:</span>
+                    <span>
+                      {new Date(selectedVersion?.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {selectedVersion?.description && (
+                    <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
+                      <span className="font-bold">Description:</span>
+                      <span>
+                        {selectedVersion?.description}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
+                    <span className="font-bold">Author:</span>
+                    <span>{selectedVersion?.createdBy?.email}</span>
+                  </div>
+                </div>
               </div>
 
               <AnimatePresence>
@@ -154,7 +175,7 @@ export default function WorkflowVisualizer() {
           );
         })
       ) : (
-        <p className="text-center bg-white p-20 border rounded-lg text-gray-500 text-lg">
+        <p className="text-center bg-white p-10 border rounded-lg text-gray-500 text-lg">
           No workflows found.
         </p>
       )}
