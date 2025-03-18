@@ -23,6 +23,7 @@ import {
 import styles from './List.module.css';
 import TreeGraph from '../../components/TreeGraph';
 import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import moment from 'moment';
 
 export default function List() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -102,8 +103,19 @@ export default function List() {
     { field: 'name', headerName: 'Department Name', flex: 1 },
     { field: 'code', headerName: 'Code', flex: 0.5 },
     { field: 'status', headerName: 'Status', flex: 0.5 },
-    { field: 'createdAt', headerName: 'Created At', flex: 1 },
-    { field: 'updatedAt', headerName: 'Updated At', flex: 1 },
+    {
+      field: 'createdAt',
+      headerName: 'Created At',
+      flex: 1,
+      renderCell: (params) => moment(params.value).format('DD-MM-YYYY'),
+    },
+    {
+      field: 'updatedAt',
+      headerName: 'Updated At',
+      flex: 1,
+      renderCell: (params) => moment(params.value).format('DD-MM-YYYY'),
+    },
+
     {
       field: 'actions',
       headerName: 'Actions',
