@@ -252,7 +252,7 @@ export default function InitiateProcess() {
                     setNewTag('');
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+                className="bg-button-success-default hover:bg-button-success-hover text-white px-4 py-2 rounded-md transition"
               >
                 Add
               </button>
@@ -279,7 +279,7 @@ export default function InitiateProcess() {
             type="button"
             onClick={handleUpload}
             disabled={!selectedFile || uploading || !tags.length}
-            className="w-full mt-4 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-4 py-3 bg-button-secondary-default hover:bg-button-secondary-hover text-white font-semibold rounded-lg shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? 'Uploading...' : 'Upload Document'}
           </button>
@@ -330,7 +330,7 @@ export default function InitiateProcess() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md w-full"
+          className="bg-button-primary-default hover:bg-button-primary-hover text-white px-4 py-2 rounded-md w-full"
         >
           Submit
         </button>
