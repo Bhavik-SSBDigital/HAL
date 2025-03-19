@@ -77,7 +77,8 @@ export default function WorkflowForm({ handleCloseForm }) {
             Workflow Name :
           </label>
           <input
-            {...register('name', { required: true })}
+            {...register('name')}
+            required
             className="border p-2 sm:p-3 w-full rounded-md"
             placeholder="Enter workflow name"
           />
@@ -89,7 +90,8 @@ export default function WorkflowForm({ handleCloseForm }) {
             Description :
           </label>
           <textarea
-            {...register('description', { required: true })}
+            {...register('description')}
+            required
             className="border p-2 sm:p-3 w-full rounded-md"
             placeholder="Provide a brief description"
           />
@@ -118,7 +120,8 @@ export default function WorkflowForm({ handleCloseForm }) {
                 Step Name :
               </label>
               <input
-                {...register(`steps.${stepIndex}.stepName`, { required: true })}
+                {...register(`steps.${stepIndex}.stepName`)}
+                required
                 className="border p-2 sm:p-3 w-full rounded-md mb-2"
                 placeholder={`Step ${stepIndex + 1} Name`}
               />
@@ -346,6 +349,7 @@ function AssignmentForm({
             </label>
             <select
               {...register('assigneeType')}
+              required
               className="border p-2 w-full rounded-sm mb-3"
             >
               <option value="USER">User</option>
@@ -625,6 +629,7 @@ function AssignmentForm({
             </label>
             <select
               {...register('actionType')}
+              required
               className="border p-2 w-full rounded-sm mb-3"
             >
               <option value="APPROVAL">APPROVAL</option>
@@ -640,6 +645,7 @@ function AssignmentForm({
                 </label>
                 <select
                   {...register('direction')}
+                  required
                   className="border p-2 w-full rounded-sm mb-3"
                 >
                   <option value="UPWARDS">UPWARDS</option>
