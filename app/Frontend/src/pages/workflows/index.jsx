@@ -3,7 +3,7 @@ import { GetWorkflows } from '../../common/Apis';
 import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconX } from '@tabler/icons-react';
+import { IconArrowBadgeDown, IconX } from '@tabler/icons-react';
 
 export default function WorkflowVisualizer() {
   const [workflows, setWorkflows] = useState([]);
@@ -95,7 +95,7 @@ export default function WorkflowVisualizer() {
             >
               <div className="w-full mb-4 flex flex-col ml-auto items-end">
                 <label className="text-sm w-fit font-medium text-gray-700">
-                  Select Version :
+                  Select Version
                 </label>
                 <select
                   value={selectedVersion.version}
@@ -128,7 +128,7 @@ export default function WorkflowVisualizer() {
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  ▼
+                  <IconArrowBadgeDown />
                 </motion.span>
               </div>
 
@@ -158,11 +158,12 @@ export default function WorkflowVisualizer() {
               <AnimatePresence>
                 {isExpanded && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.4, ease: 'easeInOut' }}
-                    className="overflow-hidden border-t border-gray-200 pt-5 mt-4"
+                    key={workflow.name} // Ensure uniqueness for AnimatePresence
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: 1, opacity: 1 }}
+                    exit={{ scaleY: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="origin-top overflow-hidden border-t border-gray-200 pt-5 mt-4"
                   >
                     <Show steps={selectedVersion.steps} />
                   </motion.div>
