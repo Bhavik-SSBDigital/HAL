@@ -8,6 +8,7 @@ import {
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
+import { IconInfoCircle } from '@tabler/icons-react';
 
 export default function InitiateProcess() {
   const [workflowData, setWorkflowData] = useState([]);
@@ -290,27 +291,27 @@ export default function InitiateProcess() {
               Uploaded Documents
             </h2>
             {documentFields.length === 0 ? (
-              <p className="text-sm text-gray-500 mt-2">
-                No documents uploaded yet.
+              <p className="flex font-semibold align-middle gap-2 text-sm text-gray-500 mt-2 bg-purple-100 p-3 rounded-md text-black">
+                <IconInfoCircle color="blue" /> No documents uploaded yet.
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
                 {documentFields.map((doc, index) => (
                   <li
                     key={doc.documentId}
-                    className="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm"
+                    className="flex items-center justify-between p-2 bg-white border rounded-lg shadow-sm"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full">
                         📄
                       </div>
+                      <hr className="bg-slate-200 text-white w-[2px] min-h-[70px]" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-lg font-medium text-gray-900">
                           {doc.name || 'Unnamed Document'}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          ID: {doc.documentId}
-                        </p>
+                        <p className="text-md">ID : {doc.documentId}</p>
+                        <p className="text-md">Tags : {doc.tags.join(', ')}</p>
                       </div>
                     </div>
                     <button
