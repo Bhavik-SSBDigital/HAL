@@ -36,7 +36,7 @@ export default function WorkflowVisualizer() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-3 max-w-6xl mx-auto">
       <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">
         Workflow Management
       </h2>
@@ -93,8 +93,29 @@ export default function WorkflowVisualizer() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
+              <div className="w-full mb-4 flex flex-col ml-auto items-end">
+                <label className="text-sm w-fit font-medium text-gray-700">
+                  Select Version :
+                </label>
+                <select
+                  value={selectedVersion.version}
+                  onChange={(e) => {
+                    const selected = workflow.versions.find(
+                      (v) => v.version === parseInt(e.target.value, 10),
+                    );
+                    handleVersionChange(workflow.name, selected);
+                  }}
+                  className="mt-1 bg-gray-100 px-4 py-2 rounded-lg border focus:ring-blue-500 w-[200px]"
+                >
+                  {workflow.versions.map((version) => (
+                    <option key={version.version} value={version.version}>
+                      Version {version.version}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div
-                className="flex justify-between items-center cursor-pointer hover:bg-gray-100 p-4 rounded-lg transition"
+                className="flex border justify-between items-center cursor-pointer hover:bg-gray-100 p-4 rounded-lg transition"
                 onClick={() =>
                   setExpandedWorkflow(isExpanded ? null : workflow.name)
                 }
@@ -112,28 +133,6 @@ export default function WorkflowVisualizer() {
               </div>
 
               <div className="mt-4 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Select Version:
-                  </label>
-                  <select
-                    value={selectedVersion.version}
-                    onChange={(e) => {
-                      const selected = workflow.versions.find(
-                        (v) => v.version === parseInt(e.target.value, 10),
-                      );
-                      handleVersionChange(workflow.name, selected);
-                    }}
-                    className="mt-1 bg-gray-100 px-4 py-2 rounded-lg border focus:ring-blue-500 w-full"
-                  >
-                    {workflow.versions.map((version) => (
-                      <option key={version.version} value={version.version}>
-                        Version {version.version}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div className="bg-white p-5 rounded-lg border shadow-sm space-y-4">
                   <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
                     <span className="font-bold">Created on:</span>
@@ -145,9 +144,7 @@ export default function WorkflowVisualizer() {
                   {selectedVersion?.description && (
                     <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
                       <span className="font-bold">Description:</span>
-                      <span>
-                        {selectedVersion?.description}
-                      </span>
+                      <span>{selectedVersion?.description}</span>
                     </div>
                   )}
 

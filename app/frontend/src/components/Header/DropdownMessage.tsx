@@ -138,7 +138,7 @@ const DropdownMessage = () => {
           ) : (
             // <li>
             <h5
-              className="text-sm font-medium text-bodydark2"
+              className="text-sm font-medium text-bodydark2 p-3"
               style={{
                 textAlign: 'center',
               }}
