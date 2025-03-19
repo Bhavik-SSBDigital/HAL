@@ -83,17 +83,50 @@ export const add_workflow = async (req, res) => {
         const assignments = steps[i].assignments || [];
 
         if (assignments.length) {
+          console.log("assignments", JSON.stringify(assignments));
           // Insert WorkflowAssignments
+
+          const groupedAssignments = {};
+
+          assignments.forEach((assignee) => {
+            // Create a mapping of assigneeId -> allowParallel (from selectedRoles)
+            const allowParallelMapping = {};
+
+            assignee.selectedRoles?.forEach((role) => {
+              role.roles.forEach(() => {
+                allowParallelMapping[role.department] =
+                  role.allowParallel || false;
+              });
+            });
+
+            assignee.assigneeIds.forEach((assigneeId) => {
+              const allowParallel = allowParallelMapping[assigneeId] || false; // Get per-assignee allowParallel
+
+              const key = JSON.stringify({
+                assigneeType: assignee.assigneeType,
+                actionType: assignee.actionType,
+                accessTypes: assignee.accessTypes.sort(), // Ensure consistent key
+                direction: assignee.direction,
+                allowParallel: allowParallel, // Now per-assignee
+              });
+
+              if (!groupedAssignments[key]) {
+                groupedAssignments[key] = { ...assignee, assigneeIds: [] };
+              }
+
+              groupedAssignments[key].assigneeIds.push(Number(assigneeId));
+            });
+          });
+
           await tx.workflowAssignment.createMany({
-            data: assignments.map((assignee) => ({
+            data: Object.values(groupedAssignments).map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds.map(Number),
+              assigneeIds: assignee.assigneeIds,
               actionType: assignee.actionType,
-              accessTypes: assignee.accessTypes, // Store multiple access types
-              // selectedRoles: assignee.selectedRoles?.map(Number) || [],
+              accessTypes: assignee.accessTypes,
               direction: assignee.direction,
-              allowParallel: assignee.allowParallel || false,
+              allowParallel: assignee.allowParallel, // Ensures correct parallelism per group
             })),
           });
 

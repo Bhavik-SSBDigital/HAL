@@ -237,23 +237,138 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { processName, description, workflowId, documents } = req.body;
-
     const initiator = userData.id;
 
-    await initiateProcess(
-      workflowId,
-      userData.id,
-      documents.map((item) => item.documentId),
-      processName
+    // Get workflow with first step and assignments
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      include: {
+        steps: {
+          orderBy: { stepNumber: "asc" },
+          take: 1,
+          include: {
+            assignments: {
+              include: {
+                departmentRoles: {
+                  include: {
+                    department: true,
+                    role: {
+                      include: {
+                        users: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ message: "Workflow not found" });
+    }
+
+    const firstStep = workflow.steps[0];
+    if (!firstStep) {
+      return res.status(400).json({ message: "Workflow has no steps" });
+    }
+
+    // Resolve all assignees to user IDs
+    const allAssignees = new Set();
+
+    for (const assignment of firstStep.assignments) {
+      switch (assignment.assigneeType) {
+        case "USER":
+          assignment.assigneeIds.forEach((id) => allAssignees.add(id));
+          break;
+        case "ROLE":
+          const roleUsers = await prisma.userRole.findMany({
+            where: { roleId: { in: assignment.assigneeIds } },
+            select: { userId: true },
+          });
+          roleUsers.forEach((ru) => allAssignees.add(ru.userId));
+          break;
+        case "DEPARTMENT":
+          const deptUsers = await prisma.user.findMany({
+            where: {
+              branches: { some: { id: { in: assignment.assigneeIds } } },
+            },
+          });
+          deptUsers.forEach((du) => allAssignees.add(du.id));
+          break;
+        default:
+          break;
+      }
+    }
+
+    // Create Process Instance
+    const processInstance = await prisma.processInstance.create({
+      data: {
+        name: processName,
+        workflowId: workflowId,
+        initiatorId: userData.id,
+        currentStepId: firstStep.id,
+        documents: {
+          create: documents.map((doc) => ({
+            documentId: doc.documentId,
+          })),
+        },
+      },
+    });
+
+    // Create Step Instances and related records
+    const assigneesArray = Array.from(allAssignees);
+    const stepInstances = await Promise.all(
+      assigneesArray.map(async (userId) => {
+        const stepInstance = await prisma.processStepInstance.create({
+          data: {
+            processId: processInstance.id,
+            stepId: firstStep.id,
+            assignedTo: userId,
+            status: "PENDING",
+            deadline: new Date(
+              Date.now() + (firstStep.escalationTime || 24) * 60 * 60 * 1000
+            ),
+          },
+        });
+
+        // Create document accesses
+        await prisma.documentAccess.createMany({
+          data: documents.map((doc) => ({
+            documentId: doc.documentId,
+            stepInstanceId: stepInstance.id,
+            accessType: "EDIT",
+            assignmentId: firstStep.assignments[0].id,
+            processId: processInstance.id,
+            userId: userId,
+          })),
+        });
+
+        // Create notifications
+        await prisma.processNotification.create({
+          data: {
+            stepId: stepInstance.id,
+            userId: userId,
+            status: "ACTIVE",
+          },
+        });
+
+        return stepInstance;
+      })
     );
 
     return res.status(200).json({
       message: "Process initiated successfully",
+      processId: processInstance.id,
+      stepCount: stepInstances.length,
     });
   } catch (error) {
     console.log("Error initiating the process", error);
     return res.status(500).json({
       message: "Error initiating the process",
+      error: error.message,
     });
   }
 };
