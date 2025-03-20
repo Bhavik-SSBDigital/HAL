@@ -357,7 +357,7 @@ model ProcessStepInstance {
   // Added relations
   pickedBy             User?        @relation(fields: [pickedById], references: [id], name: "UserPickedSteps")
   pickedById           Int?  
-
+  createdAt            DateTime @default(now())
   workflowStep         WorkflowStep? @relation(fields: [stepId], references: [id])
   stepId       String?
   documentAccesses     DocumentAccess[] @relation("StepInstanceDocumentAccess")
