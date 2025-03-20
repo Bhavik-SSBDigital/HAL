@@ -125,6 +125,6 @@ router.get("/viewProcess/:processId", view_process);
 
 router.get("/getUsersWithDetails", get_users_with_details);
 
-router.get("getUserProcesses", get_user_processes);
+router.get("/getUserProcesses", get_user_processes);
 
 export default router;
