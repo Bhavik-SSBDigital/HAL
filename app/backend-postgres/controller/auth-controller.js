@@ -47,7 +47,7 @@ export const sign_up = async (req, res) => {
     // Check if the user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        username: username,
       },
     });
 
@@ -71,13 +71,12 @@ export const sign_up = async (req, res) => {
       });
     }
 
-    // Create the user in the database
+    // Create the user
     const user = await prisma.user.create({
       data: {
         username,
         email,
         password: hashedPassword,
-        roles: { connect: roles.map((roleId) => ({ id: roleId })) },
         writable,
         readable,
         downloadable,
@@ -85,11 +84,19 @@ export const sign_up = async (req, res) => {
       },
     });
 
+    // Manually create UserRole entries
+    await prisma.userRole.createMany({
+      data: roles.map((roleId) => ({
+        userId: user.id,
+        roleId,
+      })),
+    });
+
     // Attempt to send the email
     const emailSent = await send_mail_for_sign_up(username, email, password);
 
     if (!emailSent) {
-      // If email sending fails, delete the user
+      // If email sending fails, rollback the user creation
       await prisma.user.delete({ where: { id: user.id } });
       return res.status(500).json({
         message: "Error sending email. User creation rolled back.",

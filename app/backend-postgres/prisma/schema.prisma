@@ -59,6 +59,7 @@ model Role {
   status              String
   role                String
   isRootLevel         Boolean     @default(false)
+  isActive            Boolean     @default(true)
   parentRoleId        Int?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime?   @updatedAt
@@ -78,7 +79,7 @@ model Role {
 model User {
   id                 Int           @id @default(autoincrement())
   username           String        @unique
-  email              String        @unique
+  email              String        
   password           String
   name               String?
   specialUser        Boolean       @default(false)
@@ -107,7 +108,6 @@ model User {
   pickedProcessSteps   ProcessStepInstance[] @relation("UserPickedSteps")
   rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
   signatures         DocumentSignature[] @relation("UserSignatures")
-
 }
 
 
