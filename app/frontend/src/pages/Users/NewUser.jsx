@@ -63,9 +63,12 @@ export default function NewUser() {
               <Controller
                 name="username"
                 control={control}
-                rules={{ required: 'Username is required' }}
                 render={({ field }) => (
-                  <input {...field} className="w-full p-2 border rounded" />
+                  <input
+                    {...field}
+                    required
+                    className="w-full p-2 border rounded"
+                  />
                 )}
               />
               {errors.username && (
@@ -82,14 +85,17 @@ export default function NewUser() {
                 name="email"
                 control={control}
                 rules={{
-                  required: 'Email is required',
                   pattern: {
                     value: /^[^@\s]+@[^@\s]+\.[^@\s]+$/,
                     message: 'Invalid email',
                   },
                 }}
                 render={({ field }) => (
-                  <input {...field} className="w-full p-2 border rounded" />
+                  <input
+                    {...field}
+                    required
+                    className="w-full p-2 border rounded"
+                  />
                 )}
               />
               {errors.email && (
@@ -103,9 +109,12 @@ export default function NewUser() {
               <Controller
                 name="status"
                 control={control}
-                rules={{ required: 'Status is required' }}
                 render={({ field }) => (
-                  <select {...field} className="w-full p-2 border rounded">
+                  <select
+                    {...field}
+                    required
+                    className="w-full p-2 border rounded"
+                  >
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -123,6 +132,7 @@ export default function NewUser() {
               <Controller
                 name="roles"
                 control={control}
+                rules={{ required: 'Status is required' }}
                 render={({ field }) => {
                   const allSelected = field.value?.length === roles?.length; // Check if all are selected
 
@@ -162,7 +172,11 @@ export default function NewUser() {
                         }
                       }}
                       renderInput={(params) => (
-                        <MuiTextField {...params} variant="outlined" />
+                        <MuiTextField
+                          error={errors?.roles}
+                          {...params}
+                          variant="outlined"
+                        />
                       )}
                     />
                   );
