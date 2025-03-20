@@ -52,7 +52,11 @@ import {
   get_users,
   get_users_with_details,
 } from "../controller/user-controller.js";
-import { initiate_process } from "../controller/process-controller.js";
+import {
+  get_user_processes,
+  initiate_process,
+  view_process,
+} from "../controller/process-controller.js";
 
 const router = express.Router();
 
@@ -117,6 +121,10 @@ router.get("/workflows/getWorkflows", get_workflows); // Get all workflows
 
 router.post("/initiateProcess", initiate_process);
 
+router.get("/viewProcess/:processId", view_process);
+
 router.get("/getUsersWithDetails", get_users_with_details);
+
+router.get("getUserProcesses", get_user_processes);
 
 export default router;

@@ -227,152 +227,6 @@ async function checkDocumentAccess(userId, documentId, requiredAccess) {
 //   });
 // }
 
-// export const initiate_process = async (req, res, next) => {
-//   try {
-//     const accessToken = req.headers["authorization"]?.substring(7);
-//     const userData = await verifyUser(accessToken);
-
-//     if (userData === "Unauthorized") {
-//       return res.status(401).json({ message: "Unauthorized request" });
-//     }
-
-//     const { processName, description, workflowId, documents } = req.body;
-//     const initiator = userData.id;
-
-//     // Get workflow with first step and assignments
-//     const workflow = await prisma.workflow.findUnique({
-//       where: { id: workflowId },
-//       include: {
-//         steps: {
-//           orderBy: { stepNumber: "asc" },
-//           take: 1,
-//           include: {
-//             assignments: {
-//               include: {
-//                 departmentRoles: {
-//                   include: {
-//                     department: true,
-//                     role: {
-//                       include: {
-//                         users: true,
-//                       },
-//                     },
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     });
-
-//     if (!workflow) {
-//       return res.status(404).json({ message: "Workflow not found" });
-//     }
-
-//     const firstStep = workflow.steps[0];
-//     if (!firstStep) {
-//       return res.status(400).json({ message: "Workflow has no steps" });
-//     }
-
-//     // Resolve all assignees to user IDs
-//     const allAssignees = new Set();
-
-//     for (const assignment of firstStep.assignments) {
-//       switch (assignment.assigneeType) {
-//         case "USER":
-//           assignment.assigneeIds.forEach((id) => allAssignees.add(id));
-//           break;
-//         case "ROLE":
-//           const roleUsers = await prisma.userRole.findMany({
-//             where: { roleId: { in: assignment.assigneeIds } },
-//             select: { userId: true },
-//           });
-//           roleUsers.forEach((ru) => allAssignees.add(ru.userId));
-//           break;
-//         case "DEPARTMENT":
-//           const deptUsers = await prisma.user.findMany({
-//             where: {
-//               branches: { some: { id: { in: assignment.assigneeIds } } },
-//             },
-//           });
-//           deptUsers.forEach((du) => allAssignees.add(du.id));
-//           break;
-//         default:
-//           break;
-//       }
-//     }
-
-//     // Create Process Instance
-//     const processInstance = await prisma.processInstance.create({
-//       data: {
-//         name: processName,
-//         workflowId: workflowId,
-//         initiatorId: userData.id,
-//         currentStepId: firstStep.id,
-//         documents: {
-//           create: documents.map((doc) => ({
-//             documentId: doc.documentId,
-//           })),
-//         },
-//       },
-//     });
-
-//     // Create Step Instances and related records
-//     const assigneesArray = Array.from(allAssignees);
-//     const stepInstances = await Promise.all(
-//       assigneesArray.map(async (userId) => {
-//         const stepInstance = await prisma.processStepInstance.create({
-//           data: {
-//             processId: processInstance.id,
-//             stepId: firstStep.id,
-//             assignedTo: userId,
-//             status: "PENDING",
-//             deadline: new Date(
-//               Date.now() + (firstStep.escalationTime || 24) * 60 * 60 * 1000
-//             ),
-//           },
-//         });
-
-//         // Create document accesses
-//         await prisma.documentAccess.createMany({
-//           data: documents.map((doc) => ({
-//             documentId: doc.documentId,
-//             stepInstanceId: stepInstance.id,
-//             accessType: "EDIT",
-//             assignmentId: firstStep.assignments[0].id,
-//             processId: processInstance.id,
-//             userId: userId,
-//           })),
-//         });
-
-//         // Create notifications
-//         await prisma.processNotification.create({
-//           data: {
-//             stepId: stepInstance.id,
-//             userId: userId,
-//             status: "ACTIVE",
-//           },
-//         });
-
-//         return stepInstance;
-//       })
-//     );
-
-//     return res.status(200).json({
-//       message: "Process initiated successfully",
-//       processId: processInstance.id,
-//       stepCount: stepInstances.length,
-//     });
-//   } catch (error) {
-//     console.log("Error initiating the process", error);
-//     return res.status(500).json({
-//       message: "Error initiating the process",
-//       error: error.message,
-//     });
-//   }
-// };
-
 export const initiate_process = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -400,8 +254,7 @@ export const initiate_process = async (req, res, next) => {
                     department: true,
                     role: {
                       include: {
-                        parentRole: true,
-                        childRoles: true,
+                        users: true,
                       },
                     },
                   },
@@ -438,56 +291,12 @@ export const initiate_process = async (req, res, next) => {
           roleUsers.forEach((ru) => allAssignees.add(ru.userId));
           break;
         case "DEPARTMENT":
-          // Get all departments in this assignment
-          const departments = await prisma.department.findMany({
-            where: { id: { in: assignment.assigneeIds } },
+          const deptUsers = await prisma.user.findMany({
+            where: {
+              branches: { some: { id: { in: assignment.assigneeIds } } },
+            },
           });
-
-          for (const dept of departments) {
-            const deptRoles = await prisma.departmentRoleAssignment.findMany({
-              where: {
-                workflowAssignmentId: assignment.id,
-                departmentId: dept.id,
-              },
-              include: { role: true },
-            });
-
-            if (assignment.allowParallel) {
-              // Add all users from all roles
-              for (const deptRole of deptRoles) {
-                const users = await prisma.userRole.findMany({
-                  where: { roleId: deptRole.roleId },
-                  select: { userId: true },
-                });
-                users.forEach((u) => allAssignees.add(u.userId));
-              }
-            } else {
-              // Determine target roles based on direction
-              const roles = deptRoles.map((dr) => dr.role);
-              let targetRoles = [];
-
-              if (assignment.direction === "UPWARDS") {
-                // Find leaf roles (no children in the list)
-                targetRoles = roles.filter(
-                  (role) => !roles.some((r) => r.parentRoleId === role.id)
-                );
-              } else {
-                // Find root roles (no parent in the list)
-                targetRoles = roles.filter(
-                  (role) => !roles.some((r) => r.id === role.parentRoleId)
-                );
-              }
-
-              // Add users from target roles
-              for (const role of targetRoles) {
-                const users = await prisma.userRole.findMany({
-                  where: { roleId: role.id },
-                  select: { userId: true },
-                });
-                users.forEach((u) => allAssignees.add(u.userId));
-              }
-            }
-          }
+          deptUsers.forEach((du) => allAssignees.add(du.id));
           break;
         default:
           break;
@@ -561,5 +370,531 @@ export const initiate_process = async (req, res, next) => {
       message: "Error initiating the process",
       error: error.message,
     });
+  }
+};
+
+async function initiateProcess(workflowId, initiatorId, documentIds, name) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Create Process Instance
+    const process = await tx.processInstance.create({
+      data: {
+        workflowId,
+        initiatorId,
+        name,
+        status: "PENDING",
+        currentStepId: null, // Set after creating steps
+      },
+    });
+
+    // 2. Get Workflow Steps
+    const workflow = await tx.workflow.findUnique({
+      where: { id: workflowId },
+      include: { steps: { include: { assignments: true } } },
+    });
+
+    // 3. Process Each Step
+    for (const [index, step] of workflow.steps.entries()) {
+      const isFirstStep = index === 0;
+
+      // Create Step Instances
+      const stepInstance = await tx.workflowStep.update({
+        where: { id: step.id },
+        data: { processId: process.id },
+      });
+
+      // Process Assignments
+      for (const assignment of step.assignments) {
+        await processAssignment(tx, process, step, assignment, documentIds);
+      }
+
+      // Set first step as current
+      if (isFirstStep) {
+        await tx.processInstance.update({
+          where: { id: process.id },
+          data: { currentStepId: step.id },
+        });
+      }
+    }
+
+    return process;
+  });
+}
+
+async function processAssignment(tx, process, step, assignment, documentIds) {
+  // Create Assignment Progress
+  const progress = await tx.assignmentProgress.create({
+    data: {
+      assignmentId: assignment.id,
+      processId: process.id,
+      roleHierarchy: assignment.allowParallel
+        ? null
+        : await buildRoleHierarchy(assignment),
+      completed: false,
+    },
+  });
+
+  // Create Initial Step Instances
+  switch (assignment.assigneeType) {
+    case "DEPARTMENT":
+      await handleDepartmentAssignment(tx, assignment, progress, documentIds);
+      break;
+    case "ROLE":
+      await handleRoleAssignment(tx, assignment, progress, documentIds);
+      break;
+    case "USER":
+      await handleUserAssignment(tx, assignment, progress, documentIds);
+      break;
+  }
+}
+
+// Department Assignment Handler
+async function handleDepartmentAssignment(
+  tx,
+  assignment,
+  progress,
+  documentIds
+) {
+  // Get current hierarchy level
+  const hierarchy = JSON.parse(progress.roleHierarchy);
+  const currentLevel = assignment.allowParallel ? 0 : progress.currentLevel;
+  const currentRoles = hierarchy[currentLevel];
+
+  // Create step instances for each role in current level
+  for (const roleId of currentRoles) {
+    // Get department users with this role
+    const users = await tx.userRole.findMany({
+      where: {
+        roleId,
+        departmentId: { in: assignment.assigneeIds },
+      },
+      select: { userId: true, departmentId: true },
+    });
+
+    // Create step instance for each user
+    for (const user of users) {
+      const stepInstance = await tx.processStepInstance.create({
+        data: {
+          processId: progress.processId,
+          assignmentId: assignment.id,
+          progressId: progress.id,
+          assignedTo: user.userId,
+          roleId: roleId,
+          departmentId: user.departmentId,
+          status: "PENDING",
+        },
+      });
+
+      // 🔥 THIS IS WHERE THE PARALLEL ACCESS CODE GOES 🔥
+      if (assignment.allowParallel) {
+        await tx.documentAccess.createMany({
+          data: documentIds.map((docId) => ({
+            documentId: docId,
+            stepInstanceId: stepInstance.id,
+            accessType: "EDIT",
+            processId: progress.processId,
+            roleId: roleId, // Critical for parallel tracking
+            departmentId: user.departmentId,
+          })),
+        });
+      } else {
+        // For hierarchical access (without role restriction)
+        await tx.documentAccess.createMany({
+          data: documentIds.map((docId) => ({
+            documentId: docId,
+            stepInstanceId: stepInstance.id,
+            accessType: "EDIT",
+            processId: progress.processId,
+            departmentId: user.departmentId,
+          })),
+        });
+      }
+
+      // Create notification
+      await tx.processNotification.create({
+        data: {
+          stepInstanceId: stepInstance.id,
+          userId: user.userId,
+          status: "ACTIVE",
+        },
+      });
+    }
+  }
+}
+
+// processHandling.js
+async function handleProcessClaim(userId, processId, stepInstanceId) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Claim the step
+    const step = await tx.processStepInstance.update({
+      where: {
+        id: stepInstanceId,
+        status: "PENDING",
+        assignedTo: userId,
+      },
+      data: {
+        status: "APPROVED",
+        claimedAt: new Date(),
+      },
+      include: {
+        workflowAssignment: {
+          include: { departmentRoles: true },
+        },
+        assignmentProgress: {
+          include: { departmentStepProgress: true },
+        },
+      },
+    });
+
+    // 2. Handle department-specific tracking
+    if (step.workflowAssignment.assigneeType === "DEPARTMENT") {
+      // For parallel departments, track completed roles
+      if (step.workflowAssignment.allowParallel) {
+        await tx.departmentStepProgress.update({
+          where: { id: step.assignmentProgress.departmentStepProgress.id },
+          data: {
+            completedRoles: { push: step.roleId },
+          },
+        });
+      }
+      await updateDepartmentProgress(tx, step);
+    }
+
+    // 3-4. Existing completion checks remain same
+    await checkAssignmentCompletion(tx, step.assignmentProgress.id);
+    await checkProcessProgress(tx, processId);
+
+    return step;
+  });
+}
+
+async function updateDepartmentProgress(tx, step) {
+  const progress = await tx.departmentStepProgress.findUnique({
+    where: { id: step.assignmentProgress.departmentStepProgress.id },
+  });
+
+  // For parallel departments
+  if (step.workflowAssignment.allowParallel) {
+    const allCompleted = progress.requiredRoles.every((r) =>
+      progress.completedRoles.includes(r)
+    );
+
+    if (allCompleted) {
+      await tx.assignmentProgress.update({
+        where: { id: step.assignmentProgress.id },
+        data: { completed: true },
+      });
+    }
+    return;
+  }
+
+  // Original hierarchical logic...
+}
+
+async function advanceHierarchyLevel(tx, progress) {
+  const nextLevel = progress.currentLevel + 1;
+  const nextRoles = progress.roleHierarchy[nextLevel];
+
+  // Create new step instances
+  for (const roleId of nextRoles) {
+    const users = await tx.userRole.findMany({
+      where: {
+        roleId,
+        departmentId: {
+          in: await getAssignmentDepartments(progress.assignmentId),
+        },
+      },
+    });
+
+    for (const user of users) {
+      await tx.processStepInstance.create({
+        data: {
+          processId: progress.processId,
+          assignmentId: progress.assignmentId,
+          progressId: progress.id,
+          assignedTo: user.userId,
+          roleId,
+          departmentId: user.departmentId,
+          status: "PENDING",
+        },
+      });
+    }
+  }
+
+  await tx.assignmentProgress.update({
+    where: { id: progress.id },
+    data: { currentLevel: nextLevel },
+  });
+}
+
+// processChecks.js
+async function checkAssignmentCompletion(tx, progressId) {
+  const pending = await tx.processStepInstance.count({
+    where: {
+      progressId,
+      status: "PENDING",
+    },
+  });
+
+  if (pending === 0) {
+    await tx.assignmentProgress.update({
+      where: { id: progressId },
+      data: { completed: true, completedAt: new Date() },
+    });
+  }
+}
+
+async function checkProcessProgress(tx, processId) {
+  const process = await tx.processInstance.findUnique({
+    where: { id: processId },
+    include: { workflow: { include: { steps: true } } },
+  });
+
+  // Check current step completion
+  const currentStepAssignments = await tx.assignmentProgress.findMany({
+    where: {
+      processId,
+      assignment: { stepId: process.currentStepId },
+    },
+  });
+
+  const allCompleted = currentStepAssignments.every((a) => a.completed);
+
+  if (allCompleted) {
+    await advanceToNextStep(tx, process);
+  }
+}
+
+async function advanceToNextStep(tx, process) {
+  const nextStep = process.workflow.steps.find(
+    (s) => s.stepNumber === process.currentStep.stepNumber + 1
+  );
+
+  if (nextStep) {
+    // Update process current step
+    await tx.processInstance.update({
+      where: { id: process.id },
+      data: { currentStepId: nextStep.id },
+    });
+
+    // Initialize next step assignments
+    for (const assignment of nextStep.assignments) {
+      await processAssignment(tx, process, nextStep, assignment);
+    }
+  } else {
+    await tx.processInstance.update({
+      where: { id: process.id },
+      data: { status: "COMPLETED" },
+    });
+  }
+}
+
+// processViews.js
+async function viewProcess(processId, currentUserId) {
+  // Get the process with related data
+  const process = await prisma.processInstance.findUnique({
+    where: { id: processId },
+    include: {
+      initiator: { select: { name: true } },
+      documents: {
+        include: {
+          document: {
+            include: {
+              documentAccesses: {
+                where: { processId: processId },
+              },
+            },
+          },
+        },
+      },
+      stepInstances: {
+        where: { assignedTo: currentUserId },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!process) throw new Error("Process not found");
+
+  // Get current user's roles and departments
+  const currentUser = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    include: {
+      roles: { select: { roleId: true } },
+      branches: { select: { id: true } },
+    },
+  });
+
+  if (!currentUser) throw new Error("User not found");
+
+  // Process documents with access rights
+  const documentsWithAccess = process.documents.map((pd) => {
+    const accessTypes = new Set();
+
+    pd.document.documentAccesses.forEach((access) => {
+      if (
+        access.userId === currentUserId ||
+        currentUser.roles.some((r) => r.roleId === access.roleId) ||
+        currentUser.branches.some((b) => b.id === access.departmentId)
+      ) {
+        accessTypes.add(access.accessType);
+      }
+    });
+
+    return {
+      id: pd.document.id,
+      name: pd.document.name,
+      type: pd.document.type,
+      access: Array.from(accessTypes),
+    };
+  });
+
+  // Get earliest relevant timestamp
+  const arrivalTime = process.stepInstances[0]?.createdAt || null;
+
+  return {
+    processId: process.id,
+    processName: process.name,
+    status: process.status,
+    createdAt: process.createdAt,
+    initiatorName: process.initiator.name,
+    arrivedAt: arrivalTime,
+    documents: documentsWithAccess,
+  };
+}
+
+export const view_process = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { processId } = req.params;
+    const process = await viewProcess(processId, userData.id);
+
+    return res.status(200).json({ process: process });
+  } catch (error) {
+    console.log("Error viewing process", error);
+    return res.status(500).json({
+      message: "Error viewing the process",
+    });
+  }
+};
+
+async function buildRoleHierarchy(selectedRoleIds, direction, allowParallel) {
+  // Flatten hierarchy if parallel allowed
+  if (allowParallel) return [selectedRoleIds];
+
+  // Existing hierarchy logic with equal level handling
+  const roles = await prisma.role.findMany({
+    where: { id: { in: selectedRoleIds } },
+    include: { parentRole: true, childRoles: true },
+  });
+
+  // Group equal-level roles by parent ID
+  const roleMap = roles.reduce((acc, role) => {
+    const key = role.parentRoleId || "root";
+    acc[key] = acc[key] || [];
+    acc[key].push(role.id);
+    return acc;
+  }, {});
+
+  // Build levels based on direction
+  return direction === "UPWARDS"
+    ? Object.values(roleMap).reverse()
+    : Object.values(roleMap);
+}
+
+export const get_user_processes = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const userId = userData.id;
+
+    // Fetch all step instances assigned to the user
+    const stepInstances = await prisma.processStepInstance.findMany({
+      where: {
+        assignedTo: userId,
+        status: "PENDING",
+      },
+      select: {
+        processId: true,
+        assignmentId: true,
+        deadline: true,
+      },
+    });
+
+    // Extract process and assignment IDs
+    const processIds = stepInstances.map((s) => s.processId);
+    const assignmentIds = stepInstances.map((s) => s.assignmentId);
+
+    // Fetch process details
+    const processes = await prisma.processInstance.findMany({
+      where: { id: { in: processIds } },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        workflow: {
+          select: { name: true },
+        },
+        initiator: {
+          select: { username: true },
+        },
+      },
+    });
+
+    // Fetch assignment details
+    const assignments = await prisma.workflowAssignment.findMany({
+      where: { id: { in: assignmentIds } },
+      select: {
+        id: true,
+        step: {
+          select: {
+            stepType: true,
+            stepName: true,
+            escalationTime: true,
+          },
+        },
+      },
+    });
+
+    // Map assignments and processes by ID for quick lookup
+    const processMap = Object.fromEntries(processes.map((p) => [p.id, p]));
+    const assignmentMap = Object.fromEntries(assignments.map((a) => [a.id, a]));
+
+    // Build final response
+    const response = stepInstances.map((step) => {
+      const process = processMap[step.processId] || {};
+      const assignment = assignmentMap[step.assignmentId] || {};
+      const stepDetails = assignment.step || {};
+
+      return {
+        processId: process.id,
+        processName: process.workflow?.name || "Unknown Process",
+        initiatorUsername: process.initiator?.username || "Unknown",
+        createdAt: process.createdAt,
+        actionType: stepDetails.stepType || "UNKNOWN",
+        stepName: stepDetails.stepName || "Unknown Step",
+        currentStepAssignedAt: step.deadline
+          ? new Date(
+              step.deadline.getTime() -
+                (stepDetails.escalationTime || 24) * 60 * 60 * 1000
+            )
+          : null,
+      };
+    });
+
+    return res.json(response);
+  } catch (error) {
+    console.error("Error fetching user processes:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
