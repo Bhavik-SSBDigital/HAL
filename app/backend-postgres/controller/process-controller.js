@@ -275,34 +275,6 @@ export const initiate_process = async (req, res, next) => {
       return res.status(400).json({ message: "Workflow has no steps" });
     }
 
-    // Resolve all assignees to user IDs
-    const allAssignees = new Set();
-
-    for (const assignment of firstStep.assignments) {
-      switch (assignment.assigneeType) {
-        case "USER":
-          assignment.assigneeIds.forEach((id) => allAssignees.add(id));
-          break;
-        case "ROLE":
-          const roleUsers = await prisma.userRole.findMany({
-            where: { roleId: { in: assignment.assigneeIds } },
-            select: { userId: true },
-          });
-          roleUsers.forEach((ru) => allAssignees.add(ru.userId));
-          break;
-        case "DEPARTMENT":
-          const deptUsers = await prisma.user.findMany({
-            where: {
-              branches: { some: { id: { in: assignment.assigneeIds } } },
-            },
-          });
-          deptUsers.forEach((du) => allAssignees.add(du.id));
-          break;
-        default:
-          break;
-      }
-    }
-
     // Create Process Instance
     const processInstance = await prisma.processInstance.create({
       data: {
@@ -318,14 +290,42 @@ export const initiate_process = async (req, res, next) => {
       },
     });
 
-    // Create Step Instances and related records
-    const assigneesArray = Array.from(allAssignees);
-    const stepInstances = await Promise.all(
-      assigneesArray.map(async (userId) => {
+    // Process each assignment individually
+    const stepInstances = [];
+    for (const assignment of firstStep.assignments) {
+      let assigneeIds = [];
+
+      // Resolve assignees based on assignment type
+      switch (assignment.assigneeType) {
+        case "USER":
+          assigneeIds = assignment.assigneeIds;
+          break;
+        case "ROLE":
+          const roleUsers = await prisma.userRole.findMany({
+            where: { roleId: { in: assignment.assigneeIds } },
+            select: { userId: true },
+          });
+          assigneeIds = roleUsers.map((ru) => ru.userId);
+          break;
+        case "DEPARTMENT":
+          const deptUsers = await prisma.user.findMany({
+            where: {
+              branches: { some: { id: { in: assignment.assigneeIds } } },
+            },
+          });
+          assigneeIds = deptUsers.map((du) => du.id);
+          break;
+        default:
+          break;
+      }
+
+      // Create step instances for each resolved user in this assignment
+      for (const userId of assigneeIds) {
         const stepInstance = await prisma.processStepInstance.create({
           data: {
             processId: processInstance.id,
             stepId: firstStep.id,
+            assignmentId: assignment.id, // Link to specific workflow assignment
             assignedTo: userId,
             status: "PENDING",
             deadline: new Date(
@@ -334,13 +334,13 @@ export const initiate_process = async (req, res, next) => {
           },
         });
 
-        // Create document accesses
+        // Create document accesses for this assignment
         await prisma.documentAccess.createMany({
           data: documents.map((doc) => ({
             documentId: doc.documentId,
             stepInstanceId: stepInstance.id,
             accessType: "EDIT",
-            assignmentId: firstStep.assignments[0].id,
+            assignmentId: assignment.id, // Use current assignment ID
             processId: processInstance.id,
             userId: userId,
           })),
@@ -355,9 +355,9 @@ export const initiate_process = async (req, res, next) => {
           },
         });
 
-        return stepInstance;
-      })
-    );
+        stepInstances.push(stepInstance);
+      }
+    }
 
     return res.status(200).json({
       message: "Process initiated successfully",
@@ -830,6 +830,8 @@ export const get_user_processes = async (req, res, next) => {
         deadline: true,
       },
     });
+
+    console.log("step instances", stepInstances);
 
     // Extract process and assignment IDs
     const processIds = stepInstances.map((s) => s.processId);
