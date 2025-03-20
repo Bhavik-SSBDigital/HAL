@@ -57,16 +57,15 @@ export default function NewUser() {
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
               <Controller
                 name="username"
                 control={control}
                 rules={{ required: 'Username is required' }}
                 render={({ field }) => (
-                  <input
-                    {...field}
-                    className="w-full p-2 border rounded"
-                    placeholder="Username"
-                  />
+                  <input {...field} className="w-full p-2 border rounded" />
                 )}
               />
               {errors.username && (
@@ -76,6 +75,9 @@ export default function NewUser() {
               )}
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
               <Controller
                 name="email"
                 control={control}
@@ -87,11 +89,7 @@ export default function NewUser() {
                   },
                 }}
                 render={({ field }) => (
-                  <input
-                    {...field}
-                    className="w-full p-2 border rounded"
-                    placeholder="Email"
-                  />
+                  <input {...field} className="w-full p-2 border rounded" />
                 )}
               />
               {errors.email && (
@@ -99,6 +97,9 @@ export default function NewUser() {
               )}
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Status
+              </label>
               <Controller
                 name="status"
                 control={control}
@@ -116,29 +117,56 @@ export default function NewUser() {
               )}
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Roles
+              </label>
               <Controller
                 name="roles"
                 control={control}
-                render={({ field }) => (
-                  <Autocomplete
-                    multiple
-                    options={roles}
-                    getOptionLabel={(option) => option.role}
-                    onChange={(_, value) =>
-                      setValue(
-                        'roles',
-                        value.map((v) => v.id),
-                      )
-                    }
-                    renderInput={(params) => (
-                      <MuiTextField
-                        {...params}
-                        label="Roles"
-                        variant="outlined"
-                      />
-                    )}
-                  />
-                )}
+                render={({ field }) => {
+                  const allSelected = field.value?.length === roles?.length; // Check if all are selected
+
+                  // Add "Select All" option at the top
+                  const enhancedOptions = [
+                    {
+                      id: 'all',
+                      role: allSelected ? 'Deselect All' : 'Select All',
+                      departmentName: '',
+                    },
+                    ...(roles || []),
+                  ];
+
+                  return (
+                    <Autocomplete
+                      multiple
+                      className="mb-3"
+                      size="small"
+                      options={enhancedOptions}
+                      getOptionLabel={(option) =>
+                        option.id === 'all'
+                          ? option.role
+                          : `${option.role} (department - ${option.departmentName})`
+                      }
+                      value={
+                        allSelected
+                          ? roles
+                          : roles?.filter((r) => field?.value?.includes(r.id))
+                      }
+                      onChange={(_, value) => {
+                        if (value.some((v) => v.id === 'all')) {
+                          field.onChange(
+                            allSelected ? [] : roles?.map((r) => r.id),
+                          ); // Select/Deselect all
+                        } else {
+                          field.onChange(value.map((v) => v.id)); // Normal selection
+                        }
+                      }}
+                      renderInput={(params) => (
+                        <MuiTextField {...params} variant="outlined" />
+                      )}
+                    />
+                  );
+                }}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
