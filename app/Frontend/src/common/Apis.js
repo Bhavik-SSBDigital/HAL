@@ -41,7 +41,15 @@ export const getAllUsers = async () => {
 export const getRootLevelUsers = () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: true } });
 };
-
+export const CreateUser = (url, data) => {
+  return apiClient.post(url, data);
+};
+export const EditUser = (url, data) => {
+  return apiClient.post(url, data);
+};
+export const DeleteUser = (id) => {
+  return apiClient.post(`/deleteUser/${id}`);
+};
 // roles endpoints
 export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
@@ -75,4 +83,7 @@ export const uploadDocumentInProcess = async (fileList, name, tags) => {
 // processes endpoints
 export const ProcessInitiate = async (data) => {
   return apiClient.post('/initiateProcess', data);
+};
+export const GetProcessesList = async () => {
+  return apiClient.get('getUserProcesses');
 };
