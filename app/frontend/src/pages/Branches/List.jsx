@@ -16,13 +16,14 @@ import moment from 'moment';
 import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
+import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 
 const List = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteItemId, setDeleteItemId] = useState();
+  const [deleteItemId, setDeleteItemId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -76,7 +77,7 @@ const List = (props) => {
       console.error('Error deleting branch:', error);
       toast.error('Error deleting branch');
     }
-    setDeleteItemId('');
+    setDeleteItemId(null);
     setDeleteLoading(false);
   };
 
@@ -137,30 +138,28 @@ const List = (props) => {
           : '--', // Format the date or show '--'
     },
     {
-      field: 'edit',
-      headerName: 'Edit',
+      field: 'actions',
+      headerName: 'Actions',
       width: 120,
+      flex: 1,
       sortable: false,
       renderCell: (params) => (
-        <IconButton onClick={() => handleEdit(params.row.id)}>
-          <IconEdit color="#2860e0" />
-        </IconButton>
-      ),
-    },
-    {
-      field: 'delete',
-      headerName: 'Delete',
-      width: 120,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={() => {
-            setDeleteItemId(params.row._id);
-            setModalOpen(true);
-          }}
-        >
-          <IconTrash color="red" />
-        </IconButton>
+        <div className="flex space-x-2 m-1">
+          <button
+            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
+            onClick={() => handleEdit(params.row.id)}
+          >
+            <IconEdit color="white" />
+          </button>
+          <button
+            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
+            onClick={() => {
+              setDeleteItemId(params.row._id);
+            }}
+          >
+            <IconTrash color="white" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -202,6 +201,12 @@ const List = (props) => {
           />
         </Box>
       )}
+      <DeleteConfirmationModal
+        isOpen={deleteItemId !== null}
+        onClose={() => setDeleteItemId(null)}
+        onConfirm={() => handleDelete(deleteItemId)}
+        isLoading={deleteLoading}
+      />
     </>
   );
 };
