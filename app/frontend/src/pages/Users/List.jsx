@@ -18,6 +18,7 @@ import { DataGrid } from '@mui/x-data-grid';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { DeleteUser, getAllUsers } from '../../common/Apis';
 import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import CustomButtom from '../../CustomComponents/CustomButton';
 
 const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -123,22 +124,18 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
           alignItems="flex-end"
           mb={1}
         >
-          <Box sx={{ width: { lg: '250px', sm: '200px', xs: '170px' } }}>
-            <TextField
-              label="Search"
-              variant="outlined"
-              size="small"
-              sx={{ background: 'white' }}
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-              }}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Search
+            </label>
+            <input
+              onChange={(e) => setSearchTerm(e.target.value)}
+              required
+              className="w-full p-2 border rounded max-w-[200px]"
             />
-          </Box>
+          </div>
           <Link to="/users/createNew">
-            <Button variant="contained" sx={{ borderRadius: '9px' }}>
-              ADD USER
-            </Button>
+            <CustomButtom text={'Add User'} />
           </Link>
         </Stack>
 

@@ -17,6 +17,7 @@ import { IconTrash, IconEdit } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { GetRoles } from '../../common/Apis';
+import CustomButtom from '../../CustomComponents/CustomButton';
 
 const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -133,18 +134,29 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     .map((row, index) => ({ ...row, id: index + 1 }));
   return (
     <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
-      <Stack direction="row" justifyContent="space-between" mb={1}>
-        <TextField
-          label="Search"
-          variant="outlined"
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <Stack
+        alignContent="flex-end"
+        flexWrap="wrap"
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="flex-end"
+        mb={1}
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Search
+          </label>
+          <input
+            onChange={(e) => setSearchTerm(e.target.value)}
+            required
+            className="w-full p-2 border rounded max-w-[200px]"
+          />
+        </div>
         <Link to="/roles/createNew">
-          <Button variant="contained">ADD ROLE</Button>
+          <CustomButtom text={'Add Role'} />
         </Link>
       </Stack>
+
       <DataGrid
         rows={filteredRoles}
         columns={columns}
