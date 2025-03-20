@@ -33,7 +33,6 @@ export const sign_up = async (req, res) => {
     const {
       username,
       email,
-      department,
       roles,
       writable,
       readable,
@@ -58,19 +57,6 @@ export const sign_up = async (req, res) => {
       });
     }
 
-    // Check if the department exists and is active
-    const departmentExists = await prisma.department.findUnique({
-      where: { id: department },
-    });
-
-    if (!departmentExists || !departmentExists.isActive) {
-      return res.status(400).json({
-        message: departmentExists
-          ? "The department is inactive"
-          : "Invalid department ID provided",
-      });
-    }
-
     // Check if the provided roles exist
     const validRoles = await prisma.role.findMany({
       where: {
@@ -91,7 +77,6 @@ export const sign_up = async (req, res) => {
         username,
         email,
         password: hashedPassword,
-        branches: { connect: { id: department } },
         roles: { connect: roles.map((roleId) => ({ id: roleId })) },
         writable,
         readable,
