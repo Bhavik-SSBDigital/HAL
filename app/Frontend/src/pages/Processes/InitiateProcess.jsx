@@ -9,8 +9,10 @@ import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function InitiateProcess() {
+  const navigate = useNavigate();
   const [workflowData, setWorkflowData] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -90,6 +92,8 @@ export default function InitiateProcess() {
   const onSubmit = async (data) => {
     try {
       const res = await ProcessInitiate(data);
+      toast.success(res?.data?.message);
+      navigate('/processes/work');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
@@ -117,10 +121,10 @@ export default function InitiateProcess() {
         </div>
         {/* description */}
         <div>
-          <label className="block text-sm font-medium">Process Name</label>
+          <label className="block text-sm font-medium">Description</label>
           <input
             {...register('description', {
-              required: 'Process Name is required',
+              required: 'Description is required',
             })}
             className="w-full border p-2 rounded-md"
           />
