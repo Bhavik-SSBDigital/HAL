@@ -77,7 +77,7 @@ export default function NewDepartment() {
 
   return (
     <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-xl font-semibold text-center mb-4">
+      <h2 className="text-2xl font-semibold text-center mb-4">
         {id ? 'Edit Department' : 'Add Department'}
       </h2>
       {loading ? (

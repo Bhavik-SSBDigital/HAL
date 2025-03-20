@@ -4,7 +4,7 @@ import { Autocomplete, TextField as MuiTextField } from '@mui/material';
 import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { GetRoles } from '../../common/Apis';
+import { CreateUser, EditUser, GetRoles } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
 
 export default function NewUser() {
@@ -41,7 +41,7 @@ export default function NewUser() {
   const onSubmit = async (data) => {
     try {
       const url = id ? `${backendUrl}/editUser/${id}` : `${backendUrl}/signup`;
-      await axios.post(url, data);
+      id ? CreateUser(url, data) : EditUser(url, data);
       toast.success(id ? 'User updated' : 'User created');
       navigate('/users/list');
     } catch (error) {
@@ -53,7 +53,7 @@ export default function NewUser() {
     <>
       {isSubmitting && <TopLoader />}
       <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
-        <h2 className="text-xl font-bold text-center mb-4">User Details</h2>
+        <h2 className="text-2xl font-bold text-center mb-4">User Details</h2>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>

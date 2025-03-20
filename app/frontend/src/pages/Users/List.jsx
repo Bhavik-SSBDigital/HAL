@@ -16,7 +16,8 @@ import { toast } from 'react-toastify';
 import moment from 'moment';
 import { DataGrid } from '@mui/x-data-grid';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
-import { getAllUsers } from '../../common/Apis';
+import { DeleteUser, getAllUsers } from '../../common/Apis';
+import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 
 const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -31,55 +32,11 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
     setModalOpen(false);
   };
 
-  const deleteModalContent = (
-    <Box
-      sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-    >
-      <p style={{ fontSize: '18px', marginBottom: '10px' }}>
-        ARE YOU SURE YOU WANT TO DELETE USER?
-      </p>
-      <Stack flexDirection="row" gap={3}>
-        <Button
-          variant="contained"
-          size="small"
-          disabled={deleteLoading}
-          color="error"
-          onClick={() => handleDelete(deleteItemId)}
-          sx={{ '&:hover': { backgroundColor: '#ff0000' } }}
-        >
-          {deleteLoading ? <CircularProgress size={20} /> : 'Yes'}
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={deleteModalClose}
-          disabled={deleteLoading}
-          sx={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#0056b3',
-            },
-          }}
-        >
-          No
-        </Button>
-      </Stack>
-    </Box>
-  );
-
   const handleDelete = async (id) => {
     setDeleteLoading(true);
     try {
-      const url = backendUrl + `/deleteUser/${id}`;
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { status } = await axios.post(url, null, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (status === 200) {
-        setData((prev) => prev.filter((item) => item._id !== id));
-        toast.success('User is deleted');
-      }
+      const res = await DeleteUser(id);
+      setData((prev) => prev.filter((item) => item._id !== id));
     } catch (error) {
       toast.error('Error deleting user');
     } finally {
@@ -114,64 +71,28 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
       flex: 1,
       renderCell: (params) => params.value || '--',
     },
-    // {
-    //   field: 'status',
-    //   headerName: 'Status',
-    //   flex: 1,
-    //   renderCell: (params) => {
-    //     const status = params.value || '--';
-    //     const backgroundColor = status === 'Active' ? '#13a126' : 'red';
-    //     return (
-    //       <Stack
-    //         height={'100%'}
-    //         justifyContent={'center'}
-    //         alignItems={'center'}
-    //       >
-    //         <Typography
-    //           sx={{
-    //             backgroundColor,
-    //             padding: '2px 12px',
-    //             borderRadius: '50px',
-    //             color: 'white',
-    //           }}
-    //         >
-    //           {status}
-    //         </Typography>
-    //       </Stack>
-    //     );
-    //   },
-    // },
-    // {
-    //   field: 'createdAt',
-    //   headerName: 'Created Date',
-    //   flex: 1,
-    //   renderCell: (params) =>
-    //     params.value
-    //       ? moment(params.value).format('DD-MMM-YYYY hh:mm A')
-    //       : '--', // Format date or show '--'
-    // },
     {
-      field: 'edit',
-      headerName: 'Edit',
+      field: 'actions',
+      flex: 1,
+      headerName: 'Actions',
       renderCell: (params) => (
-        <IconButton onClick={() => navigate(`/users/edit/${params.row.id}`)}>
-          <IconEdit color="#2860e0" />
-        </IconButton>
-      ),
-      width: 80,
-    },
-    {
-      field: 'delete',
-      headerName: 'Delete',
-      renderCell: (params) => (
-        <IconButton
-          onClick={() => {
-            setDeleteItemId(params.row._id);
-            setModalOpen(true);
-          }}
-        >
-          <IconTrash color="red" />
-        </IconButton>
+        <div className="flex space-x-2 m-1">
+          <button
+            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
+            onClick={() => navigate(`/users/edit/${params.row.id}`)}
+          >
+            <IconEdit color="white" />
+          </button>
+          <button
+            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
+            onClick={() => {
+              setDeleteItemId(params.id);
+              setModalOpen(true);
+            }}
+          >
+            <IconTrash color="white" />
+          </button>
+        </div>
       ),
       width: 80,
     },
@@ -230,27 +151,12 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
           pagination
           rowsPerPageOptions={[10]}
         />
-
-        {isModalOpen && (
-          <Modal open={isModalOpen} onClose={deleteModalClose}>
-            <div
-              style={{
-                gap: '10px',
-                position: 'relative',
-                padding: '20px',
-                backgroundColor: 'white',
-                borderRadius: '10px',
-                margin: 'auto',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                maxWidth: '300px',
-                textAlign: 'center',
-              }}
-            >
-              {deleteModalContent}
-            </div>
-          </Modal>
-        )}
+        <DeleteConfirmationModal
+          isOpen={isModalOpen}
+          onClose={deleteModalClose}
+          onConfirm={() => handleDelete(deleteItemId)}
+          isLoading={deleteLoading}
+        />
       </Box>
     </>
   );

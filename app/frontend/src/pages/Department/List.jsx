@@ -137,7 +137,6 @@ export default function List() {
           <button
             className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
             onClick={() => {
-              console.log(params.id);
               setDeleteItemId(params.id);
               setModalOpen(true);
             }}
