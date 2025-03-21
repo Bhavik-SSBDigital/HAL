@@ -334,130 +334,160 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
-
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username: req.body.username },
-      include: { roles: { include: { role: true } } },
+    // Get user role and permissions
+    const roleQuery = `
+      SELECT rd.document_id, rd.permission_type, rd.full_access
+      FROM RoleDocuments rd
+      WHERE rd.role_id = $1
+    `;
+    const roleResult = await pool.query(roleQuery, [req.body.role]);
+
+    // Organize permissions
+    const permissions = {
+      readable: [],
+      writable: [],
+      downloadable: [],
+      uploadable: [],
+      fullAccess: [],
+    };
+
+    roleResult.rows.forEach((row) => {
+      const docId = row.document_id.toString();
+      switch (row.permission_type) {
+        case "read":
+          if (row.full_access) permissions.fullAccess.push(docId);
+          permissions.readable.push(docId);
+          break;
+        case "write":
+          permissions.writable.push(docId);
+          break;
+        case "download":
+          permissions.downloadable.push(docId);
+          break;
+        case "upload":
+          permissions.uploadable.push(docId);
+          break;
+      }
     });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
+    // Get document path
+    let path = req.body.path;
+    path = process.env.STORAGE_PATH + path.substring(2);
 
-    const userRoles = user.roles.map((role) => role.role);
-    let readableArray = [];
-    let writableArray = [];
-    let uploadableArray = [];
-    let downloadableArray = [];
-    let fullAccessUploadable = [];
-    let fullAccessReadable = [];
-    let fullAccessDownloadable = [];
-
-    userRoles.forEach((role) => {
-      readableArray = [...readableArray, ...role.readable];
-      writableArray = [...writableArray, ...role.writable];
-      uploadableArray = [...uploadableArray, ...role.uploadable];
-      downloadableArray = [...downloadableArray, ...role.downloadable];
-    });
-
-    const pathEnv = process.env.STORAGE_PATH || "";
-    const documentPath = path.join(pathEnv, req.body.path.substring(2));
-
-    const foundDocument = await prisma.document.findUnique({
-      where: { path: documentPath },
-      include: { children: true },
-    });
+    // Find document
+    const docQuery = `
+      SELECT * FROM Documents 
+      WHERE path = $1
+    `;
+    const docResult = await pool.query(docQuery, [path]);
+    const foundDocument = docResult.rows[0];
 
     if (!foundDocument) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
+      return res.status(400).json({ message: "Document doesn't exist" });
     }
 
-    const parents = await getParents(foundDocument.id); // Implement `getParents` as a Prisma query
+    // Get parents using recursive CTE
+    const parentsQuery = `
+      WITH RECURSIVE parent_docs AS (
+        SELECT id, parent_id
+        FROM Documents
+        WHERE id = $1
+        UNION
+        SELECT d.id, d.parent_id
+        FROM Documents d
+        INNER JOIN parent_docs pd ON pd.parent_id = d.id
+      )
+      SELECT id FROM parent_docs
+    `;
+    const parentsResult = await pool.query(parentsQuery, [foundDocument.id]);
+    const parents = parentsResult.rows.map((row) => row.id.toString());
 
-    const children = await Promise.all(
-      foundDocument.children.map(async (child) => {
-        const fileAbsolutePath = path.join(pathEnv, child.path);
+    // Get children documents
+    const childrenQuery = `
+      SELECT * FROM Documents
+      WHERE parent_id = $1
+    `;
+    const childrenResult = await pool.query(childrenQuery, [foundDocument.id]);
+    const children = childrenResult.rows;
 
-        try {
-          const fileStats = await fs.stat(fileAbsolutePath);
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
 
-          let obj = {
-            id: child.id,
-            upload: false,
-            download: false,
-            view: false,
-          };
+    let selectedUpload = [];
+    let selectedDownload = [];
+    let selectedView = [];
+    let fullAccess = [];
 
-          const childParents = await getParents(child.id); // Implement `getParents` for the child
+    const processChild = async (child) => {
+      const fileAbsolutePath = path.join(
+        __dirname,
+        "../../../../storage",
+        child.path
+      );
+      try {
+        await fs.stat(fileAbsolutePath);
+        const childId = child.id.toString();
+        const childParentsResult = await pool.query(parentsQuery, [child.id]);
+        const childParents = childParentsResult.rows.map((row) =>
+          row.id.toString()
+        );
 
-          if (
-            fullAccessUploadable.includes(child.id) ||
-            childParents.some((parentId) =>
-              fullAccessUploadable.includes(parentId)
-            )
-          ) {
-            if (child.type === "folder") {
-              obj.upload = true;
-            }
+        const obj = {
+          id: childId,
+          upload: false,
+          download: false,
+          view: false,
+        };
+
+        // Check full access
+        const hasFullAccess = permissions.fullAccess.some(
+          (id) => childParents.includes(id) || id === childId
+        );
+
+        if (hasFullAccess) {
+          if (child.type === "folder") {
+            obj.upload = permissions.uploadable.includes(childId);
+            obj.download = permissions.downloadable.includes(childId);
+            obj.view = permissions.readable.includes(childId);
+            fullAccess.push(obj);
           }
-
-          if (
-            fullAccessDownloadable.includes(child.id) ||
-            childParents.some((parentId) =>
-              fullAccessDownloadable.includes(parentId)
-            )
-          ) {
-            if (child.type === "folder") {
-              obj.download = true;
-            }
-          }
-
-          if (
-            fullAccessReadable.includes(child.id) ||
-            childParents.some((parentId) =>
-              fullAccessReadable.includes(parentId)
-            )
-          ) {
-            if (child.type === "folder") {
-              obj.view = true;
-            }
-          }
-
-          return {
-            id: child.id,
-            name: child.name,
-            path: `${child.path}`,
-            type: child.type,
-            children: [],
-          };
-        } catch (error) {
-          console.error("Error processing child document:", error);
-          return null;
         }
-      })
-    );
+
+        // Check direct permissions
+        if (permissions.uploadable.includes(childId))
+          selectedUpload.push(childId);
+        if (permissions.downloadable.includes(childId))
+          selectedDownload.push(childId);
+        if (permissions.readable.includes(childId)) selectedView.push(childId);
+
+        return {
+          id: childId,
+          name: child.name,
+          path: `..${child.path.substring(19)}/${child.name}`,
+          type: child.type,
+          children: [],
+        };
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const processedChildren = await Promise.all(children.map(processChild));
+    const result = processedChildren.filter((child) => child !== null);
 
     res.status(200).json({
-      children: children.filter((item) => item !== null),
-      selectedUpload: uploadableArray,
-      selectedDownload: downloadableArray,
-      selectedView: readableArray,
-      fullAccess: fullAccessUploadable,
+      children: result,
+      selectedUpload,
+      selectedDownload,
+      selectedView,
+      fullAccess,
     });
   } catch (error) {
-    console.error("Error accessing document:", error);
-    res.status(500).json({
-      message: "Error accessing the document",
-    });
+    console.error("Error:", error);
+    res.status(500).json({ message: "Error accessing document" });
   }
 };
