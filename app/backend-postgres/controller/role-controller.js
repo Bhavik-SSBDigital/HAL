@@ -228,7 +228,7 @@ export const get_role = async (req, res) => {
       department: role.branch?.name || null,
       isRootLevel: role.isRootLevel,
       isAdmin: role.isAdmin,
-      parentRoleId: role.parentRole.id,
+      parentRoleId: role.parentRoleId,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
       selectedUpload: role.uploadable, // Array of IDs only
