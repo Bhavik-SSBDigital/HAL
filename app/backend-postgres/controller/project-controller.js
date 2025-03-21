@@ -122,6 +122,97 @@ export const getRootDocumentsWithAccess = async (req, res) => {
   }
 };
 
+// export const getRootDocumentsForEdit = async (req, res) => {
+//   try {
+//     const accessToken = req.headers["authorization"].substring(7);
+//     const userData = await verifyUser(accessToken);
+//     if (userData === "Unauthorized") {
+//       return res.status(401).json({
+//         message: "Unauthorized request",
+//       });
+//     }
+
+//     const userId = userData.id;
+
+//     // Fetch the user's roles and permissions
+//     const userRoles = await prisma.userRole.findMany({
+//       where: { userId },
+//       include: {
+//         role: true,
+//       },
+//     });
+
+//     const readableArray = [];
+//     const writableArray = [];
+//     const uploadableArray = [];
+//     const downloadableArray = [];
+//     const fullAccessUploadable = [];
+//     const fullAccessReadable = [];
+//     const fullAccessDownloadable = [];
+
+//     userRoles.forEach((userRole) => {
+//       readableArray.push(...userRole.role.readable);
+//       writableArray.push(...userRole.role.writable);
+//       uploadableArray.push(...userRole.role.uploadable);
+//       downloadableArray.push(...userRole.role.downloadable);
+//     });
+
+//     const fullAccess = [...readableArray, ...writableArray, ...uploadableArray];
+
+//     // Fetch all root-level documents
+//     let foundDocuments = await prisma.document.findMany({
+//       where: { isProject: true, parentId: null },
+//       include: { children: true },
+//     });
+
+//     const childrenData = await Promise.all(
+//       foundDocuments.map(async (doc) => {
+//         const fileAbsolutePath = path.join(__dirname, doc.path);
+//         try {
+//           await fs.stat(fileAbsolutePath);
+//           let obj = {
+//             id: doc.id,
+//             upload: uploadableArray.includes(doc.id),
+//             download: downloadableArray.includes(doc.id),
+//             view: readableArray.includes(doc.id),
+//           };
+
+//           if (fullAccess.includes(doc.id)) {
+//             fullAccessUploadable.push(doc.id);
+//             fullAccessDownloadable.push(doc.id);
+//             fullAccessReadable.push(doc.id);
+//           }
+
+//           return {
+//             id: doc.id,
+//             name: doc.name,
+//             path: `..${doc.path.substring(19)}/${doc.name}`,
+//             type: doc.type,
+//             children: doc.children,
+//           };
+//         } catch (error) {
+//           return null;
+//         }
+//       })
+//     );
+
+//     childrenData.filter((doc) => doc !== null);
+
+//     res.status(200).json({
+//       children: childrenData,
+//       selectedUpload: uploadableArray,
+//       selectedDownload: downloadableArray,
+//       selectedView: readableArray,
+//       fullAccess: fullAccess,
+//     });
+//   } catch (error) {
+//     console.log("error", error);
+//     res.status(500).json({
+//       message: "Error accessing given document",
+//     });
+//   }
+// };
+
 export const getRootDocumentsForEdit = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -133,82 +224,155 @@ export const getRootDocumentsForEdit = async (req, res) => {
     }
 
     const userId = userData.id;
+    const roleId = req.body.role; // Get the specific role ID from request body
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
 
-    // Fetch the user's roles and permissions
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: true,
+    // Validate roleId
+    if (!roleId) {
+      return res.status(400).json({
+        message: "Role ID is required",
+      });
+    }
+
+    // Fetch specific role permissions instead of all user roles
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleId) },
+      select: {
+        readable: true,
+        writable: true,
+        uploadable: true,
+        downloadable: true,
+        fullAccessReadable: true,
+        fullAccessUploadable: true,
+        fullAccessDownloadable: true,
       },
     });
 
-    const readableArray = [];
-    const writableArray = [];
-    const uploadableArray = [];
-    const downloadableArray = [];
-    const fullAccessUploadable = [];
-    const fullAccessReadable = [];
-    const fullAccessDownloadable = [];
+    if (!role) {
+      return res.status(404).json({
+        message: "Role not found",
+      });
+    }
 
-    userRoles.forEach((userRole) => {
-      readableArray.push(...userRole.role.readable);
-      writableArray.push(...userRole.role.writable);
-      uploadableArray.push(...userRole.role.uploadable);
-      downloadableArray.push(...userRole.role.downloadable);
-    });
+    // Use permissions from the specific role
+    const readableArray = role.readable || [];
+    const writableArray = role.writable || [];
+    const uploadableArray = role.uploadable || [];
+    const downloadableArray = role.downloadable || [];
+    const fullAccessUploadable = role.fullAccessUploadable || [];
+    const fullAccessReadable = role.fullAccessReadable || [];
+    const fullAccessDownloadable = role.fullAccessDownloadable || [];
 
-    const fullAccess = [...readableArray, ...writableArray, ...uploadableArray];
-
-    // Fetch all root-level documents
+    // Fetch root project documents
     let foundDocuments = await prisma.document.findMany({
-      where: { isProject: true, parentId: null },
-      include: { children: true },
+      where: {
+        isProject: true,
+        parentId: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        path: true,
+        type: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+            type: true,
+          },
+        },
+      },
     });
+
+    if (!foundDocuments.length) {
+      return res.status(400).json({
+        message: "No root documents found",
+      });
+    }
+
+    // Process documents and check permissions
+    const selectedUpload = [];
+    const selectedDownload = [];
+    const selectedView = [];
+    const fullAccess = [];
 
     const childrenData = await Promise.all(
       foundDocuments.map(async (doc) => {
         const fileAbsolutePath = path.join(__dirname, doc.path);
         try {
-          await fs.stat(fileAbsolutePath);
-          let obj = {
+          const fileStats = await fs.stat(fileAbsolutePath);
+
+          // Permission object for this document
+          const permissionObj = {
             id: doc.id,
-            upload: uploadableArray.includes(doc.id),
-            download: downloadableArray.includes(doc.id),
-            view: readableArray.includes(doc.id),
+            upload: false,
+            download: false,
+            view: false,
           };
 
-          if (fullAccess.includes(doc.id)) {
-            fullAccessUploadable.push(doc.id);
-            fullAccessDownloadable.push(doc.id);
-            fullAccessReadable.push(doc.id);
+          // Check full access permissions
+          if (fullAccessUploadable.includes(doc.id)) {
+            permissionObj.upload = true;
+            fullAccess.push(permissionObj);
+          }
+          if (fullAccessDownloadable.includes(doc.id)) {
+            permissionObj.download = true;
+            fullAccess.push(permissionObj);
+          }
+          if (fullAccessReadable.includes(doc.id)) {
+            permissionObj.view = true;
+            fullAccess.push(permissionObj);
+          }
+
+          // Check regular permissions
+          if (uploadableArray.includes(doc.id)) {
+            selectedUpload.push(doc.id);
+          }
+          if (downloadableArray.includes(doc.id)) {
+            selectedDownload.push(doc.id);
+          }
+          if (readableArray.includes(doc.id)) {
+            selectedView.push(doc.id);
           }
 
           return {
             id: doc.id,
             name: doc.name,
-            path: `..${doc.path.substring(19)}/${doc.name}`,
+            path: `..${doc.path.substring(19)}`,
             type: doc.type,
-            children: doc.children,
+            children: doc.children.map((child) => ({
+              id: child.id,
+              name: child.name,
+              path: `..${child.path.substring(19)}`,
+              type: child.type,
+              children: [],
+            })),
           };
         } catch (error) {
+          console.error(`Error accessing file at ${fileAbsolutePath}:`, error);
           return null;
         }
       })
     );
 
-    childrenData.filter((doc) => doc !== null);
+    // Filter out null results and prepare response
+    const filteredChildren = childrenData.filter((doc) => doc !== null);
 
-    res.status(200).json({
-      children: childrenData,
-      selectedUpload: uploadableArray,
-      selectedDownload: downloadableArray,
-      selectedView: readableArray,
-      fullAccess: fullAccess,
+    return res.status(200).json({
+      children: filteredChildren,
+      selectedUpload: Array.from(new Set(selectedUpload)),
+      selectedDownload: Array.from(new Set(selectedDownload)),
+      selectedView: Array.from(new Set(selectedView)),
+      fullAccess: Array.from(
+        new Set(fullAccess.map((obj) => JSON.stringify(obj)))
+      ).map((str) => JSON.parse(str)),
     });
   } catch (error) {
-    console.log("error", error);
-    res.status(500).json({
-      message: "Error accessing given document",
+    console.error("Error in getRootDocumentsForEdit:", error);
+    return res.status(500).json({
+      message: "Error accessing documents",
     });
   }
 };
