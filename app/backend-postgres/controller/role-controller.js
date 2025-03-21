@@ -196,6 +196,181 @@ export const get_roles = async (req, res) => {
   }
 };
 
+export const get_role = async (req, res) => {
+  try {
+    const { id } = req.params; // Assume role ID is passed as a URL parameter
+
+    // Fetch the role with related data
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        branch: {
+          select: { name: true },
+        },
+        parentRole: {
+          select: { id: true, role: true },
+        },
+      },
+    });
+
+    if (!role) {
+      return res.status(404).json({ message: "Role not found." });
+    }
+
+    // Format the role data with only document IDs for permissions
+    const formattedRole = {
+      id: role.id,
+      role: role.role,
+      status: role.status,
+      departmentName: role.branch?.name || null,
+      isRootLevel: role.isRootLevel,
+      parentRole: role.parentRole
+        ? { id: role.parentRole.id, name: role.parentRole.role }
+        : null,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+      permissions: {
+        writable: role.writable, // Array of IDs only
+        readable: role.readable, // Array of IDs only
+        downloadable: role.downloadable, // Array of IDs only
+        fullAccess: {
+          writable: role.fullAccessWritable, // Array of IDs only
+          readable: role.fullAccessReadable, // Array of IDs only
+          downloadable: role.fullAccessDownloadable, // Array of IDs only
+        },
+      },
+    };
+
+    res.status(200).json({
+      message: "Role fetched successfully.",
+      role: formattedRole,
+    });
+  } catch (error) {
+    console.error("Error fetching role:", error);
+    res.status(500).json({
+      message: "Error fetching role.",
+      error: error.message,
+    });
+  }
+};
+
+export const edit_role = async (req, res) => {
+  try {
+    const { id } = req.params; // Role ID to edit
+    const {
+      role,
+      department, // Department ID
+      selectedUpload,
+      selectedDownload,
+      selectedView,
+      fullAccess,
+      parentRoleId,
+      isRootLevel,
+    } = req.body;
+
+    // Check if the role exists
+    const existingRole = await prisma.role.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!existingRole) {
+      return res.status(404).json({ message: "Role not found." });
+    }
+
+    // Check if a branch is required and exists
+    let departmentObj = null;
+    if (!isRootLevel) {
+      departmentObj = await prisma.department.findUnique({
+        where: { id: department },
+      });
+      if (!departmentObj) {
+        return res
+          .status(400)
+          .json({ message: "Branch selected for role doesn't exist." });
+      }
+    }
+
+    // Check for duplicate role (excluding the current role being edited)
+    const duplicateRole = await prisma.role.findFirst({
+      where: {
+        role,
+        departmentId: departmentObj?.id || null,
+        id: { not: parseInt(id) }, // Exclude the current role
+      },
+    });
+    if (duplicateRole) {
+      return res.status(400).json({
+        message:
+          "Another role with the same name and department already exists.",
+      });
+    }
+
+    // Document access logic (same as add_role)
+    let uploads = selectedUpload || [];
+    let downloads = selectedDownload || [];
+    let view = selectedView || [];
+    let fullAccessUploadable = fullAccess
+      .filter((doc) => doc.upload)
+      .map((doc) => doc.id);
+    let fullAccessDownloadable = fullAccess
+      .filter((doc) => doc.download)
+      .map((doc) => doc.id);
+    let fullAccessReadable = fullAccess
+      .filter((doc) => doc.view)
+      .map((doc) => doc.id);
+
+    let allDocIds = [
+      ...uploads,
+      ...downloads,
+      ...view,
+      ...fullAccessUploadable,
+      ...fullAccessDownloadable,
+      ...fullAccessReadable,
+    ];
+
+    const parentDocs = await prisma.document.findMany({
+      where: { id: { in: allDocIds } },
+      select: { parentId: true },
+    });
+
+    const parentIds = removeDuplicates(
+      parentDocs.map((doc) => doc.parentId).filter(Boolean)
+    );
+
+    uploads = removeDuplicates([...uploads]);
+    downloads = removeDuplicates([...downloads]);
+    view = removeDuplicates([...view, ...parentIds]);
+
+    // Update the role
+    const updatedRole = await prisma.role.update({
+      where: { id: parseInt(id) },
+      data: {
+        role,
+        departmentId: departmentObj?.id || null,
+        isRootLevel: isRootLevel || false,
+        parentRoleId: parentRoleId || null,
+        writable: uploads,
+        readable: view,
+        downloadable: downloads,
+        fullAccessWritable: fullAccessUploadable,
+        fullAccessReadable: fullAccessReadable,
+        fullAccessDownloadable: fullAccessDownloadable,
+        updatedAt: new Date(), // Explicitly set updatedAt
+      },
+    });
+
+    res.status(200).json({
+      message: "Role updated successfully.",
+      role: updatedRole,
+    });
+  } catch (error) {
+    console.error("Error editing role:", error);
+    res.status(500).json({
+      message: "Error editing role.",
+      error: error.message,
+    });
+  }
+};
+
 // export const getRolesHierarchyInDepartment = async (req, res) => {
 //   const { departmentId } = req.params; // Get departmentId from request params
 

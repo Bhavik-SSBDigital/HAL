@@ -44,6 +44,8 @@ import {
 
 import {
   add_role,
+  get_role,
+  edit_role,
   get_roles,
   getRolesHierarchyInDepartment,
 } from "../controller/role-controller.js";
@@ -108,6 +110,9 @@ router.post("/getRootDocumentsForEdit", getRootDocumentsForEdit);
 
 router.post("/addRole", add_role);
 router.get("/getRoles", get_roles);
+
+router.get("getRole/:id", get_role);
+router.put("editRole/:id", edit_role);
 router.get(
   "/getRolesHierarchyInDepartment/:departmentId",
   getRolesHierarchyInDepartment
