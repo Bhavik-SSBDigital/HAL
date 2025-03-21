@@ -818,85 +818,67 @@ export const get_user_processes = async (req, res, next) => {
 
     const userId = userData.id;
 
-    // Fetch all step instances assigned to the user
+    // Single optimized query with relation inclusions
     const stepInstances = await prisma.processStepInstance.findMany({
       where: {
         assignedTo: userId,
         status: "PENDING",
       },
-      select: {
-        processId: true,
-        assignmentId: true,
-        deadline: true,
-      },
-    });
-
-    console.log("step instances", stepInstances);
-
-    // Extract process and assignment IDs
-    const processIds = stepInstances.map((s) => s.processId);
-    const assignmentIds = stepInstances.map((s) => s.assignmentId);
-
-    // Fetch process details
-    const processes = await prisma.processInstance.findMany({
-      where: { id: { in: processIds } },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        workflow: {
-          select: { name: true },
+      include: {
+        process: {
+          include: {
+            workflow: {
+              select: { name: true },
+            },
+            initiator: {
+              select: { username: true },
+            },
+          },
         },
-        initiator: {
-          select: { username: true },
-        },
-      },
-    });
-
-    // Fetch assignment details
-    const assignments = await prisma.workflowAssignment.findMany({
-      where: { id: { in: assignmentIds } },
-      select: {
-        id: true,
-        step: {
-          select: {
-            stepType: true,
-            stepName: true,
-            escalationTime: true,
+        assignment: {
+          include: {
+            step: {
+              select: {
+                stepType: true,
+                stepName: true,
+                escalationTime: true,
+              },
+            },
           },
         },
       },
     });
 
-    // Map assignments and processes by ID for quick lookup
-    const processMap = Object.fromEntries(processes.map((p) => [p.id, p]));
-    const assignmentMap = Object.fromEntries(assignments.map((a) => [a.id, a]));
-
-    // Build final response
+    // Transform results with proper null safety
     const response = stepInstances.map((step) => {
-      const process = processMap[step.processId] || {};
-      const assignment = assignmentMap[step.assignmentId] || {};
-      const stepDetails = assignment.step || {};
+      const escalationHours = step.assignment?.step?.escalationTime || 24;
+      const assignedAt = step.deadline
+        ? new Date(step.deadline.getTime() - escalationHours * 60 * 60 * 1000)
+        : null;
 
       return {
-        processId: process.id,
-        processName: process?.name || "Unknown Process",
-        initiatorUsername: process.initiator?.username || "Unknown",
-        createdAt: process.createdAt,
-        actionType: stepDetails.stepType || "UNKNOWN",
-        stepName: stepDetails.stepName || "Unknown Step",
-        currentStepAssignedAt: step.deadline
-          ? new Date(
-              step.deadline.getTime() -
-                (stepDetails.escalationTime || 24) * 60 * 60 * 1000
-            )
-          : null,
+        processId: step.process.id,
+        processName: step.process?.name || "Unnamed Process",
+        workflowName: step.process?.workflow?.name || "Unknown Workflow",
+        initiatorUsername: step.process?.initiator?.username || "System User",
+        createdAt: step.process.createdAt,
+        actionType: step.assignment?.step?.stepType || "GENERAL",
+        stepName: step.assignment?.step?.stepName || "Pending Step",
+        currentStepAssignedAt: assignedAt,
+        assignmentId: step.assignmentId,
+        deadline: step.deadline,
       };
     });
 
     return res.json(response);
   } catch (error) {
-    console.error("Error fetching user processes:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error in get_user_processes:", {
+      error: error.message,
+      stack: error.stack,
+    });
+    return res.status(500).json({
+      message: "Failed to retrieve processes",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
