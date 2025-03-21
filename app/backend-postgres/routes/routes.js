@@ -112,8 +112,8 @@ router.post("/getRootDocumentsForEdit", getRootDocumentsForEdit);
 router.post("/addRole", add_role);
 router.get("/getRoles", get_roles);
 
-router.get("getRole/:id", get_role);
-router.put("editRole/:id", edit_role);
+router.get("/getRole/:id", get_role);
+router.put("/editRole/:id", edit_role);
 router.get(
   "/getRolesHierarchyInDepartment/:departmentId",
   getRolesHierarchyInDepartment
