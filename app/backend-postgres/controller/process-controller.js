@@ -707,8 +707,13 @@ async function viewProcess(processId, currentUserId) {
         },
       },
       stepInstances: {
-        where: { assignedTo: currentUserId },
-        orderBy: { createdAt: "asc" },
+        where: {
+          OR: [{ assignedTo: userId }, { pickedById: userId }],
+          status: "PENDING", // Only include pending steps
+        },
+        select: {
+          id: true,
+        },
       },
     },
   });
@@ -751,6 +756,9 @@ async function viewProcess(processId, currentUserId) {
   // Get earliest relevant timestamp
   const arrivalTime = process.stepInstances[0]?.createdAt || null;
 
+  const processStepInstanceId =
+    process.stepInstances.length > 0 ? process.stepInstances[0].id : null;
+
   return {
     processId: process.id,
     processName: process.name,
@@ -759,6 +767,7 @@ async function viewProcess(processId, currentUserId) {
     initiatorName: process.initiator.name,
     arrivedAt: arrivalTime,
     documents: documentsWithAccess,
+    processStepInstanceId: processStepInstanceId,
   };
 }
 
@@ -818,7 +827,7 @@ export const get_user_processes = async (req, res, next) => {
 
     const userId = userData.id;
 
-    // Single optimized query with relation inclusions
+    // Single optimized query with corrected relation inclusions
     const stepInstances = await prisma.processStepInstance.findMany({
       where: {
         assignedTo: userId,
@@ -835,7 +844,8 @@ export const get_user_processes = async (req, res, next) => {
             },
           },
         },
-        assignment: {
+        workflowAssignment: {
+          // Changed from 'assignment' to 'workflowAssignment'
           include: {
             step: {
               select: {
@@ -851,7 +861,8 @@ export const get_user_processes = async (req, res, next) => {
 
     // Transform results with proper null safety
     const response = stepInstances.map((step) => {
-      const escalationHours = step.assignment?.step?.escalationTime || 24;
+      const escalationHours =
+        step.workflowAssignment?.step?.escalationTime || 24; // Updated to workflowAssignment
       const assignedAt = step.deadline
         ? new Date(step.deadline.getTime() - escalationHours * 60 * 60 * 1000)
         : null;
@@ -862,8 +873,8 @@ export const get_user_processes = async (req, res, next) => {
         workflowName: step.process?.workflow?.name || "Unknown Workflow",
         initiatorUsername: step.process?.initiator?.username || "System User",
         createdAt: step.process.createdAt,
-        actionType: step.assignment?.step?.stepType || "GENERAL",
-        stepName: step.assignment?.step?.stepName || "Pending Step",
+        actionType: step.workflowAssignment?.step?.stepType || "GENERAL", // Updated to workflowAssignment
+        stepName: step.workflowAssignment?.step?.stepName || "Pending Step", // Updated to workflowAssignment
         currentStepAssignedAt: assignedAt,
         assignmentId: step.assignmentId,
         deadline: step.deadline,
@@ -879,6 +890,32 @@ export const get_user_processes = async (req, res, next) => {
     return res.status(500).json({
       message: "Failed to retrieve processes",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+export const claim_step = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const userId = userData.id;
+
+    const { processId, stepInstanceId } = req.body;
+
+    const step = await handleProcessClaim(userId, processId, stepInstanceId);
+
+    return res.status(200).json({
+      message: "Claimed process step successfully",
+    });
+  } catch (error) {
+    console.log("Error claiming the process", error);
+    return res.status(500).json({
+      message: "Error claiming the process",
     });
   }
 };
