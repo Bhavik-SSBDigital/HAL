@@ -1,5 +1,8 @@
 import axios from 'axios';
-import { upload } from '../components/drop-file-input/FileUploadDownload';
+import {
+  download,
+  upload,
+} from '../components/drop-file-input/FileUploadDownload';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -60,6 +63,9 @@ export const GetAllRoles = async () => {
 export const GetRootLevelRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: true } });
 };
+export const GetRoleDetailsById = async (id) => {
+  return apiClient.get(`/getRole/${id}`);
+};
 
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
@@ -74,9 +80,13 @@ export const GetUsersWithDetails = async () => {
   return apiClient.get('/getUsersWithDetails');
 };
 
-// upload documents apis
+// documents apis
 export const uploadDocumentInProcess = async (fileList, name, tags) => {
   const res = await upload(fileList, '../check', name, true, tags);
+  return res;
+};
+export const ViewDocument = async (name, path) => {
+  const res = await download(name, path, true);
   return res;
 };
 
@@ -89,4 +99,7 @@ export const GetProcessesList = async () => {
 };
 export const GetProcessData = async (id) => {
   return apiClient.get(`/viewProcess/${id}`);
+};
+export const ClaimProcess = async (processId, stepInstanceId) => {
+  return apiClient.post('/claimProcessStep', { processId, stepInstanceId });
 };
