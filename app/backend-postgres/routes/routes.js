@@ -49,6 +49,8 @@ import {
 } from "../controller/role-controller.js";
 
 import {
+  edit_user,
+  get_user,
   get_users,
   get_users_with_details,
 } from "../controller/user-controller.js";
@@ -113,6 +115,8 @@ router.get(
 
 // user-controller related routes
 router.get("/getUsers", get_users);
+router.get("/getUser/:userId", get_user);
+router.put("/editUser/:userId", edit_user);
 router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
 router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
 router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
