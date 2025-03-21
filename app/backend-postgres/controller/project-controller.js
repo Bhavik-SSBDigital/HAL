@@ -300,7 +300,11 @@ export const getRootDocumentsForEdit = async (req, res) => {
 
     const childrenData = await Promise.all(
       foundDocuments.map(async (doc) => {
-        const fileAbsolutePath = path.join(__dirname, doc.path);
+        const fileAbsolutePath = path.join(
+          __dirname,
+          "../../../../storage",
+          doc.path
+        );
         try {
           const fileStats = await fs.stat(fileAbsolutePath);
 
@@ -340,7 +344,7 @@ export const getRootDocumentsForEdit = async (req, res) => {
           return {
             id: doc.id,
             name: doc.name,
-            path: `..${doc.path.substring(19)}`,
+            path: `..${doc.path.substring(19)}/${doc.name}`,
             type: doc.type,
             children: doc.children.map((child) => ({
               id: child.id,
