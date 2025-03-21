@@ -689,7 +689,7 @@ async function advanceToNextStep(tx, process) {
 }
 
 // processViews.js
-async function viewProcess(processId, currentUserId) {
+async function viewProcess(processId, userId) {
   // Get the process with related data
   const process = await prisma.processInstance.findUnique({
     where: { id: processId },
@@ -722,7 +722,7 @@ async function viewProcess(processId, currentUserId) {
 
   // Get current user's roles and departments
   const currentUser = await prisma.user.findUnique({
-    where: { id: currentUserId },
+    where: { id: userId },
     include: {
       roles: { select: { roleId: true } },
       branches: { select: { id: true } },
@@ -737,7 +737,7 @@ async function viewProcess(processId, currentUserId) {
 
     pd.document.documentAccesses.forEach((access) => {
       if (
-        access.userId === currentUserId ||
+        access.userId === userId ||
         currentUser.roles.some((r) => r.roleId === access.roleId) ||
         currentUser.branches.some((b) => b.id === access.departmentId)
       ) {
