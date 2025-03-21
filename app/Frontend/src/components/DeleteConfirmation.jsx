@@ -11,7 +11,7 @@ export default function DeleteConfirmationModal({
       <div className="bg-gray-800 bg-white p-6 rounded-lg shadow-xl w-96">
         <p className="text-lg font-semibold">Confirm Deletion</p>
         <p className="text-gray-300 mt-2">
-          Are you sure you want to delete this department?
+          Are you sure you want to delete this item?
         </p>
         <div className="flex justify-end space-x-3 mt-5">
           <button

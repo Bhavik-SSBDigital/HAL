@@ -19,6 +19,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { DeleteUser, getAllUsers } from '../../common/Apis';
 import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 import CustomButtom from '../../CustomComponents/CustomButton';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -114,48 +115,46 @@ const Users = ({ data, setData, searchTerm, setSearchTerm }) => {
   });
 
   return (
-    <>
-      <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
-        <Stack
-          alignContent="flex-end"
-          flexWrap="wrap"
-          flexDirection="row"
-          justifyContent="space-between"
-          alignItems="flex-end"
-          mb={1}
-        >
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Search
-            </label>
-            <input
-              onChange={(e) => setSearchTerm(e.target.value)}
-              required
-              className="w-full p-2 border rounded max-w-[200px]"
-            />
-          </div>
-          <Link to="/users/createNew">
-            <CustomButtom text={'Add User'} />
-          </Link>
-        </Stack>
+    <CustomCard>
+      <Stack
+        alignContent="flex-end"
+        flexWrap="wrap"
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="flex-end"
+        mb={1}
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Search
+          </label>
+          <input
+            onChange={(e) => setSearchTerm(e.target.value)}
+            required
+            className="w-full p-2 border rounded max-w-[200px]"
+          />
+        </div>
+        <Link to="/users/createNew">
+          <CustomButtom text={'Add User'} />
+        </Link>
+      </Stack>
 
-        {/* XGrid Component */}
-        <DataGrid
-          rows={filteredData}
-          columns={columns}
-          pageSize={10}
-          disableSelectionOnClick
-          pagination
-          rowsPerPageOptions={[10]}
-        />
-        <DeleteConfirmationModal
-          isOpen={isModalOpen}
-          onClose={deleteModalClose}
-          onConfirm={() => handleDelete(deleteItemId)}
-          isLoading={deleteLoading}
-        />
-      </Box>
-    </>
+      {/* XGrid Component */}
+      <DataGrid
+        rows={filteredData}
+        columns={columns}
+        pageSize={10}
+        disableSelectionOnClick
+        pagination
+        rowsPerPageOptions={[10]}
+      />
+      <DeleteConfirmationModal
+        isOpen={isModalOpen}
+        onClose={deleteModalClose}
+        onConfirm={() => handleDelete(deleteItemId)}
+        isLoading={deleteLoading}
+      />
+    </CustomCard>
   );
 };
 
