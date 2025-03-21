@@ -101,7 +101,7 @@ export const add_role = async (req, res) => {
         departmentId: departmentObj?.id || null,
         isRootLevel: isRootLevel || false,
         isAdmin: isAdmin || false,
-        parentRoleId: parentRoleId || null,
+        parentRoleId: parseInt(parentRoleId) || null,
         uploadable: uploads,
         readable: view,
         downloadable: downloads,
