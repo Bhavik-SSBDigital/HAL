@@ -32,13 +32,14 @@ export const add_role = async (req, res) => {
       fullAccess,
       parentRoleId,
       isRootLevel,
+      isAdmin,
     } = req.body;
 
     // Check if a branch is required and exists
     let departmentObj = null;
     if (!isRootLevel) {
       departmentObj = await prisma.department.findUnique({
-        where: { id: department }, // Use department ID
+        where: { id: parseInt(department) }, // Use department ID
       });
       if (!departmentObj) {
         return res
@@ -99,11 +100,12 @@ export const add_role = async (req, res) => {
         status: "Active",
         departmentId: departmentObj?.id || null,
         isRootLevel: isRootLevel || false,
+        isAdmin: isAdmin || false,
         parentRoleId: parentRoleId || null,
-        writable: uploads,
+        uploadable: uploads,
         readable: view,
         downloadable: downloads,
-        fullAccessWritable: fullAccessUploadable,
+        fullAccessUploadable: fullAccessUploadable,
         fullAccessReadable: fullAccessReadable,
         fullAccessDownloadable: fullAccessDownloadable,
       },
@@ -162,6 +164,7 @@ export const get_roles = async (req, res) => {
         role: true,
         departmentId: true,
         isRootLevel: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true,
         branch: {
@@ -222,22 +225,19 @@ export const get_role = async (req, res) => {
       id: role.id,
       role: role.role,
       status: role.status,
-      departmentName: role.branch?.name || null,
+      department: role.branch?.name || null,
       isRootLevel: role.isRootLevel,
-      parentRole: role.parentRole
-        ? { id: role.parentRole.id, name: role.parentRole.role }
-        : null,
+      isAdmin: role.isAdmin,
+      parentRoleId: role.parentRole.id,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
-      permissions: {
-        writable: role.writable, // Array of IDs only
-        readable: role.readable, // Array of IDs only
-        downloadable: role.downloadable, // Array of IDs only
-        fullAccess: {
-          writable: role.fullAccessWritable, // Array of IDs only
-          readable: role.fullAccessReadable, // Array of IDs only
-          downloadable: role.fullAccessDownloadable, // Array of IDs only
-        },
+      selectedUpload: role.uploadable, // Array of IDs only
+      selectedView: role.readable, // Array of IDs only
+      selectedDownload: role.downloadable, // Array of IDs only
+      fullAccess: {
+        writable: role.fullAccessWritable, // Array of IDs only
+        readable: role.fullAccessReadable, // Array of IDs only
+        downloadable: role.fullAccessDownloadable, // Array of IDs only
       },
     };
 
@@ -266,6 +266,7 @@ export const edit_role = async (req, res) => {
       fullAccess,
       parentRoleId,
       isRootLevel,
+      isAdmin,
     } = req.body;
 
     // Check if the role exists
@@ -347,6 +348,7 @@ export const edit_role = async (req, res) => {
         role,
         departmentId: departmentObj?.id || null,
         isRootLevel: isRootLevel || false,
+        isAdmin: isAdmin || false,
         parentRoleId: parentRoleId || null,
         writable: uploads,
         readable: view,
