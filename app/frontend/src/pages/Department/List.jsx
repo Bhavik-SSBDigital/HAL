@@ -24,11 +24,13 @@ import styles from './List.module.css';
 import TreeGraph from '../../components/TreeGraph';
 import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 import moment from 'moment';
+import CustomButtom from '../../CustomComponents/CustomButton';
 
 export default function List() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [isLoading, setIsLoading] = useState(true);
   const [departments, setDepartments] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleteDepLoading, setDeleteDepLoading] = useState(false);
@@ -148,6 +150,13 @@ export default function List() {
     },
   ];
 
+  // filtered data
+  const filteredDepartments = departments.filter(
+    (dept) =>
+      dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dept.code.includes(searchTerm),
+  );
+
   return (
     <>
       {isLoading ? (
@@ -156,7 +165,7 @@ export default function List() {
         <Stack className={styles.container}>
           <Stack
             flexDirection={'row'}
-            justifyContent={{ xs: 'center', sm: 'space-between' }}
+            justifyContent={{ xs: 'flex-end' }}
             flexWrap={'wrap'}
             gap={1}
             mb={1}
@@ -193,30 +202,30 @@ export default function List() {
           ) : (
             <Box sx={{ width: '100%', height: 400 }}>
               <Stack
+                alignContent="flex-end"
+                flexWrap="wrap"
                 flexDirection="row"
-                justifyContent={'flex-end'}
-                sx={{ marginBottom: 2 }}
-                gap={1}
+                justifyContent="space-between"
+                alignItems="flex-end"
+                mb={1}
               >
-                <TextField
-                  label="Search Departments"
-                  variant="outlined"
-                  size="small"
-                  sx={{ backgroundColor: 'white' }}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Search
+                  </label>
+                  <input
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    required
+                    className="w-full p-2 border rounded max-w-[200px]"
+                  />
+                </div>
                 <Link to="/departments/createNew">
-                  <button
-                    variant="contained"
-                    className="bg-button-primary-default hover:bg-button-primary-hover text-white p-2 rounded-md"
-                    sx={{ borderRadius: '8px' }}
-                  >
-                    Create Department
-                  </button>
+                  <CustomButtom text={'Add Department'} />
                 </Link>
               </Stack>
+
               <DataGrid
-                rows={departments}
+                rows={filteredDepartments}
                 columns={columns}
                 pageSize={5}
                 autoHeight
