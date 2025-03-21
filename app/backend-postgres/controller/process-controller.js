@@ -880,7 +880,7 @@ export const get_user_processes = async (req, res, next) => {
 
       return {
         processId: process.id,
-        processName: process.workflow?.name || "Unknown Process",
+        processName: process?.name || "Unknown Process",
         initiatorUsername: process.initiator?.username || "Unknown",
         createdAt: process.createdAt,
         actionType: stepDetails.stepType || "UNKNOWN",
