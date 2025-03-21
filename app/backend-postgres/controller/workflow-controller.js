@@ -218,7 +218,8 @@ export const edit_workflow = async (req, res) => {
           description,
           createdById: updatedById,
           version: latestVersion ? latestVersion.version + 1 : 1,
-          previousWorkflowId: oldWorkflow.id,
+          previousVersionId: oldWorkflow.id,
+          isActive: true,
         },
       });
 
@@ -230,6 +231,7 @@ export const edit_workflow = async (req, res) => {
               stepNumber: index + 1,
               stepName: step.stepName,
               allowParallel: step.allowParallel || false,
+              requiresDocument: step.requiresDocument !== false, // Added
             },
           });
         })
@@ -238,16 +240,76 @@ export const edit_workflow = async (req, res) => {
       for (let i = 0; i < steps.length; i++) {
         const assignments = steps[i].assignments || [];
         if (assignments.length) {
+          const groupedAssignments = {};
+
+          assignments.forEach((assignee) => {
+            const allowParallelMapping = {};
+            assignee.selectedRoles?.forEach((role) => {
+              role.roles.forEach(() => {
+                allowParallelMapping[role.department] =
+                  role.allowParallel || false;
+              });
+            });
+
+            assignee.assigneeIds.forEach((assigneeId) => {
+              const allowParallel = allowParallelMapping[assigneeId] || false;
+              const key = JSON.stringify({
+                assigneeType: assignee.assigneeType,
+                actionType: assignee.actionType,
+                accessTypes: assignee.accessTypes?.sort() || [],
+                direction: assignee.direction,
+                allowParallel,
+              });
+
+              if (!groupedAssignments[key]) {
+                groupedAssignments[key] = { ...assignee, assigneeIds: [] };
+              }
+              groupedAssignments[key].assigneeIds.push(Number(assigneeId));
+            });
+          });
+
           await tx.workflowAssignment.createMany({
-            data: assignments.map((assignee) => ({
+            data: Object.values(groupedAssignments).map((assignee) => ({
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds, // Updated to store an array
+              assigneeIds: assignee.assigneeIds,
               actionType: assignee.actionType,
+              accessTypes: assignee.accessTypes || [],
+              direction: assignee.direction || "DOWNWARDS",
+              allowParallel: assignee.allowParallel || false,
             })),
           });
+
+          const createdAssignments = await tx.workflowAssignment.findMany({
+            where: { stepId: stepRecords[i].id },
+            select: { id: true, assigneeType: true },
+          });
+
+          const departmentRoleAssignments = assignments
+            .filter((a) => a.assigneeType === "DEPARTMENT")
+            .flatMap((assignee, idx) => {
+              const assignment = createdAssignments[idx];
+              return assignee.selectedRoles.flatMap(({ department, roles }) =>
+                roles.map((role) => ({
+                  workflowAssignmentId: assignment.id,
+                  departmentId: department,
+                  roleId: role.id,
+                }))
+              );
+            });
+
+          if (departmentRoleAssignments.length > 0) {
+            await tx.departmentRoleAssignment.createMany({
+              data: departmentRoleAssignments,
+            });
+          }
         }
       }
+
+      await tx.workflow.update({
+        where: { id: oldWorkflow.id },
+        data: { isActive: false },
+      });
 
       return newWorkflow;
     });
@@ -270,11 +332,16 @@ export const view_workflow = async (req, res) => {
       where: { id: workflowId },
       include: {
         createdBy: { select: { id: true, username: true } },
-        previousWorkflow: { select: { id: true, name: true, version: true } },
+        previousVersion: { select: { id: true, name: true, version: true } },
         steps: {
           include: {
-            assignments: true,
-            nextStep: { select: { stepName: true } },
+            assignments: {
+              include: {
+                departmentRoles: {
+                  include: { department: true, role: true },
+                },
+              },
+            },
           },
           orderBy: { stepNumber: "asc" },
         },
@@ -288,17 +355,40 @@ export const view_workflow = async (req, res) => {
       name: workflow.name,
       description: workflow.description,
       version: workflow.version,
-      previousWorkflow: workflow.previousWorkflow,
+      previousVersion: workflow.previousVersion,
       createdBy: workflow.createdBy.username,
       steps: workflow.steps.map((step) => ({
         stepNumber: step.stepNumber,
         stepName: step.stepName,
         allowParallel: step.allowParallel,
-        nextStep: step.nextStep?.stepName,
+        requiresDocument: step.requiresDocument,
         assignments: step.assignments.map((assignee) => ({
           assigneeType: assignee.assigneeType,
-          assigneeIds: assignee.assigneeIds, // Now returns an array
+          assigneeIds: assignee.assigneeIds,
           actionType: assignee.actionType,
+          accessTypes: assignee.accessTypes,
+          direction: assignee.direction,
+          allowParallel: assignee.allowParallel,
+          selectedRoles:
+            assignee.assigneeType === "DEPARTMENT"
+              ? assignee.departmentRoles.reduce((acc, dr) => {
+                  const dept = acc.find(
+                    (d) => d.department.id === dr.department.id
+                  );
+                  if (dept) {
+                    dept.roles.push({ id: dr.role.id, name: dr.role.role });
+                  } else {
+                    acc.push({
+                      department: {
+                        id: dr.department.id,
+                        name: dr.department.name,
+                      },
+                      roles: [{ id: dr.role.id, name: dr.role.role }],
+                    });
+                  }
+                  return acc;
+                }, [])
+              : undefined,
         })),
       })),
     };
@@ -318,21 +408,26 @@ export const delete_workflow = async (req, res) => {
 
   try {
     const activeProcesses = await prisma.processInstance.count({
-      where: { workflowId },
+      where: { workflowId, status: { in: ["PENDING", "IN_PROGRESS"] } },
     });
 
     if (activeProcesses > 0) {
       return res.status(400).json({
-        error: "Cannot delete workflow. Active processes are using it.",
+        error: "Cannot deactivate workflow. Active processes are using it.",
       });
     }
 
-    await prisma.workflow.delete({ where: { id: workflowId } });
+    await prisma.workflow.update({
+      where: { id: workflowId },
+      data: { isActive: false },
+    });
 
-    return res.status(200).json({ message: "Workflow deleted successfully." });
+    return res
+      .status(200)
+      .json({ message: "Workflow deactivated successfully." });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to delete workflow" });
+    return res.status(500).json({ error: "Failed to deactivate workflow" });
   }
 };
 
@@ -349,50 +444,54 @@ export const get_workflows = async (req, res) => {
       include: {
         steps: {
           include: {
-            assignments: true, // Fetch assignments
+            assignments: {
+              select: {
+                id: true,
+                assigneeType: true,
+                assigneeIds: true,
+                actionType: true,
+                accessTypes: true,
+                direction: true,
+                allowParallel: true,
+              },
+            },
           },
         },
-        createdBy: {
-          select: { id: true, name: true, email: true },
-        },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
-    // Group workflows by name and arrange versions
     const groupedWorkflows = workflows.reduce((acc, workflow) => {
-      if (!acc[workflow.name]) {
-        acc[workflow.name] = [];
-      }
-      acc[workflow.name].push(workflow);
+      const key = workflow.name;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(workflow);
       return acc;
     }, {});
 
     return res.status(200).json({
       message: "Workflows retrieved successfully",
-      workflows: Object.keys(groupedWorkflows).map((name) => ({
+      workflows: Object.entries(groupedWorkflows).map(([name, versions]) => ({
         name,
-        versions: groupedWorkflows[name].map((wf) => ({
+        versions: versions.map((wf) => ({
           id: wf.id,
           version: wf.version,
           description: wf.description,
           createdBy: wf.createdBy,
           createdAt: wf.createdAt,
           steps: wf.steps.map((step) => ({
-            id: step.id,
             stepNumber: step.stepNumber,
             stepName: step.stepName,
             allowParallel: step.allowParallel,
-            assignments: step.assignments.map((assignment) => {
-              return {
-                id: assignment.id,
-                assigneeType: assignment.assigneeType,
-                assigneeIds: assignment.assigneeIds.map((item) => Number(item)), // Now using assigneeIds instead of assigneeId
-                actionType: assignment.actionType,
-              };
-            }),
+            requiresDocument: step.requiresDocument,
+            assignments: step.assignments.map((a) => ({
+              assigneeType: a.assigneeType,
+              assigneeIds: a.assigneeIds,
+              actionType: a.actionType,
+              accessTypes: a.accessTypes,
+              direction: a.direction,
+              allowParallel: a.allowParallel,
+            })),
           })),
         })),
       })),
