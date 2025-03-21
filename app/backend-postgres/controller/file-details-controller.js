@@ -338,29 +338,41 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    // Get user role and permissions
-    const rolePermissions = await prisma.roleDocuments.findMany({
-      where: { role_id: req.body.role },
-      select: { document_id: true, permission_type: true, full_access: true },
+    const roleId = req.body.role;
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+
+    // Validate roleId
+    if (!roleId) {
+      return res.status(400).json({ message: "Role ID is required" });
+    }
+
+    // Fetch specific role permissions
+    const role = await prisma.role.findUnique({
+      where: { id: parseInt(roleId) },
+      select: {
+        readable: true,
+        writable: true,
+        uploadable: true,
+        downloadable: true,
+        fullAccessReadable: true,
+        fullAccessUploadable: true,
+        fullAccessDownloadable: true,
+      },
     });
 
-    // Organize permissions
-    const permissions = {
-      readable: [],
-      writable: [],
-      downloadable: [],
-      uploadable: [],
-      fullAccess: [],
-    };
+    if (!role) {
+      return res.status(404).json({ message: "Role not found" });
+    }
 
-    rolePermissions.forEach(({ document_id, permission_type, full_access }) => {
-      const docId = document_id.toString();
-      if (full_access) permissions.fullAccess.push(docId);
-      if (permission_type === "read") permissions.readable.push(docId);
-      if (permission_type === "write") permissions.writable.push(docId);
-      if (permission_type === "download") permissions.downloadable.push(docId);
-      if (permission_type === "upload") permissions.uploadable.push(docId);
-    });
+    // Use permissions from the specific role
+    const readableArray = role.readable || [];
+    const writableArray = role.writable || [];
+    const uploadableArray = role.uploadable || [];
+    const downloadableArray = role.downloadable || [];
+    const fullAccessUploadable = role.fullAccessUploadable || [];
+    const fullAccessReadable = role.fullAccessReadable || [];
+    const fullAccessDownloadable = role.fullAccessDownloadable || [];
 
     // Get document path
     let documentPath = process.env.STORAGE_PATH + req.body.path.substring(2);
@@ -393,9 +405,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       where: { parent_id: foundDocument.id },
     });
 
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-
     let selectedUpload = [],
       selectedDownload = [],
       selectedView = [],
@@ -419,23 +428,31 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
           view: false,
         };
 
-        // Check full access
-        const hasFullAccess = permissions.fullAccess.some(
-          (id) => childParents.includes(id) || id === childId
+        // Check full access permissions
+        const hasFullAccessUpload = fullAccessUploadable.some(
+          (id) =>
+            childParents.includes(id.toString()) || id.toString() === childId
+        );
+        const hasFullAccessDownload = fullAccessDownloadable.some(
+          (id) =>
+            childParents.includes(id.toString()) || id.toString() === childId
+        );
+        const hasFullAccessRead = fullAccessReadable.some(
+          (id) =>
+            childParents.includes(id.toString()) || id.toString() === childId
         );
 
-        if (hasFullAccess && child.type === "folder") {
-          obj.upload = permissions.uploadable.includes(childId);
-          obj.download = permissions.downloadable.includes(childId);
-          obj.view = permissions.readable.includes(childId);
+        if (hasFullAccessUpload || hasFullAccessDownload || hasFullAccessRead) {
+          obj.upload = hasFullAccessUpload || uploadableArray.includes(childId);
+          obj.download =
+            hasFullAccessDownload || downloadableArray.includes(childId);
+          obj.view = hasFullAccessRead || readableArray.includes(childId);
           fullAccess.push(obj);
         }
 
-        if (permissions.uploadable.includes(childId))
-          selectedUpload.push(childId);
-        if (permissions.downloadable.includes(childId))
-          selectedDownload.push(childId);
-        if (permissions.readable.includes(childId)) selectedView.push(childId);
+        if (uploadableArray.includes(childId)) selectedUpload.push(childId);
+        if (downloadableArray.includes(childId)) selectedDownload.push(childId);
+        if (readableArray.includes(childId)) selectedView.push(childId);
 
         return {
           id: childId,
@@ -454,10 +471,12 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
 
     res.status(200).json({
       children: result,
-      selectedUpload,
-      selectedDownload,
-      selectedView,
-      fullAccess,
+      selectedUpload: Array.from(new Set(selectedUpload)),
+      selectedDownload: Array.from(new Set(selectedDownload)),
+      selectedView: Array.from(new Set(selectedView)),
+      fullAccess: Array.from(
+        new Set(fullAccess.map((obj) => JSON.stringify(obj)))
+      ).map((str) => JSON.parse(str)),
     });
   } catch (error) {
     console.error("Error:", error);
