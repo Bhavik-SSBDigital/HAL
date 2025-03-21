@@ -339,12 +339,10 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
     }
 
     // Get user role and permissions
-    const roleQuery = `
-      SELECT rd.document_id, rd.permission_type, rd.full_access
-      FROM RoleDocuments rd
-      WHERE rd.role_id = $1
-    `;
-    const roleResult = await pool.query(roleQuery, [req.body.role]);
+    const rolePermissions = await prisma.roleDocuments.findMany({
+      where: { role_id: req.body.role },
+      select: { document_id: true, permission_type: true, full_access: true },
+    });
 
     // Organize permissions
     const permissions = {
@@ -355,72 +353,53 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       fullAccess: [],
     };
 
-    roleResult.rows.forEach((row) => {
-      const docId = row.document_id.toString();
-      switch (row.permission_type) {
-        case "read":
-          if (row.full_access) permissions.fullAccess.push(docId);
-          permissions.readable.push(docId);
-          break;
-        case "write":
-          permissions.writable.push(docId);
-          break;
-        case "download":
-          permissions.downloadable.push(docId);
-          break;
-        case "upload":
-          permissions.uploadable.push(docId);
-          break;
-      }
+    rolePermissions.forEach(({ document_id, permission_type, full_access }) => {
+      const docId = document_id.toString();
+      if (full_access) permissions.fullAccess.push(docId);
+      if (permission_type === "read") permissions.readable.push(docId);
+      if (permission_type === "write") permissions.writable.push(docId);
+      if (permission_type === "download") permissions.downloadable.push(docId);
+      if (permission_type === "upload") permissions.uploadable.push(docId);
     });
 
     // Get document path
-    let path = req.body.path;
-    path = process.env.STORAGE_PATH + path.substring(2);
+    let documentPath = process.env.STORAGE_PATH + req.body.path.substring(2);
 
     // Find document
-    const docQuery = `
-      SELECT * FROM Documents 
-      WHERE path = $1
-    `;
-    const docResult = await pool.query(docQuery, [path]);
-    const foundDocument = docResult.rows[0];
+    const foundDocument = await prisma.documents.findUnique({
+      where: { path: documentPath },
+    });
 
     if (!foundDocument) {
       return res.status(400).json({ message: "Document doesn't exist" });
     }
 
-    // Get parents using recursive CTE
-    const parentsQuery = `
-      WITH RECURSIVE parent_docs AS (
-        SELECT id, parent_id
-        FROM Documents
-        WHERE id = $1
-        UNION
-        SELECT d.id, d.parent_id
-        FROM Documents d
-        INNER JOIN parent_docs pd ON pd.parent_id = d.id
-      )
-      SELECT id FROM parent_docs
-    `;
-    const parentsResult = await pool.query(parentsQuery, [foundDocument.id]);
-    const parents = parentsResult.rows.map((row) => row.id.toString());
+    // Get parent documents recursively
+    const getParentIds = async (docId, parentIds = []) => {
+      const parent = await prisma.documents.findUnique({
+        where: { id: docId },
+        select: { parent_id: true },
+      });
+      if (parent?.parent_id) {
+        parentIds.push(parent.parent_id.toString());
+        await getParentIds(parent.parent_id, parentIds);
+      }
+      return parentIds;
+    };
+    const parents = await getParentIds(foundDocument.id);
 
     // Get children documents
-    const childrenQuery = `
-      SELECT * FROM Documents
-      WHERE parent_id = $1
-    `;
-    const childrenResult = await pool.query(childrenQuery, [foundDocument.id]);
-    const children = childrenResult.rows;
+    const children = await prisma.documents.findMany({
+      where: { parent_id: foundDocument.id },
+    });
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
 
-    let selectedUpload = [];
-    let selectedDownload = [];
-    let selectedView = [];
-    let fullAccess = [];
+    let selectedUpload = [],
+      selectedDownload = [],
+      selectedView = [],
+      fullAccess = [];
 
     const processChild = async (child) => {
       const fileAbsolutePath = path.join(
@@ -431,10 +410,7 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       try {
         await fs.stat(fileAbsolutePath);
         const childId = child.id.toString();
-        const childParentsResult = await pool.query(parentsQuery, [child.id]);
-        const childParents = childParentsResult.rows.map((row) =>
-          row.id.toString()
-        );
+        const childParents = await getParentIds(child.id);
 
         const obj = {
           id: childId,
@@ -448,16 +424,13 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
           (id) => childParents.includes(id) || id === childId
         );
 
-        if (hasFullAccess) {
-          if (child.type === "folder") {
-            obj.upload = permissions.uploadable.includes(childId);
-            obj.download = permissions.downloadable.includes(childId);
-            obj.view = permissions.readable.includes(childId);
-            fullAccess.push(obj);
-          }
+        if (hasFullAccess && child.type === "folder") {
+          obj.upload = permissions.uploadable.includes(childId);
+          obj.download = permissions.downloadable.includes(childId);
+          obj.view = permissions.readable.includes(childId);
+          fullAccess.push(obj);
         }
 
-        // Check direct permissions
         if (permissions.uploadable.includes(childId))
           selectedUpload.push(childId);
         if (permissions.downloadable.includes(childId))
