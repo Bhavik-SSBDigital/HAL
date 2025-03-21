@@ -18,6 +18,7 @@ import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { GetRoles } from '../../common/Apis';
 import CustomButtom from '../../CustomComponents/CustomButton';
+import DeleteConfirmationModal from '../../components/DeleteConfirmation';
 
 const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -78,49 +79,49 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
       valueFormatter: (params) =>
         params ? moment(params).format('DD-MMM-YYYY hh:mm A') : '--',
     },
+    // {
+    //   field: 'status',
+    //   headerName: 'Status',
+    //   flex: 1,
+    //   renderCell: (params) => (
+    //     <Stack justifyContent="center" alignItems="center" height="100%">
+    //       <Typography
+    //         variant="subtitle2"
+    //         sx={{
+    //           backgroundColor: params?.value === 'Active' ? '#13a126' : 'red',
+    //           padding: '5px 10px',
+    //           borderRadius: '20px',
+    //           color: 'white',
+    //         }}
+    //       >
+    //         {params?.value || '--'}
+    //       </Typography>
+    //     </Stack>
+    //   ),
+    // },
     {
-      field: 'status',
-      headerName: 'Status',
+      field: 'actions',
       flex: 1,
+      headerName: 'Actions',
+      sortable: false,
       renderCell: (params) => (
-        <Stack justifyContent="center" alignItems="center" height="100%">
-          <Typography
-            variant="subtitle2"
-            sx={{
-              backgroundColor: params?.value === 'Active' ? '#13a126' : 'red',
-              padding: '5px 10px',
-              borderRadius: '20px',
-              color: 'white',
+        <div className="flex space-x-2 m-1">
+          <button
+            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
+            onClick={() => handleEdit(params.row)}
+          >
+            <IconEdit color="white" />
+          </button>
+          <button
+            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
+            onClick={() => {
+              setDeleteItemId(params.row.id);
+              setModalOpen(true);
             }}
           >
-            {params?.value || '--'}
-          </Typography>
-        </Stack>
-      ),
-    },
-    {
-      field: 'edit',
-      headerName: 'Edit',
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton onClick={() => handleEdit(params.row)}>
-          <IconEdit color="#2860e0" />
-        </IconButton>
-      ),
-    },
-    {
-      field: 'delete',
-      headerName: 'Delete',
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          onClick={() => {
-            setDeleteItemId(params.row.id);
-            setModalOpen(true);
-          }}
-        >
-          <IconTrash color="red" />
-        </IconButton>
+            <IconTrash color="white" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -164,37 +165,13 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
         autoHeight
         disableSelectionOnClick
       />
-      <Modal open={isModalOpen} onClose={() => setModalOpen(false)}>
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            bgcolor: 'white',
-            p: 3,
-            boxShadow: 24,
-            borderRadius: 2,
-          }}
-        >
-          <Typography variant="h6">
-            ARE YOU SURE YOU WANT TO DELETE ROLE?
-          </Typography>
-          <Stack direction="row" spacing={2} mt={2}>
-            <Button
-              variant="contained"
-              color="error"
-              disabled={deleteLoading}
-              onClick={() => handleDelete(deleteItemId)}
-            >
-              {deleteLoading ? <CircularProgress size={20} /> : 'Yes'}
-            </Button>
-            <Button variant="outlined" onClick={() => setModalOpen(false)}>
-              No
-            </Button>
-          </Stack>
-        </Box>
-      </Modal>
+
+      <DeleteConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={() => handleDelete(deleteItemId)}
+        isLoading={deleteLoading}
+      />
     </Box>
   );
 };

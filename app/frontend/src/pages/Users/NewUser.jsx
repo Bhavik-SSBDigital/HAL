@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { CreateUser, EditUser, GetRoles } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function NewUser() {
   const { id } = useParams();
@@ -52,7 +53,7 @@ export default function NewUser() {
   return (
     <>
       {isSubmitting && <TopLoader />}
-      <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
+      <CustomCard className="max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold text-center mb-4">User Details</h2>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
@@ -199,7 +200,7 @@ export default function NewUser() {
             </div>
           </div>
         </form>
-      </div>
+      </CustomCard>
     </>
   );
 }
