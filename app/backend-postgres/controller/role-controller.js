@@ -201,9 +201,8 @@ export const get_roles = async (req, res) => {
 
 export const get_role = async (req, res) => {
   try {
-    const { id } = req.params; // Assume role ID is passed as a URL parameter
+    const { id } = req.params;
 
-    // Fetch the role with related data
     const role = await prisma.role.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -220,7 +219,24 @@ export const get_role = async (req, res) => {
       return res.status(404).json({ message: "Role not found." });
     }
 
-    // Format the role data with only document IDs for permissions
+    // Get unique IDs from all fullAccess arrays
+    const allIds = [
+      ...new Set([
+        ...(role.fullAccessUploadable || []),
+        ...(role.fullAccessReadable || []),
+        ...(role.fullAccessDownloadable || []),
+      ]),
+    ];
+
+    // Transform fullAccess into the desired array structure
+    const fullAccess = allIds.map((id) => ({
+      id,
+      view: (role.fullAccessReadable || []).includes(id),
+      upload: (role.fullAccessUploadable || []).includes(id),
+      download: (role.fullAccessDownloadable || []).includes(id),
+    }));
+
+    // Format the role data
     const formattedRole = {
       id: role.id,
       role: role.role,
@@ -231,14 +247,10 @@ export const get_role = async (req, res) => {
       parentRoleId: role.parentRoleId,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
-      selectedUpload: role.uploadable, // Array of IDs only
-      selectedView: role.readable, // Array of IDs only
-      selectedDownload: role.downloadable, // Array of IDs only
-      fullAccess: {
-        writable: role.fullAccessWritable, // Array of IDs only
-        readable: role.fullAccessReadable, // Array of IDs only
-        downloadable: role.fullAccessDownloadable, // Array of IDs only
-      },
+      selectedUpload: role.uploadable,
+      selectedView: role.readable,
+      selectedDownload: role.downloadable,
+      fullAccess: fullAccess,
     };
 
     res.status(200).json({
