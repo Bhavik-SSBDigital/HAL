@@ -85,5 +85,8 @@ export const ProcessInitiate = async (data) => {
   return apiClient.post('/initiateProcess', data);
 };
 export const GetProcessesList = async () => {
-  return apiClient.get('getUserProcesses');
+  return apiClient.get('/getUserProcesses');
+};
+export const GetProcessData = async (id) => {
+  return apiClient.get(`/viewProcess/${id}`);
 };

@@ -275,7 +275,7 @@ function App() {
           }
         />
         <Route
-          path="/processes/work/view"
+          path="/process/view/:id"
           element={
             <DefaultLayout>
               <PageTitle title="View Process" />
