@@ -17,6 +17,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { IconEye, IconSquareRoundedX } from '@tabler/icons-react';
 import sessionData from '../../Store';
 import { GetProcessesList } from '../../common/Apis';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function List() {
   const { setNotifications, notifications } = sessionData();
@@ -42,8 +43,8 @@ export default function List() {
   );
 
   const handleView = (id) => {
-    navigate(`/processes/work/view?data=${encodeURIComponent(id)}`);
-    handleRemoveNotification(id);
+    navigate(`/process/view/${id}`);
+    // handleRemoveNotification(id);
   };
 
   const handleRemoveNotification = async (id) => {
@@ -79,7 +80,7 @@ export default function List() {
         <div className="flex space-x-2 m-1">
           <button
             className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
-            onClick={() => navigate(`/users/edit/${params.row.processId}`)}
+            onClick={() => handleView(params.row.processId)}
           >
             <IconEye color="white" />
           </button>
@@ -107,7 +108,7 @@ export default function List() {
       {loading ? (
         <ComponentLoader />
       ) : (
-        <div className="border border-slate-300 bg-white p-6 rounded-lg shadow-sm w-full mx-auto">
+        <CustomCard>
           <label className="block text-sm font-medium text-gray-700">
             Search
           </label>
@@ -122,7 +123,7 @@ export default function List() {
             pageSize={10}
             rowsPerPageOptions={[10]}
           />
-        </div>
+        </CustomCard>
       )}
     </Box>
   );

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GetProcessData } from '../../common/Apis';
 import { IconEye } from '@tabler/icons-react';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const ViewProcess = () => {
   const { id } = useParams();
@@ -75,7 +76,7 @@ const ViewProcess = () => {
 
   return (
     <div className="mx-auto p-2">
-      <div className="bg-white shadow-md rounded-md p-6 space-y-6">
+      <CustomCard>
         <h2 className="text-2xl font-bold text-center">
           Process : {process.processName}
         </h2>
@@ -90,16 +91,16 @@ const ViewProcess = () => {
             </div>
           ))}
         </div>
-      </div>
+      </CustomCard>
 
       {process.documents && process.documents.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-bold text-gray-800">Documents</h3>
           <div className="mt-3 space-y-3">
             {process.documents.map((doc) => (
-              <div
+              <CustomCard
                 key={doc.id}
-                className="flex items-center justify-between bg-white p-4 rounded-md shadow-md border border-gray-200"
+                className="flex items-center justify-between"
               >
                 <div>
                   <p className="text-gray-900 font-semibold">{doc.name}</p>
@@ -113,7 +114,7 @@ const ViewProcess = () => {
                 >
                   <IconEye color="white" />
                 </button>
-              </div>
+              </CustomCard>
             ))}
           </div>
         </div>
