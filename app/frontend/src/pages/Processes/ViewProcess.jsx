@@ -7,10 +7,12 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButtom from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
 import { toast } from 'react-toastify';
+import TopLoader from '../../common/Loader/TopLoader';
 
 const ViewProcess = () => {
   // states
   const { id } = useParams();
+  const [actionsLoading, setActionsLoading] = useState(false);
   const [process, setProcess] = useState(null);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -56,6 +58,7 @@ const ViewProcess = () => {
 
   // network calls
   const handleClaim = async () => {
+    setActionsLoading(true);
     try {
       const response = await ClaimProcess(
         process?.processId,
@@ -64,6 +67,8 @@ const ViewProcess = () => {
       toast.success(response?.data?.message);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
   };
   const handleViewFile = async (name, path) => {
@@ -111,9 +116,9 @@ const ViewProcess = () => {
         No process data available
       </div>
     );
-
   return (
     <div className="mx-auto p-2">
+      {actionsLoading && <TopLoader />}
       <CustomCard>
         <div className="flex justify-end flex-row gap-2">
           <CustomButtom
@@ -121,11 +126,13 @@ const ViewProcess = () => {
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
+            disabled={actionsLoading}
           />
           <CustomButtom
             type={'danger'}
             text={'Complete'}
             className={'min-w-[150px]'}
+            disabled={actionsLoading}
           />
         </div>
         <hr className="text-slate-200 my-2" />

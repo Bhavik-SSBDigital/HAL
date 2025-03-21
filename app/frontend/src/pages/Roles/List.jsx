@@ -19,6 +19,7 @@ import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { GetRoles } from '../../common/Apis';
 import CustomButtom from '../../CustomComponents/CustomButton';
 import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -134,7 +135,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     )
     .map((row, index) => ({ ...row, id: index + 1 }));
   return (
-    <Box sx={{ backgroundColor: 'white', padding: 2, borderRadius: 2 }}>
+    <CustomCard>
       <Stack
         alignContent="flex-end"
         flexWrap="wrap"
@@ -172,7 +173,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
         onConfirm={() => handleDelete(deleteItemId)}
         isLoading={deleteLoading}
       />
-    </Box>
+    </CustomCard>
   );
 };
 

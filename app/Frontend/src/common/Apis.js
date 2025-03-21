@@ -66,6 +66,9 @@ export const GetRootLevelRoles = async () => {
 export const GetRoleDetailsById = async (id) => {
   return apiClient.get(`/getRole/${id}`);
 };
+export const EditRoleById = async (id, data) =>{
+  return apiClient.put(`/editRole/${id}`, data)
+}
 
 // workflow endpoints
 export const CreateWorkflow = async (data) => {

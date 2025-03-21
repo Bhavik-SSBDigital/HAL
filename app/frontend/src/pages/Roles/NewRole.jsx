@@ -23,12 +23,13 @@ import Filefolders from '../Filefolders/Filefolders';
 import { toast } from 'react-toastify';
 import { useForm, Controller } from 'react-hook-form';
 import TopLoader from '../../common/Loader/TopLoader';
-import { GetRoles } from '../../common/Apis';
+import { GetRoleDetailsById, GetRoles } from '../../common/Apis';
+import CustomButton from '../../CustomComponents/CustomButton';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function NewRole() {
   const { id } = useParams();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [editObject, setEditObject] = useState({});
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
   const [selection, setSelection] = useState({
@@ -88,33 +89,24 @@ export default function NewRole() {
   const getEditDetails = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${backendUrl}/getRole/${id}`, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
+      const res = await GetRoleDetailsById(id);
+      const data = res.data.role;
+      reset(data);
+      setSelection({
+        selectedView: data.selectedView || [],
+        selectedDownload: data.selectedDownload || [],
+        selectedUpload: data.selectedUpload || [],
+        fullAccess: data.fullAccess || [],
       });
-      if (res.status === 200) {
-        const data = res.data;
-        setEditObject(data);
-        reset(data); // Populate form with edit data
-        setSelection({
-          selectedView: data.selectedView || [],
-          selectedDownload: data.selectedDownload || [],
-          selectedUpload: data.selectedUpload || [],
-          fullAccess: data.fullAccess || [],
-        });
-      }
     } catch (error) {
-      console.error(error.message);
+      toast.error(error?.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleFormSubmit = async (data) => {
-    const url =
-      backendUrl +
-      (Object.keys(editObject).length > 0 ? `/editRole/${id}` : '/AddRole');
+    const url = backendUrl + (id ? `/editRole/${id}` : '/AddRole');
     try {
       const combinedData = {
         ...data,
@@ -159,139 +151,129 @@ export default function NewRole() {
   return (
     <>
       {isSubmitting ? <TopLoader /> : null}
-      <div
-        style={{
-          width: '100%',
-          backgroundColor: 'white',
-          padding: '25px',
-          // border: '1px solid lightgray',
-          borderRadius: '10px',
-          boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
-        }}
-      >
-        <Typography variant="h5" textAlign={'center'} color="black">
-          Role Details
-        </Typography>
+      <CustomCard className="max-w-4xl mx-auto">
+        <h5 className="text-center text-2xl font-semibold">Role Details</h5>
 
-        <Grid2 container spacing={2} mt={1}>
-          {isSuperAdmin ? null : (
-            <Grid2 size={{ xs: 12 }}>
-              <FormControl fullWidth variant="outlined">
-                <Controller
-                  name="isRootLevel"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField select {...field} label="Is Root Level ?">
-                      <MenuItem value={true}>Yes</MenuItem>
-                      <MenuItem value={false}>No</MenuItem>
-                    </TextField>
-                  )}
-                />
-              </FormControl>
-            </Grid2>
-          )}
-          {isRootLevel ? null : (
-            <>
-              <Grid2 size={{ xs: 12 }}>
-                <FormControl fullWidth variant="outlined">
-                  <Controller
-                    name="isAdmin"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField select {...field} label="Is Admin ?">
-                        <MenuItem value={true}>Yes</MenuItem>
-                        <MenuItem value={false}>No</MenuItem>
-                      </TextField>
-                    )}
-                  />
-                </FormControl>
-              </Grid2>
-              <Grid2 size={{ xs: 12 }}>
-                <FormControl fullWidth variant="outlined">
-                  <Controller
-                    name="department"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} select label="User Branch">
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {branches?.map((data) => (
-                          <MenuItem value={data.id} key={data.id}>
-                            {data.name}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                  />
-                </FormControl>
-              </Grid2>
-            </>
-          )}
-
-          <Grid2 size={{ xs: 12 }}>
+        <div className="grid grid-cols-1 gap-4 mt-4">
+          <div>
+            <label className="block mb-1">User Role</label>
             <Controller
               name="role"
               control={control}
               render={({ field }) => (
-                <TextField label="User Role" {...field} fullWidth />
+                <input {...field} className="w-full p-2 border rounded" />
               )}
             />
-          </Grid2>
+          </div>
+          {!isSuperAdmin && (
+            <div>
+              <label className="block mb-1">Is Root Level?</label>
+              <Controller
+                name="isRootLevel"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    onChange={(e) =>
+                      setValue('isRootLevel', e.target.value === 'Yes')
+                    }
+                    value={field.value ? 'Yse' : 'No'}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                )}
+              />
+            </div>
+          )}
 
-          <Grid2 size={{ xs: 12 }}>
+          {!isRootLevel && (
+            <>
+              <div>
+                <label className="block mb-1">Is Admin?</label>
+                <Controller
+                  name="isAdmin"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      onChange={(e) =>
+                        setValue('isAdmin', e.target.value === 'Yes')
+                      }
+                      value={field.value ? 'Yse' : 'No'}
+                      {...field}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value={'Yes'}>Yes</option>
+                      <option value={'No'}>No</option>
+                    </select>
+                  )}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1">User Branch</label>
+                <Controller
+                  name="department"
+                  control={control}
+                  render={({ field }) => (
+                    <select {...field} className="w-full p-2 border rounded">
+                      <option value="">None</option>
+                      {branches?.map((data) => (
+                        <option key={data.id} value={data.id}>
+                          {data.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="block mb-1">Parent Role</label>
             <Controller
               name="parentRoleId"
               control={control}
               render={({ field }) => (
-                <TextField select label="Parent Role" {...field} fullWidth>
+                <select {...field} className="w-full p-2 border rounded">
+                  <option value="">Select</option>
                   {roles.map((role) => (
-                    <MenuItem key={role.id} value={role.id}>
+                    <option key={role.id} value={role.id}>
                       {role.role}
-                    </MenuItem>
+                    </option>
                   ))}
-                </TextField>
+                </select>
               )}
             />
-          </Grid2>
+          </div>
 
-          <Grid2 size={{ xs: 12 }}>
-            <Box
-              sx={{
-                padding: '10px',
-                maxHeight: '350px',
-                overflow: 'auto',
-                border: '1px solid black',
-                borderRadius: '5px',
-              }}
-            >
-              <Filefolders
-                selection={selection}
-                setSelection={setSelection}
-                checkShow={true}
-              />
-            </Box>
-          </Grid2>
+          <div className="p-3 max-h-56 overflow-auto border border-black rounded">
+            <Filefolders
+              selection={selection}
+              setSelection={setSelection}
+              checkShow={true}
+            />
+          </div>
 
-          <Grid2 size={{ xs: 12, sm: 6 }} sx={{ textAlign: 'center' }}>
-            <Button
-              variant="contained"
-              fullWidth
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
+            <CustomButton
               disabled={isSubmitting}
-              onClick={handleSubmit(handleFormSubmit)}
-            >
-              {Object.keys(editObject).length > 0 ? 'Update' : 'Save'}
-            </Button>
-          </Grid2>
-          <Grid2 size={{ xs: 12, sm: 6 }} sx={{ textAlign: 'center' }}>
+              click={handleSubmit(handleFormSubmit)}
+              text={id ? 'Update' : 'Create'}
+            />
             <Link to="/roles/list">
-              <Button fullWidth variant="outlined" disabled={isSubmitting}>
-                Cancel
-              </Button>
+              <CustomButton
+                type={'danger'}
+                text={'Cancel'}
+                disabled={isSubmitting}
+                className={'w-full'}
+              />
             </Link>
-          </Grid2>
-        </Grid2>
-      </div>
+          </div>
+        </div>
+      </CustomCard>
     </>
   );
 }
