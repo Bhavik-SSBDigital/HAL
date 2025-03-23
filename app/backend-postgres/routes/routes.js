@@ -1,6 +1,11 @@
 import express from "express";
 
-import { sign_up, login, create_admin } from "../controller/auth-controller.js";
+import {
+  sign_up,
+  login,
+  create_admin,
+  change_password,
+} from "../controller/auth-controller.js";
 
 import {
   add_department,
@@ -113,7 +118,7 @@ router.post("/addRole", add_role);
 router.get("/getRoles", get_roles);
 
 router.get("/getRole/:id", get_role);
-router.put("/editRole/:id", edit_role);
+router.post("/editRole/:id", edit_role);
 router.get(
   "/getRolesHierarchyInDepartment/:departmentId",
   getRolesHierarchyInDepartment
@@ -138,5 +143,7 @@ router.post("/claimProcessStep", claim_step);
 router.get("/getUsersWithDetails", get_users_with_details);
 
 router.get("/getUserProcesses", get_user_processes);
+
+router.post("/changePassword", change_password);
 
 export default router;

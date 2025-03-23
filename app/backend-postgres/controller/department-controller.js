@@ -137,8 +137,6 @@ export const get_departments = async (req, res) => {
       });
     }
 
-    console.log("user data", userData);
-
     const { status, type, adminId } = req.query;
 
     // Build filters dynamically

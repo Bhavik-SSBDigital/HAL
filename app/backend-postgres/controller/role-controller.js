@@ -99,8 +99,8 @@ export const add_role = async (req, res) => {
         role,
         status: "Active",
         departmentId: departmentObj?.id || null,
-        isRootLevel: isRootLevel || false,
-        isAdmin: isAdmin || false,
+        isRootLevel: Boolean(isRootLevel) || false,
+        isAdmin: Boolean(isAdmin) || false,
         parentRoleId: parseInt(parentRoleId) || null,
         uploadable: uploads,
         readable: view,
@@ -219,6 +219,10 @@ export const get_role = async (req, res) => {
       return res.status(404).json({ message: "Role not found." });
     }
 
+    console.log("uploadable", role.fullAccessUploadable);
+    console.log("readable", role.fullAccessReadable);
+    console.log("downloadable", role.fullAccessDownloadable);
+
     // Get unique IDs from all fullAccess arrays
     const allIds = [
       ...new Set([
@@ -293,7 +297,7 @@ export const edit_role = async (req, res) => {
     let departmentObj = null;
     if (!isRootLevel) {
       departmentObj = await prisma.department.findUnique({
-        where: { id: department },
+        where: { name: department },
       });
       if (!departmentObj) {
         return res
