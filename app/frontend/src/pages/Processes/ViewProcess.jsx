@@ -1,7 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ClaimProcess, GetProcessData, ViewDocument } from '../../common/Apis';
-import { IconEye } from '@tabler/icons-react';
+import {
+  ClaimProcess,
+  CompleteProcess,
+  GetProcessData,
+  ViewDocument,
+} from '../../common/Apis';
+
+import {
+  IconEye,
+  IconCheck,
+  IconX,
+  IconArrowBackUp,
+  IconArrowForwardUp,
+} from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButtom from '../../CustomComponents/CustomButton';
@@ -57,6 +69,17 @@ const ViewProcess = () => {
   ];
 
   // network calls
+  const handleCompleteProcess = async (id) => {
+    setActionsLoading(true);
+    try {
+      const response = await CompleteProcess(id);
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
   const handleClaim = async () => {
     setActionsLoading(true);
     try {
@@ -73,6 +96,7 @@ const ViewProcess = () => {
     }
   };
   const handleViewFile = async (name, path) => {
+    setActionsLoading(true);
     try {
       const fileData = await ViewDocument(name, '../check');
       if (fileData) {
@@ -80,8 +104,30 @@ const ViewProcess = () => {
       }
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
   };
+  const handleSignDocument = (doc) => {
+    // Logic for signing the document
+    console.log(`Signing document: ${doc.id}`);
+  };
+
+  const handleRejectDocument = (doc) => {
+    // Logic for rejecting the document
+    console.log(`Rejecting document: ${doc.id}`);
+  };
+
+  const handleRevokeSign = (doc) => {
+    // Logic for revoking sign
+    console.log(`Revoking sign for document: ${doc.id}`);
+  };
+
+  const handleRevokeRejection = (doc) => {
+    // Logic for revoking rejection
+    console.log(`Revoking rejection for document: ${doc.id}`);
+  };
+
   useEffect(() => {
     const fetchProcess = async () => {
       try {
@@ -132,6 +178,7 @@ const ViewProcess = () => {
           <CustomButtom
             type={'danger'}
             text={'Complete'}
+            click={() => handleCompleteProcess(process?.processStepInstanceId)}
             className={'min-w-[150px]'}
             disabled={actionsLoading}
           />
@@ -141,7 +188,7 @@ const ViewProcess = () => {
           {processDetails.map((detail, index) => (
             <div
               key={index}
-              className="p-4 border border-slate-300 bg-slate-50 rounded-lg shadow-sm"
+              className="p-4 border border-slate-300 bg-zinc-50 rounded-lg shadow-sm"
             >
               <p className="font-semibold text-lg">{detail.label}</p>
               <p>{detail.value}</p>
@@ -154,10 +201,10 @@ const ViewProcess = () => {
         <div className="mt-6">
           <h3 className="text-lg font-bold text-gray-800">Documents</h3>
           <div className="mt-3 space-y-3">
-            {process.documents.map((doc) => (
+            {process?.documents?.map((doc) => (
               <CustomCard
                 key={doc.id}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between p-4"
               >
                 <div>
                   <p className="text-gray-900 font-semibold">{doc.name}</p>
@@ -165,18 +212,58 @@ const ViewProcess = () => {
                     Type: {doc.type.toUpperCase()}
                   </p>
                 </div>
-                <button
-                  className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
-                  onClick={() => handleViewFile(doc?.name, doc?.path)}
-                >
-                  <IconEye color="white" />
-                </button>
+
+                <div className="flex items-center space-x-2">
+                  {/* View Document */}
+                  <button
+                    className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
+                    onClick={() => handleViewFile(doc?.name, doc?.path)}
+                    title="View Document"
+                  >
+                    <IconEye size={18} className="text-white" />
+                  </button>
+
+                  {/* Sign Document */}
+                  <button
+                    className="p-2 bg-button-success-default hover:bg-button-success-hover rounded-md"
+                    onClick={() => handleSignDocument(doc.id)}
+                    title="Sign Document"
+                  >
+                    <IconCheck size={18} className="text-white" />
+                  </button>
+
+                  {/* Reject Document */}
+                  <button
+                    className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-md"
+                    onClick={() => handleRejectDocument(doc.id)}
+                    title="Reject Document"
+                  >
+                    <IconX size={18} className="text-white" />
+                  </button>
+
+                  {/* Revoke Sign */}
+                  <button
+                    className="p-2 bg-button-warning-default hover:bg-button-warning-hover rounded-md"
+                    onClick={() => handleRevokeSign(doc.id)}
+                    title="Revoke Sign"
+                  >
+                    <IconArrowBackUp size={18} className="text-white" />
+                  </button>
+
+                  {/* Revoke Rejection */}
+                  <button
+                    className="p-2 bg-button-info-default hover:bg-button-info-hover rounded-md"
+                    onClick={() => handleRevokeRejection(doc.id)}
+                    title="Revoke Rejection"
+                  >
+                    <IconArrowForwardUp size={18} className="text-white" />
+                  </button>
+                </div>
               </CustomCard>
             ))}
           </div>
         </div>
       )}
-
       {fileView && (
         <ViewFile
           docu={fileView}

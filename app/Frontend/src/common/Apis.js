@@ -106,6 +106,9 @@ export const GetProcessesList = async () => {
 export const GetProcessData = async (id) => {
   return apiClient.get(`/viewProcess/${id}`);
 };
+export const CompleteProcess = async (id) => {
+  return apiClient.post(`/completeStep`, { stepInstanceId: id });
+};
 export const ClaimProcess = async (processId, stepInstanceId) => {
   return apiClient.post('/claimProcessStep', { processId, stepInstanceId });
 };
