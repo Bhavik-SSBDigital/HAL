@@ -99,23 +99,25 @@ export const add_workflow = async (req, res) => {
               });
             });
 
-            assignee.assigneeIds.forEach((assigneeId) => {
-              const allowParallel = allowParallelMapping[assigneeId] || false; // Get per-assignee allowParallel
+            assignee.assigneeIds
+              .map((item) => item.id)
+              .forEach((assigneeId) => {
+                const allowParallel = allowParallelMapping[assigneeId] || false; // Get per-assignee allowParallel
 
-              const key = JSON.stringify({
-                assigneeType: assignee.assigneeType,
-                actionType: assignee.actionType,
-                accessTypes: assignee.accessTypes.sort(), // Ensure consistent key
-                direction: assignee.direction,
-                allowParallel: allowParallel, // Now per-assignee
+                const key = JSON.stringify({
+                  assigneeType: assignee.assigneeType,
+                  actionType: assignee.actionType,
+                  accessTypes: assignee.accessTypes.sort(), // Ensure consistent key
+                  direction: assignee.direction,
+                  allowParallel: allowParallel, // Now per-assignee
+                });
+
+                if (!groupedAssignments[key]) {
+                  groupedAssignments[key] = { ...assignee, assigneeIds: [] };
+                }
+
+                groupedAssignments[key].assigneeIds.push(Number(assigneeId));
               });
-
-              if (!groupedAssignments[key]) {
-                groupedAssignments[key] = { ...assignee, assigneeIds: [] };
-              }
-
-              groupedAssignments[key].assigneeIds.push(Number(assigneeId));
-            });
           });
 
           await tx.workflowAssignment.createMany({
@@ -251,21 +253,23 @@ export const edit_workflow = async (req, res) => {
               });
             });
 
-            assignee.assigneeIds.forEach((assigneeId) => {
-              const allowParallel = allowParallelMapping[assigneeId] || false;
-              const key = JSON.stringify({
-                assigneeType: assignee.assigneeType,
-                actionType: assignee.actionType,
-                accessTypes: assignee.accessTypes?.sort() || [],
-                direction: assignee.direction,
-                allowParallel,
-              });
+            assignee.assigneeIds
+              .map((item) => item.id)
+              .forEach((assigneeId) => {
+                const allowParallel = allowParallelMapping[assigneeId] || false;
+                const key = JSON.stringify({
+                  assigneeType: assignee.assigneeType,
+                  actionType: assignee.actionType,
+                  accessTypes: assignee.accessTypes?.sort() || [],
+                  direction: assignee.direction,
+                  allowParallel,
+                });
 
-              if (!groupedAssignments[key]) {
-                groupedAssignments[key] = { ...assignee, assigneeIds: [] };
-              }
-              groupedAssignments[key].assigneeIds.push(Number(assigneeId));
-            });
+                if (!groupedAssignments[key]) {
+                  groupedAssignments[key] = { ...assignee, assigneeIds: [] };
+                }
+                groupedAssignments[key].assigneeIds.push(Number(assigneeId));
+              });
           });
 
           await tx.workflowAssignment.createMany({
