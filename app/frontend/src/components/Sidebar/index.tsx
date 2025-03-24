@@ -205,7 +205,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         { path: '/processes/published', label: 'Published' },
         { path: '/processes/initiate', label: 'Initiate Process' },
       ],
-      active: pathname.includes('processes'),
+      active: pathname.includes('process'),
     },
     isPhysicalDocumentKeeper && {
       path: '/physicalDocuments',

@@ -338,7 +338,8 @@ export default function InitiateProcess() {
 
         {/* Submit Button */}
         <button
-          onClick={handleSubmit(onsubmit)}
+          type="button"
+          onClick={handleSubmit(onSubmit)}
           className="bg-button-primary-default hover:bg-button-primary-hover text-white px-4 py-2 rounded-md w-full"
         >
           Submit
