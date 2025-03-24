@@ -65,6 +65,7 @@ const ViewProcess = () => {
         process?.processStepInstanceId,
       );
       toast.success(response?.data?.message);
+      setProcess(() => ({ ...prev, toBePicked: false }));
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
@@ -126,7 +127,7 @@ const ViewProcess = () => {
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
-            disabled={actionsLoading}
+            disabled={actionsLoading || process?.toBePicked == false}
           />
           <CustomButtom
             type={'danger'}
