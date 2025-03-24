@@ -109,7 +109,7 @@ export default function InitiateProcess() {
         Initiate Process
       </h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form className="space-y-4">
         {/* Process Name */}
         <div>
           <label className="block text-sm font-medium">Process Name</label>
@@ -338,7 +338,7 @@ export default function InitiateProcess() {
 
         {/* Submit Button */}
         <button
-          type="submit"
+          onClick={handleSubmit(onsubmit)}
           className="bg-button-primary-default hover:bg-button-primary-hover text-white px-4 py-2 rounded-md w-full"
         >
           Submit
