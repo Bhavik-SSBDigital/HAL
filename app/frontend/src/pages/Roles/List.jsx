@@ -107,6 +107,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
       sortable: false,
       renderCell: (params) => (
         <div className="flex space-x-2 m-1">
+          {console.log(params)}
           <button
             className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
             onClick={() => handleEdit(params.row)}
@@ -133,7 +134,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
         row?.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         row?.departmentName?.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-    .map((row, index) => ({ ...row, id: index + 1 }));
+    .map((row, index) => ({ ...row }));
   return (
     <CustomCard>
       <Stack
