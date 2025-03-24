@@ -4,6 +4,7 @@ import {
   ClaimProcess,
   CompleteProcess,
   GetProcessData,
+  SignDocument,
   ViewDocument,
 } from '../../common/Apis';
 
@@ -108,8 +109,19 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
-  const handleSignDocument = (doc) => {
+  const handleSignDocument = async (documentId) => {
     // Logic for signing the document
+    try {
+      const res = await SignDocument(
+        process?.processId,
+        process?.processStepInstanceId,
+        documentId,
+        'this is remarks',
+      );
+      toast.success(res?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
     console.log(`Signing document: ${doc.id}`);
   };
 

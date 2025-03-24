@@ -95,6 +95,19 @@ export const ViewDocument = async (name, path) => {
   const res = await download(name, path, true);
   return res;
 };
+export const SignDocument = async (
+  processId,
+  processStepInstanceId,
+  documentId,
+  remarks,
+) => {
+  return apiClient.post('/signDocument', {
+    processId,
+    processStepInstanceId,
+    documentId,
+    remarks,
+  });
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {
