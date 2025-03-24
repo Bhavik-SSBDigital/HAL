@@ -62,6 +62,7 @@ import {
   get_users_with_details,
 } from "../controller/user-controller.js";
 import {
+  complete_process_step,
   get_user_processes,
   initiate_process,
   view_process,
@@ -139,6 +140,8 @@ router.post("/initiateProcess", initiate_process);
 router.get("/viewProcess/:processId", view_process);
 
 router.post("/claimProcessStep", pick_process_step);
+
+router.post("/completeStep", complete_process_step);
 
 router.get("/getUsersWithDetails", get_users_with_details);
 

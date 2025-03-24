@@ -522,7 +522,7 @@ async function handleDepartmentAssignment(
 }
 
 // processHandling.js
-async function handleProcessClaim(userId, processId, stepInstanceId) {
+async function handleProcessClaim(userId, stepInstanceId) {
   return prisma.$transaction(async (tx) => {
     // 1. Claim the step with correct includes
     const step = await tx.processStepInstance.update({
@@ -544,12 +544,51 @@ async function handleProcessClaim(userId, processId, stepInstanceId) {
             departmentStepProgress: true,
           },
         },
+        process: {
+          select: { id: true },
+        },
       },
     });
 
-    console.log("step", step);
+    const processId = step.process.id;
 
-    // 2. Handle department-specific tracking
+    // 2. Handle Role assignments: Delete other pending steps for the same assignment
+    if (step.workflowAssignment.assigneeType === "ROLE") {
+      // Delete all other pending steps for this assignment
+      await tx.processStepInstance.deleteMany({
+        where: {
+          assignmentId: step.assignmentId,
+          status: "PENDING",
+          id: { not: step.id },
+        },
+      });
+
+      // Delete related notifications
+      await tx.processNotification.deleteMany({
+        where: {
+          stepInstanceId: {
+            in: (
+              await tx.processStepInstance.findMany({
+                where: {
+                  assignmentId: step.assignmentId,
+                  status: "PENDING",
+                  id: { not: step.id },
+                },
+                select: { id: true },
+              })
+            ).map((si) => si.id),
+          },
+        },
+      });
+
+      // Mark assignment as completed
+      await tx.assignmentProgress.update({
+        where: { id: step.assignmentProgress.id },
+        data: { completed: true },
+      });
+    }
+
+    // 3. Handle department-specific tracking
     if (step.workflowAssignment.assigneeType === "DEPARTMENT") {
       // For parallel departments, track completed roles
       if (step.workflowAssignment.allowParallel) {
@@ -565,7 +604,7 @@ async function handleProcessClaim(userId, processId, stepInstanceId) {
       await updateDepartmentProgress(tx, step);
     }
 
-    // 3-4. Existing completion checks remain same
+    // 4. Check assignment and process completion
     await checkAssignmentCompletion(tx, step.assignmentProgress.id);
     await checkProcessProgress(tx, processId);
 
@@ -598,9 +637,20 @@ async function updateDepartmentProgress(tx, step) {
 
 async function advanceHierarchyLevel(tx, progress) {
   const nextLevel = progress.currentLevel + 1;
-  const nextRoles = progress.roleHierarchy[nextLevel];
+  const hierarchy = JSON.parse(progress.roleHierarchy);
+  const currentRoles = hierarchy[progress.currentLevel];
+  const nextRoles = hierarchy[nextLevel];
 
-  // Create new step instances
+  // Delete pending step instances for current roles
+  await tx.processStepInstance.deleteMany({
+    where: {
+      progressId: progress.id,
+      roleId: { in: currentRoles },
+      status: "PENDING",
+    },
+  });
+
+  // Create new step instances for next roles
   for (const roleId of nextRoles) {
     const users = await tx.userRole.findMany({
       where: {
@@ -626,6 +676,7 @@ async function advanceHierarchyLevel(tx, progress) {
     }
   }
 
+  // Update current level
   await tx.assignmentProgress.update({
     where: { id: progress.id },
     data: { currentLevel: nextLevel },
@@ -907,6 +958,32 @@ export const get_user_processes = async (req, res, next) => {
     return res.status(500).json({
       message: "Failed to retrieve processes",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+export const complete_process_step = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { stepInstanceId } = req.body;
+
+    // Call handleProcessClaim with userId and stepInstanceId
+    const result = await handleProcessClaim(userData.id, stepInstanceId);
+
+    return res.status(200).json({
+      message: "Process step completed successfully",
+      stepId: result.id,
+    });
+  } catch (error) {
+    console.error("Error completing process step:", error);
+    return res.status(500).json({
+      message: "Error completing process step",
+      error: error.message,
     });
   }
 };

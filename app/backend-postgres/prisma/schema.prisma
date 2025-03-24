@@ -340,6 +340,7 @@ model AssignmentProgress {
   completed           Boolean               @default(false)
   completedAt         DateTime?
   stepInstances       ProcessStepInstance[]
+  completedRoles      Int[]     @default([])
   
   departmentStepProgress DepartmentStepProgress? @relation("DepartmentAssignmentProgress")
   
@@ -370,6 +371,8 @@ model ProcessStepInstance {
   notifications        ProcessNotification[] @relation("StepInstanceNotifications")
   escalations          Escalation[]
   qaChannels           ProcessQA[] @relation("StepInstanceQA")
+  decisionComment     String?
+  decisionAt          DateTime?
   @@index([assignmentId])
 }
 
