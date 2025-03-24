@@ -65,8 +65,8 @@ import {
   get_user_processes,
   initiate_process,
   view_process,
-  claim_step,
 } from "../controller/process-controller.js";
+import { pick_process_step } from "../controller/process-step-claim.js";
 
 const router = express.Router();
 
@@ -138,7 +138,7 @@ router.post("/initiateProcess", initiate_process);
 
 router.get("/viewProcess/:processId", view_process);
 
-router.post("/claimProcessStep", claim_step);
+router.post("/claimProcessStep", pick_process_step);
 
 router.get("/getUsersWithDetails", get_users_with_details);
 

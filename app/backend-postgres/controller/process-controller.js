@@ -524,7 +524,7 @@ async function handleDepartmentAssignment(
 // processHandling.js
 async function handleProcessClaim(userId, processId, stepInstanceId) {
   return prisma.$transaction(async (tx) => {
-    // 1. Claim the step
+    // 1. Claim the step with correct includes
     const step = await tx.processStepInstance.update({
       where: {
         id: stepInstanceId,
@@ -540,17 +540,23 @@ async function handleProcessClaim(userId, processId, stepInstanceId) {
           include: { departmentRoles: true },
         },
         assignmentProgress: {
-          include: { departmentStepProgress: true },
+          include: {
+            departmentStepProgress: true,
+          },
         },
       },
     });
+
+    console.log("step", step);
 
     // 2. Handle department-specific tracking
     if (step.workflowAssignment.assigneeType === "DEPARTMENT") {
       // For parallel departments, track completed roles
       if (step.workflowAssignment.allowParallel) {
         await tx.departmentStepProgress.update({
-          where: { id: step.assignmentProgress.departmentStepProgress.id },
+          where: {
+            id: step.assignmentProgress.departmentStepProgress.id,
+          },
           data: {
             completedRoles: { push: step.roleId },
           },
@@ -709,10 +715,14 @@ async function viewProcess(processId, userId) {
       stepInstances: {
         where: {
           OR: [{ assignedTo: userId }, { pickedById: userId }],
-          status: "PENDING", // Only include pending steps
+          status: "PENDING",
         },
-        select: {
-          id: true,
+        include: {
+          workflowAssignment: {
+            select: {
+              assigneeType: true,
+            },
+          },
         },
       },
     },
@@ -759,6 +769,12 @@ async function viewProcess(processId, userId) {
   const processStepInstanceId =
     process.stepInstances.length > 0 ? process.stepInstances[0].id : null;
 
+  const toBePicked =
+    (!process.stepInstances[0]?.pickedById &&
+      process.stepInstances[0].workflowAssignment?.assigneeType ===
+        "DEPARTMENT") ||
+    process.stepInstances[0].workflowAssignment?.assigneeType === "ROLE";
+
   return {
     processId: process.id,
     processName: process.name,
@@ -768,6 +784,7 @@ async function viewProcess(processId, userId) {
     arrivedAt: arrivalTime,
     documents: documentsWithAccess,
     processStepInstanceId: processStepInstanceId,
+    toBePicked: toBePicked, // New property added here
   };
 }
 
@@ -890,32 +907,6 @@ export const get_user_processes = async (req, res, next) => {
     return res.status(500).json({
       message: "Failed to retrieve processes",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
-  }
-};
-
-export const claim_step = async (req, res, next) => {
-  try {
-    const accessToken = req.headers["authorization"]?.substring(7);
-    const userData = await verifyUser(accessToken);
-
-    if (userData === "Unauthorized") {
-      return res.status(401).json({ message: "Unauthorized request" });
-    }
-
-    const userId = userData.id;
-
-    const { processId, stepInstanceId } = req.body;
-
-    const step = await handleProcessClaim(userId, processId, stepInstanceId);
-
-    return res.status(200).json({
-      message: "Claimed process step successfully",
-    });
-  } catch (error) {
-    console.log("Error claiming the process", error);
-    return res.status(500).json({
-      message: "Error claiming the process",
     });
   }
 };

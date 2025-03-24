@@ -378,6 +378,8 @@ enum StepStatus {
   APPROVED
   REJECTED
   SKIPPED
+  IN_PROGRESS
+   ESCALATED
 }
 
 model Escalation {
