@@ -19,20 +19,20 @@ import TreeGraph from '../../components/TreeGraph';
 
 export default function WorkflowForm({ handleCloseForm }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
-  const { register, handleSubmit, control, setValue, reset } = useForm({
-    defaultValues: {
-      name: '',
-      description: '',
-      steps: [],
-    },
-  });
+  const { register, handleSubmit, control, setValue, getValues, reset } =
+    useForm({
+      defaultValues: {
+        name: '',
+        description: '',
+        steps: [],
+      },
+    });
 
   const {
     fields: stepFields,
     append: appendStep,
     remove: removeStep,
   } = useFieldArray({ control, name: 'steps' });
-
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(null);
 
@@ -43,11 +43,12 @@ export default function WorkflowForm({ handleCloseForm }) {
 
   const handleAssignmentSubmit = (assignment) => {
     const updatedSteps = [...stepFields];
+    const stepName = getValues(`steps.${currentStepIndex}.stepName`);
     updatedSteps[currentStepIndex].assignments = [
       ...(updatedSteps[currentStepIndex].assignments || []),
       { ...assignment, selectedRoles: selectedNodes },
     ];
-    console.log(updatedSteps);
+    updatedSteps[currentStepIndex].stepName = stepName;
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
   };
