@@ -42,6 +42,7 @@ export default function WorkflowForm({ handleCloseForm }) {
   };
 
   const handleAssignmentSubmit = (assignment) => {
+    console.log(assignment);
     const updatedSteps = [...stepFields];
     const stepName = getValues(`steps.${currentStepIndex}.stepName`);
     updatedSteps[currentStepIndex].assignments = [
@@ -148,54 +149,71 @@ export default function WorkflowForm({ handleCloseForm }) {
                 <div className="mt-2 border rounded-md">
                   {/* Scrollable Container */}
                   <div className="overflow-x-auto">
-                    {/* Table Headers */}
-                    <div className="min-w-[500px] grid grid-cols-5 gap-4 font-semibold text-sm bg-gray-200 p-2 border-b">
-                      <span className="whitespace-nowrap">Assignee Type</span>
-                      <span className="whitespace-nowrap">Action Type</span>
-                      <span className="whitespace-nowrap">Access Type</span>
-                      <span className="whitespace-nowrap">Assignee IDs</span>
-                      <span className="whitespace-nowrap">Action</span>
-                    </div>
+                    <table className="w-full text-sm">
+                      {/* Table Head */}
+                      <thead className="bg-gray-200 font-semibold">
+                        <tr className="border-b">
+                          <th className="p-2 text-left whitespace-nowrap">
+                            Assignee Type
+                          </th>
+                          <th className="p-2 text-left whitespace-nowrap">
+                            Action Type
+                          </th>
+                          <th className="p-2 text-left whitespace-nowrap">
+                            Access Type
+                          </th>
+                          <th className="p-2 text-left whitespace-nowrap">
+                            Assignees
+                          </th>
+                          <th className="p-2 text-left whitespace-nowrap">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
 
-                    {/* Assignment List */}
-                    <ul className="min-w-[500px]">
-                      {step.assignments.map((assignment, index) => (
-                        <li
-                          key={index}
-                          className="grid grid-cols-5 gap-4 items-center p-2 text-sm border-b"
-                        >
-                          <span className="whitespace-nowrap">
-                            {assignment.assigneeType}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            {assignment.actionType}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            {assignment.accessTypes?.join(', ') || 'N/A'}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            {assignment.assigneeIds?.join(', ') || 'N/A'}
-                          </span>
-                          <span>
-                            {/* Remove Assignment Button (Trash Icon) */}
-                            <button
-                              type="button"
-                              className="text-gray-500 hover:text-red-500 ml-auto"
-                              onClick={() => {
-                                const updatedSteps = [...stepFields];
-                                updatedSteps[stepIndex].assignments.splice(
-                                  index,
-                                  1,
-                                );
-                                setValue('steps', updatedSteps);
-                              }}
-                            >
-                              <IconTrash size={18} />
-                            </button>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                      {/* Table Body */}
+                      <tbody>
+                        {step.assignments.map((assignment, index) => (
+                          <tr key={index} className="border-b">
+                            <td className="p-2 whitespace-nowrap">
+                              {assignment.assigneeType}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              {assignment.actionType}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              {assignment.accessTypes?.join(', ') || 'N/A'}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              {assignment.assigneeIds
+                                .map(
+                                  (item) =>
+                                    item?.name || item?.username || item?.role,
+                                )
+                                .filter(Boolean)
+                                .join(', ') || 'N/A'}
+                            </td>
+                            <td className="p-2 text-center">
+                              {/* Remove Assignment Button (Trash Icon) */}
+                              <button
+                                type="button"
+                                className="text-gray-500 hover:text-red-500"
+                                onClick={() => {
+                                  const updatedSteps = [...stepFields];
+                                  updatedSteps[stepIndex].assignments.splice(
+                                    index,
+                                    1,
+                                  );
+                                  setValue('steps', updatedSteps);
+                                }}
+                              >
+                                <IconTrash size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : (
@@ -259,7 +277,7 @@ function AssignmentForm({
   setSelectedNodes,
   selectedNodes,
 }) {
-  const { register, handleSubmit, watch, control } = useForm({
+  const { register, handleSubmit, watch, control, setValue } = useForm({
     defaultValues: {
       assigneeType: 'USER',
       actionType: 'APPROVAL',
@@ -302,6 +320,7 @@ function AssignmentForm({
     ) {
       GetDepartmentList();
     }
+    setValue('assigneeIds', []);
   }, [assigneeType]);
 
   // workflows
@@ -309,7 +328,7 @@ function AssignmentForm({
   const [hierarchyData, setHierarchyData] = useState({});
   const [loading, setLoading] = useState(false);
   const selectedDepartments = departmentList.filter((dep) =>
-    assigneeIds?.includes(dep?.id),
+    assigneeIds?.map((item) => item?.id == dep?.id),
   );
 
   const currentDepartment = selectedDepartments?.[currentPage];
@@ -372,6 +391,7 @@ function AssignmentForm({
                   name="assigneeIds"
                   control={control}
                   render={({ field }) => {
+                    console.log(field);
                     const allSelected =
                       field.value?.length === userList?.length; // Check if all users are selected
 
@@ -395,16 +415,14 @@ function AssignmentForm({
                           allSelected
                             ? userList
                             : userList?.filter((u) =>
-                                field.value.includes(u.id),
+                                field.value.some((item) => item.id === u.id),
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(
-                              allSelected ? [] : userList?.map((u) => u.id),
-                            ); // Select/Deselect all
+                            field.onChange(allSelected ? [] : userList); // Select/Deselect all
                           } else {
-                            field.onChange(value.map((v) => v.id)); // Normal selection
+                            field.onChange(value); // Normal selection
                           }
                         }}
                         renderInput={(params) => (
@@ -453,17 +471,16 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? roleList
-                            : roleList?.filter((r) =>
-                                field.value.includes(r.id),
+                            : roleList?.filter(
+                                (r) =>
+                                  field.value.some((item) => item.id === r.id), // Compare full objects
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(
-                              allSelected ? [] : roleList?.map((r) => r.id),
-                            ); // Select/Deselect all
+                            field.onChange(allSelected ? [] : roleList); // Select/Deselect all
                           } else {
-                            field.onChange(value.map((v) => v.id)); // Normal selection
+                            field.onChange(value); // Store full object instead of just IDs
                           }
                         }}
                         renderInput={(params) => (
@@ -510,19 +527,16 @@ function AssignmentForm({
                         value={
                           allSelected
                             ? departmentList
-                            : departmentList?.filter((d) =>
-                                field.value.includes(d.id),
+                            : departmentList?.filter(
+                                (d) =>
+                                  field.value.some((item) => item.id === d.id), // Compare full objects
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(
-                              allSelected
-                                ? []
-                                : departmentList?.map((d) => d.id),
-                            ); // Select/Deselect all
+                            field.onChange(allSelected ? [] : departmentList); // Select/Deselect all
                           } else {
-                            field.onChange(value.map((v) => v.id)); // Normal selection
+                            field.onChange(value); // Store full objects instead of just IDs
                           }
                         }}
                         renderInput={(params) => (
