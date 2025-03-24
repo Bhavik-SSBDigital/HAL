@@ -23,7 +23,12 @@ import Filefolders from '../Filefolders/Filefolders';
 import { toast } from 'react-toastify';
 import { useForm, Controller } from 'react-hook-form';
 import TopLoader from '../../common/Loader/TopLoader';
-import { GetRoleDetailsById, GetRoles } from '../../common/Apis';
+import {
+  AddRole,
+  EditRoleById,
+  GetRoleDetailsById,
+  GetRoles,
+} from '../../common/Apis';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
 
@@ -106,7 +111,6 @@ export default function NewRole() {
   };
 
   const handleFormSubmit = async (data) => {
-    const url = backendUrl + (id ? `/editRole/${id}` : '/AddRole');
     try {
       const combinedData = {
         ...data,
@@ -114,10 +118,9 @@ export default function NewRole() {
         isRootLevel: data.isRootLevel || false,
         parentRoleId: data.parentRoleId || null,
       };
-
-      const response = await axios.post(url, combinedData);
-
-      setEditObject({});
+      const response = await (id
+        ? EditRoleById(id, combinedData)
+        : AddRole(combinedData));
       toast.success(response?.data?.message);
       navigate('/roles/list');
       reset();
