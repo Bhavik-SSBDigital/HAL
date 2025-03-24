@@ -58,6 +58,10 @@ export default function WorkflowForm({ handleCloseForm }) {
       toast.info('Please add steps to continue');
       return;
     }
+    if (data?.steps?.find((item) => item.assignments.length == 0)) {
+      toast.info('Please add assignments');
+      return;
+    }
     try {
       const res = await CreateWorkflow(data);
       toast.success(res?.data?.message);

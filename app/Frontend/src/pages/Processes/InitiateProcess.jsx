@@ -90,6 +90,10 @@ export default function InitiateProcess() {
   };
 
   const onSubmit = async (data) => {
+    if (data?.documents?.length == 0) {
+      toast.info('Please upload documents for process');
+      return;
+    }
     try {
       const res = await ProcessInitiate(data);
       toast.success(res?.data?.message);
@@ -246,7 +250,7 @@ export default function InitiateProcess() {
                   );
                   setNewTag(sanitizedValue);
                 }}
-                className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 p-2 rounded-md w-full"
                 placeholder="Enter tag..."
               />
               <button
