@@ -147,16 +147,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       ],
       active: pathname.includes('departments'),
     },
-    show && {
-      path: '/branches',
-      label: 'Branches',
-      icon: <IconSitemap size={26} />,
-      dropdown: [
-        { path: '/branches/list', label: 'List Branches' },
-        { path: '/branches/createNew', label: 'Create Branch' },
-      ],
-      active: pathname.includes('branches'),
-    },
+    // show && {
+    //   path: '/branches',
+    //   label: 'Branches',
+    //   icon: <IconSitemap size={26} />,
+    //   dropdown: [
+    //     { path: '/branches/list', label: 'List Branches' },
+    //     { path: '/branches/createNew', label: 'Create Branch' },
+    //   ],
+    //   active: pathname.includes('branches'),
+    // },
     show && {
       path: '/roles',
       label: 'Roles',

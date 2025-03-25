@@ -4,6 +4,7 @@ import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconArrowBadgeDown, IconX } from '@tabler/icons-react';
+import ComponentLoader from '../../common/Loader/ComponentLoader';
 
 export default function WorkflowVisualizer() {
   const [workflows, setWorkflows] = useState([]);
@@ -11,7 +12,7 @@ export default function WorkflowVisualizer() {
   const [showForm, setShowForm] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState({});
   const [expandedWorkflow, setExpandedWorkflow] = useState(null);
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const getList = async () => {
       try {
@@ -19,6 +20,8 @@ export default function WorkflowVisualizer() {
         setWorkflows(res?.data?.workflows || []);
       } catch (error) {
         console.error('Error fetching workflows:', error);
+      } finally {
+        setLoading(false);
       }
     };
     getList();
@@ -35,6 +38,9 @@ export default function WorkflowVisualizer() {
     }));
   };
 
+  if(loading){
+    return <ComponentLoader />
+  }
   return (
     <div className="p-3 max-w-6xl mx-auto">
       <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">

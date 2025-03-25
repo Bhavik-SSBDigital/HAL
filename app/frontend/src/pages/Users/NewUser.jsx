@@ -4,7 +4,7 @@ import { Autocomplete, TextField as MuiTextField } from '@mui/material';
 import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CreateUser, EditUser, GetRoles } from '../../common/Apis';
+import { CreateUser, EditUser, GetRoles, GetUser } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
 import CustomCard from '../../CustomComponents/CustomCard';
 
@@ -16,6 +16,7 @@ export default function NewUser() {
     control,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -41,14 +42,27 @@ export default function NewUser() {
 
   const onSubmit = async (data) => {
     try {
-      const url = id ? `${backendUrl}/editUser/${id}` : `${backendUrl}/signup`;
-      id ? CreateUser(url, data) : EditUser(url, data);
-      toast.success(id ? 'User updated' : 'User created');
+      const response = id ? await EditUser(id, data) : await CreateUser(data);
+      toast.success(response?.data?.message);
       navigate('/users/list');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error occurred');
     }
   };
+
+  useEffect(() => {
+    const GetUserDetails = async () => {
+      try {
+        const response = await GetUser(id);
+        reset(response?.data?.data);
+      } catch (error) {
+        console.log(error?.response?.data?.message || error?.message);
+      }
+    };
+    if (id) {
+      GetUserDetails();
+    }
+  }, [id]);
 
   return (
     <>
@@ -193,7 +207,10 @@ export default function NewUser() {
                 {id ? 'Update' : 'Save'}
               </button>
               <Link to="/users/list">
-                <button className="w-full border border-gray-400 py-2 rounded hover:bg-gray-100">
+                <button
+                  disabled={isSubmitting}
+                  className="w-full border border-gray-400 py-2 rounded hover:bg-gray-100"
+                >
                   Cancel
                 </button>
               </Link>

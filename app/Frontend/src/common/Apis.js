@@ -44,14 +44,17 @@ export const getAllUsers = async () => {
 export const getRootLevelUsers = () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: true } });
 };
-export const CreateUser = (url, data) => {
-  return apiClient.post(url, data);
+export const CreateUser = (data) => {
+  return apiClient.post('/signup', data);
 };
-export const EditUser = (url, data) => {
-  return apiClient.post(url, data);
+export const EditUser = (id, data) => {
+  return apiClient.put(`/editUser/${id}`, data);
 };
 export const DeleteUser = (id) => {
   return apiClient.post(`/deleteUser/${id}`);
+};
+export const GetUser = (id) => {
+  return apiClient.get(`/getUser/${id}`);
 };
 // roles endpoints
 export const GetRoles = async () => {
