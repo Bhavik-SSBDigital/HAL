@@ -6,6 +6,7 @@ export default function CustomButton({
   text,
   className,
   disabled,
+  title,
 }) {
   const baseClasses =
     'px-5 py-2 rounded-md text-white transition-colors duration-200';
@@ -27,6 +28,7 @@ export default function CustomButton({
   return (
     <button
       onClick={click}
+      title={title}
       disabled={disabled}
       className={`${baseClasses} ${
         buttonStyles[type] || buttonStyles.primary

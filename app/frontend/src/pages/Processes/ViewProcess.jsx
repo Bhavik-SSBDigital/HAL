@@ -17,10 +17,11 @@ import {
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
-import CustomButtom from '../../CustomComponents/CustomButton';
+import CustomButton from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
 import { toast } from 'react-toastify';
 import TopLoader from '../../common/Loader/TopLoader';
+import RemarksModal from '../../CustomComponents/RemarksModal';
 
 const ViewProcess = () => {
   // states
@@ -31,6 +32,10 @@ const ViewProcess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileView, setFileView] = useState(null);
+  const [remarksModalOpen, setRemarksModalOpen] = useState({
+    id: null,
+    open: false,
+  });
   const processDetails = [
     { label: 'Process ID', value: process?.processId },
     { label: 'Process Name', value: process?.processName || 'N/A' },
@@ -109,32 +114,32 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
-  const handleSignDocument = async (documentId) => {
+  const handleSignDocument = async (remarks) => {
+    setActionsLoading(true);
     // Logic for signing the document
     try {
       const res = await SignDocument(
         process?.processId,
         process?.processStepInstanceId,
-        documentId,
-        'this is remarks',
+        remarksModalOpen.id,
+        remarks,
       );
       toast.success(res?.data?.message);
+      setRemarksModalOpen({ id: null, open: false });
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
-    console.log(`Signing document: ${doc.id}`);
   };
-
   const handleRejectDocument = (doc) => {
     // Logic for rejecting the document
     console.log(`Rejecting document: ${doc.id}`);
   };
-
   const handleRevokeSign = (doc) => {
     // Logic for revoking sign
     console.log(`Revoking sign for document: ${doc.id}`);
   };
-
   const handleRevokeRejection = (doc) => {
     // Logic for revoking rejection
     console.log(`Revoking rejection for document: ${doc.id}`);
@@ -162,7 +167,7 @@ const ViewProcess = () => {
       <CustomCard>
         <p className="text-lg font-semibold">Error: {error}</p>
         <div className="mt-4 flex space-x-4">
-          <CustomButtom
+          <CustomButton
             click={() => navigate('/processes/work')}
             text={'Go Back'}
           />
@@ -180,14 +185,14 @@ const ViewProcess = () => {
       {actionsLoading && <TopLoader />}
       <CustomCard>
         <div className="flex justify-end flex-row gap-2">
-          <CustomButtom
+          <CustomButton
             type={'primary'}
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
             disabled={actionsLoading || process?.toBePicked == false}
           />
-          <CustomButtom
+          <CustomButton
             type={'danger'}
             text={'Complete'}
             click={() => handleCompleteProcess(process?.processStepInstanceId)}
@@ -227,49 +232,57 @@ const ViewProcess = () => {
 
                 <div className="flex items-center space-x-2">
                   {/* View Document */}
-                  <button
-                    className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
-                    onClick={() => handleViewFile(doc?.name, doc?.path)}
-                    title="View Document"
-                  >
-                    <IconEye size={18} className="text-white" />
-                  </button>
+                  <CustomButton
+                    className="p-2"
+                    click={() => handleViewFile(doc?.name, doc?.path)}
+                    disabled={actionsLoading}
+                    title={'View Document'}
+                    text={<IconEye size={18} className="text-white" />}
+                  />
 
                   {/* Sign Document */}
-                  <button
-                    className="p-2 bg-button-success-default hover:bg-button-success-hover rounded-md"
-                    onClick={() => handleSignDocument(doc.id)}
-                    title="Sign Document"
-                  >
-                    <IconCheck size={18} className="text-white" />
-                  </button>
+                  <CustomButton
+                    type={'success'}
+                    className="p-2"
+                    click={() =>
+                      setRemarksModalOpen({ id: doc.id, open: true })
+                    }
+                    disabled={actionsLoading}
+                    title={'Sign Document'}
+                    text={<IconCheck size={18} className="text-white" />}
+                  />
 
                   {/* Reject Document */}
-                  <button
-                    className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-md"
-                    onClick={() => handleRejectDocument(doc.id)}
-                    title="Reject Document"
-                  >
-                    <IconX size={18} className="text-white" />
-                  </button>
+                  <CustomButton
+                    type={'danger'}
+                    className="p-2"
+                    click={() => handleRejectDocument(doc.id)}
+                    disabled={actionsLoading}
+                    title={'Reject Document'}
+                    text={<IconX size={18} className="text-white" />}
+                  />
 
                   {/* Revoke Sign */}
-                  <button
-                    className="p-2 bg-button-warning-default hover:bg-button-warning-hover rounded-md"
-                    onClick={() => handleRevokeSign(doc.id)}
-                    title="Revoke Sign"
-                  >
-                    <IconArrowBackUp size={18} className="text-white" />
-                  </button>
+                  <CustomButton
+                    type={'secondary'}
+                    className="p-2"
+                    click={() => handleRevokeSign(doc.id)}
+                    disabled={actionsLoading}
+                    title={'Revoke Sign'}
+                    text={<IconArrowBackUp size={18} className="text-white" />}
+                  />
 
                   {/* Revoke Rejection */}
-                  <button
-                    className="p-2 bg-button-info-default hover:bg-button-info-hover rounded-md"
-                    onClick={() => handleRevokeRejection(doc.id)}
-                    title="Revoke Rejection"
-                  >
-                    <IconArrowForwardUp size={18} className="text-white" />
-                  </button>
+                  <CustomButton
+                    type={'info'}
+                    className="p-2"
+                    click={() => handleRevokeRejection(doc.id)}
+                    disabled={actionsLoading}
+                    title={'Revoke Rejection'}
+                    text={
+                      <IconArrowForwardUp size={18} className="text-white" />
+                    }
+                  />
                 </div>
               </CustomCard>
             ))}
@@ -283,6 +296,12 @@ const ViewProcess = () => {
           handleViewClose={() => setFileView(null)}
         />
       )}
+      <RemarksModal
+        open={remarksModalOpen.open}
+        onClose={() => setRemarksModalOpen({ id: null, open: false })}
+        loading={actionsLoading}
+        onSubmit={(remarks) => handleSignDocument(remarks)}
+      />
     </div>
   );
 };
