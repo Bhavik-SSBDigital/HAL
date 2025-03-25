@@ -639,16 +639,29 @@ async function checkAssignmentCompletion(tx, progressId) {
 }
 
 async function checkProcessProgress(tx, processId) {
-  const process = await tx.processInstance.findUnique({
+  // When querying process instances, you MUST include:
+  const process = await prisma.processInstance.findUnique({
     where: { id: processId },
-    include: { workflow: { include: { steps: true } } },
+    include: {
+      currentStep: true, // ← THIS WAS MISSING
+      workflow: {
+        include: {
+          steps: {
+            include: { assignments: true },
+          },
+        },
+      },
+    },
   });
 
-  // Check current step completion
+  // Corrected: Use the right relation name (e.g., workflowAssignment)
   const currentStepAssignments = await tx.assignmentProgress.findMany({
     where: {
       processId,
-      assignment: { stepId: process.currentStepId },
+      workflowAssignment: {
+        // Adjusted relation name
+        stepId: process.currentStepId,
+      },
     },
   });
 
@@ -660,26 +673,90 @@ async function checkProcessProgress(tx, processId) {
 }
 
 async function advanceToNextStep(tx, process) {
-  const nextStep = process.workflow.steps.find(
-    (s) => s.stepNumber === process.currentStep.stepNumber + 1
-  );
+  try {
+    console.log("Advancing process:", process.id);
 
-  if (nextStep) {
-    // Update process current step
-    await tx.processInstance.update({
-      where: { id: process.id },
-      data: { currentStepId: nextStep.id },
-    });
-
-    // Initialize next step assignments
-    for (const assignment of nextStep.assignments) {
-      await processAssignment(tx, process, nextStep, assignment);
+    // 1. Verify process has required relations loaded
+    if (!process?.workflow?.steps || !Array.isArray(process.workflow.steps)) {
+      throw new Error("Invalid process structure - workflow steps not loaded");
     }
-  } else {
-    await tx.processInstance.update({
-      where: { id: process.id },
-      data: { status: "COMPLETED" },
+
+    const processDocuments = await tx.processDocument.findMany({
+      where: { processId: process.id },
+      select: { documentId: true },
     });
+    const documentIds = processDocuments.map((pd) => pd.documentId);
+
+    // 2. Handle missing current step differently
+    if (!process.currentStep) {
+      console.warn(
+        `Process ${process.id} has no current step, starting from first step`
+      );
+
+      // Find first step in workflow
+      const firstStep = process.workflow.steps.sort(
+        (a, b) => a.stepNumber - b.stepNumber
+      )[0];
+
+      if (!firstStep) {
+        throw new Error("Workflow has no steps defined");
+      }
+
+      // Update to first step
+      await tx.processInstance.update({
+        where: { id: process.id },
+        data: {
+          currentStepId: firstStep.id,
+          status: "IN_PROGRESS",
+        },
+      });
+      return;
+    }
+
+    // 3. Find next step (original logic)
+    const sortedSteps = [...process.workflow.steps].sort(
+      (a, b) => a.stepNumber - b.stepNumber
+    );
+    const nextStep = sortedSteps.find(
+      (s) => s.stepNumber === process.currentStep.stepNumber + 1
+    );
+
+    if (nextStep) {
+      await tx.processInstance.update({
+        where: { id: process.id },
+        data: { currentStepId: nextStep.id },
+      });
+
+      // Initialize next step assignments
+      for (const assignment of nextStep.assignments) {
+        await processAssignment(tx, process, nextStep, assignment, documentIds);
+      }
+    } else {
+      // 4. Use valid COMPLETED status
+      await tx.processInstance.update({
+        where: { id: process.id },
+        data: {
+          status: "COMPLETED", // Must match enum exactly
+          currentStepId: null,
+          updatedAt: new Date(),
+        },
+      });
+    }
+  } catch (error) {
+    console.error(`Error advancing process ${process?.id}:`, error);
+
+    // 5. Use valid status value for failure
+    if (process?.id) {
+      await tx.processInstance.update({
+        where: { id: process.id },
+        data: {
+          status: "REJECTED", // Use existing enum value
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    throw error;
   }
 }
 
