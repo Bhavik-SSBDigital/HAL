@@ -80,6 +80,9 @@ export const AddRole = async (data) => {
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);
 };
+export const EditWorkflow = async (id,data) =>{
+  return apiClient.put(`/editWorkflow/${id}`, data)
+}
 export const GetWorkflows = async () => {
   return apiClient.get('/workflows/getWorkflows');
 };

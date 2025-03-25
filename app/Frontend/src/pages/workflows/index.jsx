@@ -3,13 +3,15 @@ import { GetWorkflows } from '../../common/Apis';
 import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconArrowBadgeDown, IconX } from '@tabler/icons-react';
+import { IconArrowBadgeDown, IconEdit, IconX } from '@tabler/icons-react';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 export default function WorkflowVisualizer() {
   const [workflows, setWorkflows] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editData, setEditData] = useState(null);
   const [selectedVersions, setSelectedVersions] = useState({});
   const [expandedWorkflow, setExpandedWorkflow] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,9 +39,19 @@ export default function WorkflowVisualizer() {
       [workflowName]: version,
     }));
   };
+  const handleEdit = (workflow, version) => {
+    const editObject = {
+      name: workflow.name,
+      description: version.description,
+      steps: version.steps,
+      id: version.id
+    };
+    setEditData(editObject);
+    setShowForm(true);
+  };
 
-  if(loading){
-    return <ComponentLoader />
+  if (loading) {
+    return <ComponentLoader />;
   }
   return (
     <div className="p-3 max-w-6xl mx-auto">
@@ -79,7 +91,10 @@ export default function WorkflowVisualizer() {
               >
                 <IconX size={24} />
               </button>
-              <WorkflowForm handleCloseForm={() => setShowForm(false)} />
+              <WorkflowForm
+                handleCloseForm={() => setShowForm(false)}
+                editData={editData}
+              />
             </motion.div>
           </div>
         )}
@@ -94,12 +109,19 @@ export default function WorkflowVisualizer() {
           return (
             <motion.div
               key={workflow.name}
-              className="bg-white rounded-xl shadow-lg p-6 mb-6 border"
+              className="bg-white rounded-xl shadow-lg p-6 mb-6 border relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
               <div className="w-full mb-4 flex flex-col ml-auto items-end">
+                <CustomButton
+                  className={'absolute top-3 left-3'}
+                  click={() => handleEdit(workflow, selectedVersion)}
+                  text={<IconEdit size={20} />}
+                  title={'Edit'}
+                />
+
                 <label className="text-sm w-fit font-medium text-gray-700">
                   Select Version
                 </label>

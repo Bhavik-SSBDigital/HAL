@@ -9,6 +9,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
   CreateWorkflow,
+  EditWorkflow,
   GetAllRoles,
   getDepartments,
   getRolesHierarchyInDepartment,
@@ -16,8 +17,9 @@ import {
 } from '../../common/Apis';
 import { Autocomplete, TextField } from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
+import CustomButton from '../../CustomComponents/CustomButton';
 
-export default function WorkflowForm({ handleCloseForm }) {
+export default function WorkflowForm({ handleCloseForm, editData }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
   const { register, handleSubmit, control, setValue, getValues, reset } =
     useForm({
@@ -64,7 +66,9 @@ export default function WorkflowForm({ handleCloseForm }) {
       return;
     }
     try {
-      const res = await CreateWorkflow(data);
+      const res = editData
+        ? await EditWorkflow(editData?.id, data)
+        : await CreateWorkflow(data);
       toast.success(res?.data?.message);
       handleCloseForm();
       reset();
@@ -72,6 +76,14 @@ export default function WorkflowForm({ handleCloseForm }) {
       toast.error(error?.response?.data?.messaeg || error?.message);
     }
   };
+
+  useEffect(() => {
+    if (editData) {
+      reset(editData);
+    }
+
+    console.log(editData);
+  }, [editData]);
   return (
     <div className="mx-auto bg-white max-h-[90vh] overflow-auto p-2">
       <h2 className="text-xl font-bold mb-4 text-center">Add Workflow</h2>
@@ -248,12 +260,11 @@ export default function WorkflowForm({ handleCloseForm }) {
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            className="bg-button-primary-default hover:bg-button-primary-hover flex-1 py-2 text-white rounded-md"
-          >
-            Submit
-          </button>
+          <CustomButton
+            type={'submit'}
+            text={editData ? 'Update' : 'Submit'}
+            className={'flex-1'}
+          />
         </div>
       </form>
 
