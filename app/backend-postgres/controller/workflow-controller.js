@@ -466,51 +466,83 @@ export const get_workflows = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // Fetch assignee details
-    const getAssigneeDetails = async (assigneeType, assigneeIds) => {
-      if (!assigneeIds || assigneeIds.length === 0) return [];
+    // Collect all assignee IDs by type
+    const departmentIds = new Set();
+    const roleIds = new Set();
+    const userIds = new Set();
 
-      if (assigneeType === "department") {
-        const departments = await prisma.department.findMany({
-          where: { id: { in: assigneeIds } },
-          select: { id: true, name: true },
+    workflows.forEach((workflow) => {
+      workflow.steps.forEach((step) => {
+        step.assignments.forEach((assignment) => {
+          assignment.assigneeIds.forEach((id) => {
+            switch (assignment.assigneeType) {
+              case "DEPARTMENT":
+                departmentIds.add(id);
+                break;
+              case "ROLE":
+                roleIds.add(id);
+                break;
+              case "USER":
+                userIds.add(id);
+                break;
+            }
+          });
         });
-        return departments.map((dept) => ({ id: dept.id, name: dept.name }));
-      }
+      });
+    });
 
-      if (assigneeType === "role") {
-        const roles = await prisma.role.findMany({
-          where: { id: { in: assigneeIds } },
-          select: { id: true, role: true },
-        });
-        return roles.map((role) => ({ id: role.id, name: role.role }));
-      }
+    // Fetch related entities in bulk
+    const [departments, roles, users] = await Promise.all([
+      prisma.department.findMany({
+        where: { id: { in: Array.from(departmentIds) } },
+        select: { id: true, name: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(roleIds) } },
+        select: { id: true, role: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: Array.from(userIds) } },
+        select: { id: true, username: true },
+      }),
+    ]);
 
-      if (assigneeType === "user") {
-        const users = await prisma.user.findMany({
-          where: { id: { in: assigneeIds } },
-          select: { id: true, username: true },
-        });
-        return users.map((user) => ({ id: user.id, name: user.username }));
-      }
+    // Create lookup maps
+    const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
 
-      return [];
-    };
+    console.log("dep", departmentMap);
+    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+    console.log("role map", roleMap);
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+    console.log("user map", userMap);
 
-    // Process workflows
-    for (const workflow of workflows) {
-      for (const step of workflow.steps) {
-        for (const assignment of step.assignments) {
-          assignment.assigneeIds = await getAssigneeDetails(
-            assignment.assigneeType,
-            assignment.assigneeIds
-          );
-        }
-      }
-    }
+    // Enrich assigneeIds with names
+    const processedWorkflows = workflows.map((workflow) => ({
+      ...workflow,
+      steps: workflow.steps.map((step) => ({
+        ...step,
+        assignments: step.assignments.map((assignment) => ({
+          ...assignment,
+          assigneeIds: assignment.assigneeIds.map((id) => {
+            let name = "Unknown";
+            switch (assignment.assigneeType) {
+              case "DEPARTMENT":
+                name = departmentMap.get(id) || "Unknown Department";
+                break;
+              case "ROLE":
+                name = roleMap.get(id) || "Unknown Role";
+                break;
+              case "USER":
+                name = userMap.get(id) || "Unknown User";
+                break;
+            }
+            return { id, name };
+          }),
+        })),
+      })),
+    }));
 
-    // Group workflows by name
-    const groupedWorkflows = workflows.reduce((acc, workflow) => {
+    const groupedWorkflows = processedWorkflows.reduce((acc, workflow) => {
       const key = workflow.name;
       if (!acc[key]) acc[key] = [];
       acc[key].push(workflow);
@@ -534,7 +566,7 @@ export const get_workflows = async (req, res) => {
             requiresDocument: step.requiresDocument,
             assignments: step.assignments.map((a) => ({
               assigneeType: a.assigneeType,
-              assigneeIds: a.assigneeIds, // Now it's an array of objects { id, name }
+              assigneeIds: a.assigneeIds,
               actionType: a.actionType,
               accessTypes: a.accessTypes,
               direction: a.direction,
