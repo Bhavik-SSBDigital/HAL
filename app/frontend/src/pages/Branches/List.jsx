@@ -16,7 +16,7 @@ import moment from 'moment';
 import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
-import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 
 const List = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;

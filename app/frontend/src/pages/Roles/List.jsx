@@ -18,7 +18,7 @@ import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { GetRoles } from '../../common/Apis';
 import CustomButtom from '../../CustomComponents/CustomButton';
-import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import CustomCard from '../../CustomComponents/CustomCard';
 
 const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {

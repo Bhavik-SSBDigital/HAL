@@ -22,7 +22,7 @@ import {
 } from '../../common/Apis';
 import styles from './List.module.css';
 import TreeGraph from '../../components/TreeGraph';
-import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import moment from 'moment';
 import CustomButtom from '../../CustomComponents/CustomButton';
 

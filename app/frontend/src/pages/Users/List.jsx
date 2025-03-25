@@ -17,7 +17,7 @@ import moment from 'moment';
 import { DataGrid } from '@mui/x-data-grid';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { DeleteUser, getAllUsers } from '../../common/Apis';
-import DeleteConfirmationModal from '../../components/DeleteConfirmation';
+import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import CustomButtom from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
 
