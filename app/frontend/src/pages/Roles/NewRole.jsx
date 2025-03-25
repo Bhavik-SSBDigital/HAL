@@ -268,7 +268,7 @@ export default function NewRole() {
             />
             <Link to="/roles/list">
               <CustomButton
-                type={'danger'}
+                variant={'danger'}
                 text={'Cancel'}
                 disabled={isSubmitting}
                 className={'w-full'}

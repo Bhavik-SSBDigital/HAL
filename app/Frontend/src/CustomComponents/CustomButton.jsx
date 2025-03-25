@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function CustomButton({
-  type,
+  variant,
   click,
   text,
   className,
@@ -31,7 +31,7 @@ export default function CustomButton({
       title={title}
       disabled={disabled}
       className={`${baseClasses} ${
-        buttonStyles[type] || buttonStyles.primary
+        buttonStyles[variant] || buttonStyles.primary
       } ${className}`}
     >
       {text}

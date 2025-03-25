@@ -186,14 +186,14 @@ const ViewProcess = () => {
       <CustomCard>
         <div className="flex justify-end flex-row gap-2">
           <CustomButton
-            type={'primary'}
+            variant={'primary'}
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
             disabled={actionsLoading || process?.toBePicked == false}
           />
           <CustomButton
-            type={'danger'}
+            variant={'danger'}
             text={'Complete'}
             click={() => handleCompleteProcess(process?.processStepInstanceId)}
             className={'min-w-[150px]'}
@@ -242,7 +242,7 @@ const ViewProcess = () => {
 
                   {/* Sign Document */}
                   <CustomButton
-                    type={'success'}
+                    variant={'success'}
                     className="px-1"
                     click={() =>
                       setRemarksModalOpen({ id: doc.id, open: true })
@@ -254,7 +254,7 @@ const ViewProcess = () => {
 
                   {/* Reject Document */}
                   <CustomButton
-                    type={'danger'}
+                    variant={'danger'}
                     className="px-1"
                     click={() => handleRejectDocument(doc.id)}
                     disabled={actionsLoading}
@@ -264,7 +264,7 @@ const ViewProcess = () => {
 
                   {/* Revoke Sign */}
                   <CustomButton
-                    type={'secondary'}
+                    variant={'secondary'}
                     className="px-1"
                     click={() => handleRevokeSign(doc.id)}
                     disabled={actionsLoading}
@@ -274,7 +274,7 @@ const ViewProcess = () => {
 
                   {/* Revoke Rejection */}
                   <CustomButton
-                    type={'info'}
+                    variant={'info'}
                     className="px-1"
                     click={() => handleRevokeRejection(doc.id)}
                     disabled={actionsLoading}

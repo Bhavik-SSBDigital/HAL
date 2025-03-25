@@ -36,7 +36,7 @@ const RemarksModal = ({ open, onSubmit, onClose, loading }) => {
             <CustomButton
               disabled={loading}
               text={'Cancel'}
-              type={'danger'}
+              variant={'danger'}
               click={onClose}
             />
             <CustomButton disabled={loading} text={'Submit'} type={'submit'} />
