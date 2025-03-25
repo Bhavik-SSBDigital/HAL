@@ -196,11 +196,18 @@ export const add_workflow = async (req, res) => {
 
 */
 export const edit_workflow = async (req, res) => {
-  const { name, description, steps, updatedById } = req.body;
-
-  const workflowId = req.body.id;
-
   try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { name, description, steps } = req.body;
+
+    const workflowId = req.body.id;
+
+    const updatedById = userData.id;
     const oldWorkflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
       include: { steps: true },
