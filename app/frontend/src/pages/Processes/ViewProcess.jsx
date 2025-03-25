@@ -221,19 +221,19 @@ const ViewProcess = () => {
             {process?.documents?.map((doc) => (
               <CustomCard
                 key={doc.id}
-                className="flex items-center justify-between p-4"
+                className="flex items-center justify-between p-4 gap-5"
               >
-                <div>
+                <div className="min-w-fit">
                   <p className="text-gray-900 font-semibold">{doc.name}</p>
                   <p className="text-gray-500 text-sm">
                     Type: {doc.type.toUpperCase()}
                   </p>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center flex-wrap gap-1">
                   {/* View Document */}
                   <CustomButton
-                    className="p-2"
+                    className="px-1"
                     click={() => handleViewFile(doc?.name, doc?.path)}
                     disabled={actionsLoading}
                     title={'View Document'}
@@ -243,7 +243,7 @@ const ViewProcess = () => {
                   {/* Sign Document */}
                   <CustomButton
                     type={'success'}
-                    className="p-2"
+                    className="px-1"
                     click={() =>
                       setRemarksModalOpen({ id: doc.id, open: true })
                     }
@@ -255,7 +255,7 @@ const ViewProcess = () => {
                   {/* Reject Document */}
                   <CustomButton
                     type={'danger'}
-                    className="p-2"
+                    className="px-1"
                     click={() => handleRejectDocument(doc.id)}
                     disabled={actionsLoading}
                     title={'Reject Document'}
@@ -265,7 +265,7 @@ const ViewProcess = () => {
                   {/* Revoke Sign */}
                   <CustomButton
                     type={'secondary'}
-                    className="p-2"
+                    className="px-1"
                     click={() => handleRevokeSign(doc.id)}
                     disabled={actionsLoading}
                     title={'Revoke Sign'}
@@ -275,7 +275,7 @@ const ViewProcess = () => {
                   {/* Revoke Rejection */}
                   <CustomButton
                     type={'info'}
-                    className="p-2"
+                    className="px-1"
                     click={() => handleRevokeRejection(doc.id)}
                     disabled={actionsLoading}
                     title={'Revoke Rejection'}
