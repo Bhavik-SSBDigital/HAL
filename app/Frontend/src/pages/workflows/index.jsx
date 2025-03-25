@@ -3,9 +3,15 @@ import { GetWorkflows } from '../../common/Apis';
 import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconArrowBadgeDown, IconEdit, IconX } from '@tabler/icons-react';
+import {
+  IconArrowBadgeDown,
+  IconEdit,
+  IconTrash,
+  IconX,
+} from '@tabler/icons-react';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function WorkflowVisualizer() {
   const [workflows, setWorkflows] = useState([]);
@@ -44,7 +50,7 @@ export default function WorkflowVisualizer() {
       name: workflow.name,
       description: version.description,
       steps: version.steps,
-      id: version.id
+      id: version.id,
     };
     setEditData(editObject);
     setShowForm(true);
@@ -94,6 +100,7 @@ export default function WorkflowVisualizer() {
               <WorkflowForm
                 handleCloseForm={() => setShowForm(false)}
                 editData={editData}
+                setEditData={setEditData}
               />
             </motion.div>
           </div>
@@ -115,12 +122,19 @@ export default function WorkflowVisualizer() {
               transition={{ duration: 0.3 }}
             >
               <div className="w-full mb-4 flex flex-col ml-auto items-end">
-                <CustomButton
-                  className={'absolute top-3 left-3'}
-                  click={() => handleEdit(workflow, selectedVersion)}
-                  text={<IconEdit size={20} />}
-                  title={'Edit'}
-                />
+                <div className="flex absolute top-3 left-3 gap-2">
+                  <CustomButton
+                    click={() => handleEdit(workflow, selectedVersion)}
+                    text={<IconEdit size={20} />}
+                    title={'Edit'}
+                  />
+                  <CustomButton
+                    click={() => console.log('delete workflow')}
+                    text={<IconTrash size={20} />}
+                    title={'Delete'}
+                    variant={'danger'}
+                  />
+                </div>
 
                 <label className="text-sm w-fit font-medium text-gray-700">
                   Select Version
@@ -142,9 +156,9 @@ export default function WorkflowVisualizer() {
                   ))}
                 </select>
               </div>
-              <div
-                className="flex border justify-between items-center cursor-pointer hover:bg-gray-100 p-4 rounded-lg transition"
-                onClick={() =>
+              <CustomCard
+                className="flex border justify-between items-center cursor-pointer transition"
+                click={() =>
                   setExpandedWorkflow(isExpanded ? null : workflow.name)
                 }
               >
@@ -158,10 +172,10 @@ export default function WorkflowVisualizer() {
                 >
                   <IconArrowBadgeDown />
                 </motion.span>
-              </div>
+              </CustomCard>
 
               <div className="mt-4 space-y-4">
-                <div className="bg-white p-5 rounded-lg border shadow-sm space-y-4">
+                <CustomCard>
                   <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
                     <span className="font-bold">Created on:</span>
                     <span>
@@ -180,7 +194,7 @@ export default function WorkflowVisualizer() {
                     <span className="font-bold">Author:</span>
                     <span>{selectedVersion?.createdBy?.email}</span>
                   </div>
-                </div>
+                </CustomCard>
               </div>
 
               <AnimatePresence>

@@ -56,6 +56,7 @@ export const DeleteUser = (id) => {
 export const GetUser = (id) => {
   return apiClient.get(`/getUser/${id}`);
 };
+
 // roles endpoints
 export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
@@ -80,9 +81,9 @@ export const AddRole = async (data) => {
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);
 };
-export const EditWorkflow = async (id,data) =>{
-  return apiClient.put(`/editWorkflow/${id}`, data)
-}
+export const EditWorkflow = async (id, data) => {
+  return apiClient.put(`/workflows/editWorkflow/${id}`, data);
+};
 export const GetWorkflows = async () => {
   return apiClient.get('/workflows/getWorkflows');
 };

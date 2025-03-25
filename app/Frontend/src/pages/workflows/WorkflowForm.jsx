@@ -19,7 +19,11 @@ import { Autocomplete, TextField } from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
 import CustomButton from '../../CustomComponents/CustomButton';
 
-export default function WorkflowForm({ handleCloseForm, editData }) {
+export default function WorkflowForm({
+  handleCloseForm,
+  editData,
+  setEditData,
+}) {
   const [selectedNodes, setSelectedNodes] = useState([]);
   const { register, handleSubmit, control, setValue, getValues, reset } =
     useForm({
@@ -72,6 +76,7 @@ export default function WorkflowForm({ handleCloseForm, editData }) {
       toast.success(res?.data?.message);
       handleCloseForm();
       reset();
+      setEditData(null);
     } catch (error) {
       toast.error(error?.response?.data?.messaeg || error?.message);
     }
