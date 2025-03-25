@@ -80,6 +80,7 @@ const ViewProcess = () => {
     try {
       const response = await CompleteProcess(id);
       toast.success(response?.data?.message);
+      navigate('/processes/work');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
