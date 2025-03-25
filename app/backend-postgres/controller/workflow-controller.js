@@ -196,7 +196,9 @@ export const add_workflow = async (req, res) => {
 
 */
 export const edit_workflow = async (req, res) => {
-  const { workflowId, name, description, steps, updatedById } = req.body;
+  const { name, description, steps, updatedById } = req.body;
+
+  const workflowId = req.body.id;
 
   try {
     const oldWorkflow = await prisma.workflow.findUnique({
