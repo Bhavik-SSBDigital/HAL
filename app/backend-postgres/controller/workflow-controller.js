@@ -466,6 +466,50 @@ export const get_workflows = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
+    // Fetch assignee details
+    const getAssigneeDetails = async (assigneeType, assigneeIds) => {
+      if (!assigneeIds || assigneeIds.length === 0) return [];
+
+      if (assigneeType === "department") {
+        const departments = await prisma.department.findMany({
+          where: { id: { in: assigneeIds } },
+          select: { id: true, name: true },
+        });
+        return departments.map((dept) => ({ id: dept.id, name: dept.name }));
+      }
+
+      if (assigneeType === "role") {
+        const roles = await prisma.role.findMany({
+          where: { id: { in: assigneeIds } },
+          select: { id: true, role: true },
+        });
+        return roles.map((role) => ({ id: role.id, name: role.role }));
+      }
+
+      if (assigneeType === "user") {
+        const users = await prisma.user.findMany({
+          where: { id: { in: assigneeIds } },
+          select: { id: true, username: true },
+        });
+        return users.map((user) => ({ id: user.id, name: user.username }));
+      }
+
+      return [];
+    };
+
+    // Process workflows
+    for (const workflow of workflows) {
+      for (const step of workflow.steps) {
+        for (const assignment of step.assignments) {
+          assignment.assigneeIds = await getAssigneeDetails(
+            assignment.assigneeType,
+            assignment.assigneeIds
+          );
+        }
+      }
+    }
+
+    // Group workflows by name
     const groupedWorkflows = workflows.reduce((acc, workflow) => {
       const key = workflow.name;
       if (!acc[key]) acc[key] = [];
@@ -490,7 +534,7 @@ export const get_workflows = async (req, res) => {
             requiresDocument: step.requiresDocument,
             assignments: step.assignments.map((a) => ({
               assigneeType: a.assigneeType,
-              assigneeIds: a.assigneeIds,
+              assigneeIds: a.assigneeIds, // Now it's an array of objects { id, name }
               actionType: a.actionType,
               accessTypes: a.accessTypes,
               direction: a.direction,
