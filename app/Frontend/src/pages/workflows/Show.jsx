@@ -48,7 +48,7 @@ export default function Show({ steps }) {
                           Action Type
                         </th>
                         <th className="border border-gray-300 px-3 py-2">
-                          Assignee IDs
+                          Assignees
                         </th>
                       </tr>
                     </thead>
@@ -66,7 +66,9 @@ export default function Show({ steps }) {
                           </td>
                           <td className="border border-gray-300 px-3 py-2">
                             {assignment.assigneeIds.length > 0
-                              ? assignment.assigneeIds.join(', ')
+                              ? assignment.assigneeIds
+                                  .map((item) => item.name)
+                                  .join(', ')
                               : 'N/A'}
                           </td>
                         </tr>
