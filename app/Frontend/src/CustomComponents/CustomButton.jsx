@@ -24,6 +24,7 @@ export default function CustomButton({
     warning:
       'bg-button-warning-default hover:bg-button-warning-hover disabled:bg-button-warning-disabled',
     info: 'bg-button-info-default hover:bg-button-info-hover disabled:bg-button-info-disabled',
+    none: 'bg-transparent',
   };
 
   return (
