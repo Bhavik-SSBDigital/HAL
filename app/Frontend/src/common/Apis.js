@@ -148,3 +148,6 @@ export const GetSignature = () => {
 export const GetProfilePic = () => {
   return apiClient.get('/getUserProfilePic', { responseType: 'blob' });
 };
+export const GetProfileData = () => {
+  return apiClient.get('/getUserProfileData')
+};
