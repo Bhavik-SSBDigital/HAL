@@ -31,6 +31,13 @@ import {
 } from "../controller/file-details-controller.js";
 
 import {
+  sign_document,
+  revoke_sign,
+  reject_document,
+  revoke_rejection,
+} from "../controller/e-sign-controller.js";
+
+import {
   file_upload,
   file_download,
   create_folder,
@@ -58,6 +65,9 @@ import {
 import {
   edit_user,
   get_user,
+  get_user_profile_data,
+  get_user_profile_pic,
+  get_user_signature,
   get_users,
   get_users_with_details,
 } from "../controller/user-controller.js";
@@ -148,5 +158,15 @@ router.get("/getUsersWithDetails", get_users_with_details);
 router.get("/getUserProcesses", get_user_processes);
 
 router.post("/changePassword", change_password);
+
+router.post("/signDocument", sign_document);
+router.post("/revokeSign", revoke_sign);
+router.post("/rejectDocument", reject_document);
+router.post("/revokeRejection", revoke_rejection);
+
+router.get("/getUserSignature", get_user_signature);
+router.get("/getUserProfilePic", get_user_profile_pic);
+
+router.get("/getUserProfileData", get_user_profile_data);
 
 export default router;
