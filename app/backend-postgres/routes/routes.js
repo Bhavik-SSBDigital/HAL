@@ -1,5 +1,7 @@
 import express from "express";
 
+import upload_ from "../config/multer-config.js";
+
 import {
   sign_up,
   login,
@@ -78,6 +80,8 @@ import {
   view_process,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
+
+import { upload_signature } from "../controller/image-controller.js";
 
 const router = express.Router();
 
@@ -171,5 +175,13 @@ router.get("/getUserProfileData", get_user_profile_data);
 
 router.get("/getUserSignature", get_user_signature);
 router.get("/getUserProfilePic", get_user_profile_pic);
+
+router.post(
+  "/uploadSignature",
+  // uploadDummy.any(),
+  // set_purpose,
+  upload_.single("file"),
+  upload_signature
+);
 
 export default router;

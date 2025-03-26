@@ -1,5 +1,26 @@
 import { verifyUser } from "../utility/verifyUser.js";
 
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+import fs from "fs";
+
+import {
+  uploadAccess,
+  downloadAccess,
+  viewAccess,
+  fullAccess,
+} from "../utility/accessFunction.js";
+import nodemailer from "nodemailer";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -351,10 +372,16 @@ export const get_user_signature = async (req, res, next) => {
       return res.status(400).json({ message: "Please upload signature first" });
     }
 
+    console.log("image path ENV", process.env.SIGNATURE_FOLDER_PATH);
     const imagePath = path.join(
+      __dirname,
       process.env.SIGNATURE_FOLDER_PATH, // Use absolute path in env
       user.signaturePicFileName
     );
+
+    console.log("user pic file name", user.signaturePicFileName);
+
+    console.log("image path", imagePath);
 
     // Add file existence check
     if (!fs.existsSync(imagePath)) {
