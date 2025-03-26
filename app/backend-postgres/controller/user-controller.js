@@ -1,3 +1,5 @@
+import { verifyUser } from "../utility/verifyUser.js";
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -71,6 +73,48 @@ export const get_users_with_details = async (req, res) => {
     }));
 
     res.json(formattedUsers);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const get_user_profile_data = async (req, res) => {
+  try {
+    const user = await prisma.user.findFirst({
+      select: {
+        id: true,
+        username: true,
+        branches: {
+          select: {
+            name: true,
+          },
+        },
+        roles: {
+          select: {
+            role: {
+              select: {
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const formattedUser = {
+      id: user.id,
+      username: user.username,
+      departments: user.branches.map((branch) => branch.name),
+      roles: user.roles.map((role) => role.role.role),
+    };
+
+    res
+      .status(200)
+      .json({
+        message: "User profile data retrieved",
+        userdata: formattedUser,
+      });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -283,5 +327,79 @@ export const edit_user = async (req, res) => {
   } catch (error) {
     console.error("Error updating user", error);
     return res.status(500).json({ message: "Error updating user" });
+  }
+};
+
+export const get_user_signature = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    // Prisma query with select
+    const user = await prisma.user.findUnique({
+      where: { id: userData.id },
+      select: { signaturePicFileName: true },
+    });
+
+    if (!user?.signaturePicFileName) {
+      return res.status(400).json({ message: "Please upload signature first" });
+    }
+
+    const imagePath = path.join(
+      process.env.SIGNATURE_FOLDER_PATH, // Use absolute path in env
+      user.signaturePicFileName
+    );
+
+    // Add file existence check
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ message: "Signature file not found" });
+    }
+
+    res.sendFile(imagePath);
+  } catch (error) {
+    console.error("Error getting signature:", error);
+    res.status(500).json({ message: "Error retrieving signature" });
+  }
+};
+
+export const get_user_profile_pic = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userData.id },
+      select: { profilePicFileName: true },
+    });
+
+    if (!user?.profilePicFileName) {
+      return res.status(400).json({ message: "Please upload profile picture" });
+    }
+
+    const imagePath = path.join(
+      process.env.PROFILE_PIC_FOLDER_PATH, // Use absolute path in env
+      user.profilePicFileName
+    );
+
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ message: "Profile picture not found" });
+    }
+
+    res.sendFile(imagePath);
+  } catch (error) {
+    console.error("Error getting profile pic:", error);
+    res.status(500).json({ message: "Error retrieving profile picture" });
   }
 };
