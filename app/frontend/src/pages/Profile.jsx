@@ -7,7 +7,8 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import sessionData from '../Store';
 import ComponentLoader from '../common/Loader/ComponentLoader';
-import styles from './Profile.module.css'
+import styles from './Profile.module.css';
+import { GetProfilePic, GetSignature } from '../common/Apis';
 
 const signatureModalStyle = {
   position: 'absolute',
@@ -21,7 +22,6 @@ const signatureModalStyle = {
 };
 
 const Profile = () => {
-
   const { profileImage, setProfileImage } = sessionData();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [userDetails, setUserDetails] = useState({
@@ -42,15 +42,7 @@ const Profile = () => {
   const [signatureImage, setSignatureImage] = useState('');
   const fetchSingature = async () => {
     try {
-      const url = backendUrl + '/getUserSignature';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: ` Bearer ${accessToken}`,
-        },
-        responseType: 'blob',
-      });
-
+      const response = await GetSignature();
       if (response.status === 200) {
         const blob = new Blob([response.data], {
           type: response.headers['content-type'],
@@ -66,14 +58,7 @@ const Profile = () => {
   };
   const fetchProfilePic = async () => {
     try {
-      const url = backendUrl + '/getUserProfilePic';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: ` Bearer ${accessToken}`,
-        },
-        responseType: 'blob',
-      });
+      const response = GetProfilePic();
 
       if (response.status === 200) {
         const blob = new Blob([response.data], {
@@ -91,14 +76,17 @@ const Profile = () => {
   const handleUpload = async (purpose, e) => {
     const file = e.target.files[0];
     const filename = e.target.files[0].name;
-    const fileExtension = filename.split(".").pop();
+    const fileExtension = filename.split('.').pop();
     if (purpose === 'signature') {
       const allowedFormats = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedFormats.includes(file.type)) {
         toast.warning('Unsupported File Type');
         return;
       }
-    } else if (purpose === 'profilePic' && fileExtension.toLowerCase() !== "jpeg") {
+    } else if (
+      purpose === 'profilePic' &&
+      fileExtension.toLowerCase() !== 'jpeg'
+    ) {
       toast.warning('Only jpeg is allowed');
       return;
     }
@@ -146,7 +134,6 @@ const Profile = () => {
       error: `Error uploading image for ${purpose}`,
     });
   };
-
 
   const getProfileData = async () => {
     const url = backendUrl + '/getUserProfileData';
@@ -281,8 +268,8 @@ const Profile = () => {
                     <br />{' '}
                     {userDetails?.departmentsInvolvedIn.length
                       ? userDetails?.departmentsInvolvedIn
-                        ?.map((item) => item.departmentName)
-                        .join(', ')
+                          ?.map((item) => item.departmentName)
+                          .join(', ')
                       : '---'}
                   </Typography>
                 </Stack>
