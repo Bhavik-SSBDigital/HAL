@@ -169,4 +169,7 @@ router.get("/getUserProfilePic", get_user_profile_pic);
 
 router.get("/getUserProfileData", get_user_profile_data);
 
+router.get("/getUserSignature", get_user_signature);
+router.get("/getUserProfilePic", get_user_profile_pic);
+
 export default router;

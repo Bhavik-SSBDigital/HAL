@@ -99,22 +99,22 @@ export const get_user_profile_data = async (req, res) => {
             },
           },
         },
+        email: true,
       },
     });
 
     const formattedUser = {
       id: user.id,
       username: user.username,
-      departments: user.branches.map((branch) => branch.name),
+      departmentsInvoledIn: user.branches.map((branch) => branch.name),
       roles: user.roles.map((role) => role.role.role),
+      email: user.email,
     };
 
-    res
-      .status(200)
-      .json({
-        message: "User profile data retrieved",
-        userdata: formattedUser,
-      });
+    res.status(200).json({
+      message: "User profile data retrieved",
+      userdata: formattedUser,
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: "Internal server error" });

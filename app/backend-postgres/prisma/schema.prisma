@@ -111,6 +111,8 @@ model User {
   pickedProcessSteps   ProcessStepInstance[] @relation("UserPickedSteps")
   rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
   signatures         DocumentSignature[] @relation("UserSignatures")
+  signaturePicFileName String?
+  signCoordinates    SignCoordinate[] @relation
 }
 
 
@@ -169,6 +171,7 @@ model WorkflowStep {
   requiresDocument    Boolean        @default(true)
   currentStepProcessInstances ProcessInstance[] @relation("CurrentStepRelation")
   departmentStepProgresses DepartmentStepProgress[] // Added back relation
+  signCoordinates     SignCoordinate[] @relation // Added opposite relation
   @@unique([workflowId, stepNumber])
 }
 
@@ -426,6 +429,7 @@ model ProcessDocument {
   rejectionReason String?
   rejectedAt      DateTime?
   rejectedBy      User?    @relation("RejectedByUser", fields: [rejectedById], references: [id])  // Single field
+  signCoordinates SignCoordinate[] @relation
 }
 
 model DocumentSignature {
@@ -474,4 +478,21 @@ model DepartmentStepProgress {
   assignmentProgressId String?            @unique
   
   @@unique([processId, stepId, departmentId])
+}
+
+model SignCoordinate {
+  id                String   @id @default(uuid())
+  processDocumentId String
+  processDocument   ProcessDocument @relation(fields: [processDocumentId], references: [id])
+  page              Int
+  x                 Float
+  y                 Float
+  width             Float
+  height            Float
+  stepId            String?
+  step              WorkflowStep? @relation(fields: [stepId], references: [id])
+  isSigned          Boolean  @default(false)
+  signedById        Int?
+  signedBy          User?    @relation(fields: [signedById], references: [id])
+  createdAt         DateTime @default(now())
 }
