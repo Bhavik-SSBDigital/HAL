@@ -132,3 +132,19 @@ export const CompleteProcess = async (id) => {
 export const ClaimProcess = async (processId, stepInstanceId) => {
   return apiClient.post('/claimProcessStep', { processId, stepInstanceId });
 };
+
+// file and folders
+export const GetFolderData = (path) => {
+  return apiClient.post('/accessFolder', { path });
+};
+export const GetRootFolders = () => {
+  return apiClient.post('/getProjects');
+};
+
+// profile
+export const GetSignature = () => {
+  return apiClient.get('/getUserSignature', { responseType: 'blob' });
+};
+export const GetProfilePic = () => {
+  return apiClient.get('/getUserProfilePic', { responseType: 'blob' });
+};
