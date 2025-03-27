@@ -3,6 +3,7 @@ import {
   download,
   upload,
 } from '../components/drop-file-input/FileUploadDownload';
+import { toast } from 'react-toastify';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -115,6 +116,30 @@ export const SignDocument = async (
     remarks,
   });
 };
+export const DownloadFolder = (folderPath, folderName) => {
+  return apiClient.post(
+    '/downloadFolder',
+    {
+      folderPath,
+      folderName,
+    },
+    { responseType: 'arraybuffer' },
+  );
+};
+export const DownloadFile = async (name, path) => {
+  try {
+    await download(name, path);
+  } catch (error) {
+    toast.error(error?.response?.data?.message || error?.messsage);
+  }
+};
+export const CutPaste = (body) => {
+  console.log(body);
+  return apiClient.post('/cutFile', body);
+};
+export const CopyPaste = (body) => {
+  return apiClient.post('/copyFile', body);
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {
@@ -149,5 +174,5 @@ export const GetProfilePic = () => {
   return apiClient.get('/getUserProfilePic', { responseType: 'blob' });
 };
 export const GetProfileData = () => {
-  return apiClient.get('/getUserProfileData')
+  return apiClient.get('/getUserProfileData');
 };
