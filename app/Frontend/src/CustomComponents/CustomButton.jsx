@@ -14,17 +14,17 @@ export default function CustomButton({
 
   const buttonStyles = {
     primary:
-      'bg-button-primary-default hover:bg-button-primary-hover disabled:bg-button-primary-disabled',
+      'bg-button-primary-default hover:bg-button-primary-hover disabled:bg-button-primary-disabled disabled:cursor-not-allowed',
     secondary:
-      'bg-button-secondary-default hover:bg-button-secondary-hover disabled:bg-button-secondary-disabled',
+      'bg-button-secondary-default hover:bg-button-secondary-hover disabled:bg-button-secondary-disabled disabled:cursor-not-allowed',
     success:
-      'bg-button-success-default hover:bg-button-success-hover disabled:bg-button-success-disabled',
+      'bg-button-success-default hover:bg-button-success-hover disabled:bg-button-success-disabled disabled:cursor-not-allowed',
     danger:
-      'bg-button-danger-default hover:bg-button-danger-hover disabled:bg-button-danger-disabled',
+      'bg-button-danger-default hover:bg-button-danger-hover disabled:bg-button-danger-disabled disabled:cursor-not-allowed',
     warning:
-      'bg-button-warning-default hover:bg-button-warning-hover disabled:bg-button-warning-disabled',
-    info: 'bg-button-info-default hover:bg-button-info-hover disabled:bg-button-info-disabled',
-    none: 'bg-transparent',
+      'bg-button-warning-default hover:bg-button-warning-hover disabled:bg-button-warning-disabled disabled:cursor-not-allowed',
+    info: 'bg-button-info-default hover:bg-button-info-hover disabled:bg-button-info-disabled disabled:cursor-not-allowed',
+    none: 'border border-black !text-black bg-white disabled:cursor-not-allowed',
   };
 
   return (
