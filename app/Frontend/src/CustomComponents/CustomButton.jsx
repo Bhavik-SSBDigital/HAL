@@ -24,7 +24,7 @@ export default function CustomButton({
     warning:
       'bg-button-warning-default hover:bg-button-warning-hover disabled:bg-button-warning-disabled disabled:cursor-not-allowed',
     info: 'bg-button-info-default hover:bg-button-info-hover disabled:bg-button-info-disabled disabled:cursor-not-allowed',
-    none: 'border border-black !text-black bg-white disabled:cursor-not-allowed',
+    none: 'border border-black !text-black bg-white disabled:border-slate-300  disabled:!text-slate-600 disabled:cursor-not-allowed',
   };
 
   return (
