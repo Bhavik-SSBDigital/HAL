@@ -103,6 +103,13 @@ export const ViewDocument = async (name, path) => {
   const res = await download(name, path, true);
   return res;
 };
+export const RejectDocument = async (processId, documentId, reason) => {
+  return apiClient.post('/rejectDocument', {
+    processId,
+    documentId,
+    reason,
+  });
+};
 export const SignDocument = async (
   processId,
   processStepInstanceId,

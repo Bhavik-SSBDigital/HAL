@@ -4,6 +4,7 @@ import {
   ClaimProcess,
   CompleteProcess,
   GetProcessData,
+  RejectDocument,
   SignDocument,
   ViewDocument,
 } from '../../common/Apis';
@@ -133,9 +134,20 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
-  const handleRejectDocument = (doc) => {
-    // Logic for rejecting the document
-    console.log(`Rejecting document: ${doc.id}`);
+  const handleRejectDocument = async (remarks) => {
+    setActionsLoading(true);
+    try {
+      const response = await RejectDocument(
+        process.processId,
+        remarksModalOpen.id,
+        remarks,
+      );
+      setRemarksModalOpen({ id: null, open: false });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
   };
   const handleRevokeSign = (doc) => {
     // Logic for revoking sign
@@ -246,7 +258,7 @@ const ViewProcess = () => {
                     variant={'success'}
                     className="px-1"
                     click={() =>
-                      setRemarksModalOpen({ id: doc.id, open: true })
+                      setRemarksModalOpen({ id: doc.id, open: 'sign' })
                     }
                     disabled={actionsLoading}
                     title={'Sign Document'}
@@ -257,7 +269,9 @@ const ViewProcess = () => {
                   <CustomButton
                     variant={'danger'}
                     className="px-1"
-                    click={() => handleRejectDocument(doc.id)}
+                    click={() =>
+                      setRemarksModalOpen({ id: doc.id, open: 'reject' })
+                    }
                     disabled={actionsLoading}
                     title={'Reject Document'}
                     text={<IconX size={18} className="text-white" />}
@@ -298,10 +312,18 @@ const ViewProcess = () => {
         />
       )}
       <RemarksModal
-        open={remarksModalOpen.open}
+        open={remarksModalOpen.open == 'sign'}
+        title={'Sign Remarks'}
         onClose={() => setRemarksModalOpen({ id: null, open: false })}
         loading={actionsLoading}
         onSubmit={(remarks) => handleSignDocument(remarks)}
+      />
+      <RemarksModal
+        open={remarksModalOpen.open == 'reject'}
+        title={'Reject Remarks'}
+        onClose={() => setRemarksModalOpen({ id: null, open: false })}
+        loading={actionsLoading}
+        onSubmit={(remarks) => handleRejectDocument(remarks)}
       />
     </div>
   );
