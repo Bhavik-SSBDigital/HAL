@@ -34,7 +34,7 @@ import { copy, cut } from '../../Slices/PathSlice';
 import TopLoader from '../../common/Loader/TopLoader';
 import moment from 'moment';
 
-export default function ShowFolder() {
+export default function FileSysten() {
   // States
   const dispatch = useDispatch();
   const [showProperties, setShowProperties] = useState(false);

@@ -18,7 +18,7 @@ import NewUser from './pages/Users/NewUser';
 import NewRole from './pages/Roles/NewRole';
 import NewDepartment from './pages/Department/NewDepartment';
 // import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
-import ShowFolder from './pages/Show Folder/ShowFolder';
+import FileSystem from './pages/FileSystem';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
@@ -122,20 +122,11 @@ function App() {
           }
         />
         <Route
-          path="/files/:projectId/*"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Dashboard | Perticular Branch" />
-              <ShowFolder />
-            </DefaultLayout>
-          }
-        />
-        <Route
           path="/files"
           element={
             <DefaultLayout>
               <PageTitle title="Files" />
-              <ShowFolder />
+              <FileSystem />
             </DefaultLayout>
           }
         />
