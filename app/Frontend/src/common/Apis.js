@@ -140,6 +140,9 @@ export const CutPaste = (body) => {
 export const CopyPaste = (body) => {
   return apiClient.post('/copyFile', body);
 };
+export const CreateFolder = (path, folder) => {
+  return apiClient.post('/createFolder', { path: `${path}/${folder}` });
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {

@@ -4,6 +4,7 @@ import folderIcon from '../../assets/images/folder.png';
 import { Await, useNavigate } from 'react-router-dom';
 import {
   CopyPaste,
+  CreateFolder,
   CutPaste,
   DownloadFile,
   DownloadFolder,
@@ -33,10 +34,13 @@ import { toast } from 'react-toastify';
 import { copy, cut } from '../../Slices/PathSlice';
 import TopLoader from '../../common/Loader/TopLoader';
 import moment from 'moment';
+import { useForm } from 'react-hook-form';
 
 export default function FileSysten() {
   // States
   const dispatch = useDispatch();
+  const [showUploadFileModal, setUploadFileModal] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [fileView, setFileView] = useState(null);
@@ -48,7 +52,6 @@ export default function FileSysten() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortType, setSortType] = useState('name');
   const [isRejected, setIsRejected] = useState(false);
-  console.log(isRejected);
   const [sortOrder, setSortOrder] = useState('asc');
   const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for action menu
   const [currentPath, setCurrentPath] = useState(
@@ -77,7 +80,6 @@ export default function FileSysten() {
         : b[sortType].localeCompare(a[sortType]),
     );
 
-  // Context Menu
   // Context Menu component
   const ContextMenu = ({ xPos, yPos, handlePaste }) => {
     return (
@@ -219,6 +221,68 @@ export default function FileSysten() {
     }
   };
 
+  // create folder
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm();
+
+  const handleCreateFolder = async (data) => {
+    setActionsLoading(true);
+    try {
+      const response = await CreateFolder(currentPath, data.folderName);
+
+      const currentDate = new Date();
+      const currentDateTimeString = currentDate.toString();
+      setData((prev) => [
+        ...prev,
+        {
+          createdOn: currentDateTimeString,
+          name: data.folderName,
+          type: 'folder',
+        },
+      ]);
+      setShowFolderModal(false);
+      reset();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
+  // upload file
+  const {
+    register: registerFile,
+    handleSubmit: handleSubmitFile,
+    formState: { errors: fileErrors, isSubmitting: isSubmittingFile },
+    reset: resetFile,
+  } = useForm();
+
+  const handleFileUpload = async (data) => {
+    setActionsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', data.file[0]); // Get the first selected file
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('File upload failed');
+      }
+      resetFile();
+    } catch (error) {
+      console.error('Upload error:', error.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
@@ -259,16 +323,14 @@ export default function FileSysten() {
 
         {/* Sidebar */}
         <CustomCard
-          className={`fixed md:relative md:w-64 p-4 bg-white transition-transform transform z-1 
-              h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
-                isSidebarOpen
-                  ? 'translate-y-0'
-                  : 'translate-y-[110%] md:translate-y-0'
-              }`}
+          className={`fixed md:relative md:w-64 p-4 bg-white shadow-lg rounded-lg transition-transform transform z-10 
+    h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
+      isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'
+    }`}
         >
-          {/* Close Button inside Sidebar (Mobile) */}
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="font-semibold">Filters</h2>
+          {/* Header */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold text-gray-800 text-lg">Filters</h2>
             <button
               className="md:hidden p-1 text-gray-600 hover:text-gray-800"
               onClick={() => setIsSidebarOpen(false)}
@@ -277,42 +339,75 @@ export default function FileSysten() {
             </button>
           </div>
 
-          {/* Filters */}
-          <input
-            type="text"
-            placeholder="Search"
-            className="border rounded px-2 py-2 w-full mb-2"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={!data?.length}
-          />
-          <select
-            className="border rounded px-2 py-2 w-full mb-2"
-            value={sortType}
-            onChange={(e) => setSortType(e.target.value)}
-            disabled={!filteredData?.length}
-          >
-            <option value="name">Sort by Name</option>
-            <option value="type">Sort by Type</option>
-          </select>
-          <select
-            className="border rounded px-2 py-2 w-full mb-2"
-            value={isRejected}
-            onChange={(e) => setIsRejected(e.target.value == 'true')}
-            disabled={!filteredData?.length}
-          >
-            <option value="false">Normal Documents</option>
-            <option value="true">RejectedDocuments</option>
-          </select>
-          <select
-            className="border rounded px-2 py-2 w-full mb-4"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            disabled={!filteredData?.length}
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
+          {/* Search */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-gray-700">Search</label>
+            <input
+              type="text"
+              placeholder="Type to search..."
+              className="border rounded-md px-3 py-2 w-full mt-1"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={!data?.length}
+            />
+          </div>
+
+          {/* Sorting */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-gray-700">Sort By</label>
+            <select
+              className="border rounded-md px-3 py-2 w-full mt-1"
+              value={sortType}
+              onChange={(e) => setSortType(e.target.value)}
+              disabled={!filteredData?.length}
+            >
+              <option value="name">Name</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+
+          {/* Document Type */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-gray-700">
+              Document Type
+            </label>
+            <select
+              className="border rounded-md px-3 py-2 w-full mt-1"
+              value={isRejected}
+              onChange={(e) => setIsRejected(e.target.value == 'true')}
+              disabled={!data?.length}
+            >
+              <option value="false">Normal Documents</option>
+              <option value="true">Rejected Documents</option>
+            </select>
+          </div>
+
+          {/* Order */}
+          <div className="mb-6">
+            <label className="text-sm font-medium text-gray-700">Order</label>
+            <select
+              className="border rounded-md px-3 py-2 w-full mt-1"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              disabled={!filteredData?.length}
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3">
+            <CustomButton
+              text="Create Folder"
+              click={() => setShowFolderModal(true)}
+            />
+            <CustomButton
+              text="Upload File"
+              click={() => setUploadFileModal(true)}
+              variant={'success'}
+            />
+          </div>
         </CustomCard>
 
         {/* Folder and File Display */}
@@ -524,6 +619,66 @@ export default function FileSysten() {
             {selectedItem?.isRejected ? 'Yes' : 'No'}
           </p>
         </div>
+      </CustomModal>
+
+      {/* Create Folder Modal */}
+      <CustomModal isOpen={showFolderModal}>
+        <h2 className="text-lg font-semibold mb-4">Create Folder</h2>
+        <form onSubmit={handleSubmit(handleCreateFolder)}>
+          <input
+            type="text"
+            className="border p-2 w-full mb-2"
+            placeholder="Folder Name"
+            {...register('folderName', { required: 'Folder name is required' })}
+          />
+          {errors.folderName && (
+            <p className="text-red-500 text-sm">{errors.folderName.message}</p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <CustomButton
+              variant={'danger'}
+              text={'Cancel'}
+              type={'button'}
+              disabled={isSubmitting}
+              click={() => setShowFolderModal(false)}
+            />
+            <CustomButton
+              type="submit"
+              text={'Create'}
+              disabled={isSubmitting}
+            />
+          </div>
+        </form>
+      </CustomModal>
+
+      {/* Upload File Modal */}
+      <CustomModal isOpen={showUploadFileModal}>
+        <h2 className="text-lg font-semibold mb-4">Upload File</h2>
+        <form onSubmit={handleSubmitFile(handleFileUpload)}>
+          <input
+            type="file"
+            className="border p-2 w-full mb-2"
+            {...registerFile('file', { required: 'Please select a file' })}
+          />
+          {fileErrors.file && (
+            <p className="text-red-500 text-sm">{fileErrors.file.message}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <CustomButton
+              type="button"
+              text="Cancel"
+              variant={'danger'}
+              click={() => setUploadFileModal(false)}
+              disabled={isSubmittingFile}
+            />
+            <CustomButton
+              type="submit"
+              text="Upload"
+              disabled={isSubmittingFile}
+            />
+          </div>
+        </form>
       </CustomModal>
 
       {/* View File Modal */}
