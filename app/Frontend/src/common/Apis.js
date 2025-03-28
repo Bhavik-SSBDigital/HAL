@@ -123,6 +123,18 @@ export const SignDocument = async (
     remarks,
   });
 };
+export const SignRevoke = async (processId, documentId) => {
+  return apiClient.post('/revokeSign', {
+    processId,
+    documentId,
+  });
+};
+export const RevokeRejection = async (processId, documentId) => {
+  return apiClient.post('/revokeRejection', {
+    processId,
+    documentId,
+  });
+};
 export const DownloadFolder = (folderPath, folderName) => {
   return apiClient.post(
     '/downloadFolder',

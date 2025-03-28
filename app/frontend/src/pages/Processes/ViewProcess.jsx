@@ -5,7 +5,9 @@ import {
   CompleteProcess,
   GetProcessData,
   RejectDocument,
+  RevokeRejection,
   SignDocument,
+  SignRevoke,
   ViewDocument,
 } from '../../common/Apis';
 
@@ -143,19 +145,34 @@ const ViewProcess = () => {
         remarks,
       );
       setRemarksModalOpen({ id: null, open: false });
+      toast.success(response?.data?.message);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
     }
   };
-  const handleRevokeSign = (doc) => {
-    // Logic for revoking sign
-    console.log(`Revoking sign for document: ${doc.id}`);
+  const handleRevokeSign = async (doc) => {
+    setActionsLoading(true);
+    try {
+      const response = await SignRevoke(process.processId, doc);
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
   };
-  const handleRevokeRejection = (doc) => {
-    // Logic for revoking rejection
-    console.log(`Revoking rejection for document: ${doc.id}`);
+  const handleRevokeRejection = async (doc) => {
+    setActionsLoading(true);
+    try {
+      const response = await RevokeRejection(process.processId, doc);
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
   };
 
   useEffect(() => {
