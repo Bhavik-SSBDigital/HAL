@@ -1,452 +1,228 @@
+import React, { useEffect, useState } from 'react';
+import CustomCard from '../../CustomComponents/CustomCard';
+import folderIcon from '../../assets/images/folder.png';
+import { Await, useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Button,
-  Stack,
-  TextField,
-  Modal,
-  CircularProgress,
-  Paper,
-  IconButton,
-  Menu,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  FormControlLabel,
-  RadioGroup,
-  Radio,
-  Typography,
-  Tooltip,
-  Tabs,
-  Tab,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Autocomplete,
-} from '@mui/material';
-
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import DropFileInput from '../../components/drop-file-input/DropFileInput';
+  CopyPaste,
+  CutPaste,
+  DownloadFile,
+  DownloadFolder,
+  GetFolderData,
+  GetRootFolders,
+  ViewDocument,
+} from '../../common/Apis';
+import ComponentLoader from '../../common/Loader/ComponentLoader';
+import PathBar from '../../components/path/PathBar';
 import { ImageConfig } from '../../config/ImageConfig';
-import axios from 'axios';
-
-import { useSelector, useDispatch } from 'react-redux';
 import {
-  backButtonPath,
-  copy,
-  cut,
-  onReload,
-  setPath,
-} from '../../Slices/PathSlice';
-
-import imageSrc from '../../assets/images/folder.png';
-
-import {
-  download,
-  upload,
-} from '../../components/drop-file-input/FileUploadDownload';
-import styles from './ShowFolder.module.css';
-import moment from 'moment';
-import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
-import AddIcon from '@mui/icons-material/Add';
-import Fab from '@mui/material/Fab';
-import Path from '../../components/path/PathBar';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import DownloadIcon from '@mui/icons-material/Download';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ContentCutIcon from '@mui/icons-material/ContentCut';
-import ContentPasteIcon from '@mui/icons-material/ContentPaste';
-import HandymanIcon from '@mui/icons-material/Handyman';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import View from '../view/View';
-import {
+  IconDotsVertical,
+  IconFilter,
+  IconSquareLetterX,
   IconDownload,
   IconEye,
-  IconClipboard,
+  IconCopy,
+  IconClipboardCheck,
   IconScissors,
-  IconTrash,
-  IconTool,
-  IconTransfer,
-  IconCircleCheck,
-  IconChevronLeftPipe,
-  IconChevronsLeft,
+  IconSettings,
 } from '@tabler/icons-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { IconFolderPlus } from '@tabler/icons-react';
+import ViewFile from '../view/View';
+import CustomModal from '../../CustomComponents/CustomModal';
+import CustomButton from '../../CustomComponents/CustomButton';
+import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { IconUpload } from '@tabler/icons-react';
-import ComponentLoader from '../../common/Loader/ComponentLoader';
-import { Controller, useForm } from 'react-hook-form';
+import { copy, cut } from '../../Slices/PathSlice';
+import TopLoader from '../../common/Loader/TopLoader';
+import moment from 'moment';
 
-export default function ShowFolder(props) {
-  const token = sessionStorage.getItem('accessToken');
-  const isKeeperOfPhysicalDocs =
-    sessionStorage.getItem('isKeeperOfPhysicalDocs') == 'true';
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const url = backendUrl + '/accessFolder';
+export default function ShowFolder() {
+  // States
   const dispatch = useDispatch();
-  const pathValue = useSelector((state) => state.path.value);
-  const [loading, setLoading] = useState(true);
-  const [fileFolders, setFileFolders] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [modalContentFor, setModalContentFor] = useState(null);
-  const [folderName, setFolderName] = useState('');
-  const [showButtons, setShowButtons] = useState(false);
-  const [error, setError] = useState('');
-  const [isUploadable, setIsUploadable] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [fileView, setFileView] = useState();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [anchorEl1, setAnchorEl1] = useState(null);
-  const [itemName, setItemName] = useState('');
-  const [properties, setProperties] = useState();
-  const [showProperties, setShowProterties] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [fileView, setFileView] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortType, setSortType] = useState('name');
+  const [isRejected, setIsRejected] = useState(false);
+  console.log(isRejected);
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for action menu
+  const [currentPath, setCurrentPath] = useState(
+    sessionStorage.getItem('path') || '..',
+  );
   const fileName = useSelector((state) => state.path.fileName);
   const sourcePath = useSelector((state) => state.path.sourcePath);
   const method = useSelector((state) => state.path.method);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [fieldsLoading, setFieldsLoading] = useState(false);
-  const [transferData, setTransferData] = useState({
-    userBranch: '',
-    documentId: '',
-    purpose: '',
-    role: '',
-    borrower: '',
-  });
-  const [branches, setBranches] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [users, setUsers] = useState();
-  const [userBranch, setUserBranch] = useState('');
-  const [isTransfer, setTransfer] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [selectedTab, setSelectedTab] = useState(0);
-  const [openTooltip, setOpenToolTip] = useState(false);
 
-  const getData = async () => {
-    try {
-      const { data } = await axios.post(
-        url,
-        {
-          path: `${pathValue}`,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            // 'Content-Type': 'multipart/form-data'
-          },
-        },
-      );
-      // console.log(data);
-      if (data) {
-        setLoading(false);
-        setError('');
-      }
-      setFileFolders([...data.children]);
-      setIsUploadable(data.isUploadable);
-    } catch (error) {
-      setLoading(false);
-      setError(error?.response?.data?.message);
-    }
-  };
-  useEffect(() => {
-    if (loaded && pathValue !== '..') {
-      getData();
-    }
-  }, [loaded, pathValue]);
-  const onFileChange = (files) => {
-    console.log(files);
-  };
-  const createFolder = async () => {
-    setOpen(false);
-    setLoading(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const response = await axios.post(
-      backendUrl + '/createFolder',
-      {
-        path: `${pathValue}/${folderName}`,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    if (response.status === 200) {
-      const currentDate = new Date();
-      const currentDateTimeString = currentDate.toString();
-      setFileFolders((prev) => [
-        ...prev,
-        {
-          createdBy: token,
-          createdOn: currentDateTimeString,
-          name: folderName,
-          type: 'folder',
-        },
-      ]);
-    }
-    setLoading(false);
-    setFolderName('');
-  };
-  const openModal = (action) => {
-    setModalContentFor(action);
-    setOpen(true);
-  };
-  const handleFolderClick = (name) => {
-    setLoading(true);
-    setShowProterties(false);
-    dispatch(setPath(name));
-    const localPath = sessionStorage.getItem('path');
-    sessionStorage.setItem('path', `${localPath}/${name}`);
-  };
-  const closeModal = () => {
-    setOpen(false);
-  };
   const navigate = useNavigate();
-  const handleBackPress = () => {
-    setLoading(true);
-    var pathParts = pathValue.split('/');
-    pathParts.pop();
-    var newPath = pathParts.join('/');
-    sessionStorage.setItem('path', newPath);
-    dispatch(backButtonPath(newPath));
-    if (newPath === '..') {
-      navigate('/files');
-    }
+
+  // Filtering and sorting data
+  const filteredData = data
+    .filter((item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
+    .filter(
+      (item) => item.isRejected === undefined || item.isRejected === isRejected,
+    )
+
+    .sort((a, b) =>
+      sortOrder === 'asc'
+        ? a[sortType].localeCompare(b[sortType])
+        : b[sortType].localeCompare(a[sortType]),
+    );
+
+  // Context Menu
+  // Context Menu component
+  const ContextMenu = ({ xPos, yPos, handlePaste }) => {
+    return (
+      <div
+        className="fixed bg-white shadow-lg rounded-lg p-2 z-50"
+        style={{ top: yPos, left: xPos }}
+      >
+        <button
+          className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-gray-100 rounded-md"
+          onClick={handlePaste}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-5 h-5"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M19 20H5V8h5V6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-6h-2v6z" />
+            <path d="M14 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 14H8V4h5v5h5v7z" />
+          </svg>
+          Paste
+        </button>
+      </div>
+    );
   };
 
-  // file handling functions
-  const handleDownload = (path, name) => {
-    try {
-      download(name, path);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      // alert('An error occurred while downloading the file.');
+  // Handle folder click
+  const handleFolderClick = (item) => {
+    setSelectedItem(item);
+    if (item.type === 'folder') {
+      let newPath = item.path;
+      if (!newPath.startsWith('..')) {
+        newPath = '..' + newPath;
+      }
+      setCurrentPath(newPath);
+      sessionStorage.setItem('path', newPath);
     }
-    handleClose();
   };
-  const handleViewClose = () => {
-    setFileView(null);
-  };
-  const handleView = async (path, name, id) => {
-    console.log(id);
-    setLoading(true);
+  // Handler view file
+  const handleViewFile = async (name, path) => {
+    setActionsLoading(true);
     try {
-      const fileData = await download(name, path, true);
-      setLoading(false);
+      const fileData = await ViewDocument(name, '../test');
       if (fileData) {
-        setFileView({
-          url: fileData.data,
-          type: fileData.fileType,
-          fileId: id,
-        });
-      } else {
-        console.error('Invalid fileData:', fileData);
-        toast.error('Invalid file data.');
+        setFileView({ url: fileData.data, type: fileData.fileType });
       }
+      setIsMenuOpen(false);
     } catch (error) {
-      console.error('Error viewing file:', error);
-      toast.error('Unable to view the file.');
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
-      setLoading(false);
+      setActionsLoading(false);
     }
   };
-  const handleDownloadFolder = async (path, name) => {
-    const urlDownload = `${backendUrl}/downloadFolder`;
 
+  // handler download folder
+  const handleDownloadFolder = async (name, path) => {
+    setActionsLoading(true);
     try {
-      const response = await axios.post(
-        urlDownload,
-        {
-          folderPath: path,
-          folderName: name,
-        },
-        {
-          responseType: 'arraybuffer',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const contentType = response.headers['content-type'];
-
-      if (contentType === 'application/zip') {
-        const blob = new Blob([response.data], { type: contentType });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const anchor = document.createElement('a');
-        anchor.href = blobUrl;
-        anchor.download = `${name}.zip`;
-
-        document.body.appendChild(anchor);
-        anchor.click();
-        URL.revokeObjectURL(blobUrl);
-        document.body.removeChild(anchor);
-      } else {
-        console.error('Unsupported content type:', contentType);
-        toast.error('Unsupported content type');
-      }
+      const response = await DownloadFolder(path, name);
+      setIsMenuOpen(false);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('An error occurred while downloading the folder.');
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
-    handleClose();
   };
-  const handlePlus = () => {
-    setShowButtons(!showButtons);
+
+  // handler download file
+  const handleDownload = (name, path) => {
+    setActionsLoading(true);
+    DownloadFile(name, path);
+    setIsMenuOpen(false);
+    setActionsLoading(false);
   };
-  const closePlus = () => {
-    setShowButtons(false);
-  };
-  const handleClick = (event, name, item) => {
-    setShowProterties(false);
-    setItemName(name);
-    setAnchorEl(event.currentTarget);
-    setProperties(item);
-  };
-  const handleClick1 = (event, name, item) => {
-    setShowProterties(false);
-    setItemName(name);
-    setAnchorEl1(event.currentTarget);
-    setProperties(item);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-    setAnchorEl1(null);
-  };
-  const handleContextMenu = (event, item) => {
+
+  // right click handler
+  const handleContextMenu = (event) => {
     event.preventDefault();
     const scrollX = window.scrollX || window.pageXOffset;
     const scrollY = window.scrollY || window.pageYOffset;
     setContextMenuPos({ x: event.clientX, y: event.clientY });
     setIsContextMenuOpen(true);
   };
-  const handleCopy = (name) => {
-    toast.success('File copied');
-    dispatch(copy({ name, pathValue, method: 'copy' }));
-    handleClose();
-  };
-  const handleCut = (name) => {
-    toast.success('File cut successfully');
-    dispatch(cut({ name, pathValue, method: 'cut' }));
-    handleClose();
-  };
-  const deleteModalOpen = () => {
-    handleClose();
-    setModalOpen(true);
-  };
-  const deleteModalClose = () => {
-    setModalOpen(false);
-  };
-  const handleDelete = async (name) => {
-    setLoading(true);
-    try {
-      const res = await axios.post(
-        `${backendUrl}/deleteFile`,
-        {
-          path: `${pathValue}/${name}`,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
 
-      if (res.status === 200) {
-        const update = fileFolders.filter((item) => item.name !== name);
-        setFileFolders(update);
-        setLoading(false);
-        toast.success('File deleted');
-      } else {
-        // Handle unexpected response status codes
-        setLoading(false);
-        toast.error('Unable to delete file');
-      }
-    } catch (error) {
-      // Handle network errors
-      setLoading(false);
-      toast.error('Unable to delete file');
-    } finally {
-      deleteModalClose();
-    }
-  };
-  const handlePaste = async () => {
+  // handler copy file
+  const handleCopy = (name, path) => {
+    dispatch(copy({ name, pathValue: currentPath, method: 'copy' }));
     setIsContextMenuOpen(false);
+    toast.success(`${name} Copied`);
+    setIsMenuOpen(false);
+  };
+
+  // handler cut file
+  const handleCut = (name, path) => {
+    dispatch(cut({ name, pathValue: currentPath, method: 'cut' }));
+    setIsContextMenuOpen(false);
+    toast.success(`${name} Cut Successfully`);
+    setIsMenuOpen(false);
+  };
+
+  // Fetch data
+  const getData = async (updatedPath) => {
     setLoading(true);
     try {
-      const copyCutUrl = `${backendUrl}/${
-        method === 'copy' ? 'copyFile' : 'cutFile'
-      }`;
-      const res = await axios.post(
-        copyCutUrl,
-        {
-          sourcePath: sourcePath,
-          name: fileName,
-          destinationPath: pathValue,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (res.status === 200) {
-        await getData();
-        setLoading(false);
-        toast.success('File pasted');
-        dispatch(
-          method === 'copy'
-            ? copy({ name: '', pathValue: '', method: '' })
-            : cut({ name: '', pathValue: '', method: '' }),
-        );
-      } else {
-        setLoading(false);
-        toast.error(
-          'Operation failed. Please check the source and destination paths.',
-        );
-      }
+      const response =
+        updatedPath === '..'
+          ? await GetRootFolders()
+          : await GetFolderData(updatedPath);
+      setData(response?.data?.children || []);
     } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    } finally {
       setLoading(false);
-      console.error('Error:', error);
-      toast.error('unable to paste file.');
     }
   };
-  // end of file handling functions
 
-  // Context Menu component
-  const ContextMenu = ({ xPos, yPos }) => {
-    return (
-      <div
-        className="context-menu"
-        style={{
-          position: 'fixed',
-          top: yPos,
-          left: xPos,
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-          zIndex: 1000,
-        }}
-      >
-        <Paper elevation={1} sx={{ padding: '10px' }}>
-          <Button sx={{ display: 'flex', gap: '5px' }} onClick={handlePaste}>
-            <ContentPasteIcon />
-            paste
-          </Button>
-        </Paper>
-      </div>
-    );
+  // handler paste file
+  const handlePaste = async () => {
+    if (!fileName || !sourcePath || !method) {
+      toast.error('No file to paste');
+      return;
+    }
+    setIsContextMenuOpen(false);
+    setActionsLoading(true);
+    try {
+      const body = { sourcePath, name: fileName, destinationPath: currentPath };
+      console.log(method == 'copy');
+      const response = await (method == 'copy'
+        ? CopyPaste(body)
+        : CutPaste(body));
+      toast.success(response?.data?.message);
+      await getData(currentPath);
+      // Reset Redux state after paste
+      dispatch(copy({ name: '', pathValue: '', method: '' }));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    getData(currentPath);
+  }, [currentPath]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isContextMenuOpen && !event.target.closest('.context-menu')) {
@@ -461,1278 +237,241 @@ export default function ShowFolder(props) {
     };
   }, [isContextMenuOpen]);
 
-  // physically document transfer
-  const getBranches = async () => {
-    try {
-      const url = backendUrl + '/getAllBranches';
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setBranches(data.branches);
-      return data.branches;
-    } catch (error) {
-      console.error('unable to fetch branches');
-    }
-  };
-  const getRoles = async (id) => {
-    setFieldsLoading(true);
-    const urlRole = backendUrl + '/getRolesInBranch/';
-    try {
-      const { data } = await axios.post(urlRole + `${id}`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setRoles(data.roles);
-    } catch {
-      console.error('Error getting roles for selected branch');
-    } finally {
-      setFieldsLoading(false);
-    }
-  };
-  const getUsers = async (branchValue, roleValue) => {
-    setFieldsLoading(true);
-    try {
-      const url = backendUrl + '/getUsersByRoleInBranch';
-      const { _id } = branches.find((item) => item.name === branchValue);
-      const id = roles.find((item) => item.role === roleValue);
-      const { data } = await axios.post(
-        url,
-        {
-          branchId: _id,
-          roleId: id._id,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      setUsers(data.users);
-    } catch (error) {
-      alert(error);
-    } finally {
-      setFieldsLoading(false);
-    }
-  };
-  const fileTransfer = () => {
-    handleClose();
-    setTransfer(true);
-  };
-  const handleUserBarnch = (event) => {
-    const { name, value } = event.target;
-
-    setTransferData((prevData) => ({
-      ...prevData,
-      userBranch: value,
-    }));
-    if (value) {
-      const { _id } = branches.find((data) => data.name === value);
-      setRoles([]);
-      getRoles(_id);
-    } else {
-      setRoles([]);
-    }
-  };
-  const handleUserRole = (event) => {
-    const { name, value } = event.target;
-
-    setTransferData((prevData) => ({
-      ...prevData,
-      role: value,
-    }));
-    if (value) {
-      getUsers(transferData.userBranch, value);
-    } else {
-      setUsers([]);
-    }
-  };
-  const handleUserSelection = (event) => {
-    const { name, value } = event.target;
-
-    setTransferData((prevData) => ({
-      ...prevData,
-      borrower: value,
-    }));
-  };
-  const handleTransferFile = async () => {
-    console.log({ ...transferData, documentId: properties.id });
-    if (!transferData.borrower) {
-      toast.warn('Please select a borrower user');
-      return;
-    }
-    if (!transferData.purpose) {
-      toast.warn('Please enter a purpose');
-      return;
-    }
-    setFieldsLoading('save');
-    try {
-      const url = backendUrl + '/borrowDocument';
-
-      const { data } = await axios.post(
-        url,
-        { ...transferData, documentId: properties.id },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      setFileFolders((prev) =>
-        prev.map((item) =>
-          item.id == properties.id
-            ? {
-                ...item,
-                physicalHolder: transferData?.borrower,
-                isTransferable: false,
-              }
-            : item,
-        ),
-      );
-      toast.success('File transfer complete!');
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setFieldsLoading(false);
-      setTransferData({
-        userBranch: '',
-        documentId: '',
-        purpose: '',
-        role: '',
-        borrower: '',
-      });
-      setTransfer(false);
-    }
-  };
-  // end of trasnfer functionality
-
-  // files structure formatters
-  function formatSize(sizeInBytes) {
-    if (sizeInBytes < 1024) {
-      return sizeInBytes + ' bytes';
-    } else if (sizeInBytes < 1024 * 1024) {
-      return (sizeInBytes / 1024).toFixed(1) + ' KB';
-    } else {
-      return (sizeInBytes / (1024 * 1024)).toFixed(1) + ' MB';
-    }
+  if (loading) {
+    return <ComponentLoader />;
   }
-  const truncateFileName = (fname, maxLength = 10) => {
-    if (fname.length <= maxLength) {
-      return fname;
-    }
 
-    const lastDotIndex = fname.lastIndexOf('.');
-
-    if (lastDotIndex > 0 && lastDotIndex < fname.length - 1) {
-      // Handle filenames with extensions
-      const baseName = fname.slice(0, lastDotIndex);
-      const extension = fname.slice(lastDotIndex + 1);
-
-      const truncatedBase =
-        baseName.length > maxLength - 5
-          ? `${baseName.slice(0, maxLength / 2 - 2)}...${baseName.slice(-3)}`
-          : baseName;
-
-      const truncatedExtension =
-        extension.length > 10 ? `${extension.slice(0, 7)}...` : extension;
-
-      return `${truncatedBase}.${truncatedExtension}`;
-    } else {
-      // Handle filenames or folder names without extensions
-      return `${fname.slice(0, maxLength / 2 - 2)}...${fname.slice(-3)}`;
-    }
-  };
-
-  // create folder
-  const ModelContent =
-    modalContentFor === 'createFolder' ? (
-      <>
-        <Box
-          sx={{
-            color: 'white',
-            height: '40px',
-            width: '100%',
-            display: 'flex',
-            gap: '3px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '5px',
-            background: '#4E327E',
-          }}
-        >
-          <IconFolderPlus />
-          <h2>CREATE FOLDER</h2>
-        </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '20px',
-          }}
-        >
-          {/* <form className='create-folder-modal-content'> */}
-          {/* <p style={{ fontSize: '18px', marginBottom: '10px' }}>Enter the name of a folder</p> */}
-          <div>
-            <Typography>Folder Name :</Typography>
-            <TextField
-              id="folderName"
-              // label='Enter Folder Name'
-              variant="outlined"
-              name="folderName"
-              value={folderName}
-              onChange={(e) => {
-                const inputValue = e.target.value;
-                const isValidInput = /^[a-zA-Z0-9_\-()\[\]\s]*$/.test(
-                  inputValue,
-                );
-                if (isValidInput || inputValue === '') {
-                  setFolderName(e.target.value);
-                }
-              }}
-              helperText="Field must contain only letters, numbers, and spaces."
-              sx={{ width: '100%', marginBottom: '10px' }}
-            />
-          </div>
-          <div className="createFolderButtonsContainer">
-            <Button
-              variant="contained"
-              size="small"
-              color="success"
-              onClick={createFolder}
-              sx={{
-                '&:hover': {
-                  backgroundColor: '#0056b3',
-                },
-              }}
-            >
-              Create
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => setOpen(false)}
-              color="error"
-              sx={{
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#0056b3',
-                },
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-          {/* </form> */}
-        </Box>
-      </>
-    ) : (
-      <DropFileInput
-        getData={getData}
-        setOpen={setOpen}
-        setFileFolders={setFileFolders}
-        onFileChange={onFileChange}
-      />
-    );
-  // delete confirmation
-  const deleteModalContent = (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      <p style={{ fontSize: '18px', marginBottom: '10px' }}>
-        ARE YOU SURE YOU WANT TO DELETE FILE?
-      </p>
-      <Stack flexDirection="row" gap={3}>
-        <Button
-          variant="contained"
-          size="small"
-          color="error"
-          onClick={() => handleDelete(itemName)}
-          sx={{
-            // backgroundColor: 'red',
-            // color: 'white',
-            '&:hover': {
-              backgroundColor: '#ff0000',
-            },
-          }}
-        >
-          Yes
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={deleteModalClose}
-          sx={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#0056b3',
-            },
-          }}
-        >
-          No
-        </Button>
-      </Stack>
-    </Box>
-  );
-  // search and sort
-  const handleSearchQueryChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-  const handleSortByChange = (e) => {
-    setSortBy(e.target.value);
-  };
-  const handleSortOrderChange = (event) => {
-    setSortOrder(event.target.value);
-  };
-  // Mock data for the sort options
-  const sortOptions = [
-    { value: 'name', label: 'Name' },
-    { value: 'date', label: 'Date' },
-    { value: 'size', label: 'Size' },
-  ];
-  const filteredFileFolders = fileFolders
-    .filter((item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    .sort((a, b) => {
-      if (sortBy === 'name') {
-        const compareResult = b.name.localeCompare(a.name);
-        return sortOrder === 'asc' ? -compareResult : compareResult;
-      } else if (sortBy === 'date') {
-        const dateA = new Date(a.createdOn);
-        const dateB = new Date(b.createdOn);
-        const dateCompareResult = dateB - dateA;
-        return sortOrder === 'asc' ? -dateCompareResult : dateCompareResult;
-      } else if (sortBy === 'size') {
-        const sizeCompareResult = b.size - a.size;
-        return sortOrder === 'asc' ? sizeCompareResult : -sizeCompareResult;
-      }
-      return 0;
-    });
-  useEffect(() => {
-    setLoading(true);
-    const path = pathValue.slice(2);
-    navigate('/files' + path);
-  }, [pathValue]);
-
-  const handleTabChange = (event, newValue) => {
-    setSelectedTab(newValue);
-  };
-  // files filter based on rejected
-  const normalFiles = useMemo(
-    () => filteredFileFolders.filter((item) => !item?.isRejected),
-    [filteredFileFolders],
-  );
-  const rejectedFiles = filteredFileFolders.filter((item) => item?.isRejected);
-
-  const checkDownloadable = (down, involved) => {
-    if (down || involved) {
-      return false;
-    } else {
-      return true;
-    }
-  };
-
-  // render transfer and submit
-  const [userList, setUserList] = useState([]);
-  const [submitDocumentLoading, setSubmitDocumentLoading] = useState(false);
-  const [openSubmit, setOpenSubmit] = useState(false);
-  const [borrower, setBorrower] = useState('');
-  const returnDocument = async () => {
-    setSubmitDocumentLoading(true);
-    const url = backendUrl + '/returnDocument';
-    try {
-      const res = await axios.post(
-        url,
-        { documentId: properties?.id, borrower },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setFileFolders((prev) =>
-        prev.map((item) =>
-          item.id === properties.id
-            ? { ...item, isTransferable: true, physicalHolder: borrower }
-            : item,
-        ),
-      );
-
-      toast.success(res.data.message);
-      setOpenSubmit(false);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setSubmitDocumentLoading(false);
-    }
-  };
-  const RenderActions = () => {
-    if (isKeeperOfPhysicalDocs) {
-      if (properties?.isTransferable) {
-        return (
-          <MenuItem
-            sx={{ gap: '5px', width: '250px' }}
-            onClick={() => {
-              setTransfer(true);
-              handleClose();
-            }}
-          >
-            <IconTransfer />
-            transfer
-          </MenuItem>
-        );
-      } else if (!properties?.physicalHolder) {
-        return (
-          <MenuItem
-            sx={{ gap: '5px', width: '250px' }}
-            onClick={() => {
-              setOpenSubmit(true);
-              handleClose();
-            }}
-          >
-            <IconCircleCheck />
-            Submit
-          </MenuItem>
-        );
-      }
-    } else {
-      return null;
-    }
-  };
-  // ------------------------
-
-  // useEffects
-  useEffect(() => {
-    const url = backendUrl + '/getUsernames';
-    const fetchData = async () => {
-      const { data } = await axios.get(url);
-      // console.log(data.usernames)
-      setUserList(data.users);
-    };
-    const checkPath = sessionStorage.getItem('path');
-    if (checkPath && checkPath !== pathValue) {
-      dispatch(onReload(checkPath));
-    }
-    setLoaded(true);
-    fetchData();
-    getBranches();
-  }, []);
   return (
     <>
-      {loading ? (
-        <ComponentLoader />
-      ) : (
-        <Stack>
-          <Stack
-            flex={showProperties ? '75%' : '100%'}
-            sx={{ position: 'relative' }}
-            onContextMenu={(e) => handleContextMenu(e, 'viraj')}
+      {actionsLoading && <TopLoader />}
+      <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} />
+      {/* Sidebar and Filter Button */}
+      <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-3 mt-1">
+        {/* Mobile Filter Button - Floating */}
+        {!isSidebarOpen && (
+          <button
+            className="absolute bottom-0 border right-4 bg-gray-200 hover:bg-gray-300 rounded-full p-2 shadow-lg md:hidden z-10"
+            onClick={() => setIsSidebarOpen(true)}
           >
-            <Stack
-              flexDirection="row"
-              // justifyContent="space-between"
-              sx={{ justifyContent: { xs: 'center', sm: 'space-between' } }}
-              flexWrap="wrap"
-              gap={1}
-              alignItems={'center'}
-              mb={1}
+            <IconFilter size={22} />
+          </button>
+        )}
+
+        {/* Sidebar */}
+        <CustomCard
+          className={`fixed md:relative md:w-64 p-4 bg-white transition-transform transform z-1 
+              h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
+                isSidebarOpen
+                  ? 'translate-y-0'
+                  : 'translate-y-[110%] md:translate-y-0'
+              }`}
+        >
+          {/* Close Button inside Sidebar (Mobile) */}
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold">Filters</h2>
+            <button
+              className="md:hidden p-1 text-gray-600 hover:text-gray-800"
+              onClick={() => setIsSidebarOpen(false)}
             >
-              <div className="flex flex-wrap gap-2 bg-gray-200 rounded-lg">
-                <button
-                  onClick={() => setSelectedTab(0)}
-                  className={`px-11 h-10 rounded-lg transition-colors duration-300 text-center border ${
-                    selectedTab === 0
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-700'
-                  }`}
-                >
-                  Normal
-                </button>
-                <button
-                  onClick={() => setSelectedTab(1)}
-                  className={`px-11 h-10 rounded-lg transition-colors duration-300 text-center border ${
-                    selectedTab === 1
-                      ? 'bg-red-500 text-white'
-                      : 'bg-white text-gray-700'
-                  }`}
-                >
-                  Rejected
-                </button>
-              </div>
+              <IconSquareLetterX size={22} />
+            </button>
+          </div>
 
-              <Box>
-                <TextField
-                  label="Search"
-                  sx={{
-                    maxWidth: { lg: '250px', xs: '150px' },
-                    background: 'white',
-                    mr: 1,
-                  }}
-                  disabled={fileFolders.length === 0 || loading}
-                  variant="outlined"
-                  size="small"
-                  value={searchQuery}
-                  onChange={handleSearchQueryChange}
-                />
+          {/* Filters */}
+          <input
+            type="text"
+            placeholder="Search"
+            className="border rounded px-2 py-2 w-full mb-2"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={!data?.length}
+          />
+          <select
+            className="border rounded px-2 py-2 w-full mb-2"
+            value={sortType}
+            onChange={(e) => setSortType(e.target.value)}
+            disabled={!filteredData?.length}
+          >
+            <option value="name">Sort by Name</option>
+            <option value="type">Sort by Type</option>
+          </select>
+          <select
+            className="border rounded px-2 py-2 w-full mb-2"
+            value={isRejected}
+            onChange={(e) => setIsRejected(e.target.value == 'true')}
+            disabled={!filteredData?.length}
+          >
+            <option value="false">Normal Documents</option>
+            <option value="true">RejectedDocuments</option>
+          </select>
+          <select
+            className="border rounded px-2 py-2 w-full mb-4"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            disabled={!filteredData?.length}
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </CustomCard>
 
-                <FormControl size="small" variant="outlined">
-                  <InputLabel>Sort By</InputLabel>
-                  <Select
-                    size="small"
-                    value={sortBy}
-                    sx={{ background: 'white' }}
-                    disabled={fileFolders.length === 0 || loading}
-                    onChange={handleSortByChange}
-                    label="Sort By"
-                    style={{ minWidth: '150px' }}
+        {/* Folder and File Display */}
+        <div
+          onContextMenu={(e) => handleContextMenu(e)}
+          className="flex-1 max-h-[calc(100vh-160px)] overflow-auto"
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredData.length > 0 ? (
+              filteredData.map((item) => (
+                <div key={item.id} className="relative">
+                  <CustomCard
+                    title={item.name}
+                    className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
+                    click={() =>
+                      item.type == 'folder' ? handleFolderClick(item) : null
+                    }
                   >
-                    {sortOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                    <RadioGroup
-                      aria-label="sort-order"
-                      name="sortOrder"
-                      defaultValue={sortOrder}
-                      onChange={handleSortOrderChange}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '10px',
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItem(item);
+                        setIsMenuOpen(true); // Open action menu
                       }}
+                      className="absolute top-1 right-0 hover:bg-blue-50 p-1 rounded-[50%] z-9"
                     >
-                      <FormControlLabel
-                        value="asc"
-                        control={<Radio />}
-                        label="Ascending"
-                      />
-                      <FormControlLabel
-                        value="desc"
-                        control={<Radio />}
-                        label="Descending"
-                      />
-                    </RadioGroup>
-                  </Select>
-                </FormControl>
-              </Box>
-            </Stack>
-            <Path />
-            <Stack
-              direction="row"
-              gap="10px"
-              flexWrap="wrap"
-              sx={{ justifyContent: 'flex-start' }}
-              className={styles.customScrollContainer}
-              overflow="auto"
-              mt={1}
-              maxHeight="calc(100vh - 290px)"
-            >
-              {!loading && selectedTab == 0
-                ? normalFiles?.map((item, index) => (
-                    <>
-                      {item.type === 'folder' ? (
-                        <Stack
-                          flexWrap="wrap"
-                          position="relative"
-                          minWidth="150px"
-                          height="130px"
-                          mr={'10px'}
-                          maxWidth="200px"
-                          flex={1}
-                          key={index}
-                        >
-                          {/* <Tooltip title={item.name} enterDelay={2000} disableInteractive> */}
-                          <Link to={item.name} style={{ height: '100%' }}>
-                            <Button
-                              onClick={() => handleFolderClick(item.name)}
-                              sx={{
-                                flexDirection: 'column',
-                                backgroundColor: 'white',
-                                borderRadius: '15px',
-                                border: '1px solid lightgray',
-                                width: '100%',
-                                padding: '5px',
-                                height: '100%',
-                                '&:hover': {
-                                  border: '1px solid blue',
-                                  background: 'white',
-                                },
-                                textTransform: 'none',
-                              }}
-                              variant="text"
-                              color="primary"
-                              size="medium"
-                            >
-                              <Tooltip
-                                title={
-                                  item.name.length >= 10 ? item.name : null
-                                }
-                              >
-                                <Box
-                                  sx={{
-                                    height: '60px',
-                                    width: '60px',
-                                  }}
-                                >
-                                  <img
-                                    style={{
-                                      height: '100%',
-                                      width: '100%',
-                                    }}
-                                    src={imageSrc}
-                                    alt="im"
-                                  />
-                                </Box>
-                                <p
-                                  style={{
-                                    color: 'black',
-                                    textAlign: 'center',
-                                    margin: 0,
-                                  }}
-                                >
-                                  {item.name.length >= 10
-                                    ? truncateFileName(item.name)
-                                    : item.name}
-                                </p>
-                              </Tooltip>
-                            </Button>
-                          </Link>
-                          {/* </Tooltip> */}
-                          <IconButton
-                            onClick={(e) => handleClick1(e, item.name, item)}
-                            sx={{
-                              position: 'absolute',
-                              right: '0px',
-                              top: '5px',
-                              padding: '5px',
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </Stack>
-                      ) : (
-                        <Stack
-                          flexWrap="wrap"
-                          minWidth="150px"
-                          mr={'10px'}
-                          maxWidth="200px"
-                          flex={1}
-                          height="130px"
-                          position="relative"
-                          key={index}
-                        >
-                          <Tooltip enterNextDelay={500} title={item.name}>
-                            <Button
-                              onClick={() => {
-                                setOpenToolTip(item.name);
-                                setTimeout(() => {
-                                  setOpenToolTip(null);
-                                }, 1500);
-                              }}
-                              sx={{
-                                // border: '1px solid lightgray',
-                                flexDirection: 'column',
-                                width: '100%',
-                                height: '100%',
-                                border: '1px solid lightgray',
-                                textTransform: 'none',
-                                '&:hover': {
-                                  border: '1px solid blue',
-                                  background: 'white',
-                                },
-                                backgroundColor:
-                                  properties?.id === item?.id && showProperties
-                                    ? 'lightblue'
-                                    : item?.isRejected
-                                    ? '#F7A4A4'
-                                    : 'white',
-                                borderRadius: '15px',
-                                padding: '5px',
-                              }}
-                              variant="text"
-                              color="primary"
-                              onDoubleClick={() =>
-                                item.onlyMetaData
-                                  ? null
-                                  : handleView(pathValue, item.name, item?.id)
-                              }
-                              size="medium"
-                            >
-                              <div>
-                                <img
-                                  className={styles.responsive}
-                                  src={
-                                    ImageConfig[
-                                      item.name.split('.').pop().toLowerCase()
-                                    ] || ImageConfig['default']
-                                  }
-                                  alt="File"
-                                />
-                              </div>
-                              <div>
-                                <p className={styles.textResponsive}>
-                                  {item.name.length <= 10
-                                    ? item.name
-                                    : truncateFileName(item.name)}
-                                </p>
-                              </div>
-                            </Button>
-                          </Tooltip>
-                          <IconButton
-                            onClick={(e) => handleClick(e, item.name, item)}
-                            sx={{
-                              position: 'absolute',
-                              right: '0px',
-                              top: '5px',
-                              padding: '5px',
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </Stack>
-                      )}
-                    </>
-                  ))
-                : !loading &&
-                  rejectedFiles?.map((item, index) => (
-                    <>
-                      {item.type === 'folder' ? (
-                        <Stack
-                          key={index}
-                          flexWrap="wrap"
-                          minWidth="150px"
-                          mr={'10px'}
-                          maxWidth="200px"
-                          flex={1}
-                          position="relative"
-                        >
-                          {/* <Tooltip title={item.name} enterDelay={1000}> */}
-                          <Link to={item.name} style={{ height: '100%' }}>
-                            <Button
-                              onClick={() => handleFolderClick(item.name)}
-                              sx={{
-                                flexDirection: 'column',
-                                backgroundColor: 'white',
-                                borderRadius: '15px',
-                                border: '1px solid lightgray',
-                                width: '100%',
-                                padding: '5px',
-                                height: '100%',
-                                textTransform: 'none',
-                              }}
-                              variant="text"
-                              color="primary"
-                              size="medium"
-                            >
-                              <Tooltip
-                                title={
-                                  item.name.length >= 10 ? item.name : null
-                                }
-                              >
-                                <Box
-                                  sx={{
-                                    height: '60px',
-                                    width: '60px',
-                                    transition: 'transform 0.2s ease', // Add transition for smooth effect
-                                    '&:hover': {
-                                      transform: 'scale(1.3)', // Scale up image on hover
-                                    },
-                                  }}
-                                >
-                                  <img
-                                    style={{
-                                      height: '100%',
-                                      width: '100%',
-                                    }}
-                                    src={imageSrc}
-                                    alt="im"
-                                  />
-                                </Box>
-                                <p
-                                  style={{
-                                    color: 'black',
-                                    textAlign: 'center',
-                                    margin: 0,
-                                  }}
-                                >
-                                  {item.name.length >= 10
-                                    ? truncateFileName(item.name)
-                                    : item.name}
-                                </p>
-                              </Tooltip>
-                            </Button>
-                          </Link>
-                          {/* </Tooltip> */}
-                          <IconButton
-                            onClick={(e) => handleClick1(e, item.name, item)}
-                            sx={{
-                              position: 'absolute',
-                              right: '0px',
-                              top: '5px',
-                              padding: '5px',
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </Stack>
-                      ) : (
-                        <Stack
-                          key={index}
-                          flexWrap="wrap"
-                          minWidth="150px"
-                          mr={'10px'}
-                          maxWidth="200px"
-                          flex={1}
-                          height="130px"
-                          position="relative"
-                        >
-                          <Tooltip title={item.name}>
-                            <Button
-                              onClick={() => {
-                                setOpenToolTip(item.name);
-                                setTimeout(() => {
-                                  setOpenToolTip(null);
-                                }, 1500);
-                              }}
-                              sx={{
-                                flexDirection: 'column',
-                                width: '100%',
-                                height: '100%',
-                                border: '1px solid lightgray',
-                                textTransform: 'none',
-                                backgroundColor:
-                                  properties?.id === item?.id && showProperties
-                                    ? 'lightblue'
-                                    : 'white',
-                                borderRadius: '15px',
-                                padding: '5px',
-                              }}
-                              variant="text"
-                              color="primary"
-                              onDoubleClick={() =>
-                                handleView(pathValue, item.name, item?.id)
-                              }
-                              size="medium"
-                            >
-                              <div>
-                                <img
-                                  className={styles.responsive}
-                                  src={
-                                    ImageConfig[
-                                      item.name.split('.').pop().toLowerCase()
-                                    ] || ImageConfig['default']
-                                  }
-                                  alt="File"
-                                />
-                              </div>
-                              <div>
-                                <p className={styles.textResponsive}>
-                                  {item.name.length <= 10
-                                    ? item.name
-                                    : truncateFileName(item.name)}
-                                </p>
-                              </div>
-                            </Button>
-                          </Tooltip>
-                          <IconButton
-                            onClick={(e) => handleClick(e, item.name, item)}
-                            sx={{
-                              position: 'absolute',
-                              right: '0px',
-                              top: '5px',
-                              padding: '5px',
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </Stack>
-                      )}
-                    </>
-                  ))}
-              {/* file system texts start */}
-              {loading === false &&
-                !error &&
-                ((selectedTab === 0 && normalFiles?.length === 0) ||
-                (selectedTab === 1 && rejectedFiles?.length === 0) ? (
-                  <Stack
-                    justifyContent="center"
-                    width="100%"
-                    height={'50vh'}
-                    sx={{
-                      backgroundColor: 'white',
-                      borderRadius: '15px',
-                      border: '1px solid lightgray',
-                    }}
-                    alignItems="center"
-                  >
-                    <Typography>
-                      {selectedTab === 0
-                        ? searchQuery
-                          ? 'No item found'
-                          : 'There is no Files and folders in current directory'
-                        : searchQuery
-                        ? 'No item found'
-                        : 'There is no rejected files'}
-                    </Typography>
-                  </Stack>
-                ) : null)}
-              {error && (
-                <Stack
-                  justifyContent="center"
-                  width="100%"
-                  height="100%"
-                  alignItems="center"
-                >
-                  {error}
-                </Stack>
-              )}
+                      <IconDotsVertical size={22} />
+                    </button>
+                    <img
+                      src={
+                        item.type !== 'folder'
+                          ? ImageConfig[item.type] || ImageConfig['default']
+                          : folderIcon
+                      }
+                      className="h-12"
+                      alt={item.type}
+                    />
+                    <h2 className="font-semibold truncate w-full text-center">
+                      {item.name}
+                    </h2>
+                  </CustomCard>
+                </div>
+              ))
+            ) : (
+              <CustomCard className="w-full text-center">
+                <h2 className="font-semibold">No results found</h2>
+              </CustomCard>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {/* file system texts end */}
-              {fileView && !loading && (
-                <View
-                  docu={fileView}
-                  setFileView={setFileView}
-                  handleViewClose={handleViewClose}
-                  controls={false}
+      {/* Action Menu (Popup) */}
+      {selectedItem ? (
+        <CustomModal isOpen={isMenuOpen && selectedItem}>
+          <h3 className="font-semibold mb-3">{selectedItem?.name}</h3>
+
+          {/* Actions */}
+          <div className="flex flex-col gap-2">
+            {selectedItem?.type !== 'folder' ? (
+              <>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconEye size={18} /> View
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() =>
+                    handleViewFile(selectedItem.name, selectedItem.path)
+                  }
+                  disabled={actionsLoading}
                 />
-              )}
-            </Stack>
-          </Stack>
-        </Stack>
-      )}
-      {/* file actions menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        sx={{ width: '250px', borderRadius: '5px' }}
-        // PaperProps={{ elevation: 1 }}
-      >
-        <MenuItem
-          disabled={
-            checkDownloadable(
-              properties?.isDownloadable || properties?.isInvolvedInProcess,
-            ) || properties?.onlyMetaData
-          }
-          sx={{ gap: '5px' }}
-          onClick={() => {
-            handleDownload(pathValue, itemName);
-          }}
-        >
-          <IconDownload fontSize="medium" />
-          Download
-        </MenuItem>
-        {/* <hr /> */}
-        <MenuItem
-          disabled={
-            itemName.split('.').pop().trim() === 'zip' ||
-            properties?.onlyMetaData
-          }
-          sx={{ gap: '5px' }}
-          onClick={() => {
-            handleView(pathValue, itemName, properties.id);
-            handleClose();
-          }}
-        >
-          <IconEye />
-          View
-        </MenuItem>
-        {/* <hr /> */}
-        <MenuItem
-          sx={{ gap: '5px' }}
-          onClick={() => handleCopy(itemName)}
-          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
-        >
-          <IconClipboard />
-          copy
-        </MenuItem>
-        {/* <hr /> */}
-        <MenuItem
-          sx={{ gap: '5px' }}
-          onClick={() => handleCut(itemName)}
-          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
-        >
-          <IconScissors />
-          cut
-        </MenuItem>
-        {/* <hr /> */}
-        <MenuItem
-          sx={{ gap: '5px', width: '250px' }}
-          onClick={() => {
-            setShowProterties(true);
-            handleClose();
-          }}
-        >
-          <IconTool />
-          propterties
-        </MenuItem>
-        {RenderActions()}
-        <Divider />
-        <MenuItem
-          sx={{ color: 'red' }}
-          onClick={deleteModalOpen}
-          disabled={properties?.isInvolvedInProcess || properties?.onlyMetaData}
-        >
-          <IconTrash color="red" />
-          delete
-        </MenuItem>
-      </Menu>
 
-      {/* folder actions menu */}
-      <Menu
-        anchorEl={anchorEl1}
-        open={Boolean(anchorEl1)}
-        onClose={handleClose}
-      >
-        <MenuItem
-          disabled={!properties?.isDownloadable}
-          sx={{ gap: '5px' }}
-          onClick={() => {
-            handleDownloadFolder(pathValue, itemName);
-          }}
-        >
-          <IconDownload fontSize="medium" />
-          Download
-        </MenuItem>
-        <MenuItem
-          sx={{ gap: '5px' }}
-          onClick={() => {
-            setShowProterties(true);
-            handleClose();
-          }}
-        >
-          <IconTool />
-          propterties
-        </MenuItem>
-      </Menu>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconDownload size={18} /> Download
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() =>
+                    handleDownload(selectedItem.name, selectedItem.path)
+                  }
+                  disabled={actionsLoading}
+                />
 
-      {/* properties menu */}
-      {showProperties && (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              height: '100vh',
-              width: '100vw',
-              backgroundColor: 'rgba(1, 1, 2, 0.6)',
-              zIndex: '98',
-            }}
-          ></div>
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              padding: '10px',
-              minHeight: '400px',
-              maxWidth: '80%',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              backgroundColor: 'white',
-              margin: '5px',
-              border: '1px solid darkgray',
-              zIndex: '99',
-            }}
-          >
-            <IconButton
-              onClick={() => setShowProterties(false)}
-              sx={{
-                top: '5px',
-                right: '5px',
-                height: '50px',
-                width: '50px',
-                position: 'absolute',
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-            <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>
-              PROPERTIES
-            </h2>
-            <hr style={{ marginBottom: '20px' }} />
-            <p>
-              <b>Name:</b> {properties.name}
-            </p>
-            <br />
-            {/* <p>type: {properties.type}</p> */}
-            <p>
-              <b>Size:</b> {formatSize(properties.size)}
-            </p>
-            <br />
-            {/* createdBY: {item.createdBy} */}
-            <p>
-              <b>Created on:</b>{' '}
-              {moment(properties.createdOn).format('DD-MM-YYYY HH:mm')}
-            </p>
-            <br />
-            <p>
-              <b>Last Accessed:</b>{' '}
-              {moment(properties.lastAccessed).format('DD-MM-YYYY HH:mm')}
-            </p>
-            <br />
-            <p>
-              <b>Last Updated:</b>{' '}
-              {moment(properties.lastUpdated).format('DD-MM-YYYY HH:mm')}
-            </p>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconCopy size={18} /> Copy
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => handleCopy(selectedItem.name, selectedItem.path)}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconScissors size={18} /> Cut
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => handleCut(selectedItem.name, selectedItem.path)}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconSettings size={18} /> Properties
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => {
+                    setIsMenuOpen(false);
+                    setShowProperties(true); // Open properties modal
+                  }}
+                  disabled={actionsLoading}
+                />
+              </>
+            ) : (
+              <CustomButton
+                variant="none"
+                text={
+                  <>
+                    <IconDownload size={18} /> Download ZIP
+                  </>
+                }
+                className="w-full flex items-center gap-2"
+                click={() =>
+                  handleDownloadFolder(selectedItem.name, selectedItem.path)
+                }
+                disabled={actionsLoading}
+              />
+            )}
           </div>
-        </>
-      )}
 
-      {/* create folder */}
-      {open && (
-        <Modal open={open} onClose={closeModal} className="create-folder-modal">
-          <div
-            style={{
-              gap: '10px',
-              position: 'relative',
-              width: '90%',
-              maxWidth: '400px',
-            }}
-            className="create-folder-modal-content-container"
-          >
-            {ModelContent}
-          </div>
-        </Modal>
-      )}
+          {/* Close Button */}
+          <CustomButton
+            variant="danger"
+            text={
+              <>
+                <IconSquareLetterX size={18} /> Close
+              </>
+            }
+            className="w-full flex items-center gap-2 mt-4"
+            click={() => setIsMenuOpen(false)}
+            disabled={actionsLoading}
+          />
+        </CustomModal>
+      ) : null}
 
-      {/* transfer physical document */}
-      {isTransfer && (
-        <Dialog
-          open={isTransfer}
-          onClose={() => setTransfer(false)}
-          // className="create-folder-modal"
-          maxWidth="md"
-          fullWidth
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              width: '100%',
-              padding: '20px',
-              display: 'flex',
-              gap: '10px',
-              flexDirection: 'column',
-              border: '1px solid lightgray',
-            }}
-          >
-            {/* <Grid item xs={12}> */}
-            <Typography variant="body1">Borrower Branch:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="userBranch"
-                size="small"
-                disabled={!!fieldsLoading}
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={transferData?.userBranch}
-                onChange={handleUserBarnch}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {branches?.map((data) => (
-                  <MenuItem key={data.name} value={data.name}>
-                    {data.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {/* </Grid> */}
-            {/* <Grid item xs={12}> */}
-            <Typography variant="body1">Borrower Role:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="role"
-                size="small"
-                disabled={!!fieldsLoading}
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={transferData?.role}
-                onChange={handleUserRole}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {roles?.map((data) => (
-                  <MenuItem key={data.role} value={data.role}>
-                    {data.role}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {/* </Grid> */}
-            {/* <Grid item xs={12}> */}
-            <Typography variant="body1">Borrower User:</Typography>
-            <FormControl fullWidth variant="outlined">
-              <Select
-                name="user"
-                size="small"
-                sx={{ backgroundColor: 'whitesmoke' }}
-                value={transferData?.borrower}
-                disabled={!!fieldsLoading}
-                onChange={handleUserSelection}
-              >
-                <MenuItem value="" disabled>
-                  <em>None</em>
-                </MenuItem>
-                {users?.map((data) => (
-                  <MenuItem key={data.username} value={data.username}>
-                    {data.username}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Typography variant="body1">Purpose :</Typography>
-            <TextField
-              name="purpose"
-              disabled={!!fieldsLoading}
-              sx={{ backgroundColor: 'whitesmoke' }}
-              onChange={(e) =>
-                setTransferData((prevData) => ({
-                  ...prevData,
-                  purpose: e.target.value,
-                }))
-              }
-              size="small"
-            />
-            <Button
-              variant="outlined"
-              disabled={fieldsLoading === 'save'}
-              sx={{ mt: 1, width: '150px', mx: 'auto' }}
-              onClick={handleTransferFile}
-            >
-              {!fieldsLoading ? (
-                'Transfer File'
-              ) : (
-                <CircularProgress size={22} />
-              )}
-            </Button>
-          </Paper>
-        </Dialog>
-      )}
-
-      {/* Delete confirmation modal */}
-      {isModalOpen && (
-        <Modal
-          open={isModalOpen}
-          onClose={deleteModalClose}
-          className="create-folder-modal"
-        >
-          <div
-            style={{ gap: '10px', position: 'relative' }}
-            className="create-folder-modal-content-container"
-          >
-            {deleteModalContent}
-          </div>
-        </Modal>
-      )}
-
-      {/* Paste document key */}
+      {/* Paste button */}
       {isContextMenuOpen && fileName && (
         <ContextMenu
           xPos={contextMenuPos.x}
@@ -1741,148 +480,60 @@ export default function ShowFolder(props) {
         />
       )}
 
-      {/* color for plus background background: 'linear-gradient(to right, #3E5151 , #DECBA4)' */}
-      {isUploadable && (
-        <Stack
-          position="fixed"
-          flexDirection={'row'}
-          alignItems={'center'}
-          sx={{
-            bottom: '25px',
-            right: '-325px',
-            transition: 'right 0.3s ease-in-out',
-            '&:hover': {
-              right: '10px',
-            },
-          }}
-        >
-          <IconChevronsLeft
-            size={57}
-            // color="purple"
-            style={{
-              background: 'white',
-              color: 'var(--themeColor)',
-              padding: '10px',
-              borderRight: 0,
-              border: '1px solid lightgray',
-              borderRadius: '50% 0 0 50%',
-            }}
-          />
-          <Stack
-            flexDirection={'row'}
-            gap={1}
-            padding={1}
-            sx={{
-              boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
-              backgroundColor: 'white',
-              border: '1px solid lightgray',
-              borderRadius: '0 8px 8px 0',
-            }}
+      {/* Properties Modal */}
+      <CustomModal isOpen={showProperties}>
+        <div className="flex justify-between items-center border-b pb-2 mb-4">
+          <h2 className="text-lg font-semibold">
+            {selectedItem?.name} Properties
+          </h2>
+          <button
+            onClick={() => setShowProperties(false)}
+            className="text-gray-500 hover:text-gray-700"
           >
-            <Button
-              sx={{
-                flexDirection: 'row',
-                width: '150px',
-                padding: '10px',
-                height: '40px',
-                alignItems: 'center',
-              }}
-              // color='info'
-              size="medium"
-              variant="contained"
-              onClick={() => openModal('createFolder')}
-            >
-              <IconFolderPlus size={17} style={{ marginRight: '3px' }} />
-              {/* <img src={imageSrc} alt="image" /> */}
-              <p
-                style={{
-                  fontSize: '12px',
-                  textAlign: 'center',
-                  color: 'white',
-                }}
-              >
-                NEW FOLDER
-              </p>
-            </Button>
-            <Button
-              sx={{
-                flexDirection: 'row',
-                width: '150px',
-                padding: '10px',
-                height: '40px',
-                alignItems: 'center',
-              }}
-              variant="contained"
-              size="medium"
-              onClick={() => openModal('uploadFiles')}
-            >
-              <IconUpload size={16} style={{ marginRight: '3px' }} />
-              <p
-                style={{
-                  fontSize: '12px',
-                  textAlign: 'center',
-                  color: 'white',
-                }}
-              >
-                UPLOAD FILE
-              </p>
-            </Button>
-          </Stack>
-        </Stack>
-      )}
+            <IconSquareLetterX className="hover:text-red-500" />
+          </button>
+        </div>
+        <div className="space-y-2">
+          <p className="flex justify-between">
+            <span className="font-medium">Name:</span> {selectedItem?.name}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Path:</span> {selectedItem?.path}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Type:</span> {selectedItem?.type}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Size:</span> {selectedItem?.size}{' '}
+            bytes
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Created On:</span>{' '}
+            {moment(selectedItem?.createdOn).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Last Updated:</span>{' '}
+            {moment(selectedItem?.lastUpdated).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Last Accessed:</span>{' '}
+            {moment(selectedItem?.lastAccessed).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Rejected:</span>{' '}
+            {selectedItem?.isRejected ? 'Yes' : 'No'}
+          </p>
+        </div>
+      </CustomModal>
 
-      {/* submit document to document keeper */}
-      <Dialog
-        open={openSubmit}
-        onClose={() => (!submitDocumentLoading ? setOpenSubmit(false) : null)}
-      >
-        <form>
-          <DialogTitle
-            sx={{
-              background: 'var(--themeColor)',
-              margin: '5px',
-              color: ' white',
-            }}
-          >
-            Select Document Submitter
-          </DialogTitle>
-          <DialogContent sx={{ padding: '10px' }}>
-            <Autocomplete
-              onChange={(event, newValue) => setBorrower(newValue.username)}
-              options={userList || []}
-              sx={{ margin: '5px' }}
-              getOptionLabel={(option) =>
-                `${option.username} (Role-${option.role}, Branch-${option.branch})`
-              }
-              isOptionEqualToValue={(option, value) =>
-                option.username === value
-              }
-              renderInput={(params) => (
-                <TextField {...params} label="Select User" required fullWidth />
-              )}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button
-              variant="contained"
-              disabled={submitDocumentLoading}
-              onClick={returnDocument}
-            >
-              {submitDocumentLoading ? (
-                <CircularProgress size={22} />
-              ) : (
-                'Submit'
-              )}
-            </Button>
-            <Button
-              onClick={() => setOpenSubmit(false)}
-              disabled={submitDocumentLoading}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {/* View File Modal */}
+      {fileView && (
+        <ViewFile
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={() => setFileView(null)}
+        />
+      )}
     </>
   );
 }

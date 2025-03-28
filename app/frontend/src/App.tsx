@@ -17,7 +17,7 @@ import NewBranch from './pages/Branches/NewBranch';
 import NewUser from './pages/Users/NewUser';
 import NewRole from './pages/Roles/NewRole';
 import NewDepartment from './pages/Department/NewDepartment';
-import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
+// import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
 import ShowFolder from './pages/Show Folder/ShowFolder';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
@@ -135,7 +135,7 @@ function App() {
           element={
             <DefaultLayout>
               <PageTitle title="Files" />
-              <FileSystem />
+              <ShowFolder />
             </DefaultLayout>
           }
         />
