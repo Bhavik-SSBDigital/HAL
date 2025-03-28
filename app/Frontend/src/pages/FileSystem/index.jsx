@@ -73,20 +73,16 @@ export default function FileSysten() {
     .filter(
       (item) => item.isRejected === undefined || item.isRejected === isRejected,
     )
-
     .sort((a, b) =>
       sortOrder === 'asc'
         ? a[sortType].localeCompare(b[sortType])
         : b[sortType].localeCompare(a[sortType]),
     );
-
+  console.log(filteredData);
   // Context Menu component
   const ContextMenu = ({ xPos, yPos, handlePaste }) => {
     return (
-      <div
-        className="fixed bg-white shadow-lg rounded-lg p-2 z-50"
-        style={{ top: yPos, left: xPos }}
-      >
+      <CustomCard className="fixed z-50 !p-2" style={{ top: yPos, left: xPos }}>
         <button
           className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-gray-100 rounded-md"
           onClick={handlePaste}
@@ -102,7 +98,7 @@ export default function FileSysten() {
           </svg>
           Paste
         </button>
-      </div>
+      </CustomCard>
     );
   };
 
@@ -189,6 +185,7 @@ export default function FileSysten() {
           ? await GetRootFolders()
           : await GetFolderData(updatedPath);
       setData(response?.data?.children || []);
+      console.log(data);
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
     } finally {
@@ -323,7 +320,7 @@ export default function FileSysten() {
 
         {/* Sidebar */}
         <CustomCard
-          className={`fixed md:relative md:w-64 p-4 bg-white shadow-lg rounded-lg transition-transform transform z-10 
+          className={`fixed md:relative md:w-64 p-4 bg-white rounded-lg transition-transform transform z-10 
     h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
       isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'
     }`}
