@@ -311,7 +311,7 @@ export default function FileSysten() {
         {/* Mobile Filter Button - Floating */}
         {!isSidebarOpen && (
           <button
-            className="absolute bottom-0 border right-4 bg-gray-200 hover:bg-gray-300 rounded-full p-2 shadow-lg md:hidden z-10"
+            className="absolute bottom-0 border right-4 rounded-full p-2 shadow-xl md:hidden z-10"
             onClick={() => setIsSidebarOpen(true)}
           >
             <IconFilter size={22} />
