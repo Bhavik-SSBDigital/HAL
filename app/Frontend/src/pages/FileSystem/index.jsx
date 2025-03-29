@@ -412,7 +412,7 @@ export default function FileSysten() {
           onContextMenu={(e) => handleContextMenu(e)}
           className="flex-1 max-h-[calc(100vh-160px)] overflow-auto"
         >
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
             {filteredData.length > 0 ? (
               filteredData.map((item) => (
                 <div key={item.id} className="relative">
