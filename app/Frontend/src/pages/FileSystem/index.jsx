@@ -307,7 +307,7 @@ export default function FileSysten() {
       {actionsLoading && <TopLoader />}
       <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} />
       {/* Sidebar and Filter Button */}
-      <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-3 mt-1">
+      <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-1 mt-1">
         {/* Mobile Filter Button - Floating */}
         {!isSidebarOpen && (
           <button
