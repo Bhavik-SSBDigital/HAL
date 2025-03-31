@@ -67,7 +67,7 @@ export default function WorkflowVisualizer() {
           placeholder="Search workflows..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full sm:max-w-md p-3 border border-gray-300 rounded-lg transition"
+          className="w-full sm:max-w-md p-3 border border-slate-400 rounded-lg transition"
         />
         <button
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 px-6 shadow-md transition"
@@ -112,7 +112,7 @@ export default function WorkflowVisualizer() {
           return (
             <motion.div
               key={workflow.name}
-              className="bg-white rounded-xl shadow-lg p-6 mb-3 border relative"
+              className="bg-white rounded-xl shadow-lg p-6 mb-3 border border-slate-400 relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
