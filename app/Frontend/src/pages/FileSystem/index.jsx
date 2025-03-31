@@ -439,7 +439,7 @@ export default function FileSysten() {
                           ? ImageConfig[item.type] || ImageConfig['default']
                           : folderIcon
                       }
-                      className="h-12"
+                      className="h-12 p-2"
                       alt={item.type}
                     />
                     <h2 className="font-semibold truncate w-full text-center">
