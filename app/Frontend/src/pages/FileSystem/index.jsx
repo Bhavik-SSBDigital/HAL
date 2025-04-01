@@ -120,6 +120,14 @@ export default function FileSysten() {
     );
   };
 
+  // Reset Filters
+  const resetFilters = () => {
+    setFileType('all');
+    setSortType('name');
+    setDocumentsType('normal');
+    setSortOrder('asc');
+  };
+
   // Handle folder click
   const handleFolderClick = (item) => {
     setSelectedItem(item);
@@ -131,6 +139,7 @@ export default function FileSysten() {
       setCurrentPath(newPath);
       sessionStorage.setItem('path', newPath);
     }
+    resetFilters();
   };
   // Handler view file
   const handleViewFile = async (name, path) => {
@@ -461,6 +470,11 @@ export default function FileSysten() {
               text="Upload File"
               click={() => setUploadFileModal(true)}
               variant={'success'}
+            />
+            <CustomButton
+              text={'Reset Filters'}
+              variant={'secondary'}
+              click={resetFilters}
             />
           </div>
         </CustomCard>
