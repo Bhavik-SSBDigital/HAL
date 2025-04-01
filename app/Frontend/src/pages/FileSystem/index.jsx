@@ -39,6 +39,7 @@ import { useForm } from 'react-hook-form';
 export default function FileSysten() {
   // States
   const dispatch = useDispatch();
+  const [fileType, setFileType] = useState('all');
   const [showUploadFileModal, setUploadFileModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
@@ -67,20 +68,28 @@ export default function FileSysten() {
 
   // Filtering and sorting data
   const filteredData = data
-  .filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-  .filter((item) => {
-    if (documentsType === "normal") return true; // Show all documents
-    if (documentsType === "rejected") return item.isRejected;
-    if (documentsType === "achieved") return item.isAchieved;
-    return true;
-  })
-  .sort((a, b) =>
-    sortOrder === "asc"
-      ? a[sortType].localeCompare(b[sortType])
-      : b[sortType].localeCompare(a[sortType])
-  );
+    .filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase()),
+        ),
+    )
+    .filter((item) => {
+      if (documentsType === 'normal') return true; // Show all documents
+      if (documentsType === 'rejected') return item.isRejected;
+      if (documentsType === 'achieved') return item.isAchieved;
+      return true;
+    })
+    .filter((item) => {
+      if (fileType === 'all') return true; // Show all file types
+      return item.type === fileType; // Match the selected file type
+    })
+    .sort((a, b) =>
+      sortOrder === 'asc'
+        ? a[sortType].localeCompare(b[sortType])
+        : b[sortType].localeCompare(a[sortType]),
+    );
 
   // Context Menu component
   const ContextMenu = ({ xPos, yPos, handlePaste }) => {
@@ -323,7 +332,7 @@ export default function FileSysten() {
 
         {/* Sidebar */}
         <CustomCard
-          className={`fixed md:relative md:w-64 p-4 bg-white rounded-lg transition-transform transform z-10 
+          className={`overflow-auto fixed md:relative md:w-64 p-4 bg-white rounded-lg transition-transform transform z-10 
     h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
       isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'
     }`}
@@ -363,6 +372,44 @@ export default function FileSysten() {
             >
               <option value="name">Name</option>
               <option value="type">Type</option>
+            </select>
+          </div>
+
+          {/* type */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-gray-700">
+              File Type
+            </label>
+            <select
+              className="border rounded-md px-3 py-2 w-full mt-1"
+              value={fileType}
+              onChange={(e) => setFileType(e.target.value)}
+              disabled={!data?.length}
+            >
+              {[
+                'all',
+                'pdf',
+                'doc',
+                'docx',
+                'xls',
+                'xlsx',
+                'ppt',
+                'pptx',
+                'txt',
+                'csv',
+                'img',
+                'jpg',
+                'png',
+                'gif',
+                'svg',
+                'zip',
+                'rar',
+                'json',
+              ].map((type) => (
+                <option key={type} value={type}>
+                  {type === 'all' ? 'All' : type.toUpperCase()}
+                </option>
+              ))}
             </select>
           </div>
 
