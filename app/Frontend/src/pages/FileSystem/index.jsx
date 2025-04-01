@@ -71,7 +71,7 @@ export default function FileSysten() {
     .filter(
       (item) =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.tags.some((tag) =>
+        item?.tags?.some((tag) =>
           tag.toLowerCase().includes(searchQuery.toLowerCase()),
         ),
     )
@@ -85,11 +85,17 @@ export default function FileSysten() {
       if (fileType === 'all') return true; // Show all file types
       return item.type === fileType; // Match the selected file type
     })
-    .sort((a, b) =>
-      sortOrder === 'asc'
-        ? a[sortType].localeCompare(b[sortType])
-        : b[sortType].localeCompare(a[sortType]),
-    );
+    .sort((a, b) => {
+      if (sortType === 'size') {
+        // Sort by size (numeric comparison)
+        return sortOrder === 'asc' ? a.size - b.size : b.size - a.size;
+      } else {
+        // Sort by string-based properties (name or type)
+        return sortOrder === 'asc'
+          ? a[sortType].localeCompare(b[sortType])
+          : b[sortType].localeCompare(a[sortType]);
+      }
+    });
 
   // Context Menu component
   const ContextMenu = ({ xPos, yPos, handlePaste }) => {
@@ -333,9 +339,9 @@ export default function FileSysten() {
         {/* Sidebar */}
         <CustomCard
           className={`overflow-auto fixed md:relative md:w-64 p-4 bg-white rounded-lg transition-transform transform z-10 
-    h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 ${
-      isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'
-    }`}
+    h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 
+    ${isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'} 
+    max-h-[500px] md:max-h-full`}
         >
           {/* Header */}
           <div className="flex justify-between items-center mb-4">
@@ -372,6 +378,7 @@ export default function FileSysten() {
             >
               <option value="name">Name</option>
               <option value="type">Type</option>
+              <option value="size">Size</option> {/* Added Size option */}
             </select>
           </div>
 
