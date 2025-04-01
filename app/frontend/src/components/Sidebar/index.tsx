@@ -19,6 +19,7 @@ import {
   IconCalendarStats,
   IconChartDots3,
   IconSquareLetterX,
+  IconRecycle,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -106,6 +107,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       label: 'File System',
       icon: <IconFolderOpen size={26} />,
       active: pathname == '/files',
+    },
+    {
+      path: '/bin',
+      label: 'Recycle Bin',
+      icon: <IconRecycle size={26} />,
+      active: pathname == '/bin',
     },
     {
       path: '/Search',

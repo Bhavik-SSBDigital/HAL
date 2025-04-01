@@ -46,6 +46,7 @@ import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
 import Workflows from './pages/workflows';
+import RecycleBin from './pages/RecycleBin';
 
 function App() {
   const dispatch = useDispatch();
@@ -127,6 +128,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Files" />
               <FileSystem />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/bin"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Recycle Bin" />
+              <RecycleBin />
             </DefaultLayout>
           }
         />
