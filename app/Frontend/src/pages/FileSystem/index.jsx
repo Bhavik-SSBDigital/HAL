@@ -51,7 +51,7 @@ export default function FileSysten() {
   const [data, setData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortType, setSortType] = useState('name');
-  const [isRejected, setIsRejected] = useState(false);
+  const [documentsType, setDocumentsType] = useState(false);
   const [sortOrder, setSortOrder] = useState('asc');
   const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for action menu
   const [currentPath, setCurrentPath] = useState(
@@ -67,18 +67,21 @@ export default function FileSysten() {
 
   // Filtering and sorting data
   const filteredData = data
-    .filter((item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    .filter(
-      (item) => item.isRejected === undefined || item.isRejected === isRejected,
-    )
-    .sort((a, b) =>
-      sortOrder === 'asc'
-        ? a[sortType].localeCompare(b[sortType])
-        : b[sortType].localeCompare(a[sortType]),
-    );
-  console.log(filteredData);
+  .filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+  .filter((item) => {
+    if (documentsType === "normal") return true; // Show all documents
+    if (documentsType === "rejected") return item.isRejected;
+    if (documentsType === "achieved") return item.isAchieved;
+    return true;
+  })
+  .sort((a, b) =>
+    sortOrder === "asc"
+      ? a[sortType].localeCompare(b[sortType])
+      : b[sortType].localeCompare(a[sortType])
+  );
+
   // Context Menu component
   const ContextMenu = ({ xPos, yPos, handlePaste }) => {
     return (
@@ -370,12 +373,13 @@ export default function FileSysten() {
             </label>
             <select
               className="border rounded-md px-3 py-2 w-full mt-1"
-              value={isRejected}
-              onChange={(e) => setIsRejected(e.target.value == 'true')}
+              value={documentsType}
+              onChange={(e) => setDocumentsType(e.target.value)}
               disabled={!data?.length}
             >
-              <option value="false">Normal Documents</option>
-              <option value="true">Rejected Documents</option>
+              <option value="normal">Normal Documents</option>
+              <option value="rejected">Rejected Documents</option>
+              <option value="achieved">Achieved</option>
             </select>
           </div>
 
