@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import folderIcon from '../../assets/images/folder.png';
 import { Await, useNavigate } from 'react-router-dom';
+import { debounce } from 'lodash';
 import {
   CopyPaste,
   CreateFolder,
@@ -119,6 +120,12 @@ export default function FileSysten() {
       </CustomCard>
     );
   };
+
+  // search
+  const handleSearchChange = useCallback(
+    debounce((value) => setSearchQuery(value), 300), // 300ms debounce to optimize performance
+    [],
+  );
 
   // Reset Filters
   const resetFilters = () => {
@@ -370,8 +377,8 @@ export default function FileSysten() {
               type="text"
               placeholder="Type to search..."
               className="border rounded-md px-3 py-2 w-full mt-1"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              // value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
               disabled={!data?.length}
             />
           </div>
