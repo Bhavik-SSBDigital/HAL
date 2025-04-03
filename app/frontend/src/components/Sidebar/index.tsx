@@ -10,8 +10,6 @@ import {
   IconChartHistogram,
   IconFolderOpen,
   IconFolderSearch,
-  IconUserCircle,
-  IconSitemap,
   IconBuildingEstate,
   IconUser,
   IconUserSquareRounded,

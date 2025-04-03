@@ -496,7 +496,7 @@ export default function FileSysten() {
               filteredData.map((item) => (
                 <div key={item.id} className="relative">
                   <CustomCard
-                    title={item.name}
+                    // title={item.name}
                     className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
                     click={() =>
                       item.type == 'folder' ? handleFolderClick(item) : null
@@ -521,7 +521,7 @@ export default function FileSysten() {
                       className="h-12 p-2"
                       alt={item.type}
                     />
-                    <h2 className="font-semibold truncate w-full text-center">
+                    <h2 className="cursor-text font-semibold truncate w-full text-center">
                       {item.name}
                     </h2>
                   </CustomCard>
