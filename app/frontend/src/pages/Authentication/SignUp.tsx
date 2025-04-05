@@ -31,10 +31,47 @@ const SignUp: React.FC = () => {
     };
     setData(newData);
   };
+  function checkPasswordStrength(password) {
+    const feedback = [];
+
+    if (password.length < 8) {
+      feedback.push('at least 8 characters');
+    }
+    if (!/[A-Z]/.test(password)) {
+      feedback.push('an uppercase letter (A-Z)');
+    }
+    if (!/[a-z]/.test(password)) {
+      feedback.push('a lowercase letter (a-z)');
+    }
+    if (!/[0-9]/.test(password)) {
+      feedback.push('a number (0-9)');
+    }
+    if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password)) {
+      feedback.push('a special character (!@#$%^&* etc)');
+    }
+
+    const isStrong = feedback.length === 0;
+
+    return {
+      isStrong,
+      message: isStrong
+        ? 'Password is strong 💪'
+        : `Password should contain ${feedback.join(', ')}.`,
+    };
+  }
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check password strength
+    const { isStrong, message } = checkPasswordStrength(data.newPassword);
+    if (!isStrong) {
+      setError(message); // show error message
+      return; // prevent submission
+    }
+
     try {
       setLoading(true);
       const url = backendUrl + '/changePassword';
@@ -50,6 +87,7 @@ const SignUp: React.FC = () => {
       setLoading(false);
     }
   };
+
   return (
     <Stack
       alignItems="center"
