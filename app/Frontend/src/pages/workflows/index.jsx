@@ -70,7 +70,7 @@ export default function WorkflowVisualizer() {
           className="w-full sm:max-w-md p-3 border border-slate-400 rounded-lg transition"
         />
         <button
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 px-6 shadow-md transition"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 px-6 transition"
           onClick={() => setShowForm(true)}
         >
           + Add Workflow

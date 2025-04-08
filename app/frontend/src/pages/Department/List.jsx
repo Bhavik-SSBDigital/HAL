@@ -1,13 +1,3 @@
-import {
-  Box,
-  CircularProgress,
-  Dialog,
-  Stack,
-  TextField,
-  Typography,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconTrash, IconEdit, IconEye } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
@@ -20,17 +10,16 @@ import {
   getRolesHierarchyInDepartment,
   getDepartmentsHierarchy,
 } from '../../common/Apis';
-import styles from './List.module.css';
 import TreeGraph from '../../components/TreeGraph';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import moment from 'moment';
 import CustomButtom from '../../CustomComponents/CustomButton';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function List() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [isLoading, setIsLoading] = useState(true);
   const [departments, setDepartments] = useState([]);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleteDepLoading, setDeleteDepLoading] = useState(false);
@@ -117,13 +106,12 @@ export default function List() {
       flex: 1,
       renderCell: (params) => moment(params.value).format('DD-MM-YYYY'),
     },
-
     {
       field: 'actions',
       headerName: 'Actions',
       flex: 1,
       renderCell: (params) => (
-        <div className="flex space-x-2 m-1">
+        <div className="flex space-x-2 my-1">
           <button
             className="p-2 rounded-lg bg-button-primary-default hover:bg-button-primary-hover"
             onClick={() => handleViewHierarchy(params.row.id)}
@@ -131,13 +119,13 @@ export default function List() {
             <IconEye color="white" />
           </button>
           <button
-            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
+            className="p-2 rounded-lg bg-button-secondary-default hover:bg-button-secondary-hover"
             onClick={() => navigate(`/departments/edit/${params.row.id}`)}
           >
             <IconEdit color="white" />
           </button>
           <button
-            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
+            className="p-2 rounded-lg bg-button-danger-default hover:bg-button-danger-hover"
             onClick={() => {
               setDeleteItemId(params.id);
               setModalOpen(true);
@@ -150,7 +138,6 @@ export default function List() {
     },
   ];
 
-  // filtered data
   const filteredDepartments = departments.filter(
     (dept) =>
       dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -162,86 +149,86 @@ export default function List() {
       {isLoading ? (
         <ComponentLoader />
       ) : (
-        <Stack className={styles.container}>
-          <Stack
-            flexDirection={'row'}
-            justifyContent={{ xs: 'flex-end' }}
-            flexWrap={'wrap'}
-            gap={1}
-            mb={1}
-          >
-            <Stack
-              gap={1}
-              sx={{ bgcolor: '#EEEEEE', p: 0.6, borderRadius: '8px' }}
-              flexDirection={'row'}
-            >
+        <CustomCard>
+          {/* Tabs */}
+          <div className="flex justify-end mb-1">
+            <div className="flex gap-2 border border-slate-300 bg-[#EEEEEE] p-[6px] rounded-md w-fit">
               <div
                 onClick={() => setSelectedTab('list')}
-                className={`${styles.tab} ${
-                  selectedTab === 'list' && styles.selectedTab
+                className={`p-[5px] w-[100px] rounded cursor-pointer text-center transition-all duration-300 ease-in-out ${
+                  selectedTab === 'list'
+                    ? 'bg-white scale-[1.05]'
+                    : 'hover:bg-white/70'
                 }`}
               >
-                <Typography variant="body1" textAlign={'center'}>
-                  List
-                </Typography>
+                <p className="text-base">List</p>
               </div>
               <div
                 onClick={() => setSelectedTab('tree')}
-                className={`${styles.tab} ${
-                  selectedTab === 'tree' && styles.selectedTab
+                className={`p-[5px] w-[100px] rounded cursor-pointer text-center transition-all duration-300 ease-in-out ${
+                  selectedTab === 'tree'
+                    ? 'bg-white scale-[1.05]'
+                    : 'hover:bg-white/70'
                 }`}
               >
-                <Typography variant="body1" textAlign={'center'}>
-                  Tree
-                </Typography>
+                <p className="text-base">Tree</p>
               </div>
-            </Stack>
-          </Stack>
+            </div>
+          </div>
+
+          {/* Tree View */}
           {selectedTab === 'tree' ? (
             <TreeGraph data={data} loading={isLoading} />
           ) : (
-            <Box sx={{ width: '100%', height: 400 }}>
-              <Stack
-                alignContent="flex-end"
-                flexWrap="wrap"
-                flexDirection="row"
-                justifyContent="space-between"
-                alignItems="flex-end"
-                mb={1}
-              >
+            <div className="w-full">
+              {/* Search & Add Button */}
+              <div className="flex flex-wrap justify-between items-end mb-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Search
                   </label>
                   <input
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    required
-                    className="w-full p-2 border rounded max-w-[200px]"
+                    className="p-2 border rounded w-full max-w-xs"
                   />
                 </div>
                 <Link to="/departments/createNew">
-                  <CustomButtom text={'Add Department'} />
+                  <CustomButtom text="Add Department" />
                 </Link>
-              </Stack>
+              </div>
 
-              <DataGrid
-                rows={filteredDepartments}
-                columns={columns}
-                pageSize={5}
-                autoHeight
-              />
-            </Box>
+              {/* Data Grid */}
+              <div style={{ height: 400, width: '100%' }}>
+                <DataGrid
+                  rows={filteredDepartments}
+                  columns={columns}
+                  pageSize={5}
+                  autoHeight
+                />
+              </div>
+            </div>
           )}
-        </Stack>
+        </CustomCard>
       )}
-      <Dialog
-        open={isHierarchyModalOpen}
-        fullWidth
-        maxWidth="md"
-        onClose={() => setHierarchyModalOpen(false)}
-      >
-        <TreeGraph data={selectedDepartmentData} loading={isLoading} />
-      </Dialog>
+
+      {/* Modal */}
+      {isHierarchyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+          <div className="bg-white w-11/12 max-w-4xl rounded-lg p-4 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => setHierarchyModalOpen(false)}
+                className="text-gray-600 hover:text-black font-bold text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            <TreeGraph data={selectedDepartmentData} loading={isLoading} />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
