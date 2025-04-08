@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { CreateUser, EditUser, GetRoles, GetUser } from '../../common/Apis';
 import TopLoader from '../../common/Loader/TopLoader';
 import CustomCard from '../../CustomComponents/CustomCard';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 export default function NewUser() {
   const { id } = useParams();
@@ -199,20 +200,19 @@ export default function NewUser() {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button
+              <CustomButton
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-button-primary-default hover:bg-button-primary-hover text-white py-2 rounded"
-              >
-                {id ? 'Update' : 'Save'}
-              </button>
+                text={id ? 'Update' : 'Save'}
+                className={'w-full'}
+              ></CustomButton>
               <Link to="/users/list">
-                <button
+                <CustomButton
                   disabled={isSubmitting}
-                  className="w-full border border-gray-400 py-2 rounded hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
+                  text={'Cancel'}
+                  className={'w-full'}
+                  variant={'danger'}
+                ></CustomButton>
               </Link>
             </div>
           </div>
