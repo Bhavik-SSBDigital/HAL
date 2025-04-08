@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getDepartments } from '../../common/Apis';
 import CustomCard from '../../CustomComponents/CustomCard';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 export default function NewDepartment() {
   const { id } = useParams();
@@ -77,7 +78,7 @@ export default function NewDepartment() {
   };
 
   return (
-    <CustomCard className={"max-w-4xl mx-auto"}> 
+    <CustomCard className={'max-w-4xl mx-auto'}>
       <h2 className="text-2xl font-semibold text-center mb-4">
         {id ? 'Edit Department' : 'Add Department'}
       </h2>
@@ -133,21 +134,20 @@ export default function NewDepartment() {
             />
           </div>
           <div className="flex gap-4">
-            <button
+            <CustomButton
               type="submit"
-              className="w-full bg-button-primary-default hover:bg-button-primary-hover text-white p-2 rounded"
               disabled={isSubmitting}
-            >
-              {id ? 'Save Changes' : 'Create Department'}
-            </button>
-            <button
+              className={'w-full'}
+              text={id ? 'Save Changes' : 'Create Department'}
+            />
+            <CustomButton
               type="button"
-              onClick={() => navigate('/roles/createNew')}
-              className="w-full borde bg-button-info-default hover:bg-button-info-hover p-2 rounde text-white"
+              variant={'info'}
+              className={'w-full'}
+              click={() => navigate('/roles/createNew')}
               disabled={isSubmitting}
-            >
-              Redirect to create role
-            </button>
+              text={'Redirect to create role'}
+            />
           </div>
         </form>
       )}
