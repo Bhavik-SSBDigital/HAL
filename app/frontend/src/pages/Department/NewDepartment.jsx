@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getDepartments } from '../../common/Apis';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function NewDepartment() {
   const { id } = useParams();
@@ -76,7 +77,7 @@ export default function NewDepartment() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
+    <CustomCard className={"max-w-4xl mx-auto"}> 
       <h2 className="text-2xl font-semibold text-center mb-4">
         {id ? 'Edit Department' : 'Add Department'}
       </h2>
@@ -150,6 +151,6 @@ export default function NewDepartment() {
           </div>
         </form>
       )}
-    </div>
+    </CustomCard>
   );
 }
