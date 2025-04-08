@@ -5,12 +5,14 @@ import {
   IconDownload,
   IconSquareLetterX,
   IconDotsVertical,
+  IconSettings,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import TopLoader from '../../common/Loader/TopLoader';
 import CustomModal from '../../CustomComponents/CustomModal';
 import { ImageConfig } from '../../config/ImageConfig';
 import CustomButton from '../../CustomComponents/CustomButton';
+import moment from 'moment';
 
 const RecycleBin = () => {
   const [deletedFiles, setDeletedFiles] = useState([
@@ -22,6 +24,7 @@ const RecycleBin = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
 
   //  network calls
   const restoreFile = (item) => {
@@ -106,6 +109,20 @@ const RecycleBin = () => {
               className="w-full flex items-center gap-2"
               click={() => deletePermanently(selectedItem)}
             />
+            <CustomButton
+              variant="none"
+              text={
+                <>
+                  <IconSettings size={18} /> Properties
+                </>
+              }
+              className="w-full flex items-center gap-2"
+              click={() => {
+                setIsMenuOpen(false);
+                setShowProperties(true); // Open properties modal
+              }}
+              disabled={actionsLoading}
+            />
           </div>
           <CustomButton
             variant="danger"
@@ -119,6 +136,51 @@ const RecycleBin = () => {
           />
         </CustomModal>
       )}
+
+      <CustomModal isOpen={showProperties}>
+        <div className="flex justify-between items-center border-b pb-2 mb-4">
+          <h2 className="text-lg font-semibold">
+            {selectedItem?.name} Properties
+          </h2>
+          <button
+            onClick={() => setShowProperties(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <IconSquareLetterX className="hover:text-red-500" />
+          </button>
+        </div>
+        <div className="space-y-2">
+          <p className="flex justify-between">
+            <span className="font-medium">Name:</span> {selectedItem?.name}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Path:</span> {selectedItem?.path}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Type:</span> {selectedItem?.type}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Size:</span> {selectedItem?.size}{' '}
+            bytes
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Created On:</span>{' '}
+            {moment(selectedItem?.createdOn).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Last Updated:</span>{' '}
+            {moment(selectedItem?.lastUpdated).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Last Accessed:</span>{' '}
+            {moment(selectedItem?.lastAccessed).format('DD-MM-YYYY')}
+          </p>
+          <p className="flex justify-between">
+            <span className="font-medium">Rejected:</span>{' '}
+            {selectedItem?.isRejected ? 'Yes' : 'No'}
+          </p>
+        </div>
+      </CustomModal>
     </>
   );
 };
