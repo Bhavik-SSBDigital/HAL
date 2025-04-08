@@ -34,7 +34,15 @@ export const getRolesHierarchyInDepartment = async (id) => {
 export const getDepartmentsHierarchy = () => {
   return apiClient.get('/getDepartmentsHierarchy');
 };
-
+export const getDepartmentbyID = (id) => {
+  return apiClient.get(`/getDepartment/${id}`);
+};
+export const createDepartment = (data) => {
+  return apiClient.post(`/addDepartment`, data);
+};
+export const editDepartment = (id, data) => {
+  return apiClient.put(`/editDepartment/${id}`, data);
+};
 // users endpoints
 export const getUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: false } });

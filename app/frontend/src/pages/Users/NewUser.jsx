@@ -12,6 +12,7 @@ import CustomButton from '../../CustomComponents/CustomButton';
 export default function NewUser() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [actionsLoading, setActionsLoading] = useState(false);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const {
     control,
@@ -53,11 +54,15 @@ export default function NewUser() {
 
   useEffect(() => {
     const GetUserDetails = async () => {
+      setActionsLoading(true);
       try {
         const response = await GetUser(id);
         reset(response?.data?.data);
       } catch (error) {
         console.log(error?.response?.data?.message || error?.message);
+        navigate('/users/list');
+      } finally {
+        setActionsLoading(false);
       }
     };
     if (id) {
@@ -202,13 +207,13 @@ export default function NewUser() {
             <div className="grid grid-cols-2 gap-4">
               <CustomButton
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || actionsLoading}
                 text={id ? 'Update' : 'Save'}
                 className={'w-full'}
               ></CustomButton>
               <Link to="/users/list">
                 <CustomButton
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || actionsLoading}
                   text={'Cancel'}
                   className={'w-full'}
                   variant={'danger'}

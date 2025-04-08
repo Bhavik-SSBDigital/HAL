@@ -3,7 +3,12 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { getDepartments } from '../../common/Apis';
+import {
+  createDepartment,
+  editDepartment,
+  getDepartmentbyID,
+  getDepartments,
+} from '../../common/Apis';
 import CustomCard from '../../CustomComponents/CustomCard';
 import CustomButton from '../../CustomComponents/CustomButton';
 
@@ -43,31 +48,38 @@ export default function NewDepartment() {
 
     fetchDepartments();
 
+    const fetchDepartmentById = async (id) => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        const response = await getDepartmentbyID(id);
+        reset(response.data.department);
+      } catch (error) {
+        toast.error(error?.response?.data?.message || error?.message);
+        navigate('/departments/list');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (id) {
-      setLoading(true);
-      axios
-        .get(`${backendUrl}/getDepartment/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then(({ data }) => {
-          reset(data.department);
-        })
-        .catch((error) =>
-          console.error('Error fetching department details', error),
-        )
-        .finally(() => setLoading(false));
+      fetchDepartmentById(id);
     }
   }, [id, backendUrl, token, reset]);
 
   const onSubmit = async (formData) => {
     setLoading(true);
-    const url = id
-      ? `${backendUrl}/editDepartment/${id}`
-      : `${backendUrl}/addDepartment`;
+
     try {
-      const response = await axios.post(url, formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let response;
+
+      if (id) {
+        response = await editDepartment(id, formData);
+      } else {
+        response = await createDepartment(formData);
+      }
+
       toast.success(response?.data?.message);
       navigate('/departments/list');
     } catch (error) {
@@ -136,7 +148,7 @@ export default function NewDepartment() {
           <div className="flex gap-4">
             <CustomButton
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loading}
               className={'w-full'}
               text={id ? 'Save Changes' : 'Create Department'}
             />
@@ -145,7 +157,7 @@ export default function NewDepartment() {
               variant={'info'}
               className={'w-full'}
               click={() => navigate('/roles/createNew')}
-              disabled={isSubmitting}
+              disabled={isSubmitting || loading}
               text={'Redirect to create role'}
             />
           </div>

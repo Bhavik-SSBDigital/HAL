@@ -105,6 +105,7 @@ export default function NewRole() {
       });
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
+      navigate('/roles/list');
     } finally {
       setLoading(false);
     }
@@ -262,7 +263,7 @@ export default function NewRole() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
             <CustomButton
-              disabled={isSubmitting}
+              disabled={isSubmitting || loading}
               click={handleSubmit(handleFormSubmit)}
               text={id ? 'Update' : 'Create'}
             />
@@ -270,7 +271,7 @@ export default function NewRole() {
               <CustomButton
                 variant={'danger'}
                 text={'Cancel'}
-                disabled={isSubmitting}
+                disabled={isSubmitting || loading}
                 className={'w-full'}
               />
             </Link>
