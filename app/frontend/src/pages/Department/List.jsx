@@ -13,8 +13,8 @@ import {
 import TreeGraph from '../../components/TreeGraph';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import moment from 'moment';
-import CustomButtom from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 export default function List() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -22,7 +22,7 @@ export default function List() {
   const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
-  const [deleteDepLoading, setDeleteDepLoading] = useState(false);
+  const [actionsLoading, setActionsLoading] = useState(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
   const [data, setData] = useState();
   const [selectedDepartmentData, setSelectedDepartmentData] = useState(null);
@@ -57,7 +57,7 @@ export default function List() {
   };
 
   const handleDepDelete = async (id) => {
-    setDeleteDepLoading(true);
+    setActionsLoading(true);
     try {
       const response = await axios.post(
         `${backendUrl}/deleteDepartment/${id}`,
@@ -75,7 +75,7 @@ export default function List() {
     } catch (error) {
       toast.error('Error deleting department');
     }
-    setDeleteDepLoading(false);
+    setActionsLoading(false);
     setModalOpen(false);
   };
 
@@ -112,27 +112,27 @@ export default function List() {
       flex: 1,
       renderCell: (params) => (
         <div className="flex space-x-2 my-1">
-          <button
-            className="p-2 rounded-lg bg-button-primary-default hover:bg-button-primary-hover"
-            onClick={() => handleViewHierarchy(params.row.id)}
-          >
-            <IconEye color="white" />
-          </button>
-          <button
-            className="p-2 rounded-lg bg-button-secondary-default hover:bg-button-secondary-hover"
-            onClick={() => navigate(`/departments/edit/${params.row.id}`)}
-          >
-            <IconEdit color="white" />
-          </button>
-          <button
-            className="p-2 rounded-lg bg-button-danger-default hover:bg-button-danger-hover"
-            onClick={() => {
+          <CustomButton
+            click={() => handleViewHierarchy(params.row.id)}
+            text={<IconEye color="white" />}
+            disabled={actionsLoading}
+          />
+          <CustomButton
+            variant={'secondary'}
+            click={() => navigate(`/departments/edit/${params.row.id}`)}
+            text={<IconEdit color="white" />}
+            disabled={actionsLoading}
+          />
+
+          <CustomButton
+            variant={'danger'}
+            click={() => {
               setDeleteItemId(params.id);
               setModalOpen(true);
             }}
-          >
-            <IconTrash color="white" />
-          </button>
+            disabled={actionsLoading}
+            text={<IconTrash color="white" />}
+          />
         </div>
       ),
     },
@@ -193,7 +193,7 @@ export default function List() {
                   />
                 </div>
                 <Link to="/departments/createNew">
-                  <CustomButtom text="Add Department" />
+                  <CustomButton text="Add Department" />
                 </Link>
               </div>
 
@@ -233,7 +233,7 @@ export default function List() {
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         onConfirm={() => handleDepDelete(deleteItemId)}
-        isLoading={deleteDepLoading}
+        isLoading={actionsLoading}
       />
     </>
   );
