@@ -1,15 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
-import {
-  Button,
-  IconButton,
-  Box,
-  Stack,
-  TextField,
-  Modal,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
@@ -21,16 +11,33 @@ import CustomButtom from '../../CustomComponents/CustomButton';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import CustomCard from '../../CustomComponents/CustomCard';
 
-const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
+const RolesList = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
+
+  const [roles, setRoles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [actionsLoading, setActionsLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data } = await GetRoles();
+        setRoles(data.roles);
+      } catch (error) {
+        toast.error('Failed to fetch roles');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleDelete = async (id) => {
-    setDeleteLoading(true);
+    setActionsLoading(true);
     try {
       const url = `${backendUrl}/deleteRole/${id}`;
       const accessToken = sessionStorage.getItem('accessToken');
@@ -44,7 +51,7 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     } catch (error) {
       toast.error('Error deleting role');
     } finally {
-      setDeleteLoading(false);
+      setActionsLoading(false);
       setModalOpen(false);
     }
   };
@@ -53,112 +60,90 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
     navigate(`/roles/edit/${row.id}`);
   };
 
-  const columns = [
-    {
-      field: 'role',
-      headerName: 'Role Name',
-      flex: 1,
-      valueGetter: (params) => params || '--',
-    },
-    {
-      field: 'departmentName',
-      headerName: 'Department',
-      flex: 1,
-      valueGetter: (params) => params || '--',
-    },
-    {
-      field: 'createdAt',
-      headerName: 'Created At',
-      flex: 1,
-      valueFormatter: (params) =>
-        params ? moment(params).format('DD-MMM-YYYY hh:mm A') : '--',
-    },
-    {
-      field: 'updatedAt',
-      headerName: 'Updated At',
-      flex: 1,
-      valueFormatter: (params) =>
-        params ? moment(params).format('DD-MMM-YYYY hh:mm A') : '--',
-    },
-    // {
-    //   field: 'status',
-    //   headerName: 'Status',
-    //   flex: 1,
-    //   renderCell: (params) => (
-    //     <Stack justifyContent="center" alignItems="center" height="100%">
-    //       <Typography
-    //         variant="subtitle2"
-    //         sx={{
-    //           backgroundColor: params?.value === 'Active' ? '#13a126' : 'red',
-    //           padding: '5px 10px',
-    //           borderRadius: '20px',
-    //           color: 'white',
-    //         }}
-    //       >
-    //         {params?.value || '--'}
-    //       </Typography>
-    //     </Stack>
-    //   ),
-    // },
-    {
-      field: 'actions',
-      flex: 1,
-      headerName: 'Actions',
-      sortable: false,
-      renderCell: (params) => (
-        <div className="flex space-x-2 m-1">
-          {console.log(params)}
-          <button
-            className="p-2 bg-button-secondary-default hover:bg-button-secondary-hover rounded-lg"
-            onClick={() => handleEdit(params.row)}
-          >
-            <IconEdit color="white" />
-          </button>
-          <button
-            className="p-2 bg-button-danger-default hover:bg-button-danger-hover rounded-lg"
-            onClick={() => {
-              setDeleteItemId(params.row.id);
-              setModalOpen(true);
-            }}
-          >
-            <IconTrash color="white" />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
   const filteredRoles = roles
     .filter(
       (row) =>
         row?.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         row?.departmentName?.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-    .map((row, index) => ({ ...row }));
-  return (
+    .map((row) => ({ ...row }));
+
+  const columns = [
+    {
+      field: 'role',
+      headerName: 'Role Name',
+      flex: 1,
+      renderCell: (params) => params.row.role || '--',
+    },
+    {
+      field: 'departmentName',
+      headerName: 'Department',
+      flex: 1,
+      renderCell: (params) => params.row.departmentName || '--',
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Created At',
+      flex: 1,
+      renderCell: (params) =>
+        params?.value
+          ? moment(params.value).format('DD-MMM-YYYY hh:mm A')
+          : '--',
+    },
+    {
+      field: 'updatedAt',
+      headerName: 'Updated At',
+      flex: 1,
+      renderCell: (params) =>
+        params?.value
+          ? moment(params.value).format('DD-MMM-YYYY hh:mm A')
+          : '--',
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1,
+      sortable: false,
+      renderCell: (params) => (
+        <div className="flex space-x-2 m-1">
+          <CustomButtom
+            variant="secondary"
+            click={() => handleEdit(params.row)}
+            disabled={actionsLoading}
+            text={<IconEdit color="white" />}
+          />
+          <CustomButtom
+            variant="danger"
+            click={() => {
+              setDeleteItemId(params.row.id);
+              setModalOpen(true);
+            }}
+            disabled={actionsLoading}
+            text={<IconTrash color="white" />}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  return isLoading ? (
+    <ComponentLoader />
+  ) : (
     <CustomCard>
-      <Stack
-        alignContent="flex-end"
-        flexWrap="wrap"
-        flexDirection="row"
-        justifyContent="space-between"
-        alignItems="flex-end"
-        mb={1}
-      >
+      <div className="flex items-end justify-between gap-3 mb-1">
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Search
           </label>
           <input
             onChange={(e) => setSearchTerm(e.target.value)}
-            required
             className="w-full p-2 border rounded max-w-[200px]"
           />
         </div>
         <Link to="/roles/createNew">
-          <CustomButtom text={'Add Role'} />
+          <CustomButtom text="Add Role" />
         </Link>
-      </Stack>
+      </div>
 
       <DataGrid
         rows={filteredRoles}
@@ -172,40 +157,10 @@ const Roles = ({ setIsLoading, isLoading, roles, setRoles }) => {
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         onConfirm={() => handleDelete(deleteItemId)}
-        isLoading={deleteLoading}
+        isLoading={actionsLoading}
       />
     </CustomCard>
   );
 };
 
-function List() {
-  const [roles, setRoles] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data } = await GetRoles();
-        setRoles(data.roles);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  return isLoading ? (
-    <ComponentLoader />
-  ) : (
-    <Roles
-      roles={roles}
-      setRoles={setRoles}
-      setIsLoading={setIsLoading}
-      isLoading={isLoading}
-    />
-  );
-}
-
-export default List;
+export default RolesList;
