@@ -152,7 +152,7 @@ export default function FileSysten() {
   const handleViewFile = async (name, path) => {
     setActionsLoading(true);
     try {
-      const fileData = await ViewDocument(name, '../test');
+      const fileData = await ViewDocument(name, path);
       if (fileData) {
         setFileView({ url: fileData.data, type: fileData.fileType });
       }
@@ -611,19 +611,35 @@ export default function FileSysten() {
                 />
               </>
             ) : (
-              <CustomButton
-                variant="none"
-                text={
-                  <>
-                    <IconDownload size={18} /> Download ZIP
-                  </>
-                }
-                className="w-full flex items-center gap-2"
-                click={() =>
-                  handleDownloadFolder(selectedItem.name, selectedItem.path)
-                }
-                disabled={actionsLoading}
-              />
+              <>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconDownload size={18} /> Download ZIP
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() =>
+                    handleDownloadFolder(selectedItem.name, selectedItem.path)
+                  }
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconSettings size={18} /> Properties
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => {
+                    setIsMenuOpen(false);
+                    setShowProperties(true); // Open properties modal
+                  }}
+                  disabled={actionsLoading}
+                />
+              </>
             )}
           </div>
 
