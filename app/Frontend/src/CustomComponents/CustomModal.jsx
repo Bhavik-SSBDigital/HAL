@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CustomModal({ children, isOpen, onClose }) {
@@ -11,13 +11,15 @@ export default function CustomModal({ children, isOpen, onClose }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
+          onClick={onClose} // <- trigger close on background click
         >
           <motion.div
-            className="bg-white p-6 rounded-lg shadow-lg w-96 relative"
+            className="bg-white p-6 rounded-lg shadow-lg relative border border-slate-70000"
             initial={{ y: 20, scale: 0.95, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 20, scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()} // <- prevent backdrop click from bubbling
           >
             {children}
           </motion.div>

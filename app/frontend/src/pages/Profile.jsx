@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import sessionData from '../Store';
 import ComponentLoader from '../common/Loader/ComponentLoader';
 import { GetProfileData, GetProfilePic, GetSignature } from '../common/Apis';
+import CustomModal from '../CustomComponents/CustomModal';
 
 const Profile = () => {
   const { profileImage, setProfileImage } = sessionData();
@@ -201,6 +202,12 @@ const Profile = () => {
           </div>
         </div>
       )}
+      <CustomModal
+        isOpen={signatureViewModalOpen}
+        onClose={() => setSignatureViewModalOpen(false)}
+      >
+        <img src={signatureImage} alt="signature" width={250} />
+      </CustomModal>
     </>
   );
 };
