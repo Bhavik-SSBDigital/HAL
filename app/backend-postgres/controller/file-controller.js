@@ -117,7 +117,7 @@ export const file_upload = async (req, res) => {
     writableStream.on("finish", async () => {
       if (chunkNumber === totalChunks - 1) {
         try {
-          console.log("extra", extra);
+          console.log("is involved in process", isInvolvedInProcess);
           const newDocument = await prisma.document.create({
             data: {
               name: fileName,
@@ -126,6 +126,7 @@ export const file_upload = async (req, res) => {
               createdById: userData.id,
               isInvolvedInProcess: isInvolvedInProcess || false,
               tags: tags,
+              isRecord: isInvolvedInProcess ? false : true,
               department: departmentName
                 ? {
                     connect: { name: departmentName },
@@ -365,7 +366,7 @@ export const file_copy = async (req, res) => {
         const newDocument = await prisma.document.create({
           data: {
             name: name,
-            type: "file",
+            type: name.split(".").pop(),
             path: destinationPath,
             createdById: userData.id,
             isInvolvedInProcess: false,
@@ -428,6 +429,7 @@ export const file_cut = async (req, res) => {
     const destinationPathParent = req.body.destinationPath.substring(2);
     const name = req.body.name;
     const destinationPath = `${destinationPathParent}/${name}`;
+
     const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
     const absoluteDestinationPath = path.join(
       __dirname,
@@ -457,7 +459,7 @@ export const file_cut = async (req, res) => {
         const document = await prisma.document.create({
           data: {
             name,
-            type: "file",
+            type: name.split(".").pop(),
             path: destinationPath,
             createdById: userData.id,
             departmentId: null, // Set appropriately if department is involved
@@ -894,8 +896,8 @@ export const file_delete = async (req, res) => {
 
 export const file_though_url = async (req, res) => {
   try {
-    console.log("file through url called");
-    const filePath = req.params.filePath;
+    let filePath = "/" + req.params.filePath;
+
     if (!filePath) {
       return res.status(400).json({ message: "File path is missing" });
     }
@@ -918,8 +920,6 @@ export const file_though_url = async (req, res) => {
       process.env.STORAGE_PATH,
       document.path
     );
-    console.log("Resolved absolute file path:", absoluteFilePath);
-    console.log("is file path absolute", path.isAbsolute(absoluteFilePath));
 
     // Check if the file exists
     try {
@@ -948,15 +948,14 @@ export const file_download = async (req, res) => {
     }
 
     let extra = decodeURIComponent(req.headers["x-file-path"]);
-    console.log("extra", extra);
+
     // let relativePath = process.env.STORAGE_PATH + extra.substring(2);
-    let relativePath = extra.substring(2);
-    console.log("relative path", relativePath);
+    let relativePath = extra.substring(1);
+
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(relativePath, `${fileName}`); // Replace with your file path
-    console.log("file path", filePath);
+    const filePath = join(relativePath); // Replace with your file path
 
     const fileExt = extname(fileName).slice(1).toLowerCase();
     const fileURL = process.env.FILE_URL;
@@ -1023,8 +1022,8 @@ export const file_download = async (req, res) => {
 
 export const get_file_data = async (req, res) => {
   try {
-    console.log("called the right one");
     const accessToken = req.headers["x-authorization"]?.substring(7);
+
     const userData = await verifyUser(accessToken);
 
     if (userData === "Unauthorized") {
@@ -1034,11 +1033,12 @@ export const get_file_data = async (req, res) => {
     }
 
     const extra = decodeURIComponent(req.headers["x-file-path"]);
-    const relativePath = process.env.STORAGE_PATH + extra.substring(2);
+    const relativePath = process.env.STORAGE_PATH + "/" + extra.substring(1);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(__dirname, relativePath, `${fileName}`);
+
+    const filePath = join(__dirname, relativePath);
 
     // Fetch document metadata from PostgreSQL using Prisma
     const document = await prisma.document.findUnique({
@@ -1061,10 +1061,6 @@ export const get_file_data = async (req, res) => {
         },
       },
     });
-
-    if (!userRole || !userRole.readable.includes(document.id)) {
-      return res.status(403).json({ message: "Access denied to the file." });
-    }
 
     // Get file stats
     const stat = await fs.stat(filePath);

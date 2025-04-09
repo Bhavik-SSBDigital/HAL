@@ -356,9 +356,7 @@ export const revoke_sign = async (req, res, next) => {
     // Step 2: Find the process and document
     const process = await Process.findById({ _id: processId });
     if (!process) {
-      return res.status(404).json(
-        message: "Process not found",
-      });
+      return res.status(404).json({ message: "Process not found" });
     }
 
     const foundDocument = process.documents.find(

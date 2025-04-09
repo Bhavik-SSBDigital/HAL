@@ -51,6 +51,7 @@ model Document {
   tags                    String[]     @default([])
   processDocuments        ProcessDocument[]
   documentAccesses        DocumentAccess[] @relation("DocumentAccesses")
+  isRecord                Boolean  @default(true)
 }
 
 model Role {
@@ -114,8 +115,6 @@ model User {
   signaturePicFileName String?
   signCoordinates    SignCoordinate[] @relation
 }
-
-
 
 model Token {
   id     Int    @id @default(autoincrement())
@@ -251,8 +250,6 @@ model DocumentAccess {
   departmentId       Int?
 }
 
-
-
 model ProcessNotification {
   id        String   @id @default(uuid())
   stepId    String
@@ -330,7 +327,6 @@ enum ProcessStatus {
   COMPLETED
   REJECTED
 }
-
 
 model AssignmentProgress {
   id                  String                 @id @default(uuid())
@@ -457,7 +453,6 @@ model ProcessQA {
   createdAt     DateTime @default(now())
   answeredAt    DateTime?
 }
-
 
 model DepartmentStepProgress {
   id                  String              @id @default(uuid())

@@ -119,13 +119,6 @@ export const sign_document = async (req, res, next) => {
     const jpegImagePath = await convertToJpeg(imagePath);
     const { documentId, processId } = req.body;
 
-    const department = await prisma.department.findUnique({
-      where: { id: userData.branchId },
-    });
-    const role = await prisma.role.findUnique({
-      where: { id: userData.roleId },
-    });
-
     const document = await prisma.document.findUnique({
       where: { id: documentId },
     });
@@ -149,13 +142,12 @@ export const sign_document = async (req, res, next) => {
       where: { id: process.currentStepId },
     });
 
-    const signature = `[${userData.username}(branch-${department.name}, role-${
-      role.role
+    const signature = `[${userData.username}, 
     }, Timestamp: ${formatDate(Date.now())}, fileName: ${document.name})]`;
 
     const documentPath = document.path;
     const existingPdfBytes = await fs.readFile(
-      path.join(__dirname, documentPath)
+      path.join(__dirname, "../../../../", "storage", documentPath)
     );
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const pages = pdfDoc.getPages();
@@ -184,7 +176,7 @@ export const sign_document = async (req, res, next) => {
         remarks,
         formatDate(Date.now()),
         helveticaFont,
-        path.join(__dirname, documentPath),
+        path.join(__dirname, "../../../../", "storage", documentPath),
         documentId,
         userData
       );
@@ -279,7 +271,12 @@ export const revoke_sign = async (req, res, next) => {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
     });
-    const documentPath = path.join(__dirname, document.path);
+    const documentPath = path.join(
+      __dirname,
+      "../../../../",
+      "storage",
+      document.path
+    );
     const existingPdfBytes = await fs.readFile(documentPath);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
@@ -338,7 +335,12 @@ export const reject_document = async (req, res, next) => {
     }
 
     const documentPath = document.path;
-    const absDocumentPath = path.join(__dirname, documentPath);
+    const absDocumentPath = path.join(
+      __dirname,
+      "../../../../",
+      "storage",
+      documentPath
+    );
     const existingPdfBytes = await fs.readFile(absDocumentPath);
 
     const pythonScriptPath = path.join(
@@ -372,18 +374,10 @@ export const reject_document = async (req, res, next) => {
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const currentDate = new Date().toLocaleString();
-    const branch = await prisma.department.findUnique({
-      where: { id: userData.branchId },
-    });
-    const role = await prisma.role.findUnique({
-      where: { id: userData.roleId },
-    });
 
     const rejectionReason = reason || "No reason provided";
     const watermarkLines = [
       `Rejected By: ${userData.username}`,
-      `Branch: ${branch.name}`,
-      `Role: ${role.role}`,
       `Timestamp: ${currentDate}`,
       `Reason: ${rejectionReason}`,
     ];
@@ -502,7 +496,7 @@ export const revoke_rejection = async (req, res, next) => {
 
     const documentPath = document.path;
     const existingPdfBytes = await fs.readFile(
-      path.join(__dirname, documentPath)
+      path.join(__dirname, "../../../../", "storage", documentPath)
     );
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
@@ -523,7 +517,10 @@ export const revoke_rejection = async (req, res, next) => {
     }
 
     const updatedPdfBytes = await pdfDoc.save();
-    await fs.writeFile(path.join(__dirname, documentPath), updatedPdfBytes);
+    await fs.writeFile(
+      path.join(__dirname, "../../../../", "storage", documentPath),
+      updatedPdfBytes
+    );
 
     await prisma.document.update({
       where: { id: documentId },
@@ -584,7 +581,12 @@ async function print_signature_after_content_on_the_last_page(
   pythonEnvPath,
   pythonScriptPath
 ) {
-  const absDocumentPath = path.join(__dirname, documentPath);
+  const absDocumentPath = path.join(
+    __dirname,
+    "../../../../",
+    "storage",
+    documentPath
+  );
   const lastContentCoordinates = await executePythonScript(
     pythonEnvPath,
     pythonScriptPath,
