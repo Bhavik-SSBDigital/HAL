@@ -138,7 +138,7 @@ const RecycleBin = () => {
       )}
 
       <CustomModal isOpen={showProperties}>
-        <div className="flex justify-between items-center border-b pb-2 mb-4">
+        <div className="flex justify-between items-center border-b pb-2 mb-4 gap-3">
           <h2 className="text-lg font-semibold">
             {selectedItem?.name} Properties
           </h2>
