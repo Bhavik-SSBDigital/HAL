@@ -14,7 +14,7 @@ export default function CustomModal({ children, isOpen, onClose }) {
           onClick={onClose} // <- trigger close on background click
         >
           <motion.div
-            className="bg-white p-6 rounded-lg shadow-lg relative border border-slate-70000"
+            className="bg-white p-6 rounded-lg shadow-lg relative border border-slate-700 min-w-72"
             initial={{ y: 20, scale: 0.95, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 20, scale: 0.95, opacity: 0 }}
