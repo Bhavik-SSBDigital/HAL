@@ -1,6 +1,6 @@
 import { verifyUser } from "../utility/verifyUser.js";
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, AccessType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -134,6 +134,85 @@ export const initiate_process = async (req, res, next) => {
   }
 };
 
+async function ensureDocumentAccessWithParents(
+  tx,
+  {
+    documentId,
+    userId,
+    stepInstanceId,
+    processId,
+    assignmentId,
+    roleId = null,
+    departmentId = null,
+  }
+) {
+  // First get all parent folders up to root
+  const parents = await getDocumentParentHierarchy(tx, documentId);
+
+  console.log("parents", parents);
+
+  // Check which parents the user doesn't already have access to
+  const existingAccess = await tx.documentAccess.findMany({
+    where: {
+      documentId: { in: parents.map((p) => p.id) },
+      userId: userId,
+      processId: processId,
+    },
+    select: { documentId: true },
+  });
+
+  const existingAccessIds = new Set(existingAccess.map((a) => a.documentId));
+  const parentsToCreate = parents.filter((p) => !existingAccessIds.has(p.id));
+
+  if (parentsToCreate.length > 0) {
+    await tx.documentAccess.createMany({
+      data: parentsToCreate.map((parent) => ({
+        documentId: parent.id,
+        stepInstanceId: stepInstanceId,
+        accessType: [AccessType.READ], // VIEW access for parents
+        processId: processId,
+        assignmentId: assignmentId,
+        userId: userId,
+        roleId: roleId,
+        departmentId: departmentId,
+      })),
+    });
+  }
+
+  // Now create access for the actual document
+  await tx.documentAccess.create({
+    data: {
+      documentId: documentId,
+      stepInstanceId: stepInstanceId,
+      accessType: [AccessType.EDIT], // Actual requested access
+      processId: processId,
+      assignmentId: assignmentId,
+      userId: userId,
+      roleId: roleId,
+      departmentId: departmentId,
+    },
+  });
+}
+
+async function getDocumentParentHierarchy(tx, documentId) {
+  const parents = [];
+  let currentDocId = documentId;
+
+  while (currentDocId) {
+    const doc = await tx.document.findUnique({
+      where: { id: currentDocId },
+      select: { parentId: true },
+    });
+
+    if (!doc || !doc.parentId) break;
+
+    parents.push({ id: doc.parentId });
+    currentDocId = doc.parentId;
+  }
+
+  return parents;
+}
+
 async function processAssignment(tx, process, step, assignment, documentIds) {
   // Create Assignment Progress
   const progress = await tx.assignmentProgress.create({
@@ -202,30 +281,16 @@ async function handleDepartmentAssignment(
         },
       });
 
-      // 🔥 THIS IS WHERE THE PARALLEL ACCESS CODE GOES 🔥
-      if (assignment.allowParallel) {
-        await tx.documentAccess.createMany({
-          data: documentIds.map((docId) => ({
-            documentId: docId,
-            stepInstanceId: stepInstance.id,
-            accessType: "EDIT",
-            processId: progress.processId,
-            roleId: roleId, // Critical for parallel tracking
-            departmentId: user.departmentId,
-            assignmentId: assignment.id,
-          })),
-        });
-      } else {
-        // For hierarchical access (without role restriction)
-        await tx.documentAccess.createMany({
-          data: documentIds.map((docId) => ({
-            documentId: docId,
-            stepInstanceId: stepInstance.id,
-            accessType: "EDIT",
-            processId: progress.processId,
-            departmentId: user.departmentId,
-            assignmentId: assignment.id,
-          })),
+      // Handle document access with parent hierarchy for each document
+      for (const docId of documentIds) {
+        await ensureDocumentAccessWithParents(tx, {
+          documentId: docId,
+          userId: user.userId,
+          stepInstanceId: stepInstance.id,
+          processId: progress.processId,
+          assignmentId: assignment.id,
+          roleId: assignment.allowParallel ? roleId : null,
+          departmentId: user.departmentId,
         });
       }
 
@@ -246,8 +311,8 @@ async function handleDepartmentAssignment(
 }
 
 async function handleUserAssignment(tx, assignment, progress, documentIds) {
-  console.log("reached user assignment");
   // Direct assignment to specified users
+  console.log("assignment", assignment);
   for (const userId of assignment.assigneeIds) {
     // Create step instance for user
     const stepInstance = await tx.processStepInstance.create({
@@ -260,16 +325,16 @@ async function handleUserAssignment(tx, assignment, progress, documentIds) {
       },
     });
 
-    // Grant document access
-    await tx.documentAccess.createMany({
-      data: documentIds.map((docId) => ({
+    // Handle document access with parent hierarchy for each document
+    for (const docId of documentIds) {
+      await ensureDocumentAccessWithParents(tx, {
         documentId: docId,
+        userId: userId,
         stepInstanceId: stepInstance.id,
-        accessType: "EDIT",
         processId: progress.processId,
         assignmentId: assignment.id,
-      })),
-    });
+      });
+    }
 
     // Create user notification
     await tx.processNotification.create({
@@ -287,60 +352,64 @@ async function handleUserAssignment(tx, assignment, progress, documentIds) {
 }
 
 async function handleRoleAssignment(tx, assignment, progress, documentIds) {
-  // Get department-role combinations from assignment
-  const departmentRoles = await tx.departmentRoleAssignment.findMany({
-    where: { workflowAssignmentId: assignment.id },
-    select: { roleId: true, departmentId: true },
+  // Get current hierarchy level (if hierarchical)
+  const currentLevel = assignment.allowParallel ? 0 : progress.currentLevel;
+
+  // Get all users with the assigned roles
+  const users = await tx.userRole.findMany({
+    where: {
+      roleId: { in: assignment.assigneeIds },
+    },
+    select: { userId: true, roleId: true, departmentId: true },
   });
 
-  // Process each department-role pair
-  for (const { roleId, departmentId } of departmentRoles) {
-    // Get users in this role-department combination
-    const users = await tx.userRole.findMany({
-      where: { roleId, departmentId },
-      select: { userId: true },
+  // Filter users by current level if hierarchical
+  const usersToAssign = assignment.allowParallel
+    ? users
+    : users.filter((user) => {
+        // Implement your role hierarchy level check here
+        // This depends on how your role hierarchy is structured
+        return true; // Placeholder - adjust based on your hierarchy logic
+      });
+
+  for (const user of usersToAssign) {
+    const stepInstance = await tx.processStepInstance.create({
+      data: {
+        processId: progress.processId,
+        assignmentId: assignment.id,
+        progressId: progress.id,
+        assignedTo: user.userId,
+        roleId: user.roleId,
+        departmentId: user.departmentId,
+        status: "PENDING",
+      },
     });
 
-    // Create step instances for each user
-    for (const { userId } of users) {
-      const stepInstance = await tx.processStepInstance.create({
-        data: {
-          processId: progress.processId,
-          assignmentId: assignment.id,
-          progressId: progress.id,
-          assignedTo: userId,
-          roleId: roleId,
-          departmentId: departmentId,
-          status: "PENDING",
-        },
-      });
-
-      // Create role-scoped document access
-      await tx.documentAccess.createMany({
-        data: documentIds.map((docId) => ({
-          documentId: docId,
-          stepInstanceId: stepInstance.id,
-          accessType: "EDIT",
-          processId: progress.processId,
-          roleId: roleId, // Critical for group tracking
-          departmentId: departmentId,
-          assignmentId: assignment.id,
-        })),
-      });
-
-      // Create notification
-      await tx.processNotification.create({
-        data: {
-          stepInstance: {
-            connect: { id: stepInstance.id },
-          },
-          user: {
-            connect: { id: userId },
-          },
-          status: "ACTIVE",
-        },
+    // Handle document access with parent hierarchy for each document
+    for (const docId of documentIds) {
+      await ensureDocumentAccessWithParents(tx, {
+        documentId: docId,
+        userId: user.userId,
+        stepInstanceId: stepInstance.id,
+        processId: progress.processId,
+        assignmentId: assignment.id,
+        roleId: assignment.allowParallel ? user.roleId : null,
+        departmentId: user.departmentId,
       });
     }
+
+    // Create notification
+    await tx.processNotification.create({
+      data: {
+        stepInstance: {
+          connect: { id: stepInstance.id },
+        },
+        user: {
+          connect: { id: user.userId },
+        },
+        status: "ACTIVE",
+      },
+    });
   }
 }
 
@@ -840,7 +909,7 @@ export const get_user_processes = async (req, res, next) => {
         processName: step.process?.name || "Unnamed Process",
         workflowName: step.process?.workflow?.name || "Unknown Workflow",
         initiatorUsername: step.process?.initiator?.username || "System User",
-        createdAt: step.process.createdAt,
+        createdAt: step.createdAt,
         actionType: step.workflowAssignment?.step?.stepType || "GENERAL", // Updated to workflowAssignment
         stepName: step.workflowAssignment?.step?.stepName || "Pending Step", // Updated to workflowAssignment
         currentStepAssignedAt: assignedAt,

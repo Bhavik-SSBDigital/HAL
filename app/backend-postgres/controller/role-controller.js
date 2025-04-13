@@ -25,7 +25,7 @@ export const add_role = async (req, res) => {
   try {
     const {
       role,
-      department, // Changed to match payload
+      department,
       selectedUpload,
       selectedDownload,
       selectedView,
@@ -35,80 +35,92 @@ export const add_role = async (req, res) => {
       isAdmin,
     } = req.body;
 
-    // Check if a branch is required and exists
+    // Check if department is required and exists
     let departmentObj = null;
-    if (!isRootLevel) {
+    if (!isRootLevel && department) {
       departmentObj = await prisma.department.findUnique({
-        where: { id: parseInt(department) }, // Use department ID
+        where: { id: parseInt(department) },
       });
       if (!departmentObj) {
-        return res
-          .status(400)
-          .json({ message: "Branch selected for role doesn't exist." });
+        return res.status(400).json({
+          message: "Department selected for role doesn't exist.",
+        });
       }
     }
 
-    // Check if the role already exists
+    // Check for duplicate role
     const existingRole = await prisma.role.findFirst({
-      where: { role, departmentId: departmentObj?.id || null },
+      where: {
+        role,
+        departmentId: departmentObj?.id || null,
+      },
     });
     if (existingRole) {
       return res.status(400).json({
-        message: "Role with the same department and role already exists.",
+        message: "Role with the same name and department already exists.",
       });
     }
 
-    // Document access logic
-    let uploads = selectedUpload || [];
-    let downloads = selectedDownload || [];
-    let view = selectedView || [];
-    let fullAccessUploadable = fullAccess
-      .filter((doc) => doc.upload)
-      .map((doc) => doc.id);
-    let fullAccessDownloadable = fullAccess
-      .filter((doc) => doc.download)
-      .map((doc) => doc.id);
-    let fullAccessReadable = fullAccess
-      .filter((doc) => doc.view)
-      .map((doc) => doc.id);
+    // Process document permissions
+    const documentAccesses = [];
 
-    let allDocIds = [
-      ...uploads,
-      ...downloads,
-      ...view,
-      ...fullAccessUploadable,
-      ...fullAccessDownloadable,
-      ...fullAccessReadable,
-    ];
-
-    const parentDocs = await prisma.document.findMany({
-      where: { id: { in: allDocIds } },
-      select: { parentId: true },
+    // Handle FULL access permissions
+    fullAccess.forEach((doc) => {
+      documentAccesses.push({
+        documentId: doc.id,
+        roleId: null, // Will be set after role creation
+        accessType: ["READ", "EDIT", "DOWNLOAD"],
+        accessLevel: "FULL",
+        docAccessThrough: "ADMINISTRATION",
+      });
     });
 
-    const parentIds = removeDuplicates(
-      parentDocs.map((doc) => doc.parentId).filter(Boolean)
-    );
+    // Handle STANDARD access permissions
+    const processStandardAccess = (ids, accessTypes) => {
+      ids.forEach((id) => {
+        documentAccesses.push({
+          documentId: id,
+          roleId: null, // Will be set after role creation
+          accessType: accessTypes,
+          accessLevel: "STANDARD",
+          docAccessThrough: "ADMINISTRATION",
+        });
+      });
+    };
 
-    uploads = removeDuplicates([...uploads]);
-    downloads = removeDuplicates([...downloads]);
-    view = removeDuplicates([...view, ...parentIds]);
+    processStandardAccess(selectedView, ["READ"]);
+    processStandardAccess(selectedDownload, ["READ", "DOWNLOAD"]);
+    processStandardAccess(selectedUpload, ["READ", "EDIT"]);
 
-    const newRole = await prisma.role.create({
-      data: {
-        role,
-        status: "Active",
-        departmentId: departmentObj?.id || null,
-        isRootLevel: Boolean(isRootLevel) || false,
-        isAdmin: Boolean(isAdmin) || false,
-        parentRoleId: parseInt(parentRoleId) || null,
-        uploadable: uploads,
-        readable: view,
-        downloadable: downloads,
-        fullAccessUploadable: fullAccessUploadable,
-        fullAccessReadable: fullAccessReadable,
-        fullAccessDownloadable: fullAccessDownloadable,
+    // Create the role and its document accesses in a transaction
+    const [newRole] = await prisma.$transaction([
+      prisma.role.create({
+        data: {
+          role,
+          status: "Active",
+          departmentId: departmentObj?.id || null,
+          isRootLevel: Boolean(isRootLevel),
+          isAdmin: Boolean(isAdmin),
+          parentRoleId: parentRoleId ? parseInt(parentRoleId) : null,
+        },
+      }),
+      ...documentAccesses.map((access) =>
+        prisma.documentAccess.create({
+          data: {
+            ...access,
+            roleId: undefined, // Placeholder for the role ID
+          },
+        })
+      ),
+    ]);
+
+    // Update the document accesses with the new role ID
+    await prisma.documentAccess.updateMany({
+      where: {
+        documentId: { in: documentAccesses.map((a) => a.documentId) },
+        roleId: null,
       },
+      data: { roleId: newRole.id },
     });
 
     res.status(201).json({
@@ -203,11 +215,12 @@ export const get_role = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Get role with department and parent role info
     const role = await prisma.role.findUnique({
       where: { id: parseInt(id) },
       include: {
         branch: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
         parentRole: {
           select: { id: true, role: true },
@@ -219,41 +232,71 @@ export const get_role = async (req, res) => {
       return res.status(404).json({ message: "Role not found." });
     }
 
-    console.log("uploadable", role.fullAccessUploadable);
-    console.log("readable", role.fullAccessReadable);
-    console.log("downloadable", role.fullAccessDownloadable);
+    // Get all document accesses for this role
+    const documentAccesses = await prisma.documentAccess.findMany({
+      where: { roleId: parseInt(id) },
+      include: {
+        document: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+            type: true,
+          },
+        },
+      },
+    });
 
-    // Get unique IDs from all fullAccess arrays
-    const allIds = [
-      ...new Set([
-        ...(role.fullAccessUploadable || []),
-        ...(role.fullAccessReadable || []),
-        ...(role.fullAccessDownloadable || []),
-      ]),
-    ];
+    // Organize permissions
+    const selectedUpload = [];
+    const selectedDownload = [];
+    const selectedView = [];
+    const fullAccess = [];
 
-    // Transform fullAccess into the desired array structure
-    const fullAccess = allIds.map((id) => ({
-      id,
-      view: (role.fullAccessReadable || []).includes(id),
-      upload: (role.fullAccessUploadable || []).includes(id),
-      download: (role.fullAccessDownloadable || []).includes(id),
-    }));
+    documentAccesses.forEach((access) => {
+      if (access.accessLevel === "FULL") {
+        fullAccess.push({
+          id: access.document.id,
+          name: access.document.name,
+          path: access.document.path,
+          type: access.document.type,
+          upload: true,
+          download: true,
+          view: true,
+        });
+      } else {
+        if (access.accessType.includes("EDIT")) {
+          selectedUpload.push(access.document.id);
+        }
+        if (access.accessType.includes("DOWNLOAD")) {
+          selectedDownload.push(access.document.id);
+        }
+        if (access.accessType.includes("READ")) {
+          selectedView.push(access.document.id);
+        }
+      }
+    });
 
-    // Format the role data
+    // Format the response
     const formattedRole = {
       id: role.id,
       role: role.role,
       status: role.status,
-      department: role.branch?.name || null,
+      department: role.department
+        ? {
+            id: role.department.id,
+            name: role.department.name,
+          }
+        : null,
       isRootLevel: role.isRootLevel,
       isAdmin: role.isAdmin,
       parentRoleId: role.parentRoleId,
+      parentRole: role.parentRole,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
-      selectedUpload: role.uploadable,
-      selectedView: role.readable,
-      selectedDownload: role.downloadable,
+      selectedUpload: [...new Set(selectedUpload)],
+      selectedDownload: [...new Set(selectedDownload)],
+      selectedView: [...new Set(selectedView)],
       fullAccess: fullAccess,
     };
 
@@ -272,10 +315,10 @@ export const get_role = async (req, res) => {
 
 export const edit_role = async (req, res) => {
   try {
-    const { id } = req.params; // Role ID to edit
+    const { id } = req.params;
     const {
       role,
-      department, // Department ID
+      department,
       selectedUpload,
       selectedDownload,
       selectedView,
@@ -285,7 +328,7 @@ export const edit_role = async (req, res) => {
       isAdmin,
     } = req.body;
 
-    // Check if the role exists
+    // Check if role exists
     const existingRole = await prisma.role.findUnique({
       where: { id: parseInt(id) },
     });
@@ -293,25 +336,25 @@ export const edit_role = async (req, res) => {
       return res.status(404).json({ message: "Role not found." });
     }
 
-    // Check if a branch is required and exists
+    // Check if department exists if provided
     let departmentObj = null;
-    if (!isRootLevel) {
+    if (!isRootLevel && department) {
       departmentObj = await prisma.department.findUnique({
-        where: { name: department },
+        where: { id: parseInt(department) },
       });
       if (!departmentObj) {
-        return res
-          .status(400)
-          .json({ message: "Branch selected for role doesn't exist." });
+        return res.status(400).json({
+          message: "Department selected for role doesn't exist.",
+        });
       }
     }
 
-    // Check for duplicate role (excluding the current role being edited)
+    // Check for duplicate role (excluding current role)
     const duplicateRole = await prisma.role.findFirst({
       where: {
         role,
         departmentId: departmentObj?.id || null,
-        id: { not: parseInt(id) }, // Exclude the current role
+        id: { not: parseInt(id) },
       },
     });
     if (duplicateRole) {
@@ -321,64 +364,71 @@ export const edit_role = async (req, res) => {
       });
     }
 
-    // Document access logic (same as add_role)
-    let uploads = selectedUpload || [];
-    let downloads = selectedDownload || [];
-    let view = selectedView || [];
-    let fullAccessUploadable = fullAccess
-      .filter((doc) => doc.upload)
-      .map((doc) => doc.id);
-    let fullAccessDownloadable = fullAccess
-      .filter((doc) => doc.download)
-      .map((doc) => doc.id);
-    let fullAccessReadable = fullAccess
-      .filter((doc) => doc.view)
-      .map((doc) => doc.id);
+    // Process document permissions
+    const newDocumentAccesses = [];
+    const documentIds = new Set();
 
-    let allDocIds = [
-      ...uploads,
-      ...downloads,
-      ...view,
-      ...fullAccessUploadable,
-      ...fullAccessDownloadable,
-      ...fullAccessReadable,
-    ];
-
-    const parentDocs = await prisma.document.findMany({
-      where: { id: { in: allDocIds } },
-      select: { parentId: true },
+    // Process FULL access
+    fullAccess.forEach((doc) => {
+      documentIds.add(doc.id);
+      newDocumentAccesses.push({
+        documentId: doc.id,
+        accessType: ["READ", "EDIT", "DOWNLOAD"],
+        accessLevel: "FULL",
+        docAccessThrough: "ADMINISTRATION",
+      });
     });
 
-    const parentIds = removeDuplicates(
-      parentDocs.map((doc) => doc.parentId).filter(Boolean)
-    );
+    // Process STANDARD access
+    const processStandardAccess = (ids, accessTypes) => {
+      ids.forEach((id) => {
+        documentIds.add(id);
+        newDocumentAccesses.push({
+          documentId: id,
+          accessType: accessTypes,
+          accessLevel: "STANDARD",
+          docAccessThrough: "ADMINISTRATION",
+        });
+      });
+    };
 
-    uploads = removeDuplicates([...uploads]);
-    downloads = removeDuplicates([...downloads]);
-    view = removeDuplicates([...view, ...parentIds]);
+    processStandardAccess(selectedView, ["READ"]);
+    processStandardAccess(selectedDownload, ["READ", "DOWNLOAD"]);
+    processStandardAccess(selectedUpload, ["READ", "EDIT"]);
 
-    // Update the role
-    const updatedRole = await prisma.role.update({
-      where: { id: parseInt(id) },
-      data: {
-        role,
-        departmentId: departmentObj?.id || null,
-        isRootLevel: isRootLevel || false,
-        isAdmin: isAdmin || false,
-        parentRoleId: parentRoleId || null,
-        writable: uploads,
-        readable: view,
-        downloadable: downloads,
-        fullAccessWritable: fullAccessUploadable,
-        fullAccessReadable: fullAccessReadable,
-        fullAccessDownloadable: fullAccessDownloadable,
-        updatedAt: new Date(), // Explicitly set updatedAt
-      },
-    });
+    // Update role and document accesses in a transaction
+    await prisma.$transaction([
+      // Update role details
+      prisma.role.update({
+        where: { id: parseInt(id) },
+        data: {
+          role,
+          departmentId: departmentObj?.id || null,
+          isRootLevel: Boolean(isRootLevel),
+          isAdmin: Boolean(isAdmin),
+          parentRoleId: parentRoleId ? parseInt(parentRoleId) : null,
+          updatedAt: new Date(),
+        },
+      }),
+
+      // Delete existing document accesses for this role
+      prisma.documentAccess.deleteMany({
+        where: { roleId: parseInt(id) },
+      }),
+
+      // Create new document accesses
+      ...newDocumentAccesses.map((access) =>
+        prisma.documentAccess.create({
+          data: {
+            ...access,
+            roleId: parseInt(id),
+          },
+        })
+      ),
+    ]);
 
     res.status(200).json({
       message: "Role updated successfully.",
-      role: updatedRole,
     });
   } catch (error) {
     console.error("Error editing role:", error);

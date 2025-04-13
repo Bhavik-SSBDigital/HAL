@@ -29,6 +29,7 @@ model Department {
   DepartmentRoleAssignment DepartmentRoleAssignment[]
   // Added back relation
   departmentStepProgresses DepartmentStepProgress[] @relation()
+  documentAccesses DocumentAccess[] @relation()
 }
 
 model Document {
@@ -69,15 +70,8 @@ model Role {
   parentRole          Role?       @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
   childRoles          Role[]      @relation("RoleHierarchy")
   users               UserRole[]
-  writable            Int[]       @default([])
-  uploadable          Int[]       @default([])
-  readable            Int[]       @default([])
-  downloadable        Int[]       @default([])
-  fullAccessWritable  Int[]       @default([])
-  fullAccessUploadable Int[]      @default([])
-  fullAccessReadable  Int[]       @default([])
-  fullAccessDownloadable Int[]    @default([])
   departmentRoleAssignment DepartmentRoleAssignment[]
+  documentAccesses DocumentAccess[] @relation()
 }
 
 model User {
@@ -102,10 +96,6 @@ model User {
   workflowsCreated   Workflow[]
   initiatedProcesses ProcessInstance[]
   qaInitiations      ProcessQA[]
-  writable           Int[]
-  readable           Int[]
-  downloadable       Int[]
-  uploadable         Int[]
   processNotifications ProcessNotification[] @relation("UserNotifications")
   processClaims        ProcessClaim[]        @relation("UserClaims")
   systemLogs           SystemLog[]           @relation("UserSystemLogs")
@@ -114,6 +104,8 @@ model User {
   signatures         DocumentSignature[] @relation("UserSignatures")
   signaturePicFileName String?
   signCoordinates    SignCoordinate[] @relation
+  documentAccesses DocumentAccess[] @relation()
+  grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")
 }
 
 model Token {
@@ -236,18 +228,38 @@ model ProcessWorkflowVersion {
 
 model DocumentAccess {
   id                 String   @id @default(uuid())
-  stepInstanceId     String?
-  stepInstance       ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id])
   documentId         Int
   document           Document @relation("DocumentAccesses", fields: [documentId], references: [id])
-  accessType         AccessType
+  stepInstanceId     String?
+  stepInstance       ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id])
+  accessType         AccessType[] @default([])
+  accessLevel        AccessLevel  @default(STANDARD) 
   processInstance    ProcessInstance? @relation(fields: [processId], references: [id])
-  assignmentId       String  // Changed from Int to String
-  assignment         WorkflowAssignment @relation("WorkflowAssignmentDocAccess", fields: [assignmentId], references: [id])
+  assignmentId       String?  
+  assignment         WorkflowAssignment? @relation("WorkflowAssignmentDocAccess", fields: [assignmentId], references: [id])
   processId          String?
   userId             Int?
+  user               User?        @relation(fields: [userId], references: [id])
   roleId             Int?
+  role               Role?        @relation(fields: [roleId], references: [id])
   departmentId       Int?
+  department         Department?  @relation(fields: [departmentId], references: [id])
+  grantedAt          DateTime     @default(now())
+  grantedById        Int?        
+  grantedBy          User?        @relation("GrantedByUser", fields: [grantedById], references: [id])
+  docAccessThrough   DocAccessThrough @default(SELF)
+}
+
+
+enum AccessLevel{
+  STANDARD
+  FULL
+}
+
+enum DocAccessThrough{
+  PROCESS
+  ADMINISTRATION
+  SELF
 }
 
 model ProcessNotification {

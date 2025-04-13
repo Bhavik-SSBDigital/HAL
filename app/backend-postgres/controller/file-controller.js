@@ -293,28 +293,62 @@ export const createFolder = async (isProject, path_, userData) => {
   }
 };
 
+// export const createUserPermissions = async (documentId, username, writable) => {
+//   try {
+//     const updateData = writable
+//       ? { writable: { push: documentId } } // Add to writable array
+//       : { readable: { push: documentId } }; // Add to readable array
+
+//     const updatedUser = await prisma.user.update({
+//       where: { username }, // Find the user by username
+//       data: updateData, // Update either writable or readable
+//     });
+
+//     if (updatedUser) {
+//       console.log("User permissions updated successfully", updatedUser);
+//     } else {
+//       throw new Error("User not found or no changes made");
+//     }
+//   } catch (error) {
+//     console.error("Error updating user permissions:", error);
+//     throw new Error("Error updating user permissions");
+//   }
+// };
+
 export const createUserPermissions = async (documentId, username, writable) => {
   try {
-    const updateData = writable
-      ? { writable: { push: documentId } } // Add to writable array
-      : { readable: { push: documentId } }; // Add to readable array
-
-    const updatedUser = await prisma.user.update({
-      where: { username }, // Find the user by username
-      data: updateData, // Update either writable or readable
+    // First, get the user by username
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
     });
 
-    if (updatedUser) {
-      console.log("User permissions updated successfully", updatedUser);
-    } else {
-      throw new Error("User not found or no changes made");
+    if (!user) {
+      throw new Error("User not found");
     }
+
+    // Create the document access record
+    const accessTypes = writable ? ["READ", "EDIT"] : ["READ"];
+
+    const documentAccess = await prisma.documentAccess.create({
+      data: {
+        document: { connect: { id: documentId } },
+        user: { connect: { id: user.id } },
+        accessType: accessTypes,
+        accessLevel: "STANDARD",
+        docAccessThrough: "SELF",
+        grantedAt: new Date(),
+        grantedBy: { connect: { id: user.id } }, // Assuming the system admin is granting this
+      },
+    });
+
+    console.log("Document access created successfully", documentAccess);
+    return documentAccess;
   } catch (error) {
-    console.error("Error updating user permissions:", error);
-    throw new Error("Error updating user permissions");
+    console.error("Error creating document access:", error);
+    throw new Error("Error creating document access");
   }
 };
-
 export const file_copy = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -374,14 +408,16 @@ export const file_copy = async (req, res) => {
           },
         });
 
-        // Create user permissions (if needed, adjust for your logic)
-        await prisma.user.update({
-          where: { id: userData.id },
+        const accessTypes = ["READ", "EDIT"];
+        const documentAccess = await prisma.documentAccess.create({
           data: {
-            writable: { push: newDocument.id },
-            readable: { push: newDocument.id },
-            downloadable: { push: newDocument.id },
-            uploadable: { push: newDocument.id },
+            document: { connect: { id: newDocument.id } },
+            user: { connect: { id: userData.id } },
+            accessType: accessTypes,
+            accessLevel: "STANDARD",
+            docAccessThrough: "SELF",
+            grantedAt: new Date(),
+            grantedBy: { connect: { id: userData.id } }, // Assuming the system admin is granting this
           },
         });
 
@@ -417,7 +453,7 @@ export const file_copy = async (req, res) => {
 
 export const file_cut = async (req, res) => {
   try {
-    const accessToken = req.headers["authorization"]?.substring(7);
+    const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
 
     if (userData === "Unauthorized") {
@@ -425,10 +461,11 @@ export const file_cut = async (req, res) => {
     }
 
     const bufferSize = 1024 * 1024; // 1 MB buffer size
+
     const sourcePath = req.body.sourcePath.substring(2);
     const destinationPathParent = req.body.destinationPath.substring(2);
     const name = req.body.name;
-    const destinationPath = `${destinationPathParent}/${name}`;
+    const destinationPath = destinationPathParent + `/${name}`;
 
     const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
     const absoluteDestinationPath = path.join(
@@ -445,119 +482,96 @@ export const file_cut = async (req, res) => {
     });
 
     sourceStream.on("error", (error) => {
-      console.error("Error in source stream:", error);
-      return res.status(500).json({ message: "Error copying file" });
+      console.error("Source Stream Error:", error);
+      return res.status(500).json({ message: "Error reading source file" });
     });
 
     destinationStream.on("error", (error) => {
-      console.error("Error in destination stream:", error);
-      return res.status(500).json({ message: "Error copying file" });
+      console.error("Destination Stream Error:", error);
+      return res
+        .status(500)
+        .json({ message: "Error writing destination file" });
     });
 
     destinationStream.on("finish", async () => {
       try {
-        const document = await prisma.document.create({
+        // Create new document record
+        const newDocument = await prisma.document.create({
           data: {
-            name,
+            name: name,
             type: name.split(".").pop(),
             path: destinationPath,
             createdById: userData.id,
-            departmentId: null, // Set appropriately if department is involved
+            isInvolvedInProcess: false,
+            isRejected: false,
           },
         });
 
-        await prisma.user.update({
-          where: { id: userData.id },
+        // Create document access for the user
+        const accessTypes = ["READ", "EDIT"];
+        await prisma.documentAccess.create({
           data: {
-            writable: { push: document.id },
+            document: { connect: { id: newDocument.id } },
+            user: { connect: { id: userData.id } },
+            accessType: accessTypes,
+            accessLevel: "STANDARD",
+            docAccessThrough: "SELF",
+            grantedAt: new Date(),
+            grantedBy: { connect: { id: userData.id } },
           },
         });
 
-        await prisma.document.update({
-          where: { path: destinationPathParent },
-          data: {
-            children: {
-              connect: { id: document.id },
-            },
-          },
-        });
+        // Connect to parent document if exists
+        if (req.body.destinationPath) {
+          const parentDocument = await prisma.document.findUnique({
+            where: { path: destinationPathParent },
+          });
 
+          if (parentDocument) {
+            await prisma.document.update({
+              where: { id: parentDocument.id },
+              data: {
+                children: { connect: { id: newDocument.id } },
+              },
+            });
+          }
+        }
+
+        // Find and clean up the old document
         const oldDocument = await prisma.document.findUnique({
           where: { path: sourcePath },
-          select: { id: true },
         });
 
         if (!oldDocument) {
           return res.status(404).json({ message: "Source document not found" });
         }
 
-        const idToRemove = oldDocument.id;
-
-        // Clean up document references for parent documents
-        const parents = await prisma.document.findMany({
-          where: { children: { some: { id: idToRemove } } },
-          select: { id: true },
+        // Disconnect from all parent documents
+        await prisma.document.updateMany({
+          where: { children: { some: { id: oldDocument.id } } },
+          data: {
+            children: { disconnect: { id: oldDocument.id } },
+          },
         });
 
-        for (const parent of parents) {
-          await prisma.document.update({
-            where: { id: parent.id },
-            data: {
-              children: {
-                disconnect: { id: idToRemove },
-              },
-            },
-          });
-        }
-
-        // Remove `idToRemove` from users' writable arrays
-        const usersWithWritable = await prisma.user.findMany({
-          where: { writable: { has: idToRemove } },
-          select: { id: true, writable: true },
-        });
-
-        for (const user of usersWithWritable) {
-          const updatedWritable = user.writable.filter(
-            (id) => id !== idToRemove
-          );
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { writable: updatedWritable },
-          });
-        }
-
-        // Remove `idToRemove` from roles' writable arrays
-        const rolesWithWritable = await prisma.role.findMany({
-          where: { writable: { has: idToRemove } },
-          select: { id: true, writable: true },
-        });
-
-        for (const role of rolesWithWritable) {
-          const updatedWritable = role.writable.filter(
-            (id) => id !== idToRemove
-          );
-          await prisma.role.update({
-            where: { id: role.id },
-            data: { writable: updatedWritable },
-          });
-        }
+        await cleanUpDocumentDetails(oldDocument.id);
 
         // Delete the source file
         await fs.unlink(absoluteSourcePath);
 
-        // Delete the document record
-        await prisma.document.delete({ where: { id: idToRemove } });
+        // Delete the old document record
+        await prisma.document.delete({ where: { id: oldDocument.id } });
 
         res.status(200).json({ message: "File cut successfully" });
       } catch (error) {
-        console.error("Error in file cut operation:", error);
-        res.status(500).json({ message: "Error cutting file" });
+        console.error("Database Error:", error);
+        res.status(500).json({ message: "Error during file cut operation" });
       }
     });
 
     sourceStream.pipe(destinationStream);
   } catch (error) {
-    console.error("Error in file cut handler:", error);
+    console.error("Error cutting file:", error);
     res.status(500).json({ message: "Error cutting file" });
   }
 };
@@ -594,62 +608,76 @@ export const documentIdCleanUpFromDocument = async (idToRemove) => {
   );
 };
 
-export const documentIdCleanUpFromUser = async (idToRemove) => {
-  // Update all users to remove the given document ID from readable, writable, and downloadable arrays
-  await prisma.user.updateMany({
+// export const documentIdCleanUpFromUser = async (idToRemove) => {
+//   // Update all users to remove the given document ID from readable, writable, and downloadable arrays
+//   await prisma.user.updateMany({
+//     where: {
+//       OR: [
+//         { readable: { has: idToRemove } },
+//         { writable: { has: idToRemove } },
+//         { downloadable: { has: idToRemove } },
+//       ],
+//     },
+//     data: {
+//       readable: {
+//         set: (
+//           await prisma.user.findMany({
+//             where: { readable: { has: idToRemove } },
+//             select: { readable: true },
+//           })
+//         ).flatMap((user) => user.readable.filter((id) => id !== idToRemove)),
+//       },
+//       writable: {
+//         set: (
+//           await prisma.user.findMany({
+//             where: { writable: { has: idToRemove } },
+//             select: { writable: true },
+//           })
+//         ).flatMap((user) => user.writable.filter((id) => id !== idToRemove)),
+//       },
+//       downloadable: {
+//         set: (
+//           await prisma.user.findMany({
+//             where: { downloadable: { has: idToRemove } },
+//             select: { downloadable: true },
+//           })
+//         ).flatMap((user) =>
+//           user.downloadable.filter((id) => id !== idToRemove)
+//         ),
+//       },
+//     },
+//   });
+// };
+
+export const cleanUpDocumentDetail = async (idToRemove) => {
+  // Delete all DocumentAccess records for this document
+  await prisma.documentAccess.deleteMany({
     where: {
-      OR: [
-        { readable: { has: idToRemove } },
-        { writable: { has: idToRemove } },
-        { downloadable: { has: idToRemove } },
-      ],
+      documentId: idToRemove,
     },
-    data: {
-      readable: {
-        set: (
-          await prisma.user.findMany({
-            where: { readable: { has: idToRemove } },
-            select: { readable: true },
-          })
-        ).flatMap((user) => user.readable.filter((id) => id !== idToRemove)),
-      },
-      writable: {
-        set: (
-          await prisma.user.findMany({
-            where: { writable: { has: idToRemove } },
-            select: { writable: true },
-          })
-        ).flatMap((user) => user.writable.filter((id) => id !== idToRemove)),
-      },
-      downloadable: {
-        set: (
-          await prisma.user.findMany({
-            where: { downloadable: { has: idToRemove } },
-            select: { downloadable: true },
-          })
-        ).flatMap((user) =>
-          user.downloadable.filter((id) => id !== idToRemove)
-        ),
+  });
+
+  // Clean up any process documents referencing this document
+  await prisma.processDocument.deleteMany({
+    where: {
+      documentId: idToRemove,
+    },
+  });
+
+  // Clean up any document signatures for this document
+  await prisma.documentSignature.deleteMany({
+    where: {
+      processDocument: {
+        documentId: idToRemove,
       },
     },
   });
-};
 
-export const documentIdCleanUpFromRole = async (idToRemove) => {
-  // Update the `Role` model for each field: writable, readable, downloadable
-  await prisma.role.updateMany({
+  // Clean up any sign coordinates for this document
+  await prisma.signCoordinate.deleteMany({
     where: {
-      OR: [
-        { writable: { has: idToRemove } },
-        { readable: { has: idToRemove } },
-        { downloadable: { has: idToRemove } },
-      ],
-    },
-    data: {
-      writable: {
-        set: {
-          // remove instances of
-        },
+      processDocument: {
+        documentId: idToRemove,
       },
     },
   });
@@ -870,8 +898,7 @@ export const file_delete = async (req, res) => {
 
     // Cleanup from related models
     await documentIdCleanUpFromDocument(idToRemove);
-    await documentIdCleanUpFromUser(idToRemove);
-    await documentIdCleanUpFromRole(idToRemove);
+    await cleanUpDocumentDetail(idToRemove);
 
     // Delete file from storage
     await fs.unlink(absolutePath);
@@ -955,7 +982,7 @@ export const file_download = async (req, res) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(relativePath); // Replace with your file path
+    const filePath = join(relativePath, fileName); // Replace with your file path
 
     const fileExt = extname(fileName).slice(1).toLowerCase();
     const fileURL = process.env.FILE_URL;
@@ -1038,7 +1065,8 @@ export const get_file_data = async (req, res) => {
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
 
-    const filePath = join(__dirname, relativePath);
+    const filePath = join(__dirname, relativePath, fileName);
+    console.log("file path", filePath);
 
     // Fetch document metadata from PostgreSQL using Prisma
     const document = await prisma.document.findUnique({
