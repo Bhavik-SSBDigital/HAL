@@ -414,6 +414,8 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
 }
 
 // processViews.js
+// processViews.js
+// processViews.js
 async function viewProcess(processId, userId) {
   // Get the process with related data
   const process = await prisma.processInstance.findUnique({
@@ -421,11 +423,34 @@ async function viewProcess(processId, userId) {
     include: {
       initiator: { select: { name: true } },
       documents: {
+        // This is already the ProcessDocument records
         include: {
           document: {
+            // Include the actual Document details
             include: {
               documentAccesses: {
                 where: { processId: processId },
+              },
+            },
+          },
+          rejectedBy: {
+            // Include the user who rejected
+            select: { id: true, username: true, name: true },
+          },
+          signatures: {
+            // Include all signatures
+            include: {
+              user: {
+                select: { id: true, username: true, name: true },
+              },
+            },
+          },
+          signCoordinates: {
+            // Include signature coordinates
+            where: { isSigned: true },
+            include: {
+              signedBy: {
+                select: { id: true, username: true, name: true },
               },
             },
           },
@@ -460,11 +485,11 @@ async function viewProcess(processId, userId) {
 
   if (!currentUser) throw new Error("User not found");
 
-  // Process documents with access rights
-  const documentsWithAccess = process.documents.map((pd) => {
+  // Process documents with access rights and additional details
+  const documentsWithAccess = process.documents.map((processDoc) => {
     const accessTypes = new Set();
 
-    pd.document.documentAccesses.forEach((access) => {
+    processDoc.document.documentAccesses.forEach((access) => {
       if (
         access.userId === userId ||
         currentUser.roles.some((r) => r.roleId === access.roleId) ||
@@ -474,11 +499,51 @@ async function viewProcess(processId, userId) {
       }
     });
 
+    // Extract rejection details from ProcessDocument
+    const rejectionDetails = processDoc.rejectedBy
+      ? {
+          rejectedBy:
+            processDoc.rejectedBy.username || processDoc.rejectedBy.name,
+          rejectionReason: processDoc.rejectionReason || "No reason provided",
+          rejectedAt: processDoc.rejectedAt,
+        }
+      : null;
+
+    // Extract signature details from DocumentSignature and SignCoordinate
+    const signatureDetails =
+      processDoc.signatures.map((signature) => ({
+        signedBy: signature.user.username || signature.user.name,
+        remarks: signature.reason || "No remarks provided",
+        signedAt: signature.signedAt,
+      })) || [];
+
+    // Get unique signers from SignCoordinate for additional verification
+    const signedCoordinates = processDoc.signCoordinates || [];
+    const uniqueSignersFromCoordinates = [
+      ...new Set(
+        signedCoordinates.map(
+          (coord) => coord.signedBy?.username || coord.signedBy?.name
+        )
+      ),
+    ].filter(Boolean);
+
+    // Count of people who have approved (signed) the document
+    const approvalCount = signatureDetails.length;
+
     return {
-      id: pd.document.id,
-      name: pd.document.name,
-      type: pd.document.type,
+      id: processDoc.document.id, // Use the document ID from the related Document
+      name: processDoc.document.name,
+      type: processDoc.document.type,
       access: Array.from(accessTypes),
+      rejectionDetails: rejectionDetails,
+      signedBy: signatureDetails,
+      approvalCount: approvalCount,
+      signedCoordinates: signedCoordinates.map((coord) => ({
+        page: coord.page,
+        x: coord.x,
+        y: coord.y,
+        signedBy: coord.signedBy?.username || coord.signedBy?.name,
+      })),
     };
   });
 
@@ -503,10 +568,9 @@ async function viewProcess(processId, userId) {
     arrivedAt: arrivalTime,
     documents: documentsWithAccess,
     processStepInstanceId: processStepInstanceId,
-    toBePicked: toBePicked, // New property added here
+    toBePicked: toBePicked,
   };
 }
-
 export const view_process = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
