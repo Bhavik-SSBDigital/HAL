@@ -83,7 +83,7 @@ export const EditRoleById = async (id, data) => {
   return apiClient.put(`/editRole/${id}`, data);
 };
 export const AddRole = async (data) => {
-  return apiClient.put(`/AddRole`, data);
+  return apiClient.post(`/addRole`, data);
 };
 
 // workflow endpoints
