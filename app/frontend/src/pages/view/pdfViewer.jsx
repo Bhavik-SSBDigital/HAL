@@ -462,7 +462,7 @@ function PdfContainer({
       }}
     >
       {controls ? (
-        <div className="bg-white sticky top-2 z-20 p-2 mb-1">
+        <div className="bg-white sticky top-0 z-20 p-2 mb-1">
           <div className="flex justify-between">
             <button
               className={`${

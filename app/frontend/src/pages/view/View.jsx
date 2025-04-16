@@ -91,7 +91,7 @@ const PdfViewer = ({
   return (
     <CustomModal isOpen={docu} onClose={handleViewClose}>
       <button
-        className="absolute top-2.5 right-5 z-50 p-1 hover:bg-gray-200 rounded-full transition"
+        className="absolute top-0 right-0 z-50 p-1 hover:bg-gray-200 rounded-full transition"
         onClick={handleViewClose}
       >
         <IconSquareRoundedX size={24} />
