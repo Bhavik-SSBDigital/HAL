@@ -160,10 +160,6 @@ export const login = async (req, res) => {
         username: user.username,
         email: user.email,
         roles: user.roles.map((role) => role.id),
-        writable: user.writable,
-        readable: user.readable,
-        downloadable: user.downloadable,
-        uploadable: user.uploadable,
       },
       process.env.SECRET_ACCESS_KEY,
       {

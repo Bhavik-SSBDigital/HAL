@@ -53,6 +53,12 @@ model Document {
   processDocuments        ProcessDocument[]
   documentAccesses        DocumentAccess[] @relation("DocumentAccesses")
   isRecord                Boolean  @default(true)
+  recommendationHighlights RecommendationDocumentHighlight[]
+  queryDocuments ProcessQueryDocument[]
+  queryReferences QueryDocumentReference[]
+  highlights DocumentHighlight[]
+  querySummaries QueryDocumentSummary[]
+  recommendationSummaries RecommendationDocumentSummary[]
 }
 
 model Role {
@@ -106,6 +112,18 @@ model User {
   signCoordinates    SignCoordinate[] @relation
   documentAccesses DocumentAccess[] @relation()
   grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")
+  recommendationsRequested ProcessRecommendation[] @relation("RecommendationRequestedBy")
+  recommendationsReceived ProcessRecommendation[] @relation("RecommendationRecommendedTo")
+  queryResponses ProcessQueryResponse[]
+  queryDocuments ProcessQueryDocument[]
+  queryApprovals QueryDocumentApproval[]
+  recirculationApprovals QueryRecirculationApproval[]
+  doubtsRaised QueryDoubt[]
+  doubtResponses QueryDoubtResponse[]
+  documentHighlights DocumentHighlight[]
+  // Added opposite relations
+  recommendationResponses RecommendationResponse[] @relation("RecommendationRespondedBy")
+  queriesRaised ProcessQuery[] @relation("QueriesRaisedBy")
 }
 
 model Token {
@@ -262,15 +280,40 @@ enum DocAccessThrough{
   SELF
 }
 
+enum NotificationType {
+  STEP_ASSIGNMENT
+  QUERY
+  QUERY_RESPONSE
+  DOCUMENT_UPLOAD
+  DOCUMENT_APPROVAL
+  PROCESS_COMPLETION
+  RECOMMENDATION_REQUEST
+  RECOMMENDATION_COMPLETE
+  RECIRCULATION_REQUEST
+  RECIRCULATION_APPROVAL
+  QUERY_DOUBT
+  QUERY_DOUBT_RESPONSE
+  RECOMMENDATION_CLARIFICATION_REQUEST
+  RECOMMENDATION_CLARIFICATION_RESPONSE
+}
+
+
 model ProcessNotification {
   id        String   @id @default(uuid())
-  stepId    String
-  stepInstance ProcessStepInstance @relation("StepInstanceNotifications", fields: [stepId], references: [id])
+  stepId    String?
+  stepInstance ProcessStepInstance? @relation("StepInstanceNotifications", fields: [stepId], references: [id])
   userId    Int
   user      User @relation("UserNotifications", fields: [userId], references: [id])
   notifiedAt DateTime @default(now())
   removedAt DateTime?
   status    String @default("ACTIVE")
+   type        NotificationType
+  recommendation ProcessRecommendation? @relation(fields: [recommendationId], references: [id])
+  recommendationId String?
+  query       ProcessQuery? @relation(fields: [queryId], references: [id])
+  queryId     String?
+  readAt      DateTime?
+  metadata    Json?
 }
 
 model ProcessClaim {
@@ -331,6 +374,8 @@ model ProcessInstance {
   // Added relations
   assignmentProgresses AssignmentProgress[] @relation()
   departmentStepProgresses DepartmentStepProgress[] @relation()
+  recommendations ProcessRecommendation[]
+  queries ProcessQuery[]
 }
 
 enum ProcessStatus {
@@ -376,6 +421,7 @@ model ProcessStepInstance {
   pickedBy             User?        @relation(fields: [pickedById], references: [id], name: "UserPickedSteps")
   pickedById           Int?  
   createdAt            DateTime @default(now())
+  queries ProcessQuery[]
   workflowStep         WorkflowStep? @relation(fields: [stepId], references: [id])
   stepId       String?
   documentAccesses     DocumentAccess[] @relation("StepInstanceDocumentAccess")
@@ -384,6 +430,9 @@ model ProcessStepInstance {
   qaChannels           ProcessQA[] @relation("StepInstanceQA")
   decisionComment     String?
   decisionAt          DateTime?
+  isRecirculated         Boolean @default(false)
+  originalStepInstanceId String?  // For tracking recirculated steps
+  recirculationReason    String?
   @@index([assignmentId])
 }
 
@@ -502,4 +551,236 @@ model SignCoordinate {
   signedById        Int?
   signedBy          User?    @relation(fields: [signedById], references: [id])
   createdAt         DateTime @default(now())
+}
+
+
+// ========== RECOMMENDATION MODELS ==========
+model ProcessRecommendation {
+  id            String     @id @default(uuid())
+  process       ProcessInstance @relation(fields: [processId], references: [id])
+  processId     String
+  requestedById Int
+  requestedBy   User       @relation("RecommendationRequestedBy", fields: [requestedById], references: [id])
+  recommendedToId Int
+  recommendedTo User       @relation("RecommendationRecommendedTo", fields: [recommendedToId], references: [id])
+  status        RecommendationStatus @default(PENDING)
+  remarks       String?
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+  highlights    RecommendationDocumentHighlight[]
+  responses     RecommendationResponse[]
+  documentSummaries RecommendationDocumentSummary[]
+  processSummary    RecommendationSummary?
+  notifications ProcessNotification[]
+  // Added opposite relation
+  documentHighlights DocumentHighlight[] @relation("RecommendationHighlights")
+}
+
+model RecommendationDocumentHighlight {
+  id              String     @id @default(uuid())
+  recommendation  ProcessRecommendation @relation(fields: [recommendationId], references: [id])
+  recommendationId String
+  document        Document   @relation(fields: [documentId], references: [id])
+  documentId      Int
+  pageNumber      Int
+  coordinates     Json       // {x, y, width, height}
+  comments        String?
+  createdAt       DateTime   @default(now())
+}
+
+model RecommendationResponse {
+  id              String     @id @default(uuid())
+  recommendation  ProcessRecommendation @relation(fields: [recommendationId], references: [id])
+  recommendationId String
+  respondedById   Int
+  respondedBy     User       @relation("RecommendationRespondedBy", fields: [respondedById], references: [id])
+  responseText    String
+  createdAt       DateTime   @default(now())
+  // Added opposite relation
+  documentHighlights DocumentHighlight[] @relation("RecommendationResponseHighlights")
+}
+
+enum RecommendationStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  CLARIFICATION_REQUESTED
+}
+
+// ========== QUERY MODELS ==========
+model ProcessQuery {
+  id                String     @id @default(uuid())
+  process           ProcessInstance @relation(fields: [processId], references: [id])
+  processId         String
+  stepInstance      ProcessStepInstance? @relation(fields: [stepInstanceId], references: [id])
+  stepInstanceId    String?
+  raisedById        Int
+  raisedBy          User       @relation("QueriesRaisedBy", fields: [raisedById], references: [id])
+  queryText         String
+  status            QueryStatus @default(OPEN)
+  createdAt         DateTime   @default(now())
+  resolvedAt        DateTime?
+  responses         ProcessQueryResponse[]
+  documents         ProcessQueryDocument[]
+  recirculationFromStepId String?
+  recirculationApprovals QueryRecirculationApproval[]
+  doubts            QueryDoubt[]
+  documentSummaries QueryDocumentSummary[]
+  processSummary    ProcessQuerySummary?
+  notifications ProcessNotification[]
+  highlights DocumentHighlight[]
+}
+
+model ProcessQueryResponse {
+  id              String     @id @default(uuid())
+  query           ProcessQuery @relation(fields: [queryId], references: [id])
+  queryId         String
+  respondedById   Int
+  respondedBy     User       @relation(fields: [respondedById], references: [id])
+  responseText    String
+  createdAt       DateTime   @default(now())
+  documentRefs    QueryDocumentReference[]
+  highlights DocumentHighlight[]
+}
+
+model ProcessQueryDocument {
+  id              String     @id @default(uuid())
+  query           ProcessQuery @relation(fields: [queryId], references: [id])
+  queryId         String
+  document        Document   @relation(fields: [documentId], references: [id])
+  documentId      Int
+  uploadedById    Int
+  uploadedBy      User       @relation(fields: [uploadedById], references: [id])
+  requiresApproval Boolean   @default(true)
+  isReplacement   Boolean   @default(false)
+  replacesDocumentId Int?
+  approvals       QueryDocumentApproval[]
+  createdAt       DateTime   @default(now())
+}
+
+model QueryDocumentApproval {
+  id              String     @id @default(uuid())
+  queryDocument   ProcessQueryDocument @relation(fields: [queryDocumentId], references: [id])
+  queryDocumentId String
+  approverId      Int
+  approver        User       @relation(fields: [approverId], references: [id])
+  approved        Boolean
+  comments        String?
+  approvedAt      DateTime?
+}
+
+model QueryDocumentReference {
+  id              String     @id @default(uuid())
+  response        ProcessQueryResponse @relation(fields: [responseId], references: [id])
+  responseId      String
+  document        Document   @relation(fields: [documentId], references: [id])
+  documentId      Int
+  pageNumber      Int?
+  coordinates     Json?      // {x, y, width, height} for highlighting
+  comments        String?
+}
+
+model QueryRecirculationApproval {
+  id              String     @id @default(uuid())
+  query           ProcessQuery @relation(fields: [queryId], references: [id])
+  queryId         String
+  approverId      Int
+  approver        User       @relation(fields: [approverId], references: [id])
+  approved        Boolean
+  comments        String?
+  approvedAt      DateTime?
+}
+
+enum QueryStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+  RECIRCULATION_PENDING
+}
+
+model DocumentHighlight {
+  id          String   @id @default(uuid())
+  documentId  Int
+  document    Document @relation(fields: [documentId], references: [id])
+  coordinates Json
+  remark      String?
+  createdAt   DateTime @default(now())
+  createdById Int
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  queryId             String?
+  query               ProcessQuery?             @relation(fields: [queryId], references: [id])
+  queryResponseId     String?
+  queryResponse       ProcessQueryResponse?     @relation(fields: [queryResponseId], references: [id])
+  queryDoubtId        String?
+  queryDoubt          QueryDoubt?              @relation(fields: [queryDoubtId], references: [id])
+  recommendationId    String?
+  recommendation      ProcessRecommendation?    @relation("RecommendationHighlights", fields: [recommendationId], references: [id])
+  recommendationResponseId String?
+  recommendationResponse   RecommendationResponse? @relation("RecommendationResponseHighlights", fields: [recommendationResponseId], references: [id])
+  @@index([documentId])
+  @@index([queryId])
+  @@index([queryResponseId])
+  @@index([queryDoubtId])
+  @@index([recommendationId])
+  @@index([recommendationResponseId])
+}
+
+model QueryDoubt {
+  id          String   @id @default(uuid())
+  queryId     String
+  query       ProcessQuery @relation(fields: [queryId], references: [id])
+  raisedById  Int
+  raisedBy    User     @relation(fields: [raisedById], references: [id])
+  doubtText   String
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+  responses   QueryDoubtResponse[]
+  highlights DocumentHighlight[]
+}
+
+
+model QueryDoubtResponse {
+  id          String   @id @default(uuid())
+  doubtId     String
+  doubt       QueryDoubt @relation(fields: [doubtId], references: [id])
+  respondedById Int
+  respondedBy User     @relation(fields: [respondedById], references: [id])
+  responseText String
+  createdAt   DateTime @default(now())
+}
+
+model QueryDocumentSummary {
+  id          String   @id @default(uuid())
+  queryId     String
+  query       ProcessQuery @relation(fields: [queryId], references: [id])
+  documentId  Int
+  document    Document @relation(fields: [documentId], references: [id])
+  summaryText String
+  createdAt   DateTime @default(now())
+}
+
+model ProcessQuerySummary {
+  id          String   @id @default(uuid())
+  queryId     String   @unique
+  query       ProcessQuery @relation(fields: [queryId], references: [id])
+  summaryText String
+  createdAt   DateTime @default(now())
+}
+
+model RecommendationDocumentSummary {
+  id          String   @id @default(uuid())
+  recommendationId String
+  recommendation ProcessRecommendation @relation(fields: [recommendationId], references: [id])
+  documentId  Int
+  document    Document @relation(fields: [documentId], references: [id])
+  summaryText String
+  createdAt   DateTime @default(now())
+}
+
+model RecommendationSummary {
+  id          String   @id @default(uuid())
+  recommendationId String @unique
+  recommendation ProcessRecommendation @relation(fields: [recommendationId], references: [id])
+  summaryText String
+  createdAt   DateTime @default(now())
 }

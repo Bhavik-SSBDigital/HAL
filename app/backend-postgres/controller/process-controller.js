@@ -1,6 +1,6 @@
 import { verifyUser } from "../utility/verifyUser.js";
 
-import { PrismaClient, AccessType } from "@prisma/client";
+import { PrismaClient, AccessType, NotificationType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -64,7 +64,6 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { processName, description, workflowId } = req.body;
-
     const documentIds = req.body.documents.map((item) => item.documentId) || [];
 
     if (documentIds.length === 0) {
@@ -75,7 +74,7 @@ export const initiate_process = async (req, res, next) => {
 
     const initiatorId = userData.id;
 
-    prisma.$transaction(async (tx) => {
+    const process = await prisma.$transaction(async (tx) => {
       // 1. Create Process Instance
       const process = await tx.processInstance.create({
         data: {
@@ -83,11 +82,11 @@ export const initiate_process = async (req, res, next) => {
           initiatorId,
           name: processName,
           status: "PENDING",
-          currentStepId: null, // Set after creating steps
+          currentStepId: null,
         },
       });
 
-      // After creating the process instance
+      // 2. Link documents
       await tx.processDocument.createMany({
         data: documentIds.map((docId) => ({
           processId: process.id,
@@ -95,38 +94,43 @@ export const initiate_process = async (req, res, next) => {
         })),
       });
 
-      // 2. Get Workflow Steps
+      // 3. Get Workflow Steps
       const workflow = await tx.workflow.findUnique({
         where: { id: workflowId },
         include: { steps: { include: { assignments: true } } },
       });
 
-      // 3. Process Each Step
-
+      // 4. Process First Step
       const step = workflow.steps[0];
-
-      // Process Assignments
+      console.log("step", step);
       for (const assignment of step.assignments) {
-        console.log("assignment", assignment);
-        await processAssignment(tx, process, step, assignment, documentIds);
+        await processAssignment(
+          tx,
+          process,
+          step,
+          assignment,
+          documentIds,
+          false
+        );
       }
 
-      // Set first step as current
+      // 5. Set first step as current
       await tx.processInstance.update({
         where: { id: process.id },
-        data: { currentStepId: step.id },
+        data: { currentStepId: step.id, status: "IN_PROGRESS" },
       });
+
+      // 6. Create initial notifications
 
       return process;
     });
 
-    // Process each assignment individually
-
     return res.status(200).json({
       message: "Process initiated successfully",
+      processId: process.id,
     });
   } catch (error) {
-    console.log("Error initiating the process", error);
+    console.error("Error initiating the process", error);
     return res.status(500).json({
       message: "Error initiating the process",
       error: error.message,
@@ -213,7 +217,14 @@ async function getDocumentParentHierarchy(tx, documentId) {
   return parents;
 }
 
-async function processAssignment(tx, process, step, assignment, documentIds) {
+async function processAssignment(
+  tx,
+  process,
+  step,
+  assignment,
+  documentIds,
+  isRecirculated
+) {
   // Create Assignment Progress
   const progress = await tx.assignmentProgress.create({
     data: {
@@ -233,13 +244,31 @@ async function processAssignment(tx, process, step, assignment, documentIds) {
   // Create Initial Step Instances
   switch (assignment.assigneeType) {
     case "DEPARTMENT":
-      await handleDepartmentAssignment(tx, assignment, progress, documentIds);
+      await handleDepartmentAssignment(
+        tx,
+        assignment,
+        progress,
+        documentIds,
+        isRecirculated
+      );
       break;
     case "ROLE":
-      await handleRoleAssignment(tx, assignment, progress, documentIds);
+      await handleRoleAssignment(
+        tx,
+        assignment,
+        progress,
+        documentIds,
+        isRecirculated
+      );
       break;
     case "USER":
-      await handleUserAssignment(tx, assignment, progress, documentIds);
+      await handleUserAssignment(
+        tx,
+        assignment,
+        progress,
+        documentIds,
+        isRecirculated
+      );
       break;
   }
 }
@@ -304,6 +333,7 @@ async function handleDepartmentAssignment(
             connect: { id: user.userId },
           },
           status: "ACTIVE",
+          type: NotificationType.STEP_ASSIGNMENT,
         },
       });
     }
@@ -346,6 +376,7 @@ async function handleUserAssignment(tx, assignment, progress, documentIds) {
           connect: { id: userId },
         },
         status: "ACTIVE",
+        type: NotificationType.STEP_ASSIGNMENT,
       },
     });
   }
@@ -408,6 +439,7 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
           connect: { id: user.userId },
         },
         status: "ACTIVE",
+        type: NotificationType.STEP_ASSIGNMENT,
       },
     });
   }
@@ -417,16 +449,13 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
 // processViews.js
 // processViews.js
 async function viewProcess(processId, userId) {
-  // Get the process with related data
   const process = await prisma.processInstance.findUnique({
     where: { id: processId },
     include: {
       initiator: { select: { name: true } },
       documents: {
-        // This is already the ProcessDocument records
         include: {
           document: {
-            // Include the actual Document details
             include: {
               documentAccesses: {
                 where: { processId: processId },
@@ -434,11 +463,9 @@ async function viewProcess(processId, userId) {
             },
           },
           rejectedBy: {
-            // Include the user who rejected
             select: { id: true, username: true, name: true },
           },
           signatures: {
-            // Include all signatures
             include: {
               user: {
                 select: { id: true, username: true, name: true },
@@ -446,7 +473,6 @@ async function viewProcess(processId, userId) {
             },
           },
           signCoordinates: {
-            // Include signature coordinates
             where: { isSigned: true },
             include: {
               signedBy: {
@@ -469,12 +495,36 @@ async function viewProcess(processId, userId) {
           },
         },
       },
+      queries: {
+        where: {
+          OR: [
+            { raisedById: userId },
+            { recirculationApprovals: { some: { approverId: userId } } },
+          ],
+        },
+        include: {
+          raisedBy: { select: { name: true, username: true } },
+          documents: {
+            include: {
+              document: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      recommendations: {
+        where: {
+          OR: [{ requestedById: userId }, { recommendedToId: userId }],
+        },
+        include: {
+          requestedBy: { select: { name: true, username: true } },
+          recommendedTo: { select: { name: true, username: true } },
+        },
+      },
     },
   });
 
   if (!process) throw new Error("Process not found");
 
-  // Get current user's roles and departments
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -485,7 +535,6 @@ async function viewProcess(processId, userId) {
 
   if (!currentUser) throw new Error("User not found");
 
-  // Process documents with access rights and additional details
   const documentsWithAccess = process.documents.map((processDoc) => {
     const accessTypes = new Set();
 
@@ -499,7 +548,6 @@ async function viewProcess(processId, userId) {
       }
     });
 
-    // Extract rejection details from ProcessDocument
     const rejectionDetails = processDoc.rejectedBy
       ? {
           rejectedBy:
@@ -509,7 +557,6 @@ async function viewProcess(processId, userId) {
         }
       : null;
 
-    // Extract signature details from DocumentSignature and SignCoordinate
     const signatureDetails =
       processDoc.signatures.map((signature) => ({
         signedBy: signature.user.username || signature.user.name,
@@ -517,21 +564,11 @@ async function viewProcess(processId, userId) {
         signedAt: signature.signedAt,
       })) || [];
 
-    // Get unique signers from SignCoordinate for additional verification
     const signedCoordinates = processDoc.signCoordinates || [];
-    const uniqueSignersFromCoordinates = [
-      ...new Set(
-        signedCoordinates.map(
-          (coord) => coord.signedBy?.username || coord.signedBy?.name
-        )
-      ),
-    ].filter(Boolean);
-
-    // Count of people who have approved (signed) the document
     const approvalCount = signatureDetails.length;
 
     return {
-      id: processDoc.document.id, // Use the document ID from the related Document
+      id: processDoc.document.id,
       name: processDoc.document.name,
       type: processDoc.document.type,
       access: Array.from(accessTypes),
@@ -547,12 +584,9 @@ async function viewProcess(processId, userId) {
     };
   });
 
-  // Get earliest relevant timestamp
   const arrivalTime = process.stepInstances[0]?.createdAt || null;
-
   const processStepInstanceId =
     process.stepInstances.length > 0 ? process.stepInstances[0].id : null;
-
   const toBePicked =
     (!process.stepInstances[0]?.pickedById &&
       process.stepInstances[0].workflowAssignment?.assigneeType ===
@@ -569,6 +603,23 @@ async function viewProcess(processId, userId) {
     documents: documentsWithAccess,
     processStepInstanceId: processStepInstanceId,
     toBePicked: toBePicked,
+    queries: process.queries.map((query) => ({
+      id: query.id,
+      queryText: query.queryText,
+      status: query.status,
+      raisedBy: query.raisedBy.name || query.raisedBy.username,
+      documents: query.documents.map((doc) => ({
+        id: doc.document.id,
+        name: doc.document.name,
+      })),
+    })),
+    recommendations: process.recommendations.map((rec) => ({
+      id: rec.id,
+      status: rec.status,
+      requestedBy: rec.requestedBy.name || rec.requestedBy.username,
+      recommendedTo: rec.recommendedTo.name || rec.recommendedTo.username,
+      remarks: rec.remarks,
+    })),
   };
 }
 export const view_process = async (req, res, next) => {
@@ -595,7 +646,19 @@ export const view_process = async (req, res, next) => {
 // processHandling.js
 async function handleProcessClaim(userId, stepInstanceId) {
   return prisma.$transaction(async (tx) => {
-    // 1. Claim the step with correct includes
+    // 1. Check for open queries
+    const openQueries = await tx.processQuery.count({
+      where: {
+        stepInstanceId,
+        status: { in: ["OPEN", "RECIRCULATION_PENDING"] },
+      },
+    });
+
+    if (openQueries > 0) {
+      throw new Error("Cannot claim step with open queries");
+    }
+
+    // 2. Claim the step
     const step = await tx.processStepInstance.update({
       where: {
         id: stepInstanceId,
@@ -605,6 +668,7 @@ async function handleProcessClaim(userId, stepInstanceId) {
       data: {
         status: "APPROVED",
         claimedAt: new Date(),
+        pickedById: userId,
       },
       include: {
         workflowAssignment: {
@@ -623,9 +687,8 @@ async function handleProcessClaim(userId, stepInstanceId) {
 
     const processId = step.process.id;
 
-    // 2. Handle Role assignments: Delete other pending steps for the same assignment
+    // 3. Handle Role assignments
     if (step.workflowAssignment.assigneeType === "ROLE") {
-      // Delete all other pending steps for this assignment
       await tx.processStepInstance.deleteMany({
         where: {
           assignmentId: step.assignmentId,
@@ -634,7 +697,6 @@ async function handleProcessClaim(userId, stepInstanceId) {
         },
       });
 
-      // Delete related notifications
       await tx.processNotification.deleteMany({
         where: {
           stepInstanceId: {
@@ -652,16 +714,14 @@ async function handleProcessClaim(userId, stepInstanceId) {
         },
       });
 
-      // Mark assignment as completed
       await tx.assignmentProgress.update({
         where: { id: step.assignmentProgress.id },
         data: { completed: true },
       });
     }
 
-    // 3. Handle department-specific tracking
+    // 4. Handle department-specific tracking
     if (step.workflowAssignment.assigneeType === "DEPARTMENT") {
-      // For parallel departments, track completed roles
       if (step.workflowAssignment.allowParallel) {
         await tx.departmentStepProgress.update({
           where: {
@@ -675,9 +735,20 @@ async function handleProcessClaim(userId, stepInstanceId) {
       await updateDepartmentProgress(tx, step);
     }
 
-    // 4. Check assignment and process completion
+    // 5. Check assignment and process completion
     await checkAssignmentCompletion(tx, step.assignmentProgress.id);
     await checkProcessProgress(tx, processId);
+
+    // 6. Notify about step completion
+    await tx.processNotification.create({
+      data: {
+        stepId: step.id,
+        userId: userId,
+        type: NotificationType.STEP_ASSIGNMENT,
+        status: "COMPLETED",
+        metadata: { action: "Step claimed and approved" },
+      },
+    });
 
     return step;
   });
@@ -772,11 +843,10 @@ async function checkAssignmentCompletion(tx, progressId) {
 }
 
 async function checkProcessProgress(tx, processId) {
-  // When querying process instances, you MUST include:
-  const process = await prisma.processInstance.findUnique({
+  const process = await tx.processInstance.findUnique({
     where: { id: processId },
     include: {
-      currentStep: true, // ← THIS WAS MISSING
+      currentStep: true,
       workflow: {
         include: {
           steps: {
@@ -784,15 +854,20 @@ async function checkProcessProgress(tx, processId) {
           },
         },
       },
+      queries: {
+        where: { status: "RECIRCULATION_PENDING" },
+      },
     },
   });
 
-  // Corrected: Use the right relation name (e.g., workflowAssignment)
+  if (process.queries.length > 0) {
+    return; // Wait for recirculation approval
+  }
+
   const currentStepAssignments = await tx.assignmentProgress.findMany({
     where: {
       processId,
       workflowAssignment: {
-        // Adjusted relation name
         stepId: process.currentStepId,
       },
     },
@@ -928,7 +1003,6 @@ export const get_user_processes = async (req, res, next) => {
 
     const userId = userData.id;
 
-    // Single optimized query with corrected relation inclusions
     const stepInstances = await prisma.processStepInstance.findMany({
       where: {
         assignedTo: userId,
@@ -943,10 +1017,25 @@ export const get_user_processes = async (req, res, next) => {
             initiator: {
               select: { username: true },
             },
+            queries: {
+              where: {
+                OR: [
+                  { raisedById: userId },
+                  { recirculationApprovals: { some: { approverId: userId } } },
+                ],
+              },
+              select: { id: true, queryText: true, status: true },
+            },
+            recommendations: {
+              where: {
+                OR: [{ requestedById: userId }, { recommendedToId: userId }],
+                status: "PENDING",
+              },
+              select: { id: true, remarks: true, status: true },
+            },
           },
         },
         workflowAssignment: {
-          // Changed from 'assignment' to 'workflowAssignment'
           include: {
             step: {
               select: {
@@ -960,10 +1049,9 @@ export const get_user_processes = async (req, res, next) => {
       },
     });
 
-    // Transform results with proper null safety
     const response = stepInstances.map((step) => {
       const escalationHours =
-        step.workflowAssignment?.step?.escalationTime || 24; // Updated to workflowAssignment
+        step.workflowAssignment?.step?.escalationTime || 24;
       const assignedAt = step.deadline
         ? new Date(step.deadline.getTime() - escalationHours * 60 * 60 * 1000)
         : null;
@@ -974,20 +1062,27 @@ export const get_user_processes = async (req, res, next) => {
         workflowName: step.process?.workflow?.name || "Unknown Workflow",
         initiatorUsername: step.process?.initiator?.username || "System User",
         createdAt: step.createdAt,
-        actionType: step.workflowAssignment?.step?.stepType || "GENERAL", // Updated to workflowAssignment
-        stepName: step.workflowAssignment?.step?.stepName || "Pending Step", // Updated to workflowAssignment
+        actionType: step.workflowAssignment?.step?.stepType || "GENERAL",
+        stepName: step.workflowAssignment?.step?.stepName || "Pending Step",
         currentStepAssignedAt: assignedAt,
         assignmentId: step.assignmentId,
         deadline: step.deadline,
+        queries: step.process.queries.map((q) => ({
+          id: q.id,
+          queryText: q.queryText,
+          status: q.status,
+        })),
+        recommendations: step.process.recommendations.map((r) => ({
+          id: r.id,
+          remarks: r.remarks,
+          status: r.status,
+        })),
       };
     });
 
     return res.json(response);
   } catch (error) {
-    console.error("Error in get_user_processes:", {
-      error: error.message,
-      stack: error.stack,
-    });
+    console.error("Error in get_user_processes:", error);
     return res.status(500).json({
       message: "Failed to retrieve processes",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
@@ -1005,8 +1100,35 @@ export const complete_process_step = async (req, res, next) => {
 
     const { stepInstanceId } = req.body;
 
-    // Call handleProcessClaim with userId and stepInstanceId
-    const result = await handleProcessClaim(userData.id, stepInstanceId);
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Check for open queries
+      const openQueries = await tx.processQuery.count({
+        where: {
+          stepInstanceId,
+          status: { in: ["OPEN", "RECIRCULATION_PENDING"] },
+        },
+      });
+
+      if (openQueries > 0) {
+        throw new Error("Cannot complete step with open queries");
+      }
+
+      // 2. Complete the step
+      const step = await handleProcessClaim(userData.id, stepInstanceId);
+
+      // 3. Notify relevant users
+      await tx.processNotification.create({
+        data: {
+          stepId: stepInstanceId,
+          userId: userData.id,
+          type: NotificationType.STEP_ASSIGNMENT,
+          status: "COMPLETED",
+          metadata: { action: "Step completed" },
+        },
+      });
+
+      return step;
+    });
 
     return res.status(200).json({
       message: "Process step completed successfully",
@@ -1020,3 +1142,28 @@ export const complete_process_step = async (req, res, next) => {
     });
   }
 };
+
+async function checkPendingQueries(tx, stepInstanceId) {
+  const count = await tx.processQuery.count({
+    where: {
+      stepInstanceId,
+      status: { in: ["OPEN", "RECIRCULATION_PENDING"] },
+    },
+  });
+  return count > 0;
+}
+
+async function getUserRecommendations(tx, userId) {
+  return await tx.processRecommendation.findMany({
+    where: {
+      OR: [{ requestedById: userId }, { recommendedToId: userId }],
+      status: "PENDING",
+    },
+    select: {
+      id: true,
+      processId: true,
+      remarks: true,
+      status: true,
+    },
+  });
+}
