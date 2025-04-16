@@ -12,6 +12,7 @@ export default function DocumentViewer({ url = [], isOpen }) {
   const [signSelectionAreas, setSignSelectionAreas] = useState([]);
   const [textSelectionAreas, setTextSelectionAreas] = useState([]);
 
+  console.log(signSelectionAreas);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const pageRefs = useRef([]);
 
@@ -62,23 +63,15 @@ export default function DocumentViewer({ url = [], isOpen }) {
   };
 
   const handleMouseUp = () => {
-    if (
-      isSelecting &&
-      activeSelection?.width > 0 &&
-      activeSelection?.height > 0
-    ) {
-      // Add to correct selection area based on the mode
+    setIsSelecting(false); // Allow to keep selecting even without mouseup
+    if (activeSelection?.width > 0 && activeSelection?.height > 0) {
       if (mode === 'signSelection') {
         setSignSelectionAreas((prev) => [...prev, activeSelection]);
       } else if (mode === 'textSelection') {
         setTextSelectionAreas((prev) => [...prev, activeSelection]);
       }
-
-      setUserDialogOpen(true);
+      setActiveSelection(null); // Reset active selection after adding it
     }
-
-    setIsSelecting(false);
-    setActiveSelection(null);
   };
 
   useEffect(() => {
@@ -96,7 +89,6 @@ export default function DocumentViewer({ url = [], isOpen }) {
     };
   }, [currentIndex, activeSelection, isSelecting]);
 
-  // This would be triggered on submit, based on mode
   const handleSubmit = () => {
     const currentSelections =
       mode === 'signSelection'
@@ -143,7 +135,7 @@ export default function DocumentViewer({ url = [], isOpen }) {
 
         {/* Selection Overlay */}
         <div
-          className="absolute inset-0 z-10"
+          className="absolute z-10"
           ref={(ref) => (pageRefs.current[currentIndex] = ref)}
         >
           {/* Render sign selection areas */}
@@ -225,6 +217,7 @@ export default function DocumentViewer({ url = [], isOpen }) {
         <iframe
           title={`document-${currentIndex}`}
           height="100%"
+          allowFullScreen
           width="100%"
           src={currentUrl}
           frameBorder="0"
