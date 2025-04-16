@@ -456,7 +456,7 @@ function PdfContainer({
 
   return (
     <div
-      className="max-h-[92vh] overflow-auto"
+      className="max-h-[88vh] overflow-auto"
       style={{
         userSelect: mode === 'signSelection' ? 'none' : 'auto',
       }}
@@ -495,7 +495,7 @@ function PdfContainer({
         file={url}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={
-          <div className="flex justify-center items-center h-screen">
+          <div className="flex justify-center items-center h-[70vh]">
             <div className="animate-spin rounded-full border-t-4 border-blue-500 w-12 h-12"></div>
           </div>
         }

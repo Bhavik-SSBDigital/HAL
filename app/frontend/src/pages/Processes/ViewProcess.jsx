@@ -10,7 +10,6 @@ import {
   SignRevoke,
   ViewDocument,
 } from '../../common/Apis';
-
 import {
   IconEye,
   IconCheck,
@@ -25,9 +24,10 @@ import ViewFile from '../view/View';
 import { toast } from 'react-toastify';
 import TopLoader from '../../common/Loader/TopLoader';
 import RemarksModal from '../../CustomComponents/RemarksModal';
+import DocumentViewer from '../Viewer';
 
 const ViewProcess = () => {
-  // states
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const { id } = useParams();
   const [actionsLoading, setActionsLoading] = useState(false);
   const [process, setProcess] = useState(null);
@@ -39,6 +39,7 @@ const ViewProcess = () => {
     id: null,
     open: false,
   });
+
   const processDetails = [
     { label: 'Process ID', value: process?.processId },
     { label: 'Process Name', value: process?.processName || 'N/A' },
@@ -77,11 +78,25 @@ const ViewProcess = () => {
     },
   ];
 
-  // network calls
-  const handleCompleteProcess = async (id) => {
+  const fetchProcess = async () => {
+    try {
+      const response = await GetProcessData(id);
+      setProcess(response?.data?.process);
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProcess();
+  }, [id]);
+
+  const handleCompleteProcess = async (stepId) => {
     setActionsLoading(true);
     try {
-      const response = await CompleteProcess(id);
+      const response = await CompleteProcess(stepId);
       toast.success(response?.data?.message);
       navigate('/processes/work');
     } catch (error) {
@@ -90,6 +105,7 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
+
   const handleClaim = async () => {
     setActionsLoading(true);
     try {
@@ -98,13 +114,14 @@ const ViewProcess = () => {
         process?.processStepInstanceId,
       );
       toast.success(response?.data?.message);
-      setProcess(() => ({ ...prev, toBePicked: false }));
+      setProcess((prev) => ({ ...prev, toBePicked: false }));
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
     }
   };
+
   const handleViewFile = async (name, path) => {
     setActionsLoading(true);
     try {
@@ -118,9 +135,35 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
+
+  const handleViewAllSelectedFiles = async () => {
+    setActionsLoading(true);
+    try {
+      const selected = process.documents.filter((doc) =>
+        selectedDocs.includes(doc.id),
+      );
+      const formattedDocs = await Promise.all(
+        selected.map(async (doc) => {
+          const res = await ViewDocument(doc.name, '../check');
+          return {
+            url: res.data,
+            type: res.fileType,
+            name: doc.name,
+            fileId: doc.id,
+            signed: doc.signed,
+          };
+        }),
+      );
+      setFileView({ multi: true, docs: formattedDocs });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   const handleSignDocument = async (remarks) => {
     setActionsLoading(true);
-    // Logic for signing the document
     try {
       const res = await SignDocument(
         process?.processId,
@@ -136,6 +179,7 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
+
   const handleRejectDocument = async (remarks) => {
     setActionsLoading(true);
     try {
@@ -152,21 +196,11 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
-  const handleRevokeSign = async (doc) => {
+
+  const handleRevokeSign = async (docId) => {
     setActionsLoading(true);
     try {
-      const response = await SignRevoke(process.processId, doc);
-      toast.success(response?.data?.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-  const handleRevokeRejection = async (doc) => {
-    setActionsLoading(true);
-    try {
-      const response = await RevokeRejection(process.processId, doc);
+      const response = await SignRevoke(process.processId, docId);
       toast.success(response?.data?.message);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -175,22 +209,18 @@ const ViewProcess = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchProcess = async () => {
-      try {
-        const response = await GetProcessData(id);
-        setProcess(response?.data?.process);
-      } catch (err) {
-        setError(err?.response?.data?.message || err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleRevokeRejection = async (docId) => {
+    setActionsLoading(true);
+    try {
+      const response = await RevokeRejection(process.processId, docId);
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
 
-    fetchProcess();
-  }, [id]);
-
-  // handling
   if (loading) return <ComponentLoader />;
   if (error)
     return (
@@ -204,15 +234,18 @@ const ViewProcess = () => {
         </div>
       </CustomCard>
     );
+
   if (!process)
     return (
       <div className="text-center text-gray-500 py-10">
         No process data available
       </div>
     );
+
   return (
     <div className="mx-auto p-2">
       {actionsLoading && <TopLoader />}
+
       <CustomCard>
         <div className="flex justify-end flex-row gap-2">
           <CustomButton
@@ -220,7 +253,7 @@ const ViewProcess = () => {
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
-            disabled={actionsLoading || process?.toBePicked == false}
+            disabled={actionsLoading || process?.toBePicked === false}
           />
           <CustomButton
             variant={'danger'}
@@ -244,83 +277,104 @@ const ViewProcess = () => {
         </div>
       </CustomCard>
 
-      {process?.documents && process?.documents?.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-bold text-gray-800">Documents</h3>
-          <div className="mt-3 space-y-3">
-            {process?.documents?.map((doc) => (
-              <CustomCard
-                key={doc.id}
-                className="flex items-center justify-between p-4 gap-5"
-              >
-                <div className="min-w-fit">
-                  <p className="text-gray-900 font-semibold">{doc.name}</p>
-                  <p className="text-gray-500 text-sm">
-                    Type: {doc.type.toUpperCase()}
-                  </p>
-                </div>
+      {process?.documents?.length > 0 && (
+        <div className="mt-8">
+          <CustomCard className="flex justify-between gap-2">
+            <h3 className="text-lg h-fit font-bold text-gray-800">Documents</h3>
+            {selectedDocs.length > 0 && (
+              <div className="flex justify-end text-end">
+                <CustomButton
+                  text={`View All Selected (${selectedDocs.length})`}
+                  click={handleViewAllSelectedFiles}
+                />
+              </div>
+            )}
+          </CustomCard>
+          <div className="mt-2 space-y-2">
+            {process.documents.map((doc) => {
+              const isSelected = selectedDocs.includes(doc.id);
+              const toggleSelect = () => {
+                setSelectedDocs((prev) =>
+                  isSelected
+                    ? prev.filter((id) => id !== doc.id)
+                    : [...prev, doc.id],
+                );
+              };
 
-                <div className="flex items-center flex-wrap gap-1">
-                  {/* View Document */}
-                  <CustomButton
-                    className="px-1"
-                    click={() => handleViewFile(doc?.name, doc?.path)}
-                    disabled={actionsLoading}
-                    title={'View Document'}
-                    text={<IconEye size={18} className="text-white" />}
+              return (
+                <CustomCard
+                  key={doc.id}
+                  className="flex items-center justify-between p-4 gap-5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={toggleSelect}
                   />
 
-                  {/* Sign Document */}
-                  <CustomButton
-                    variant={'success'}
-                    className="px-1"
-                    click={() =>
-                      setRemarksModalOpen({ id: doc.id, open: 'sign' })
-                    }
-                    disabled={actionsLoading}
-                    title={'Sign Document'}
-                    text={<IconCheck size={18} className="text-white" />}
-                  />
+                  <div className="min-w-fit">
+                    <p className="text-gray-900 font-semibold">{doc.name}</p>
+                    <p className="text-gray-500 text-sm">
+                      Type: {doc.type.toUpperCase()}
+                    </p>
+                  </div>
 
-                  {/* Reject Document */}
-                  <CustomButton
-                    variant={'danger'}
-                    className="px-1"
-                    click={() =>
-                      setRemarksModalOpen({ id: doc.id, open: 'reject' })
-                    }
-                    disabled={actionsLoading}
-                    title={'Reject Document'}
-                    text={<IconX size={18} className="text-white" />}
-                  />
-
-                  {/* Revoke Sign */}
-                  <CustomButton
-                    variant={'secondary'}
-                    className="px-1"
-                    click={() => handleRevokeSign(doc.id)}
-                    disabled={actionsLoading}
-                    title={'Revoke Sign'}
-                    text={<IconArrowBackUp size={18} className="text-white" />}
-                  />
-
-                  {/* Revoke Rejection */}
-                  <CustomButton
-                    variant={'info'}
-                    className="px-1"
-                    click={() => handleRevokeRejection(doc.id)}
-                    disabled={actionsLoading}
-                    title={'Revoke Rejection'}
-                    text={
-                      <IconArrowForwardUp size={18} className="text-white" />
-                    }
-                  />
-                </div>
-              </CustomCard>
-            ))}
+                  <div className="flex items-center flex-wrap gap-1">
+                    <CustomButton
+                      className="px-1"
+                      click={() => handleViewFile(doc?.name, doc?.path)}
+                      disabled={actionsLoading}
+                      title="View Document"
+                      text={<IconEye size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant={'success'}
+                      className="px-1"
+                      click={() =>
+                        setRemarksModalOpen({ id: doc.id, open: 'sign' })
+                      }
+                      disabled={actionsLoading}
+                      title="Sign Document"
+                      text={<IconCheck size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant={'danger'}
+                      className="px-1"
+                      click={() =>
+                        setRemarksModalOpen({ id: doc.id, open: 'reject' })
+                      }
+                      disabled={actionsLoading}
+                      title="Reject Document"
+                      text={<IconX size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant={'secondary'}
+                      className="px-1"
+                      click={() => handleRevokeSign(doc.id)}
+                      disabled={actionsLoading}
+                      title="Revoke Sign"
+                      text={
+                        <IconArrowBackUp size={18} className="text-white" />
+                      }
+                    />
+                    <CustomButton
+                      variant={'info'}
+                      className="px-1"
+                      click={() => handleRevokeRejection(doc.id)}
+                      disabled={actionsLoading}
+                      title="Revoke Rejection"
+                      text={
+                        <IconArrowForwardUp size={18} className="text-white" />
+                      }
+                    />
+                  </div>
+                </CustomCard>
+              );
+            })}
           </div>
         </div>
       )}
+
       {fileView && (
         <ViewFile
           docu={fileView}
@@ -328,16 +382,18 @@ const ViewProcess = () => {
           handleViewClose={() => setFileView(null)}
         />
       )}
+
       <RemarksModal
-        open={remarksModalOpen.open == 'sign'}
-        title={'Sign Remarks'}
+        open={remarksModalOpen.open === 'sign'}
+        title="Sign Remarks"
         onClose={() => setRemarksModalOpen({ id: null, open: false })}
         loading={actionsLoading}
         onSubmit={(remarks) => handleSignDocument(remarks)}
       />
+
       <RemarksModal
-        open={remarksModalOpen.open == 'reject'}
-        title={'Reject Remarks'}
+        open={remarksModalOpen.open === 'reject'}
+        title="Reject Remarks"
         onClose={() => setRemarksModalOpen({ id: null, open: false })}
         loading={actionsLoading}
         onSubmit={(remarks) => handleRejectDocument(remarks)}
