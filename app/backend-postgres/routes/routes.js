@@ -208,7 +208,7 @@ router.post(
   upload_signature
 );
 
-router.post("/queries", createQuery);
+router.post("/queries/createQuery", createQuery);
 router.get("/queries/process/:processId", getProcessQueries);
 router.post("/queries/:queryId/respond", respondToQuery);
 router.post("/queries/documents/:documentId/approve", approveQueryDocument);

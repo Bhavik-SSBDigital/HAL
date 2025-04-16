@@ -758,9 +758,15 @@ async function print_signature_at_coordinates(
     drawTextLine(`Remarks: ${remarks}`);
     drawTextLine(`Timestamp: ${timestamp}`);
 
-    await prisma.signCoordinate.update({
-      where: { processDocumentId: { documentId }, page: coord.page },
-      data: { isSigned: true, signedById: userData.id },
+    await prisma.signCoordinate.updateMany({
+      where: {
+        processDocumentId: documentId.toString(),
+        page: coord.page,
+      },
+      data: {
+        isSigned: true,
+        signedById: userData.id,
+      },
     });
   }
 
