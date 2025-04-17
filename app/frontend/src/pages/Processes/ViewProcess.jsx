@@ -25,8 +25,11 @@ import { toast } from 'react-toastify';
 import TopLoader from '../../common/Loader/TopLoader';
 import RemarksModal from '../../CustomComponents/RemarksModal';
 import DocumentViewer from '../Viewer';
+import CustomModal from '../../CustomComponents/CustomModal';
+import Query from './Actions/Query';
 
 const ViewProcess = () => {
+  // states and data
   const [selectedDocs, setSelectedDocs] = useState([]);
   const { id } = useParams();
   const [actionsLoading, setActionsLoading] = useState(false);
@@ -35,6 +38,7 @@ const ViewProcess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileView, setFileView] = useState(null);
+  const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -93,6 +97,7 @@ const ViewProcess = () => {
     fetchProcess();
   }, [id]);
 
+  // handlers
   const handleCompleteProcess = async (stepId) => {
     setActionsLoading(true);
     try {
@@ -247,13 +252,20 @@ const ViewProcess = () => {
       {actionsLoading && <TopLoader />}
 
       <CustomCard>
-        <div className="flex justify-end flex-row gap-2">
+        <div className="flex justify-end flex-row gap-2 flex-wrap">
           <CustomButton
             variant={'primary'}
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
             disabled={actionsLoading || process?.toBePicked === false}
+          />
+          <CustomButton
+            variant={'secondary'}
+            text={'Query'}
+            className={'min-w-[150px]'}
+            click={() => setQueryModalOpen(true)}
+            disabled={actionsLoading}
           />
           <CustomButton
             variant={'danger'}
@@ -281,14 +293,11 @@ const ViewProcess = () => {
         <div className="mt-8">
           <CustomCard className="flex justify-between gap-2">
             <h3 className="text-lg h-fit font-bold text-gray-800">Documents</h3>
-            {selectedDocs.length > 0 && (
-              <div className="flex justify-end text-end">
-                <CustomButton
-                  text={`View All Selected (${selectedDocs.length})`}
-                  click={handleViewAllSelectedFiles}
-                />
-              </div>
-            )}
+            <CustomButton
+              disabled={selectedDocs.length == 0}
+              text={`View All Selected (${selectedDocs.length})`}
+              click={handleViewAllSelectedFiles}
+            />
           </CustomCard>
           <div className="mt-2 space-y-2">
             {process.documents.map((doc) => {
@@ -306,17 +315,20 @@ const ViewProcess = () => {
                   key={doc.id}
                   className="flex items-center justify-between p-4 gap-5"
                 >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={toggleSelect}
-                  />
+                  <div className="flex gap-4 flex-wrap">
+                    <input
+                      type="checkbox"
+                      className="h-10 w-4"
+                      checked={isSelected}
+                      onChange={toggleSelect}
+                    />
 
-                  <div className="min-w-fit">
-                    <p className="text-gray-900 font-semibold">{doc.name}</p>
-                    <p className="text-gray-500 text-sm">
-                      Type: {doc.type.toUpperCase()}
-                    </p>
+                    <div className="min-w-fit">
+                      <p className="text-gray-900 font-semibold">{doc.name}</p>
+                      <p className="text-gray-500 text-sm">
+                        Type: {doc.type.toUpperCase()}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex items-center flex-wrap gap-1">
@@ -375,6 +387,7 @@ const ViewProcess = () => {
         </div>
       )}
 
+      {/* view file modal */}
       {fileView && (
         <ViewFile
           docu={fileView}
@@ -383,6 +396,21 @@ const ViewProcess = () => {
         />
       )}
 
+      {/* Query Modal */}
+      <CustomModal
+        isOpen={queryModalOpen}
+        onClose={()=>setQueryModalOpen(false)}
+        className={'max-h-[95vh] overflow-auto'}
+      >
+        <Query
+          processId={process.processId}
+          close={()=>setQueryModalOpen(false)}
+          stepInstanceId={process.processStepInstanceId}
+          documents={process.documents}
+        />
+      </CustomModal>
+
+      {/* remarks modals */}
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"
