@@ -41,6 +41,8 @@ import {
   getRecommendationDetails,
   requestRecommendationClarification,
   respondToRecommendationClarification,
+  createRecommendationDoubt,
+  respondToRecommendationDoubt,
 } from "../controller/recommendation-controller.js";
 
 import {
@@ -210,28 +212,28 @@ router.post(
 
 router.post("/queries/createQuery", createQuery);
 router.get("/queries/process/:processId", getProcessQueries);
-router.post("/queries/:queryId/respond", respondToQuery);
-router.post("/queries/documents/:documentId/approve", approveQueryDocument);
-router.post("/queries/:queryId/approve-recirculation", approveRecirculation);
-router.post("/queries/:queryId/doubts", createQueryDoubt);
-router.post("/doubts/:doubtId/respond", respondToQueryDoubt);
+router.post("/queries/respond/:queryId", respondToQuery);
+router.post("/queries/documents/approve/:documentId", approveQueryDocument);
+router.post("/queries/approve-recirculation/:queryId", approveRecirculation);
+router.post("/queries/doubts/:queryId", createQueryDoubt);
+router.post("/doubts/respond/:doubtId", respondToQueryDoubt);
 
 // Recommendation routes
 router.post("/recommendations", requestRecommendation);
-router.post("/recommendations/:recommendationId/submit", submitRecommendation);
+router.post("/recommendations/submit/:recommendationId", submitRecommendation);
 router.get("/recommendations", getRecommendations);
 router.get("/recommendations/:id", getRecommendationDetails);
 router.post(
-  "/recommendations/:recommendationId/request-clarification",
-  requestRecommendationClarification
+  "/recommendations/request-clarification/:recommendationId",
+  createRecommendationDoubt
 );
 router.post(
-  "/recommendations/:recommendationId/respond-clarification",
-  respondToRecommendationClarification
+  "/recommendations/respond-clarification/:recommendationId",
+  respondToRecommendationDoubt
 );
 
 // Highlight routes
 router.post("/highlights", postHighlight);
-router.get("/documents/:documentId/highlights", getHighlights);
+router.get("/documents/highlights/:documentId", getHighlights);
 
 export default router;

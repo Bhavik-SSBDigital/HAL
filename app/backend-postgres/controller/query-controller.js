@@ -7,6 +7,27 @@ import { PrismaClient, AccessType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+async function updateHighlightsWithContext(
+  tx,
+  processInstanceId,
+  tempContextType,
+  contextId,
+  contextField
+) {
+  await tx.documentHighlight.updateMany({
+    where: {
+      processInstanceId,
+      tempContextType,
+      [contextField]: null,
+    },
+    data: {
+      [contextField]: contextId,
+      processInstanceId: null,
+      tempContextType: null,
+    },
+  });
+}
+
 export const createQuery = async (req, res) => {
   try {
     const {
@@ -40,6 +61,15 @@ export const createQuery = async (req, res) => {
           },
         },
       });
+
+      // Update highlights associated with this query
+      await updateHighlightsWithContext(
+        tx,
+        processId,
+        "query",
+        newQuery.id,
+        "queryId"
+      );
 
       if (documentSummaries.length > 0) {
         await tx.queryDocumentSummary.createMany({
@@ -191,6 +221,18 @@ export const createQuery = async (req, res) => {
             },
           },
           processSummary: true,
+          highlights: {
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                },
+              },
+            },
+          },
         },
       });
     });
@@ -253,10 +295,20 @@ export const createQueryDoubt = async (req, res) => {
                   email: true,
                 },
               },
+              processId: true,
             },
           },
         },
       });
+
+      // Update highlights associated with this query doubt
+      await updateHighlightsWithContext(
+        tx,
+        query.processId,
+        "queryDoubt",
+        newDoubt.id,
+        "queryDoubtId"
+      );
 
       await createNotification(tx, {
         type: "QUERY_DOUBT",
@@ -304,7 +356,12 @@ export const respondToQueryDoubt = async (req, res) => {
         where: { id: doubtId },
         include: {
           raisedBy: true,
-          query: true,
+          query: {
+            select: {
+              processId: true,
+              raisedById: true,
+            },
+          },
         },
       });
 
@@ -328,6 +385,15 @@ export const respondToQueryDoubt = async (req, res) => {
           },
         },
       });
+
+      // Update highlights associated with this query doubt response
+      await updateHighlightsWithContext(
+        tx,
+        doubt.query.processId,
+        "queryDoubtResponse",
+        newResponse.id,
+        "queryDoubtResponseId"
+      );
 
       const notificationRecipient =
         userData.id === doubt.query.raisedById
@@ -374,7 +440,6 @@ export const getProcessQueries = async (req, res) => {
     const { processId } = req.params;
     const userData = req.user;
 
-    // Verify user has access to the process
     const hasAccess = await checkProcessAccess(processId, userData.id);
     if (!hasAccess) {
       return res.status(403).json({
@@ -452,6 +517,18 @@ export const getProcessQueries = async (req, res) => {
                 },
               },
             },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
         },
@@ -462,6 +539,64 @@ export const getProcessQueries = async (req, res) => {
                 id: true,
                 name: true,
                 username: true,
+              },
+            },
+          },
+        },
+        highlights: {
+          include: {
+            document: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                path: true,
+              },
+            },
+          },
+        },
+        doubts: {
+          include: {
+            raisedBy: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            responses: {
+              include: {
+                respondedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
               },
             },
           },
@@ -496,29 +631,6 @@ export const respondToQuery = async (req, res) => {
     const userData = req.user;
 
     const response = await prisma.$transaction(async (tx) => {
-      // 1. Create response
-      const newResponse = await tx.processQueryResponse.create({
-        data: {
-          queryId,
-          respondedById: userData.id,
-          responseText,
-        },
-      });
-
-      // 2. Add document references
-      if (documentReferences?.length) {
-        await tx.queryDocumentReference.createMany({
-          data: documentReferences.map((ref) => ({
-            responseId: newResponse.id,
-            documentId: ref.documentId,
-            pageNumber: ref.pageNumber,
-            coordinates: ref.coordinates,
-            comments: ref.comments || null,
-          })),
-        });
-      }
-
-      // 3. Get query details for notification
       const query = await tx.processQuery.findUnique({
         where: { id: queryId },
         include: {
@@ -539,7 +651,39 @@ export const respondToQuery = async (req, res) => {
         },
       });
 
-      // 4. Notify query raiser
+      if (!query) {
+        throw new Error("Query not found");
+      }
+
+      const newResponse = await tx.processQueryResponse.create({
+        data: {
+          queryId,
+          respondedById: userData.id,
+          responseText,
+        },
+      });
+
+      // Update highlights associated with this query response
+      await updateHighlightsWithContext(
+        tx,
+        query.process.id,
+        "queryResponse",
+        newResponse.id,
+        "queryResponseId"
+      );
+
+      if (documentReferences?.length) {
+        await tx.queryDocumentReference.createMany({
+          data: documentReferences.map((ref) => ({
+            responseId: newResponse.id,
+            documentId: ref.documentId,
+            pageNumber: ref.pageNumber,
+            coordinates: ref.coordinates,
+            comments: ref.comments || null,
+          })),
+        });
+      }
+
       await createNotification(tx, {
         type: "QUERY_RESPONSE",
         userId: query.raisedBy.id,
@@ -555,7 +699,6 @@ export const respondToQuery = async (req, res) => {
         },
       });
 
-      // 5. Return complete response data
       return await tx.processQueryResponse.findUnique({
         where: { id: newResponse.id },
         include: {
@@ -568,6 +711,18 @@ export const respondToQuery = async (req, res) => {
             },
           },
           documentRefs: {
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                },
+              },
+            },
+          },
+          highlights: {
             include: {
               document: {
                 select: {

@@ -4,6 +4,30 @@ import { PrismaClient, AccessType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+async function updateRecommendationHighlightsWithContext(
+  tx,
+  recommendationId,
+  tempContextType,
+  contextFlag,
+  contextId,
+  contextField
+) {
+  await tx.documentHighlight.updateMany({
+    where: {
+      recommendationId,
+      tempContextType,
+      contextFlag,
+      [contextField]: null,
+    },
+    data: {
+      [contextField]: contextId,
+      recommendationId: null,
+      tempContextType: null,
+      contextFlag: null,
+    },
+  });
+}
+
 export const requestRecommendation = async (req, res) => {
   try {
     const {
@@ -34,6 +58,15 @@ export const requestRecommendation = async (req, res) => {
           },
         },
       });
+
+      // Update highlights associated with this recommendation
+      await updateHighlightsWithContext(
+        tx,
+        processId,
+        "recommendation",
+        newRec.id,
+        "recommendationId"
+      );
 
       if (documentSummaries.length > 0) {
         await tx.recommendationDocumentSummary.createMany({
@@ -134,6 +167,185 @@ export const requestRecommendation = async (req, res) => {
         message: "Recommendation request failed",
         details: error.message,
         code: "RECOMMENDATION_CREATION_ERROR",
+      },
+    });
+  }
+};
+
+export const createRecommendationDoubt = async (req, res) => {
+  try {
+    const { recommendationId } = req.params;
+    const { doubtText } = req.body;
+    const userData = req.user;
+
+    const doubt = await prisma.$transaction(async (tx) => {
+      const recommendation = await tx.processRecommendation.findUnique({
+        where: { id: recommendationId, status: "PENDING" },
+      });
+
+      if (!recommendation) {
+        throw new Error("Recommendation not found or not pending");
+      }
+
+      const newDoubt = await tx.recommendationDoubt.create({
+        data: {
+          recommendationId,
+          raisedById: userData.id,
+          doubtText,
+        },
+        include: {
+          raisedBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+            },
+          },
+          recommendation: {
+            select: {
+              requestedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Update highlights associated with this recommendation doubt
+      await updateRecommendationHighlightsWithContext(
+        tx,
+        recommendationId,
+        "recommendationDoubt",
+        "doubt",
+        newDoubt.id,
+        "recommendationDoubtId"
+      );
+
+      await createNotification(tx, {
+        type: "RECOMMENDATION_DOUBT",
+        userId: recommendation.requestedById,
+        recommendationId,
+        doubtId: newDoubt.id,
+        metadata: {
+          raisedBy: {
+            id: userData.id,
+            name: userData.name,
+            username: userData.username,
+          },
+          doubtText,
+        },
+      });
+
+      return newDoubt;
+    });
+
+    res.status(201).json({
+      success: true,
+      data: doubt,
+      message: "Recommendation doubt raised successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to raise recommendation doubt",
+        details: error.message,
+        code: "RECOMMENDATION_DOUBT_ERROR",
+      },
+    });
+  }
+};
+
+export const respondToRecommendationDoubt = async (req, res) => {
+  try {
+    const { doubtId } = req.params;
+    const { responseText } = req.body;
+    const userData = req.user;
+
+    const response = await prisma.$transaction(async (tx) => {
+      const doubt = await tx.recommendationDoubt.findUnique({
+        where: { id: doubtId },
+        include: {
+          raisedBy: true,
+          recommendation: {
+            select: {
+              requestedById: true,
+              processId: true,
+            },
+          },
+        },
+      });
+
+      if (!doubt) {
+        throw new Error("Doubt not found");
+      }
+
+      const newResponse = await tx.recommendationDoubtResponse.create({
+        data: {
+          doubtId,
+          respondedById: userData.id,
+          responseText,
+        },
+        include: {
+          respondedBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+            },
+          },
+        },
+      });
+
+      // Update highlights associated with this recommendation doubt response
+      await updateHighlightsWithContext(
+        tx,
+        doubt.recommendation.processId,
+        "recommendationDoubtResponse",
+        newResponse.id,
+        "recommendationDoubtResponseId"
+      );
+
+      const notificationRecipient =
+        userData.id === doubt.recommendation.requestedById
+          ? doubt.raisedById
+          : doubt.recommendation.requestedById;
+
+      await createNotification(tx, {
+        type: "RECOMMENDATION_DOUBT_RESPONSE",
+        userId: notificationRecipient,
+        doubtId,
+        responseId: newResponse.id,
+        metadata: {
+          respondedBy: {
+            id: userData.id,
+            name: userData.name,
+            username: userData.username,
+          },
+          responseText,
+        },
+      });
+
+      return newResponse;
+    });
+
+    res.status(201).json({
+      success: true,
+      data: response,
+      message: "Recommendation doubt response submitted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to respond to recommendation doubt",
+        details: error.message,
+        code: "RECOMMENDATION_DOUBT_RESPONSE_ERROR",
       },
     });
   }
@@ -270,7 +482,6 @@ export const submitRecommendation = async (req, res) => {
     const userData = req.user;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Submit response
       const response = await tx.recommendationResponse.create({
         data: {
           recommendationId,
@@ -279,7 +490,16 @@ export const submitRecommendation = async (req, res) => {
         },
       });
 
-      // 2. Add document references if provided
+      // Update highlights associated with this recommendation response
+      await updateRecommendationHighlightsWithContext(
+        tx,
+        recommendationId,
+        "recommendationResponse",
+        "response",
+        response.id,
+        "recommendationResponseId"
+      );
+
       if (documentReferences?.length) {
         await tx.queryDocumentReference.createMany({
           data: documentReferences.map((ref) => ({
@@ -292,7 +512,6 @@ export const submitRecommendation = async (req, res) => {
         });
       }
 
-      // 3. Update recommendation status
       const updatedRec = await tx.processRecommendation.update({
         where: { id: recommendationId },
         data: {
@@ -317,7 +536,6 @@ export const submitRecommendation = async (req, res) => {
         },
       });
 
-      // 4. Notify requester
       await createNotification(tx, {
         type: "RECOMMENDATION_COMPLETE",
         userId: updatedRec.requestedBy.id,
@@ -333,7 +551,6 @@ export const submitRecommendation = async (req, res) => {
         },
       });
 
-      // 5. Return complete response data
       return await tx.processRecommendation.findUnique({
         where: { id: recommendationId },
         include: {
@@ -366,6 +583,7 @@ export const submitRecommendation = async (req, res) => {
                   id: true,
                   name: true,
                   type: true,
+                  path: true,
                 },
               },
             },
@@ -391,8 +609,66 @@ export const submitRecommendation = async (req, res) => {
                   },
                 },
               },
+              highlights: {
+                include: {
+                  document: {
+                    select: {
+                      id: true,
+                      name: true,
+                      type: true,
+                      path: true,
+                    },
+                  },
+                },
+              },
             },
             orderBy: { createdAt: "desc" },
+          },
+          doubts: {
+            include: {
+              raisedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                },
+              },
+              responses: {
+                include: {
+                  respondedBy: {
+                    select: {
+                      id: true,
+                      name: true,
+                      username: true,
+                    },
+                  },
+                  highlights: {
+                    include: {
+                      document: {
+                        select: {
+                          id: true,
+                          name: true,
+                          type: true,
+                          path: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              highlights: {
+                include: {
+                  document: {
+                    select: {
+                      id: true,
+                      name: true,
+                      type: true,
+                      path: true,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       });
@@ -494,9 +770,67 @@ export const getRecommendations = async (req, res) => {
                 },
               },
             },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
-          take: 1, // Get only the latest response
+          take: 1,
+        },
+        doubts: {
+          include: {
+            raisedBy: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            responses: {
+              include: {
+                respondedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -623,10 +957,68 @@ export const getRecommendationDetails = async (req, res) => {
                     path: true,
                   },
                 },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
           orderBy: { createdAt: "desc" },
+        },
+        doubts: {
+          include: {
+            raisedBy: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            responses: {
+              include: {
+                respondedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });

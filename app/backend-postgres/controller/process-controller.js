@@ -448,180 +448,437 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
 // processViews.js
 // processViews.js
 // processViews.js
-async function viewProcess(processId, userId) {
-  const process = await prisma.processInstance.findUnique({
-    where: { id: processId },
-    include: {
-      initiator: { select: { name: true } },
-      documents: {
-        include: {
-          document: {
-            include: {
-              documentAccesses: {
-                where: { processId: processId },
+export const viewProcess = async (req, res) => {
+  try {
+    const { processId } = req.params;
+    const userData = req.user;
+
+    const hasAccess = await checkProcessAccess(processId, userData.id);
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: "Access to process denied",
+          code: "PROCESS_ACCESS_DENIED",
+        },
+      });
+    }
+
+    const process = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      include: {
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+          },
+        },
+        currentStep: {
+          select: {
+            id: true,
+            stepName: true,
+            stepNumber: true,
+            stepType: true,
+          },
+        },
+        documents: {
+          include: {
+            document: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                path: true,
+                tags: true,
+              },
+            },
+            signatures: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
               },
             },
           },
-          rejectedBy: {
-            select: { id: true, username: true, name: true },
+        },
+        stepInstances: {
+          where: {
+            assignedTo: userData.id,
+            status: { in: ["PENDING", "IN_PROGRESS"] },
           },
-          signatures: {
-            include: {
-              user: {
-                select: { id: true, username: true, name: true },
+          include: {
+            workflowStep: {
+              select: {
+                id: true,
+                stepName: true,
+                stepNumber: true,
+                stepType: true,
               },
             },
           },
-          signCoordinates: {
-            where: { isSigned: true },
-            include: {
-              signedBy: {
-                select: { id: true, username: true, name: true },
+        },
+        queries: {
+          where: {
+            OR: [
+              { raisedById: userData.id },
+              { stepInstance: { assignedTo: userData.id } },
+            ],
+          },
+          include: {
+            raisedBy: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            documents: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
+            responses: {
+              include: {
+                respondedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            doubts: {
+              include: {
+                raisedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                responses: {
+                  include: {
+                    respondedBy: {
+                      select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                      },
+                    },
+                    highlights: {
+                      include: {
+                        document: {
+                          select: {
+                            id: true,
+                            name: true,
+                            type: true,
+                            path: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        recommendations: {
+          where: {
+            OR: [
+              { requestedById: userData.id },
+              { recommendedToId: userData.id },
+            ],
+          },
+          include: {
+            requestedBy: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            recommendedTo: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+              },
+            },
+            highlights: {
+              include: {
+                document: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    path: true,
+                  },
+                },
+              },
+            },
+            responses: {
+              include: {
+                respondedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            doubts: {
+              include: {
+                raisedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                  },
+                },
+                responses: {
+                  include: {
+                    respondedBy: {
+                      select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                      },
+                    },
+                    highlights: {
+                      include: {
+                        document: {
+                          select: {
+                            id: true,
+                            name: true,
+                            type: true,
+                            path: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                highlights: {
+                  include: {
+                    document: {
+                      select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        path: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
         },
       },
-      stepInstances: {
-        where: {
-          OR: [{ assignedTo: userId }, { pickedById: userId }],
-          status: "PENDING",
-        },
-        include: {
-          workflowAssignment: {
-            select: {
-              assigneeType: true,
-            },
-          },
-        },
-      },
-      queries: {
-        where: {
-          OR: [
-            { raisedById: userId },
-            { recirculationApprovals: { some: { approverId: userId } } },
-          ],
-        },
-        include: {
-          raisedBy: { select: { name: true, username: true } },
-          documents: {
-            include: {
-              document: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-      recommendations: {
-        where: {
-          OR: [{ requestedById: userId }, { recommendedToId: userId }],
-        },
-        include: {
-          requestedBy: { select: { name: true, username: true } },
-          recommendedTo: { select: { name: true, username: true } },
-        },
-      },
-    },
-  });
-
-  if (!process) throw new Error("Process not found");
-
-  const currentUser = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: { select: { roleId: true } },
-      branches: { select: { id: true } },
-    },
-  });
-
-  if (!currentUser) throw new Error("User not found");
-
-  const documentsWithAccess = process.documents.map((processDoc) => {
-    const accessTypes = new Set();
-
-    processDoc.document.documentAccesses.forEach((access) => {
-      if (
-        access.userId === userId ||
-        currentUser.roles.some((r) => r.roleId === access.roleId) ||
-        currentUser.branches.some((b) => b.id === access.departmentId)
-      ) {
-        accessTypes.add(access.accessType);
-      }
     });
 
-    const rejectionDetails = processDoc.rejectedBy
-      ? {
-          rejectedBy:
-            processDoc.rejectedBy.username || processDoc.rejectedBy.name,
-          rejectionReason: processDoc.rejectionReason || "No reason provided",
-          rejectedAt: processDoc.rejectedAt,
-        }
-      : null;
+    if (!process) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: "Process not found",
+          code: "PROCESS_NOT_FOUND",
+        },
+      });
+    }
 
-    const signatureDetails =
-      processDoc.signatures.map((signature) => ({
-        signedBy: signature.user.username || signature.user.name,
-        remarks: signature.reason || "No remarks provided",
-        signedAt: signature.signedAt,
-      })) || [];
-
-    const signedCoordinates = processDoc.signCoordinates || [];
-    const approvalCount = signatureDetails.length;
-
-    return {
-      id: processDoc.document.id,
-      name: processDoc.document.name,
-      type: processDoc.document.type,
-      access: Array.from(accessTypes),
-      rejectionDetails: rejectionDetails,
-      signedBy: signatureDetails,
-      approvalCount: approvalCount,
-      signedCoordinates: signedCoordinates.map((coord) => ({
-        page: coord.page,
-        x: coord.x,
-        y: coord.y,
-        signedBy: coord.signedBy?.username || coord.signedBy?.name,
-      })),
+    // Determine process purpose
+    let processPurpose = {
+      type: null,
+      typeId: null,
+      description: null,
     };
-  });
 
-  const arrivalTime = process.stepInstances[0]?.createdAt || null;
-  const processStepInstanceId =
-    process.stepInstances.length > 0 ? process.stepInstances[0].id : null;
-  const toBePicked =
-    (!process.stepInstances[0]?.pickedById &&
-      process.stepInstances[0].workflowAssignment?.assigneeType ===
-        "DEPARTMENT") ||
-    process.stepInstances[0].workflowAssignment?.assigneeType === "ROLE";
+    if (process.stepInstances.length > 0) {
+      const stepInstance = process.stepInstances[0];
+      if (process.currentStep?.id === stepInstance.workflowStep.id) {
+        processPurpose = {
+          type: "approval",
+          typeId: stepInstance.id,
+          description: `Approval required for step: ${stepInstance.workflowStep.stepName}`,
+        };
+      } else if (
+        process.queries.some(
+          (q) => q.recirculationFromStepId === stepInstance.workflowStep.id
+        )
+      ) {
+        processPurpose = {
+          type: "recirculation",
+          typeId: stepInstance.id,
+          description: `Recirculation approval required for step: ${stepInstance.workflowStep.stepName}`,
+        };
+      }
+    } else if (process.queries.length > 0) {
+      const query = process.queries.find(
+        (q) =>
+          q.stepInstance?.assignedTo === userData.id ||
+          q.raisedById === userData.id
+      );
+      if (query) {
+        if (query.doubts.length > 0) {
+          const doubt = query.doubts.find(
+            (d) =>
+              d.raisedById === userData.id ||
+              d.responses.some((r) => r.respondedById === userData.id)
+          );
+          if (doubt) {
+            if (doubt.responses.length > 0) {
+              processPurpose = {
+                type: "queryDoubtResponse",
+                typeId: doubt.responses[0].id,
+                description: `Respond to query doubt raised by ${doubt.raisedBy.name}`,
+              };
+            } else {
+              processPurpose = {
+                type: "queryDoubt",
+                typeId: doubt.id,
+                description: `Address query doubt raised2.5.2 queryText: ${doubt.doubtText}`,
+              };
+            }
+          } else if (query.responses.length > 0) {
+            processPurpose = {
+              type: "queryResponse",
+              typeId: query.responses[0].id,
+              description: `Respond to query: ${query.queryText}`,
+            };
+          } else {
+            processPurpose = {
+              type: "query",
+              typeId: query.id,
+              description: `Address query: ${query.queryText}`,
+            };
+          }
+        }
+      } else if (process.recommendations.length > 0) {
+        const recommendation = process.recommendations.find(
+          (r) =>
+            r.requestedById === userData.id || r.recommendedToId === userData.id
+        );
+        if (recommendation) {
+          if (recommendation.doubts.length > 0) {
+            const doubt = recommendation.doubts.find(
+              (d) =>
+                d.raisedById === userData.id ||
+                d.responses.some((r) => r.respondedById === userData.id)
+            );
+            if (doubt) {
+              if (doubt.responses.length > 0) {
+                processPurpose = {
+                  type: "recommendationDoubtResponse",
+                  typeId: doubt.responses[0].id,
+                  description: `Respond to recommendation doubt: ${doubt.doubtText}`,
+                };
+              } else {
+                processPurpose = {
+                  type: "recommendationDoubt",
+                  typeId: doubt.id,
+                  description: `Address recommendation doubt: ${doubt.doubtText}`,
+                };
+              }
+            } else if (recommendation.responses.length > 0) {
+              processPurpose = {
+                type: "recommendationResponse",
+                typeId: recommendation.responses[0].id,
+                description: `Respond to recommendation request`,
+              };
+            } else {
+              processPurpose = {
+                type: "recommendation",
+                typeId: recommendation.id,
+                description: `Provide recommendation for process: ${process.name}`,
+              };
+            }
+          }
+        }
+      }
 
-  return {
-    processId: process.id,
-    processName: process.name,
-    status: process.status,
-    createdAt: process.createdAt,
-    initiatorName: process.initiator.name,
-    arrivedAt: arrivalTime,
-    documents: documentsWithAccess,
-    processStepInstanceId: processStepInstanceId,
-    toBePicked: toBePicked,
-    queries: process.queries.map((query) => ({
-      id: query.id,
-      queryText: query.queryText,
-      status: query.status,
-      raisedBy: query.raisedBy.name || query.raisedBy.username,
-      documents: query.documents.map((doc) => ({
-        id: doc.document.id,
-        name: doc.document.name,
-      })),
-    })),
-    recommendations: process.recommendations.map((rec) => ({
-      id: rec.id,
-      status: rec.status,
-      requestedBy: rec.requestedBy.name || rec.requestedBy.username,
-      recommendedTo: rec.recommendedTo.name || rec.recommendedTo.username,
-      remarks: rec.remarks,
-    })),
-  };
-}
+      res.status(200).json({
+        success: true,
+        data: {
+          process,
+          processPurpose,
+        },
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to view process",
+        details: error.message,
+        code: "PROCESS_VIEW_ERROR",
+      },
+    });
+  }
+};
 export const view_process = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);

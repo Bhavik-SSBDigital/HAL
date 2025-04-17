@@ -121,9 +121,11 @@ model User {
   doubtsRaised QueryDoubt[]
   doubtResponses QueryDoubtResponse[]
   documentHighlights DocumentHighlight[]
-  // Added opposite relations
   recommendationResponses RecommendationResponse[] @relation("RecommendationRespondedBy")
   queriesRaised ProcessQuery[] @relation("QueriesRaisedBy")
+  // Added opposite relations
+  recommendationDoubts RecommendationDoubt[] @relation()
+  recommendationDoubtResponses RecommendationDoubtResponse[] @relation()
 }
 
 model Token {
@@ -572,8 +574,8 @@ model ProcessRecommendation {
   documentSummaries RecommendationDocumentSummary[]
   processSummary    RecommendationSummary?
   notifications ProcessNotification[]
-  // Added opposite relation
   documentHighlights DocumentHighlight[] @relation("RecommendationHighlights")
+  doubts        RecommendationDoubt[] @relation()
 }
 
 model RecommendationDocumentHighlight {
@@ -698,31 +700,72 @@ enum QueryStatus {
   RECIRCULATION_PENDING
 }
 
+
+model RecommendationDoubt {
+  id            String   @id @default(uuid())
+  recommendationId String
+  recommendation ProcessRecommendation @relation(fields: [recommendationId], references: [id])
+  raisedById    Int
+  raisedBy      User     @relation(fields: [raisedById], references: [id])
+  doubtText     String
+  createdAt     DateTime @default(now())
+  resolvedAt    DateTime?
+  responses     RecommendationDoubtResponse[]
+  highlights    DocumentHighlight[]
+}
+
+model RecommendationDoubtResponse {
+  id            String   @id @default(uuid())
+  doubtId       String
+  doubt         RecommendationDoubt @relation(fields: [doubtId], references: [id])
+  respondedById Int
+  respondedBy   User     @relation(fields: [respondedById], references: [id])
+  responseText  String
+  createdAt     DateTime @default(now())
+  highlights    DocumentHighlight[]
+}
+
+
 model DocumentHighlight {
-  id          String   @id @default(uuid())
-  documentId  Int
-  document    Document @relation(fields: [documentId], references: [id])
-  coordinates Json
-  remark      String?
-  createdAt   DateTime @default(now())
-  createdById Int
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  queryId             String?
-  query               ProcessQuery?             @relation(fields: [queryId], references: [id])
-  queryResponseId     String?
-  queryResponse       ProcessQueryResponse?     @relation(fields: [queryResponseId], references: [id])
-  queryDoubtId        String?
-  queryDoubt          QueryDoubt?              @relation(fields: [queryDoubtId], references: [id])
-  recommendationId    String?
-  recommendation      ProcessRecommendation?    @relation("RecommendationHighlights", fields: [recommendationId], references: [id])
+  id                   String   @id @default(uuid())
+  documentId           Int
+  document             Document @relation(fields: [documentId], references: [id])
+  coordinates          Json
+  remark               String?
+  createdAt            DateTime @default(now())
+  createdById          Int
+  createdBy            User     @relation(fields: [createdById], references: [id])
+  processInstanceId    String?  // Temporary storage for process instance before context is assigned
+  tempContextType      String?  // Temporary context type (e.g., "query", "queryDoubt", "recommendation")
+  contextFlag          String?  // For recommendation: "doubt" or "response"
+  queryId              String?
+  query                ProcessQuery? @relation(fields: [queryId], references: [id])
+  queryResponseId      String?
+  queryResponse        ProcessQueryResponse? @relation(fields: [queryResponseId], references: [id])
+  queryDoubtId         String?
+  queryDoubt           QueryDoubt? @relation(fields: [queryDoubtId], references: [id])
+  queryDoubtResponseId String?
+  queryDoubtResponse   QueryDoubtResponse? @relation("QueryDoubtResponseRelation", fields: [queryDoubtResponseId], references: [id])
+  recommendationId     String?
+  recommendation       ProcessRecommendation? @relation("RecommendationHighlights", fields: [recommendationId], references: [id])
   recommendationResponseId String?
-  recommendationResponse   RecommendationResponse? @relation("RecommendationResponseHighlights", fields: [recommendationResponseId], references: [id])
+  recommendationResponse RecommendationResponse? @relation("RecommendationResponseHighlights", fields: [recommendationResponseId], references: [id])
+  recommendationDoubtId String?
+  recommendationDoubt   RecommendationDoubt? @relation(fields: [recommendationDoubtId], references: [id])
+  recommendationDoubtResponseId String?
+  recommendationDoubtResponse RecommendationDoubtResponse? @relation(fields: [recommendationDoubtResponseId], references: [id])
+  // Assign a unique relation name for the opposite relation
+  queryDoubtResponseHighlights QueryDoubtResponse[] @relation("QueryDoubtResponseHighlights")
   @@index([documentId])
   @@index([queryId])
   @@index([queryResponseId])
   @@index([queryDoubtId])
+  @@index([queryDoubtResponseId])
   @@index([recommendationId])
   @@index([recommendationResponseId])
+  @@index([recommendationDoubtId])
+  @@index([recommendationDoubtResponseId])
+  @@index([processInstanceId])
 }
 
 model QueryDoubt {
@@ -747,6 +790,8 @@ model QueryDoubtResponse {
   respondedBy User     @relation(fields: [respondedById], references: [id])
   responseText String
   createdAt   DateTime @default(now())
+  highlights  DocumentHighlight[] @relation("QueryDoubtResponseRelation")
+  documentHighlights DocumentHighlight[] @relation("QueryDoubtResponseHighlights")
 }
 
 model QueryDocumentSummary {
