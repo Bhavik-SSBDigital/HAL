@@ -248,7 +248,7 @@ const ViewProcess = () => {
     );
 
   return (
-    <div className="mx-auto p-2">
+    <div className="mx-auto">
       {actionsLoading && <TopLoader />}
 
       <CustomCard>
@@ -313,7 +313,7 @@ const ViewProcess = () => {
               return (
                 <CustomCard
                   key={doc.id}
-                  className="flex items-center justify-between p-4 gap-5"
+                  className="flex items-center justify-between p-4 gap-5 flex-wrap"
                 >
                   <div className="flex gap-4 flex-wrap">
                     <input
@@ -345,7 +345,7 @@ const ViewProcess = () => {
                       click={() =>
                         setRemarksModalOpen({ id: doc.id, open: 'sign' })
                       }
-                      disabled={actionsLoading}
+                      disabled={actionsLoading || doc.signedBy.length}
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
                     />
@@ -355,7 +355,7 @@ const ViewProcess = () => {
                       click={() =>
                         setRemarksModalOpen({ id: doc.id, open: 'reject' })
                       }
-                      disabled={actionsLoading}
+                      disabled={actionsLoading || doc.rejectionDetails}
                       title="Reject Document"
                       text={<IconX size={18} className="text-white" />}
                     />
@@ -363,7 +363,7 @@ const ViewProcess = () => {
                       variant={'secondary'}
                       className="px-1"
                       click={() => handleRevokeSign(doc.id)}
-                      disabled={actionsLoading}
+                      disabled={actionsLoading || !doc.signedBy.length}
                       title="Revoke Sign"
                       text={
                         <IconArrowBackUp size={18} className="text-white" />
@@ -373,7 +373,7 @@ const ViewProcess = () => {
                       variant={'info'}
                       className="px-1"
                       click={() => handleRevokeRejection(doc.id)}
-                      disabled={actionsLoading}
+                      disabled={actionsLoading || !doc.rejectionDetails}
                       title="Revoke Rejection"
                       text={
                         <IconArrowForwardUp size={18} className="text-white" />
@@ -399,12 +399,12 @@ const ViewProcess = () => {
       {/* Query Modal */}
       <CustomModal
         isOpen={queryModalOpen}
-        onClose={()=>setQueryModalOpen(false)}
+        onClose={() => setQueryModalOpen(false)}
         className={'max-h-[95vh] overflow-auto'}
       >
         <Query
           processId={process.processId}
-          close={()=>setQueryModalOpen(false)}
+          close={() => setQueryModalOpen(false)}
           stepInstanceId={process.processStepInstanceId}
           documents={process.documents}
         />
