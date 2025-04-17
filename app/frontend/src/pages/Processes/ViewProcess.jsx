@@ -16,6 +16,7 @@ import {
   IconX,
   IconArrowBackUp,
   IconArrowForwardUp,
+  IconAlignBoxCenterMiddle,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -39,6 +40,7 @@ const ViewProcess = () => {
   const [error, setError] = useState(null);
   const [fileView, setFileView] = useState(null);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
+  const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -96,6 +98,14 @@ const ViewProcess = () => {
   useEffect(() => {
     fetchProcess();
   }, [id]);
+
+  // custom UIS
+  const DetailItem = ({ label, value }) => (
+    <div>
+      <span className="block text-md text-black font-medium">{label}</span>
+      <span className="text-lg font-normal text-gray-900">{value}</span>
+    </div>
+  );
 
   // handlers
   const handleCompleteProcess = async (stepId) => {
@@ -379,6 +389,19 @@ const ViewProcess = () => {
                         <IconArrowForwardUp size={18} className="text-white" />
                       }
                     />
+                    <CustomButton
+                      variant={'info'}
+                      className="px-1"
+                      click={() => setDocumentModalOpen(doc)}
+                      disabled={actionsLoading}
+                      title="Details"
+                      text={
+                        <IconAlignBoxCenterMiddle
+                          size={18}
+                          className="text-white"
+                        />
+                      }
+                    />
                   </div>
                 </CustomCard>
               );
@@ -395,6 +418,93 @@ const ViewProcess = () => {
           handleViewClose={() => setFileView(null)}
         />
       )}
+
+      {/* Documents Details Modal */}
+      <CustomModal
+        isOpen={!!documentModalOpen}
+        onClose={() => setDocumentModalOpen(false)}
+        className={'max-h-[99vh] overflow-auto'}
+      >
+        {documentModalOpen ? (
+          <div className="space-y-8 text-sm text-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">
+              Document Details
+            </h2>
+
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+              <DetailItem label="Name" value={documentModalOpen.name} />
+              <DetailItem
+                label="Type"
+                value={documentModalOpen.type.toUpperCase()}
+              />
+              <DetailItem
+                label="Access"
+                value={documentModalOpen.access.flat().join(', ')}
+              />
+              <DetailItem
+                label="Approval Count"
+                value={documentModalOpen.approvalCount}
+              />
+            </div>
+
+            {/* Signed By */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
+                Signed By
+              </h3>
+              {documentModalOpen.signedBy.length > 0 ? (
+                <ul className="list-disc list-inside space-y-2 pl-2 text-gray-700">
+                  {documentModalOpen.signedBy.map((entry, idx) => (
+                    <li key={idx}>
+                      <div>
+                        <span className="font-medium">{entry.signedBy}</span>
+                        <span className="text-gray-600">
+                          ({new Date(entry.signedAt).toLocaleString()})
+                        </span>
+                      </div>
+                      {entry.remarks && (
+                        <div className="ml-4 italic text-gray-600">
+                          Remarks: {entry.remarks}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span className="text-gray-500">—</span>
+              )}
+            </div>
+
+            {/* Rejection Details */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
+                Rejection Details
+              </h3>
+              {documentModalOpen.rejectionDetails ? (
+                <div className="space-y-1 pl-1">
+                  <p>
+                    <span className="font-semibold">Rejected By:</span>{' '}
+                    {documentModalOpen.rejectionDetails.rejectedBy}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Reason:</span>{' '}
+                    {documentModalOpen.rejectionDetails.rejectionReason}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Rejected At:</span>{' '}
+                    {new Date(
+                      documentModalOpen.rejectionDetails.rejectedAt,
+                    ).toLocaleString()}
+                  </p>
+                </div>
+              ) : (
+                <span className="text-gray-500">—</span>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </CustomModal>
 
       {/* Query Modal */}
       <CustomModal

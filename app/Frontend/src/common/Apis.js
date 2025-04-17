@@ -15,7 +15,6 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
 apiClient.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
@@ -65,7 +64,6 @@ export const DeleteUser = (id) => {
 export const GetUser = (id) => {
   return apiClient.get(`/getUser/${id}`);
 };
-
 // roles endpoints
 export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
@@ -85,7 +83,6 @@ export const EditRoleById = async (id, data) => {
 export const AddRole = async (data) => {
   return apiClient.post(`/addRole`, data);
 };
-
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);
@@ -96,12 +93,10 @@ export const EditWorkflow = async (id, data) => {
 export const GetWorkflows = async () => {
   return apiClient.get('/workflows/getWorkflows');
 };
-
 // usernames endpoints
 export const GetUsersWithDetails = async () => {
   return apiClient.get('/getUsersWithDetails');
 };
-
 // documents apis
 export const uploadDocumentInProcess = async (fileList, name, tags) => {
   const res = await upload(fileList, '../check', name, true, tags);
@@ -170,7 +165,6 @@ export const CopyPaste = (body) => {
 export const CreateFolder = (path, folder) => {
   return apiClient.post('/createFolder', { path: `${path}/${folder}` });
 };
-
 // processes endpoints
 export const ProcessInitiate = async (data) => {
   return apiClient.post('/initiateProcess', data);
@@ -187,7 +181,9 @@ export const CompleteProcess = async (id) => {
 export const ClaimProcess = async (processId, stepInstanceId) => {
   return apiClient.post('/claimProcessStep', { processId, stepInstanceId });
 };
-
+export const CreateQuery = async (data) => {
+  return apiClient.post('createQuery', data);
+};
 // file and folders
 export const GetFolderData = (path) => {
   return apiClient.post('/accessFolder', { path });
@@ -195,7 +191,6 @@ export const GetFolderData = (path) => {
 export const GetRootFolders = () => {
   return apiClient.post('/getProjects');
 };
-
 // profile
 export const GetSignature = () => {
   return apiClient.get('/getUserSignature', { responseType: 'blob' });
