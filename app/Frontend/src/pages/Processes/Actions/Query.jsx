@@ -12,6 +12,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
     register,
     control,
     handleSubmit,
+    getValues,
     reset,
     watch,
     formState: { isSubmitting },
@@ -44,12 +45,11 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
 
     try {
       const response = await uploadDocumentInProcess([file]);
-      console.log(response);
       const uploadedDocumentId = response[0];
 
-      // Update the specific documentChanges[index].documentId
-      const updatedChanges = [...changeFields];
+      const updatedChanges = [...getValues('documentChanges')];
       updatedChanges[index].documentId = uploadedDocumentId;
+      updatedChanges[index].uploadedFileName = file.name; // <-- Store file name
 
       reset((prev) => ({
         ...prev,
@@ -242,6 +242,9 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                 const isReplacement = watch(
                   `documentChanges.${index}.isReplacement`,
                 );
+                const uploadedFileName = watch(
+                  `documentChanges.${index}.uploadedFileName`,
+                );
 
                 return (
                   <div
@@ -256,6 +259,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                       />
                       Is Replacement
                     </label>
+
                     {isReplacement && (
                       <div>
                         <label className="block text-sm font-medium mb-1">
@@ -289,6 +293,11 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                           handleDocumentUpload(e.target.files[0], index)
                         }
                       />
+                      {uploadedFileName && (
+                        <p className="text-sm text-green-600 mt-1">
+                          Uploaded: {uploadedFileName}
+                        </p>
+                      )}
                     </div>
 
                     <button
