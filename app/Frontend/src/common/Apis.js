@@ -182,7 +182,7 @@ export const ClaimProcess = async (processId, stepInstanceId) => {
   return apiClient.post('/claimProcessStep', { processId, stepInstanceId });
 };
 export const CreateQuery = async (data) => {
-  return apiClient.post('createQuery', data);
+  return apiClient.post('/queries/createQuery', data);
 };
 // file and folders
 export const GetFolderData = (path) => {

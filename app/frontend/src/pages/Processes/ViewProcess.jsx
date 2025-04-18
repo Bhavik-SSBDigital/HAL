@@ -87,7 +87,7 @@ const ViewProcess = () => {
   const fetchProcess = async () => {
     try {
       const response = await GetProcessData(id);
-      setProcess(response?.data?.process);
+      setProcess(response?.data?.data?.process);
     } catch (err) {
       setError(err?.response?.data?.message || err.message);
     } finally {
@@ -336,7 +336,7 @@ const ViewProcess = () => {
                     <div className="min-w-fit">
                       <p className="text-gray-900 font-semibold">{doc.name}</p>
                       <p className="text-gray-500 text-sm">
-                        Type: {doc.type.toUpperCase()}
+                        Type: {doc?.type?.toUpperCase()}
                       </p>
                     </div>
                   </div>
@@ -355,7 +355,7 @@ const ViewProcess = () => {
                       click={() =>
                         setRemarksModalOpen({ id: doc.id, open: 'sign' })
                       }
-                      disabled={actionsLoading || doc.signedBy.length}
+                      disabled={actionsLoading || doc?.signedBy?.length}
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
                     />
