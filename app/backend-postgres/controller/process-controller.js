@@ -448,20 +448,15 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
 // processViews.js
 // processViews.js
 // processViews.js
-export const viewProcess = async (req, res) => {
+export const view_process = async (req, res) => {
   try {
     const { processId } = req.params;
-    const userData = req.user;
 
-    const hasAccess = await checkProcessAccess(processId, userData.id);
-    if (!hasAccess) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: "Access to process denied",
-          code: "PROCESS_ACCESS_DENIED",
-        },
-      });
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized" || !userData?.id) {
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
     const process = await prisma.processInstance.findUnique({
@@ -675,7 +670,7 @@ export const viewProcess = async (req, res) => {
                     username: true,
                   },
                 },
-                highlights: {
+                documentHighlights: {
                   include: {
                     document: {
                       select: {
@@ -757,15 +752,21 @@ export const viewProcess = async (req, res) => {
       description: null,
     };
 
+    // Check step instances for approval or recirculation
     if (process.stepInstances.length > 0) {
       const stepInstance = process.stepInstances[0];
-      if (process.currentStep?.id === stepInstance.workflowStep.id) {
+      if (
+        stepInstance?.workflowStep &&
+        process.currentStep &&
+        process.currentStep.id === stepInstance.workflowStep.id
+      ) {
         processPurpose = {
           type: "approval",
           typeId: stepInstance.id,
           description: `Approval required for step: ${stepInstance.workflowStep.stepName}`,
         };
       } else if (
+        stepInstance?.workflowStep &&
         process.queries.some(
           (q) => q.recirculationFromStepId === stepInstance.workflowStep.id
         )
@@ -776,7 +777,10 @@ export const viewProcess = async (req, res) => {
           description: `Recirculation approval required for step: ${stepInstance.workflowStep.stepName}`,
         };
       }
-    } else if (process.queries.length > 0) {
+    }
+
+    // Check queries if no purpose is set
+    if (!processPurpose.type && process.queries.length > 0) {
       const query = process.queries.find(
         (q) =>
           q.stepInstance?.assignedTo === userData.id ||
@@ -800,10 +804,13 @@ export const viewProcess = async (req, res) => {
               processPurpose = {
                 type: "queryDoubt",
                 typeId: doubt.id,
-                description: `Address query doubt raised2.5.2 queryText: ${doubt.doubtText}`,
+                description: `Address query doubt: ${doubt.doubtText}`,
               };
             }
-          } else if (query.responses.length > 0) {
+          }
+        }
+        if (!processPurpose.type) {
+          if (query.responses.length > 0) {
             processPurpose = {
               type: "queryResponse",
               typeId: query.responses[0].id,
@@ -817,59 +824,66 @@ export const viewProcess = async (req, res) => {
             };
           }
         }
-      } else if (process.recommendations.length > 0) {
-        const recommendation = process.recommendations.find(
-          (r) =>
-            r.requestedById === userData.id || r.recommendedToId === userData.id
-        );
-        if (recommendation) {
-          if (recommendation.doubts.length > 0) {
-            const doubt = recommendation.doubts.find(
-              (d) =>
-                d.raisedById === userData.id ||
-                d.responses.some((r) => r.respondedById === userData.id)
-            );
-            if (doubt) {
-              if (doubt.responses.length > 0) {
-                processPurpose = {
-                  type: "recommendationDoubtResponse",
-                  typeId: doubt.responses[0].id,
-                  description: `Respond to recommendation doubt: ${doubt.doubtText}`,
-                };
-              } else {
-                processPurpose = {
-                  type: "recommendationDoubt",
-                  typeId: doubt.id,
-                  description: `Address recommendation doubt: ${doubt.doubtText}`,
-                };
-              }
-            } else if (recommendation.responses.length > 0) {
+      }
+    }
+
+    // Check recommendations if no purpose is set
+    if (!processPurpose.type && process.recommendations.length > 0) {
+      const recommendation = process.recommendations.find(
+        (r) =>
+          r.requestedById === userData.id || r.recommendedToId === userData.id
+      );
+      if (recommendation) {
+        if (recommendation.doubts.length > 0) {
+          const doubt = recommendation.doubts.find(
+            (d) =>
+              d.raisedById === userData.id ||
+              d.responses.some((r) => r.respondedById === userData.id)
+          );
+          if (doubt) {
+            if (doubt.responses.length > 0) {
               processPurpose = {
-                type: "recommendationResponse",
-                typeId: recommendation.responses[0].id,
-                description: `Respond to recommendation request`,
+                type: "recommendationDoubtResponse",
+                typeId: doubt.responses[0].id,
+                description: `Respond to recommendation doubt: ${doubt.doubtText}`,
               };
             } else {
               processPurpose = {
-                type: "recommendation",
-                typeId: recommendation.id,
-                description: `Provide recommendation for process: ${process.name}`,
+                type: "recommendationDoubt",
+                typeId: doubt.id,
+                description: `Address recommendation doubt: ${doubt.doubtText}`,
               };
             }
           }
         }
+        if (!processPurpose.type) {
+          if (recommendation.responses.length > 0) {
+            processPurpose = {
+              type: "recommendationResponse",
+              typeId: recommendation.responses[0].id,
+              description: `Respond to recommendation request`,
+            };
+          } else {
+            processPurpose = {
+              type: "recommendation",
+              typeId: recommendation.id,
+              description: `Provide recommendation for process: ${process.name}`,
+            };
+          }
+        }
       }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          process,
-          processPurpose,
-        },
-      });
     }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        process,
+        processPurpose,
+      },
+    });
   } catch (error) {
-    res.status(500).json({
+    console.error("Error getting process:", error);
+    return res.status(500).json({
       success: false,
       error: {
         message: "Failed to view process",
@@ -879,26 +893,28 @@ export const viewProcess = async (req, res) => {
     });
   }
 };
-export const view_process = async (req, res, next) => {
-  try {
-    const accessToken = req.headers["authorization"]?.substring(7);
-    const userData = await verifyUser(accessToken);
+// export const view_process = async (req, res, next) => {
+//   try {
+// const accessToken = req.headers["authorization"]?.substring(7);
+// const userData = await verifyUser(accessToken);
 
-    if (userData === "Unauthorized") {
-      return res.status(401).json({ message: "Unauthorized request" });
-    }
+// if (userData === "Unauthorized") {
+//   return res.status(401).json({ message: "Unauthorized request" });
+// }
 
-    const { processId } = req.params;
-    const process = await viewProcess(processId, userData.id);
+//     req.user = userData;
 
-    return res.status(200).json({ process: process });
-  } catch (error) {
-    console.log("Error viewing process", error);
-    return res.status(500).json({
-      message: "Error viewing the process",
-    });
-  }
-};
+//     const { processId } = req.params;
+//     const process = await viewProcess(processId, userData.id);
+
+//     return res.status(200).json({ process: process });
+//   } catch (error) {
+//     console.log("Error viewing process", error);
+//     return res.status(500).json({
+//       message: "Error viewing the process",
+//     });
+//   }
+// };
 
 // processHandling.js
 async function handleProcessClaim(userId, stepInstanceId) {
