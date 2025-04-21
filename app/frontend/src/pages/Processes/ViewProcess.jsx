@@ -87,7 +87,7 @@ const ViewProcess = () => {
   const fetchProcess = async () => {
     try {
       const response = await GetProcessData(id);
-      setProcess(response?.data?.data?.process);
+      setProcess(response?.data?.process);
     } catch (err) {
       setError(err?.response?.data?.message || err.message);
     } finally {
