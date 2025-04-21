@@ -499,6 +499,8 @@ export const view_process = async (req, res) => {
                 },
               },
             },
+            // Removed rejections include since it doesn't exist in your schema
+            // You might need to adjust this based on how rejections are stored
           },
         },
         stepInstances: {
@@ -517,221 +519,6 @@ export const view_process = async (req, res) => {
             },
           },
         },
-        queries: {
-          where: {
-            OR: [
-              { raisedById: userData.id },
-              { stepInstance: { assignedTo: userData.id } },
-            ],
-          },
-          include: {
-            raisedBy: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-              },
-            },
-            documents: {
-              include: {
-                document: {
-                  select: {
-                    id: true,
-                    name: true,
-                    type: true,
-                    path: true,
-                  },
-                },
-              },
-            },
-            highlights: {
-              include: {
-                document: {
-                  select: {
-                    id: true,
-                    name: true,
-                    type: true,
-                    path: true,
-                  },
-                },
-              },
-            },
-            responses: {
-              include: {
-                respondedBy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                  },
-                },
-                highlights: {
-                  include: {
-                    document: {
-                      select: {
-                        id: true,
-                        name: true,
-                        type: true,
-                        path: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            doubts: {
-              include: {
-                raisedBy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                  },
-                },
-                responses: {
-                  include: {
-                    respondedBy: {
-                      select: {
-                        id: true,
-                        name: true,
-                        username: true,
-                      },
-                    },
-                    highlights: {
-                      include: {
-                        document: {
-                          select: {
-                            id: true,
-                            name: true,
-                            type: true,
-                            path: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                highlights: {
-                  include: {
-                    document: {
-                      select: {
-                        id: true,
-                        name: true,
-                        type: true,
-                        path: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        recommendations: {
-          where: {
-            OR: [
-              { requestedById: userData.id },
-              { recommendedToId: userData.id },
-            ],
-          },
-          include: {
-            requestedBy: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-              },
-            },
-            recommendedTo: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-              },
-            },
-            highlights: {
-              include: {
-                document: {
-                  select: {
-                    id: true,
-                    name: true,
-                    type: true,
-                    path: true,
-                  },
-                },
-              },
-            },
-            responses: {
-              include: {
-                respondedBy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                  },
-                },
-                documentHighlights: {
-                  include: {
-                    document: {
-                      select: {
-                        id: true,
-                        name: true,
-                        type: true,
-                        path: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            doubts: {
-              include: {
-                raisedBy: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                  },
-                },
-                responses: {
-                  include: {
-                    respondedBy: {
-                      select: {
-                        id: true,
-                        name: true,
-                        username: true,
-                      },
-                    },
-                    highlights: {
-                      include: {
-                        document: {
-                          select: {
-                            id: true,
-                            name: true,
-                            type: true,
-                            path: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                highlights: {
-                  include: {
-                    document: {
-                      select: {
-                        id: true,
-                        name: true,
-                        type: true,
-                        path: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -745,142 +532,47 @@ export const view_process = async (req, res) => {
       });
     }
 
-    // Determine process purpose
-    let processPurpose = {
-      type: null,
-      typeId: null,
-      description: null,
+    // Transform documents to match the required format
+    const transformedDocuments = process.documents.map((doc) => {
+      const signedBy = doc.signatures.map((sig) => ({
+        signedBy: sig.user.name,
+        signedAt: sig.createdAt ? sig.createdAt.toISOString() : null,
+        remarks: sig.remarks || null,
+      }));
+
+      // Since rejections field doesn't exist, we'll set rejectionDetails to null
+      // If you have a different way to track rejections, you'll need to modify this
+      const rejectionDetails = null;
+
+      return {
+        id: doc.document.id,
+        name: doc.document.name,
+        type: doc.document.type,
+        path: doc.document.path,
+        signedBy,
+        rejectionDetails,
+        access: doc.document.tags.includes("confidential")
+          ? ["auditor"]
+          : ["auditor", "manager"],
+        approvalCount: signedBy.length,
+      };
+    });
+
+    // Determine if the process needs to be picked by the current user
+    const toBePicked = process.stepInstances.some(
+      (step) => step.assignedTo === userData.id && step.status === "PENDING"
+    );
+
+    const response = {
+      process: {
+        processId: process.id,
+        processStepInstanceId: process.currentStep?.id || null,
+        toBePicked,
+        documents: transformedDocuments,
+      },
     };
 
-    // Check step instances for approval or recirculation
-    if (process.stepInstances.length > 0) {
-      const stepInstance = process.stepInstances[0];
-      if (
-        stepInstance?.workflowStep &&
-        process.currentStep &&
-        process.currentStep.id === stepInstance.workflowStep.id
-      ) {
-        processPurpose = {
-          type: "approval",
-          typeId: stepInstance.id,
-          description: `Approval required for step: ${stepInstance.workflowStep.stepName}`,
-        };
-      } else if (
-        stepInstance?.workflowStep &&
-        process.queries.some(
-          (q) => q.recirculationFromStepId === stepInstance.workflowStep.id
-        )
-      ) {
-        processPurpose = {
-          type: "recirculation",
-          typeId: stepInstance.id,
-          description: `Recirculation approval required for step: ${stepInstance.workflowStep.stepName}`,
-        };
-      }
-    }
-
-    // Check queries if no purpose is set
-    if (!processPurpose.type && process.queries.length > 0) {
-      const query = process.queries.find(
-        (q) =>
-          q.stepInstance?.assignedTo === userData.id ||
-          q.raisedById === userData.id
-      );
-      if (query) {
-        if (query.doubts.length > 0) {
-          const doubt = query.doubts.find(
-            (d) =>
-              d.raisedById === userData.id ||
-              d.responses.some((r) => r.respondedById === userData.id)
-          );
-          if (doubt) {
-            if (doubt.responses.length > 0) {
-              processPurpose = {
-                type: "queryDoubtResponse",
-                typeId: doubt.responses[0].id,
-                description: `Respond to query doubt raised by ${doubt.raisedBy.name}`,
-              };
-            } else {
-              processPurpose = {
-                type: "queryDoubt",
-                typeId: doubt.id,
-                description: `Address query doubt: ${doubt.doubtText}`,
-              };
-            }
-          }
-        }
-        if (!processPurpose.type) {
-          if (query.responses.length > 0) {
-            processPurpose = {
-              type: "queryResponse",
-              typeId: query.responses[0].id,
-              description: `Respond to query: ${query.queryText}`,
-            };
-          } else {
-            processPurpose = {
-              type: "query",
-              typeId: query.id,
-              description: `Address query: ${query.queryText}`,
-            };
-          }
-        }
-      }
-    }
-
-    // Check recommendations if no purpose is set
-    if (!processPurpose.type && process.recommendations.length > 0) {
-      const recommendation = process.recommendations.find(
-        (r) =>
-          r.requestedById === userData.id || r.recommendedToId === userData.id
-      );
-      if (recommendation) {
-        if (recommendation.doubts.length > 0) {
-          const doubt = recommendation.doubts.find(
-            (d) =>
-              d.raisedById === userData.id ||
-              d.responses.some((r) => r.respondedById === userData.id)
-          );
-          if (doubt) {
-            if (doubt.responses.length > 0) {
-              processPurpose = {
-                type: "recommendationDoubtResponse",
-                typeId: doubt.responses[0].id,
-                description: `Respond to recommendation doubt: ${doubt.doubtText}`,
-              };
-            } else {
-              processPurpose = {
-                type: "recommendationDoubt",
-                typeId: doubt.id,
-                description: `Address recommendation doubt: ${doubt.doubtText}`,
-              };
-            }
-          }
-        }
-        if (!processPurpose.type) {
-          if (recommendation.responses.length > 0) {
-            processPurpose = {
-              type: "recommendationResponse",
-              typeId: recommendation.responses[0].id,
-              description: `Respond to recommendation request`,
-            };
-          } else {
-            processPurpose = {
-              type: "recommendation",
-              typeId: recommendation.id,
-              description: `Provide recommendation for process: ${process.name}`,
-            };
-          }
-        }
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        process,
-        processPurpose,
-      },
-    });
+    return res.status(200).json(response);
   } catch (error) {
     console.error("Error getting process:", error);
     return res.status(500).json({
