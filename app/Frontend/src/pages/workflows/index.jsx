@@ -89,12 +89,18 @@ export default function WorkflowVisualizer() {
             >
               <button
                 className="absolute top-3 right-3 text-gray-600 hover:text-gray-800"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setEditData(null);
+                }}
               >
                 <IconX size={24} />
               </button>
               <WorkflowForm
-                handleCloseForm={() => setShowForm(false)}
+                handleCloseForm={() => {
+                  setShowForm(false);
+                  setEditData(null);
+                }}
                 editData={editData}
                 setEditData={setEditData}
               />
