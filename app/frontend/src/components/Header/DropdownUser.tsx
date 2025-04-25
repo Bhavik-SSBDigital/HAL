@@ -17,7 +17,6 @@ const DropdownUser = () => {
     setProfileImage,
     setAlerts,
     setNotifications,
-    setWork,
   } = sessionData();
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
@@ -56,7 +55,7 @@ const DropdownUser = () => {
     setNotifications([]);
     setAlerts([]);
     setProfileImage('');
-    setWork('');
+    // setWork('');
     dispatch(setPath('..'));
     dispatch(backButtonPath('..'));
     navigate('/auth/signin');
@@ -211,7 +210,7 @@ const DropdownUser = () => {
         ref={dropdown}
         onFocus={() => setDropdownOpen(true)}
         onBlur={() => setDropdownOpen(false)}
-        className={`absolute right-0 mt-4 flex w-62.5 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark ${
+        className={`absolute right-0 mt-4 flex w-60 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark ${
           dropdownOpen === true ? 'block' : 'hidden'
         }`}
       >

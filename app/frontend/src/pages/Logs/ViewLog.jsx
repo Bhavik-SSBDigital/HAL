@@ -38,7 +38,7 @@ import { download } from '../../components/drop-file-input/FileUploadDownload';
 import View from '../view/View';
 import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
-import ShowWorkflow from '../../components/Workflow/ShowWorkflow';
+import ShowWorkflow from '../../common/Workflow/ShowWorkflow';
 
 export default function ViewLog(props) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;

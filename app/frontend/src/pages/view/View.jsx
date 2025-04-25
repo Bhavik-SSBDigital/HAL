@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Box, IconButton } from '@mui/material';
 import { toast } from 'react-toastify';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'; // Import the library
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import '@cyntler/react-doc-viewer/dist/index.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
 import PdfContainer from './pdfViewer';
 import './View.css';
-import { IconSquareRoundedX } from '@tabler/icons-react';
+import {
+  IconSquareRoundedX,
+  IconArrowLeft,
+  IconArrowRight,
+} from '@tabler/icons-react';
+import CustomModal from '../../CustomComponents/CustomModal';
 
 const PdfViewer = ({
   docu,
@@ -20,12 +24,11 @@ const PdfViewer = ({
   controls,
 }) => {
   const [excelData, setExcelData] = useState([]);
-  const closeIconStyle = {
-    position: 'absolute',
-    top: '10px',
-    right: '20px',
-    zIndex: '22',
-  };
+  const [activeDocument, setActiveDocument] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const documents = docu?.multi ? docu.docs : [docu];
+  const currentDoc = documents[currentIndex];
 
   useEffect(() => {
     const supportedTypes = [
@@ -51,147 +54,147 @@ const PdfViewer = ({
       'webp',
       'dwg',
     ];
-    if (docu.type === 'xlsx' || docu.type === 'xls') {
-      fetch(docu.url)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const reader = new FileReader();
 
-          reader.onload = (evt) => {
-            const bstr = evt.target.result;
-            const workbook = XLSX.read(bstr, {
-              type: 'binary',
-              cellDates: true,
-            });
-            const sheetName = workbook.SheetNames[0]; // First sheet
-            const sheet = workbook.Sheets[sheetName];
-
-            // Convert to JSON format
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // `header: 1` keeps it in an array format
-
-            // Normalize and store data
-            const maxLength = jsonData.reduce(
-              (max, row) => Math.max(max, row.length),
-              0,
-            );
-            const normalizedData = jsonData.map(
-              (row) =>
-                Array.from({ length: maxLength }, (_, i) => row[i] || ''), // Normalize Excel data
-            );
-
-            setExcelData(normalizedData);
-          };
-
-          reader.readAsBinaryString(blob);
-        })
-        .catch((error) => console.error('Error reading Excel file:', error));
-    }
-
-    if (!supportedTypes.includes(docu.type)) {
+    if (!currentDoc || !supportedTypes.includes(currentDoc.type)) {
       toast.warn('Unsupported file type');
       handleViewClose();
       return;
     }
-  }, [docu]);
 
-  // custom excel viewer
-  // docu.type === 'xls' || docu.type === 'xlsx' ? (
-  //   <div
-  //     style={{
-  //       overflowY: 'auto',
-  //       maxHeight: '100vh',
-  //       background: 'white',
-  //     }}
-  //   >
-  //     <table
-  //       border="1"
-  //       style={{ borderCollapse: 'collapse', width: '100%' }}
-  //     >
-  //       {excelData?.map((row, rowIndex) => (
-  //         <tr key={rowIndex}>
-  //           {row.map((cell, cellIndex) => {
-  //             const isEmpty = cell === '';
-  //             return (
-  //               <td
-  //                 key={cellIndex}
-  //                 style={{
-  //                   padding: '8px',
-  //                   border: '1px solid',
-  //                   textAlign: 'left',
-  //                   fontWeight: rowIndex === 0 ? 700 : 'normal',
-  //                   color: rowIndex === 0 ? 'black' : '',
-  //                   backgroundColor: isEmpty
-  //                     ? '#f0f0f0'
-  //                     : 'transparent',
-  //                 }}
-  //               >
-  //                 {isEmpty ? ' ' : cell}{' '}
-  //               </td>
-  //             );
-  //           })}
-  //         </tr>
-  //       ))}
-  //     </table>
-  //   </div>
-  // ) :
+    setActiveDocument({ uri: currentDoc.url });
 
-  // docViewer editor
-  const [activeDocument, setActiveDocument] = useState({ uri: docu.url });
+    if (currentDoc.type === 'xlsx' || currentDoc.type === 'xls') {
+      fetch(currentDoc.url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const bstr = e.target.result;
+            const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
+            const sheetName = wb.SheetNames[0];
+            const sheet = wb.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            const maxLength = jsonData.reduce(
+              (max, row) => Math.max(max, row.length),
+              0,
+            );
+            const normalizedData = jsonData.map((row) =>
+              Array.from({ length: maxLength }, (_, i) => row[i] || ''),
+            );
+
+            setExcelData(normalizedData);
+          };
+          reader.readAsBinaryString(blob);
+        })
+        .catch((err) => console.error('Error reading Excel file:', err));
+    }
+  }, [currentDoc]);
+
+  const handleNext = () => {
+    if (currentIndex < documents.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
   const handleDocumentChange = (document) => {
-    console.log('edit called');
     setActiveDocument(document);
   };
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: '0px',
-        top: '0px',
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: 'rgb(240 240 240)',
-        zIndex: '21',
-      }}
-    >
-      <IconButton sx={closeIconStyle} onClick={handleViewClose}>
-        <IconSquareRoundedX />
-      </IconButton>
-      {docu && (
-        <>
-          {docu.type === 'pdf' ? (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'relative',
-                height: '100%',
-              }}
-            >
-              <PdfContainer
-                url={docu.url}
-                documentId={docu.fileId}
-                workflow={workflow}
-                maxReceiverStepNumber={maxReceiverStepNumber}
-                processId={processId}
-                currentStep={currentStep}
-                controls={controls}
-                signed={docu.signed}
-              />
-            </div>
+    <CustomModal isOpen={!!docu} onClose={handleViewClose}>
+      {/* Top Navigation/Header */}
+      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
+        <div className="flex items-center gap-2">
+          {documents.length > 1 && (
+            <>
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex === 0}
+                className={`p-1 rounded-full transition ${
+                  currentIndex === 0
+                    ? 'opacity-30 cursor-not-allowed'
+                    : 'hover:bg-gray-200'
+                }`}
+                title="Previous Document"
+              >
+                <IconArrowLeft size={22} />
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={currentIndex === documents.length - 1}
+                className={`p-1 rounded-full transition ${
+                  currentIndex === documents.length - 1
+                    ? 'opacity-30 cursor-not-allowed'
+                    : 'hover:bg-gray-200'
+                }`}
+                title="Next Document"
+              >
+                <IconArrowRight size={22} />
+              </button>
+            </>
+          )}
+          <span className="text-sm font-medium text-gray-700 truncate max-w-[250px]">
+            {currentDoc?.name ||
+              currentDoc?.fileName ||
+              currentDoc?.url?.split('/')?.pop()}
+          </span>
+          {documents.length > 1 && (
+            <span className="text-xs text-gray-500 ml-2">
+              ({currentIndex + 1} of {documents.length})
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={handleViewClose}
+          className="hover:bg-gray-200 p-1 rounded-full transition"
+          title="Close Viewer"
+        >
+          <IconSquareRoundedX size={22} />
+        </button>
+      </div>
+
+      {/* Viewer Area */}
+      <div className="pt-7 w-full flex items-center justify-center overflow-auto">
+        {currentDoc ? (
+          currentDoc.type === 'pdf' ? (
+            <PdfContainer
+              url={currentDoc.url}
+              documentId={currentDoc.fileId}
+              workflow={workflow}
+              maxReceiverStepNumber={maxReceiverStepNumber}
+              processId={processId}
+              currentStep={currentStep}
+              controls={controls}
+              signed={currentDoc.signed}
+            />
           ) : (
             <DocViewer
-              documents={[{ uri: docu.url }]}
+              documents={[{ uri: currentDoc.url }]}
               activeDocument={activeDocument}
               className="my-doc-viewer-style"
               pluginRenderers={DocViewerRenderers}
               onDocumentChange={handleDocumentChange}
-              style={{ display: 'flex', height: '100%', width: '100%' }}
+              style={{
+                display: 'flex',
+                height: '100%',
+                width: '100%',
+                padding: '1rem',
+              }}
             />
-          )}
-        </>
-      )}
-    </div>
+          )
+        ) : (
+          <div className="text-center text-gray-500">Loading document...</div>
+        )}
+      </div>
+    </CustomModal>
   );
 };
 

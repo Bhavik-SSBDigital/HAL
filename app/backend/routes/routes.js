@@ -65,6 +65,8 @@ import {
   delete_department,
   get_departments_for_initiator,
   get_merged_workflow,
+  get_department_names,
+  get_branch_names,
 } from "../controller/department-controller.js";
 
 import {
@@ -192,12 +194,12 @@ router.post("/editUser/:userId", edit_user);
 router.post("/createPermissions", create_permissions);
 
 // branch controllers
-router.post("/createBranch", create_branch);
-router.post("/editBranch/:branchId", edit_branch);
-router.post("/deleteBranch/:branchId", delete_branch);
-router.post("/getAllBranches", get_all_branches);
+router.post("/createBranch", add_department);
+router.post("/editBranch/:id", edit_department);
+router.post("/deleteBranch/:branchId", delete_department);
+router.post("/getAllBranches", get_departments);
 router.post("/getBranchesWithDepartments", get_all_branches_with_departments);
-router.post("/getBranch/:branchId", get_branch_details);
+router.post("/getBranch/:id", get_department);
 
 router.post("/addWork", addWork);
 router.post("/getWorks", getWorks);
@@ -335,5 +337,9 @@ router.get("/getFileData", get_file_data);
 router.post("/updateProcessWorkflow", update_process_workflow);
 
 router.post("/removeCoordinates", remove_coordinate_from_doc);
+
+router.get("/getDepartmentNames", get_department_names);
+
+router.get("/getBranchNames", get_branch_names);
 
 export default router;

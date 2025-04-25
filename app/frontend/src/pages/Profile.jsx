@@ -1,409 +1,213 @@
 import CoverOne from '../assets/images/cover-01.png';
-import { Box, Modal, Stack, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import sessionData from '../Store';
 import ComponentLoader from '../common/Loader/ComponentLoader';
-import styles from './Profile.module.css'
-
-const signatureModalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
+import { GetProfileData, GetProfilePic, GetSignature } from '../common/Apis';
+import CustomModal from '../CustomComponents/CustomModal';
 
 const Profile = () => {
-
   const { profileImage, setProfileImage } = sessionData();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [userDetails, setUserDetails] = useState({
-    branch: '',
     departmentsInvolvedIn: [],
     email: '',
-    role: '',
+    roles: [],
     specialUser: '',
     username: '',
   });
-  // const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [signatureViewModalOpen, setSignatureViewModalOpen] = useState(false);
-  const closeSignatureViewModal = () => {
-    setSignatureViewModalOpen(false);
-  };
   const fileInputRef = useRef();
   const [signatureImage, setSignatureImage] = useState('');
-  const fetchSingature = async () => {
-    try {
-      const url = backendUrl + '/getUserSignature';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: ` Bearer ${accessToken}`,
-        },
-        responseType: 'blob',
-      });
 
+  const fetchSignature = async () => {
+    try {
+      const response = await GetSignature();
       if (response.status === 200) {
         const blob = new Blob([response.data], {
           type: response.headers['content-type'],
         });
-        const objectURL = URL.createObjectURL(blob);
-        setSignatureImage(objectURL);
-      } else {
-        console.error('Error fetching profile picture:', response.statusText);
+        setSignatureImage(URL.createObjectURL(blob));
       }
     } catch (error) {
-      console.error('Error fetching profile picture:', error.message);
+      console.error('Error fetching signature:', error.message);
     }
   };
+
   const fetchProfilePic = async () => {
     try {
-      const url = backendUrl + '/getUserProfilePic';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: ` Bearer ${accessToken}`,
-        },
-        responseType: 'blob',
-      });
-
+      const response = await GetProfilePic();
       if (response.status === 200) {
         const blob = new Blob([response.data], {
           type: response.headers['content-type'],
         });
-        const objectURL = URL.createObjectURL(blob);
-        setProfileImage(objectURL);
-      } else {
-        console.error('Error fetching profile picture:', response.statusText);
+        setProfileImage(URL.createObjectURL(blob));
       }
     } catch (error) {
       console.error('Error fetching profile picture:', error.message);
     }
   };
+
   const handleUpload = async (purpose, e) => {
     const file = e.target.files[0];
-    const filename = e.target.files[0].name;
-    const fileExtension = filename.split(".").pop();
-    if (purpose === 'signature') {
-      const allowedFormats = ['image/jpeg', 'image/png', 'image/gif'];
-      if (!allowedFormats.includes(file.type)) {
-        toast.warning('Unsupported File Type');
-        return;
-      }
-    } else if (purpose === 'profilePic' && fileExtension.toLowerCase() !== "jpeg") {
-      toast.warning('Only jpeg is allowed');
+    if (!file) return;
+
+    const allowedFormats =
+      purpose === 'signature'
+        ? ['image/jpeg', 'image/png', 'image/gif']
+        : ['image/jpeg'];
+    if (!allowedFormats.includes(file.type)) {
+      toast.warning('Unsupported File Type');
       return;
     }
 
-    // Create a promise
-    const uploadPromise = new Promise(async (resolve, reject) => {
-      if (file) {
-        try {
-          const url = backendUrl + '/uploadSignature';
-          const data = new FormData();
-          data.append('purpose', purpose);
-          data.append('file', file);
-          const res = await axios.post(url, data, {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          });
+    try {
+      const url = `${backendUrl}/uploadSignature`;
+      const data = new FormData();
+      data.append('purpose', purpose);
+      data.append('file', file);
 
-          if (res.status === 200) {
-            if (purpose === 'signature') {
-              fetchSingature();
-            } else {
-              fetchProfilePic();
-            }
-            resolve(`Image uploaded successfully for ${purpose}`);
-          }
-        } catch (error) {
-          reject(`Error uploading image for ${purpose}`);
-        }
-      } else {
-        reject('Please select an image to upload');
+      const res = await axios.post(url, data, {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.status === 200) {
+        purpose === 'signature' ? fetchSignature() : fetchProfilePic();
+        toast.success(`Image uploaded successfully for ${purpose}`);
       }
-
-      // Clear file input
-      if (fileInputRef.current && fileInputRef.current.value !== null) {
-        fileInputRef.current.value = null;
-      }
-    });
-
-    // Use toast.promise to display toast messages
-    toast.promise(uploadPromise, {
-      pending: `Uploading image for ${purpose}...`,
-      success: `Image uploaded successfully for ${purpose}`,
-      error: `Error uploading image for ${purpose}`,
-    });
-  };
-
-
-  const getProfileData = async () => {
-    const url = backendUrl + '/getUserProfileData';
-    const res = await axios.post(url, null, {
-      headers: {
-        Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-      },
-    });
-    setUserDetails(res.data.userdata);
-    setLoading(false);
+    } catch (error) {
+      toast.error(`Error uploading image for ${purpose}`);
+    }
   };
 
   useEffect(() => {
-    getProfileData();
-    fetchSingature();
+    (async () => {
+      const res = await GetProfileData();
+      setUserDetails(res.data.userdata);
+      setLoading(false);
+    })();
+    fetchSignature();
   }, []);
+
   return (
     <>
       {loading ? (
         <ComponentLoader />
       ) : (
-        <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div className="relative h-35 md:h-65">
+        <div className="flex flex-col gap-6 p-6 rounded-lg border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          {/* Cover Image */}
+          <div className="relative h-48 md:h-64 w-full">
             <img
               src={CoverOne}
               alt="profile cover"
-              className="h-full w-full rounded-tl-sm rounded-tr-sm object-cover object-center"
+              className="h-full w-full object-cover"
             />
           </div>
-          <div className="px-4 pb-6 text-center lg:pb-8 xl:pb-11.5">
-            <div className="relative mx-auto -mt-22 h-30 w-full max-w-30 rounded-full bg-white/20 p-1 backdrop-blur sm:h-44 sm:max-w-44 sm:p-3">
-              <div className="relative drop-shadow-2">
+
+          {/* Profile & Details Container */}
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-19 px-10">
+            {/* Profile Image */}
+            <div className="flex flex-col items-center order-first md:order-none">
+              <div className="relative h-39 w-39 rounded-full border bg-gray-200 shadow-lg overflow-hidden group">
                 {profileImage ? (
                   <img
                     src={profileImage}
                     alt="profile"
-                    className={styles.profileImage}
-                    style={{
-                      width: '200px',
-                      height: '150px',
-                      borderRadius: '50%',
-                    }}
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className={styles.noProfileImage}
-                    style={{
-                      width: '150px',
-                      height: '150px',
-                      borderRadius: '50%',
-                      color: 'black',
-                    }}
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                    <path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z" />
-                    <path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z" />
-                  </svg>
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No Image
+                  </div>
                 )}
-                <label
-                  htmlFor="profile"
-                  className="absolute bottom-0 right-0 flex h-8.5 w-8.5 cursor-pointer items-center justify-center rounded-full bg-primary text-white hover:bg-opacity-90 sm:bottom-2 sm:right-2"
-                >
-                  <svg
-                    className="fill-current"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 14 14"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M4.76464 1.42638C4.87283 1.2641 5.05496 1.16663 5.25 1.16663H8.75C8.94504 1.16663 9.12717 1.2641 9.23536 1.42638L10.2289 2.91663H12.25C12.7141 2.91663 13.1592 3.101 13.4874 3.42919C13.8156 3.75738 14 4.2025 14 4.66663V11.0833C14 11.5474 13.8156 11.9925 13.4874 12.3207C13.1592 12.6489 12.7141 12.8333 12.25 12.8333H1.75C1.28587 12.8333 0.840752 12.6489 0.512563 12.3207C0.184375 11.9925 0 11.5474 0 11.0833V4.66663C0 4.2025 0.184374 3.75738 0.512563 3.42919C0.840752 3.101 1.28587 2.91663 1.75 2.91663H3.77114L4.76464 1.42638ZM5.56219 2.33329L4.5687 3.82353C4.46051 3.98582 4.27837 4.08329 4.08333 4.08329H1.75C1.59529 4.08329 1.44692 4.14475 1.33752 4.25415C1.22812 4.36354 1.16667 4.51192 1.16667 4.66663V11.0833C1.16667 11.238 1.22812 11.3864 1.33752 11.4958C1.44692 11.6052 1.59529 11.6666 1.75 11.6666H12.25C12.4047 11.6666 12.5531 11.6052 12.6625 11.4958C12.7719 11.3864 12.8333 11.238 12.8333 11.0833V4.66663C12.8333 4.51192 12.7719 4.36354 12.6625 4.25415C12.5531 4.14475 12.4047 4.08329 12.25 4.08329H9.91667C9.72163 4.08329 9.53949 3.98582 9.4313 3.82353L8.43781 2.33329H5.56219Z"
-                      fill=""
-                    />
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M7.00004 5.83329C6.03354 5.83329 5.25004 6.61679 5.25004 7.58329C5.25004 8.54979 6.03354 9.33329 7.00004 9.33329C7.96654 9.33329 8.75004 8.54979 8.75004 7.58329C8.75004 6.61679 7.96654 5.83329 7.00004 5.83329ZM4.08337 7.58329C4.08337 5.97246 5.38921 4.66663 7.00004 4.66663C8.61087 4.66663 9.91671 5.97246 9.91671 7.58329C9.91671 9.19412 8.61087 10.5 7.00004 10.5C5.38921 10.5 4.08337 9.19412 4.08337 7.58329Z"
-                      fill=""
-                    />
-                  </svg>
+
+                {/* File Input Overlay */}
+                <label className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <span className="text-sm">Change</span>
                   <input
                     type="file"
-                    name="profile"
-                    id="profile"
-                    ref={fileInputRef}
+                    accept="image/jpeg"
                     onChange={(e) => handleUpload('profile', e)}
-                    accept=".jpeg, .jpg, .png"
-                    className="sr-only"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                 </label>
               </div>
-            </div>
-            <div className="mt-4">
-              <h3 className="mb-1.5 text-2xl font-semibold text-black dark:text-white">
-                {userDetails?.username}
+              <h3 className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
+                {userDetails?.username || '---'}
               </h3>
-              {/* <p className="font-medium">{userDetails?.role}</p> */}
-              <Box
-                sx={{
-                  flex: 2,
-                  margin: '2px',
-                  marginBottom: '1px',
-                  marginRight: '2px',
-                  padding: '10px',
-                  borderRadius: '10px',
-                }}
-              >
-                <Stack
-                  flexDirection="row"
-                  flexWrap="wrap"
-                  sx={{ margin: '5px' }}
-                  justifyContent="space-around"
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{ marginY: '15px', width: '200px' }}
-                  >
-                    <b>Branch:</b>
-                    <br /> {userDetails.branch ? userDetails.branch : '---'}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ marginY: '15px', width: '200px' }}
-                  >
-                    <b>Department:</b>
-                    <br />{' '}
-                    {userDetails?.departmentsInvolvedIn.length
-                      ? userDetails?.departmentsInvolvedIn
-                        ?.map((item) => item.departmentName)
-                        .join(', ')
-                      : '---'}
-                  </Typography>
-                </Stack>
-                <Stack
-                  flexDirection="row"
-                  flexWrap="wrap"
-                  sx={{ margin: '5px' }}
-                  justifyContent="space-around"
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{ marginY: '15px', width: '200px' }}
-                  >
-                    <b>Email:</b>
-                    <br />
-                    {userDetails.email ? userDetails.email : '---'}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ marginY: '15px', width: '200px' }}
-                  >
-                    <b>Role:</b>
-                    <br /> {userDetails.role ? userDetails.role : '---'}
-                  </Typography>
-                </Stack>
-                <Stack
-                  flexDirection="row"
-                  flexWrap="wrap"
-                  sx={{ margin: '5px' }}
-                  justifyContent="center"
-                  alignItems="center"
-                >
-                  <Typography variant="body1" sx={{ marginY: '15px' }}>
-                    <b>Signature:</b>
-                    <br />
-                    {signatureImage ? (
-                      // <img src={signatureImage}></img>
-                      <Button
-                        sx={{ textTransform: 'none' }}
-                        onClick={() => setSignatureViewModalOpen(true)}
-                      >
-                        View Signature
-                      </Button>
-                    ) : (
-                      <p style={{ color: 'red' }}>
-                        Please upload your signature
-                      </p>
-                    )}
-                  </Typography>
-                </Stack>
-
-                <Stack alignItems="center" mt={3}>
-                  <Typography variant="h5" sx={{ marginBottom: '15px' }}>
-                    Upload Signature:
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      ref={fileInputRef}
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleUpload('signature', e)}
-                      id="signature-upload-input"
-                    />
-
-                    <label htmlFor="signature-upload-input">
-                      <Button variant="contained" component="span">
-                        Choose File
-                      </Button>
-                    </label>
-                    <Typography variant="body2" sx={{ marginLeft: '10px' }}>
-                      (Image files only)
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                {/* <div
-                  style={{
-                    padding: '10px',
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Alert severity="error" icon={<InfoOutlined />}>
-                    <AlertTitle>{'Note :'}</AlertTitle>
-                    <Typography sx={{ my: 0.4 }}>
-                      Only the following file types are allowed for upload :
-                    </Typography>
-                    <Box>
-                      <Chip
-                        label={'JPEG'}
-                        color="error"
-                        // variant="outlined"
-                        sx={{
-                          padding: 0,
-                          height: '22px',
-                          mr: 0.6,
-                          my: 0.4,
-                        }}
-                      />
-                    </Box>
-                  </Alert>
-                </div> */}
-              </Box>
             </div>
+
+            {/* User Details */}
+            <div className="flex-1 space-y-4 text-lg text-gray-700 dark:text-gray-300">
+              <p>
+                <strong>Department:</strong>{' '}
+                {userDetails?.departmentsInvolvedIn
+                  ?.map((d) => d.departmentName)
+                  .join(', ') || '---'}
+              </p>
+              <p>
+                <strong>Email:</strong> {userDetails.email || '---'}
+              </p>
+              <p>
+                <strong>Role:</strong> {userDetails.roles?.join(', ') || '---'}
+              </p>
+            </div>
+          </div>
+
+          {/* Signature Upload */}
+          <div className="flex flex-col items-center">
+            <strong>Signature:</strong>
+            {signatureImage ? (
+              <button
+                className="ml-2 text-blue-600 underline"
+                onClick={() => setSignatureViewModalOpen(true)}
+              >
+                View Signature
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 text-red-600 bg-red-100 p-3 rounded-md border border-red-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-red-600"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.766-1.36 2.72-1.36 3.486 0l6.516 11.57c.746 1.324-.2 2.98-1.743 2.98H3.484c-1.543 0-2.49-1.656-1.743-2.98l6.516-11.57zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-3a1 1 0 011-1v-2a1 1 0 10-2 0v2a1 1 0 011 1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <p className="font-semibold">
+                  Signature is required. Please upload your signature.
+                </p>
+              </div>
+            )}
+            <label className="mt-4 block text-lg font-semibold">
+              Upload Signature:
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={(e) => handleUpload('signature', e)}
+              className="mt-2 border rounded p-2 w-full"
+            />
           </div>
         </div>
       )}
-      <Modal
-        open={signatureViewModalOpen}
-        onClose={closeSignatureViewModal}
-        aria-labelledby="modal-modal-title"
-        aria-describedby="modal-modal-description"
+      <CustomModal
+        isOpen={signatureViewModalOpen}
+        onClose={() => setSignatureViewModalOpen(false)}
       >
-        <Box sx={signatureModalStyle}>
-          <Stack justifyContent="center">
-            <img width={170} src={signatureImage} alt="signature" />
-          </Stack>
-        </Box>
-      </Modal>
+        <img src={signatureImage} alt="signature" width={250} />
+      </CustomModal>
     </>
   );
 };

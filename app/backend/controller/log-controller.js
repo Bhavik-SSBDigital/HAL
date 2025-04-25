@@ -26,11 +26,10 @@ export const addLog = async (
     let currentWorkName;
 
     if (currentStep.work) {
-      currentWorkName = await Work.findOne({ _id: currentStep.work }).select(
+      const currentWork = await Work.findOne({ _id: currentStep.work }).select(
         "name"
       );
-
-      currentWorkName = currentWorkName.name;
+      currentWorkName = currentWork.name;
     }
 
     const logWork = await LogWork.findOne({
@@ -65,6 +64,7 @@ export const addLog = async (
       logData.nextStep = nextStep;
     }
 
+    // Handle the publish-related logic if current work is "publish"
     if (currentWorkName === "publish") {
       const publishWorkId = await Work.findOne({ name: "publish" }).select(
         "_id"
@@ -99,21 +99,15 @@ export const addLog = async (
 
       const newlyAddedDepartments = newlyAddedDepartmentIds.map(
         (departmentId) => ({
-          department: departmentId, // You may need to modify this according to your schema
+          department: departmentId,
         })
       );
 
       logData.publishedTo = newlyAddedDepartments;
     }
 
+    // Create log entry
     let log = new Log(logData);
-
-    /*
-        processId -> processName,
-        forward(reverted: false) -> you  forwarded this process to 
-        ${nextUser} for ${nextWork}
-        remarks : 
-    */
 
     log = await log.save(log);
 
@@ -121,6 +115,7 @@ export const addLog = async (
       log: log._id,
     };
 
+    // Update user's workDone field
     if (currentStep) {
       await User.findByIdAndUpdate(
         { _id: currentStep.actorUser },

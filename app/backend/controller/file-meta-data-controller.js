@@ -5,7 +5,6 @@ import { createUserPermissions } from "./file-controller.js";
 import { storeChildIdInParentDocument } from "./file-controller.js";
 import { verifyUser } from "../utility/verifyUser.js";
 import { ObjectId } from "mongodb";
-import Branch from "../models/branch.js";
 
 export const add_doc_meta_data = async (req, res, next) => {
   try {
@@ -26,7 +25,7 @@ export const add_doc_meta_data = async (req, res, next) => {
       name: req.body.departmentName,
     }).select("_id");
 
-    const headOfficeBranch = Branch.findOne({ isHeadOffice: true }).select(
+    const headOfficeBranch = Department.findOne({ isHeadOffice: true }).select(
       "name"
     );
 

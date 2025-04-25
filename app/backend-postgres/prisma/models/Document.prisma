@@ -1,0 +1,19 @@
+model Document {
+  id               Int        @id @default(autoincrement())
+  name             String
+  type             String
+  path             String    @unique
+  createdById      Int
+  createdOn        DateTime  @default(now())
+  lastUpdatedOn    DateTime  @updatedAt
+  history          DocHistory[]
+  children         Document[] @relation("DocumentChildren")
+  parent           Document? @relation("DocumentChildren")
+  departmentId     Int?
+  department       Department? @relation(fields: [departmentId], references: [id])
+  isProject        Boolean?
+  isInvolvedInProcess Boolean @default(false)
+  minimumSignsOnFirstPage Int?
+  isRejected       Boolean   @default(false)
+  highlights       Highlight[]
+}

@@ -12,7 +12,6 @@ const DropdownNotification = () => {
   const { connect_socket } = userSocket();
 
   const {
-    setWork,
     notifications,
     setNotifications,
     setPickedProcesses,
@@ -177,7 +176,7 @@ const DropdownNotification = () => {
                     style={{ cursor: 'pointer' }}
                     className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
                     onClick={() => {
-                      setWork(item.work);
+                      // setWork(item.work);
                       handleRemoveNotification(item.processId);
                       setDropdownOpen(false);
                       handleViewProcess(
@@ -204,7 +203,7 @@ const DropdownNotification = () => {
           ) : (
             // <li>
             <h5
-              className="text-sm font-medium text-bodydark2"
+              className="text-sm font-medium text-bodydark2 p-3"
               style={{
                 textAlign: 'center',
               }}

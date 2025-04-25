@@ -24,25 +24,45 @@ export const create_branch = async (req, res, next) => {
       }
     }
 
+    let head = await User.findOne({ username: req.body.head }).select("_id");
+
+    if (!head) {
+      return res.status(404).json({ message: "Selected head is not found" });
+    }
+
+    head = head._id;
+
+    let admin = await User.findOne({ username: req.body.admin }).select("_id");
+
+    if (!admin) {
+      return res.status(404).json({ message: "Selected admin is not found" });
+    }
+
+    admin = admin._id;
+
+    let parentDepartment = await Department.findOne({
+      name: req.body.parentDepartment,
+    }).select("_id");
+
+    if (!parentDepartment) {
+      return res
+        .status(404)
+        .json({ message: "selected parent department is not found" });
+    }
+
+    parentDepartment = parentDepartment._id;
+
     if (userData.username === "admin") {
       const newBranch = new Branch({
+        type: "branch",
         code: parseInt(req.body.code),
         name: req.body.name,
         status: req.body.status,
         createdAt: Date.now(),
         isHeadOffice: req.body.isHeadOffice,
-        totalCreditSourcingOfficer: parseInt(
-          req.body.totalCreditSourcingOfficer
-        ),
-        totalCreditProcessingOfficer: parseInt(
-          req.body.totalCreditProcessingOfficer
-        ),
-        totalCreditUnderWritingOfficer: parseInt(
-          req.body.totalCreditUnderWritingOfficer
-        ),
-        totalCreditDeviationOfficer: parseInt(
-          req.body.totalCreditDeviationOfficer
-        ),
+        parentDepartment: parentDepartment,
+        admin: admin,
+        head: head,
       });
       await newBranch.save();
       res.status(200).json({

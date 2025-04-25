@@ -1,0 +1,7 @@
+recommendation notification type
+bifercate process coming for recommendation and through_workflow
+stop user from completing step if any recommendation is pending on process step stepInstance
+if in process list process doesn't come then it means in query (fetch processStepInstance with open status, so make sure you open, if process is edited after approval)
+
+folder change reader to automate documents on specific process
+

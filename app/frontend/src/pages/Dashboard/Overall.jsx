@@ -541,6 +541,7 @@ const Overall = () => {
               size="small"
               variant="contained"
               sx={{ mt: 2 }}
+              fullWidth
               disabled={mainChartLoading}
               onClick={() => {
                 getMainChartData();

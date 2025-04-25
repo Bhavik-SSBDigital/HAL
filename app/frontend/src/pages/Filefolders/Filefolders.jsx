@@ -422,7 +422,7 @@ function App(props) {
                     <img
                       style={{ width: '20px', height: '20px' }}
                       src={
-                        ImageConfig[item.name.split('.')[1]] ||
+                        ImageConfig[item?.name?.split('.')[1]] ||
                         ImageConfig['default']
                       }
                       alt="fileIcon"

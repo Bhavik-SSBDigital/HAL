@@ -1,0 +1,12 @@
+model User {
+  id          Int        @id @default(autoincrement())
+  username    String     @unique
+  email       String     @unique
+  password    String
+  name        String?
+  specialUser Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime?  @updatedAt
+  createdById Int
+  roles       UserRole[] // Relation to UserRole
+}

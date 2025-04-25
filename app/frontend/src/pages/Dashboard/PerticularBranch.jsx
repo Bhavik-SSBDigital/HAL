@@ -829,7 +829,12 @@ const PerticularBranch = () => {
             </Grid2>
           </Grid2>
         ) : null}
-        <Dialog maxWidth="xs" fullWidth onClose={closeFilterDialog} open={isFilterOpen}>
+        <Dialog
+          maxWidth="xs"
+          fullWidth
+          onClose={closeFilterDialog}
+          open={isFilterOpen}
+        >
           <DialogTitle
             sx={{
               textAlign: 'center',
@@ -916,6 +921,7 @@ const PerticularBranch = () => {
                 size="small"
                 variant="contained"
                 sx={{ mt: 2 }}
+                fullWidth
                 disabled={mainChartLoading}
                 onClick={() => {
                   getPerticularBranchData();
@@ -923,7 +929,7 @@ const PerticularBranch = () => {
                   setIsFilterOpen(false);
                 }}
               >
-                Get
+                Apply
               </Button>
             </Stack>
           </DialogContent>

@@ -1,302 +1,130 @@
 import React, { useEffect, useState } from 'react';
-import { useInfiniteQuery, useQuery, useQueryClient } from 'react-query';
+import { DataGrid } from '@mui/x-data-grid';
 import {
   Box,
-  CircularProgress,
+  Button,
+  TextField,
+  Typography,
   Dialog,
   DialogContent,
   DialogTitle,
-  Fab,
   IconButton,
-  Pagination,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
 } from '@mui/material';
-import styles from './List.module.css';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Button from '@mui/material/Button';
-import moment from 'moment';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import AddIcon from '@mui/icons-material/Add';
-import sessionData from '../../Store';
-import { toast } from 'react-toastify';
+import axios from 'axios';
+import moment from 'moment';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
-import { IconSquareRoundedX } from '@tabler/icons-react';
+import { IconEye, IconSquareRoundedX } from '@tabler/icons-react';
+import sessionData from '../../Store';
+import { GetProcessesList } from '../../common/Apis';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function List() {
-  const { setWork, pickedProcesses, setNotifications, notifications } =
-    sessionData();
+  const { setNotifications, notifications } = sessionData();
+  const [data, setData] = useState([]);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const fetchProcesses = async ({ pageParam = 0 }) => {
-    const url = backendUrl + '/getProcessesForUser';
+  const fetchProcesses = async () => {
     try {
-      const res = await axios.post(
-        url,
-        {
-          startingIndex: 0,
-          pageSize: 10,
-          forPublishedProcesses: false,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
-        },
-      );
-
-      return res.data;
+      const res = await GetProcessesList();
+      setData(res?.data || []);
     } catch (error) {
-      toast.error('Unable to fetch process for user');
+      console.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setLoading(false);
     }
-
-    // if (res.status === 200) {
-    //     return res.data;
-    // } else {
-    //     throw new Error("Unable to fetch process for user");
-    // }
   };
-  const { data, error, isLoading, isFetching } = useQuery(
-    'pendingProcesses',
-    fetchProcesses,
-    {
-      cacheTime: 12000,
-      staleTime: 12000,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-    },
+
+  const filteredData = data.filter((item) =>
+    item.processName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const filteredData = data?.processes?.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  const handleView = (id, workflow, work) => {
-    console.log(work);
-    setWork(work);
-    navigate(
-      `/processes/work/view?data=${encodeURIComponent(
-        id,
-      )}&workflow=${encodeURIComponent(workflow)}`,
-    );
-    handleRemoveNotification(id);
+  const handleView = (id) => {
+    navigate(`/process/view/${id}`);
+    // handleRemoveNotification(id);
   };
 
   const handleRemoveNotification = async (id) => {
     try {
-      const url = backendUrl + `/removeProcessNotification/${id}`;
-      await axios.post(url, null, {
+      await axios.post(`${backendUrl}/removeProcessNotification/${id}`, null, {
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
         },
       });
-      const updatedNotifications = notifications?.filter(
-        (item) => item.processId !== id,
-      );
-      setNotifications(updatedNotifications);
+      setNotifications(notifications.filter((item) => item.processId !== id));
     } catch (error) {
-      console.error('error', error);
+      console.error('Error removing notification', error);
     }
   };
 
-  const handlePlus = () => {
-    navigate('/processes/initiate');
-  };
+  const columns = [
+    { field: 'processName', headerName: 'Process Name', width: 200 },
+    { field: 'initiatorUsername', headerName: 'Initiator', width: 200 },
+    {
+      field: 'createdAt',
+      headerName: 'Created At',
+      width: 200,
+      valueFormatter: ({ value }) =>
+        moment(value).format('DD-MMM-YYYY hh:mm A'),
+    },
+    { field: 'actionType', headerName: 'Action Type', width: 150 },
+    { field: 'stepName', headerName: 'Step Name', width: 150 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 150,
+      renderCell: (params) => (
+        <div className="flex space-x-2 m-1">
+          <button
+            className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
+            onClick={() => handleView(params.row.processId)}
+          >
+            <IconEye color="white" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
-  const handleChangePage = (newPage) => {
-    setPage(newPage);
-  };
+  const rows = filteredData.map((item, index) => ({
+    id: index + 1,
+    processId: item.processId,
+    processName: item.processName,
+    initiatorUsername: item.initiatorUsername,
+    createdAt: item.createdAt,
+    actionType: item.actionType,
+    stepName: item.stepName,
+  }));
 
   useEffect(() => {
-    setPage(0); // Reset page number when search term changes
-  }, [searchTerm]);
+    fetchProcesses();
+  }, []);
 
-  useEffect(() => {
-    if (pickedProcesses) {
-      console.log(pickedProcesses, '1');
-      queryClient.removeQueries('pendingProcesses');
-    }
-  }, [pickedProcesses]);
-
-  // view file list
-  const [filesList, setFilesList] = useState([]);
-  const [fileListOpen, setFileListOpen] = useState(false);
-  const handleViewFileList = (files) => {
-    setFileListOpen(true);
-    setFilesList(files);
-  };
-
-  const getWorkName = (filenames) => {
-    // Step 1: Extract the word after the first underscore
-    const extractedWords = filenames.map((filename) => {
-      const parts = filename.split('_');
-      return parts[1]; // Get the word after the first underscore
-    });
-
-    // Step 2: Filter unique names using a Set
-    const uniqueNames = [...new Set(extractedWords)];
-
-    return uniqueNames;
-  };
   return (
-    <>
-      {isLoading || isFetching ? (
+    <Box>
+      {loading ? (
         <ComponentLoader />
       ) : (
-        <>
-          <TextField
-            label="Search"
-            variant="outlined"
-            value={searchTerm}
-            size="small"
+        <CustomCard>
+          <label className="block text-sm font-medium text-gray-700">
+            Search
+          </label>
+          <input
             onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ backgroundColor: 'white', mb: '2px' }}
+            required
+            className="w-full p-2 border rounded mb-2 max-w-[200px]"
           />
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Serial No</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Process Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Create Time</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>File Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredData?.length ? (
-                  filteredData
-                    ?.filter((item) => !pickedProcesses?.includes(item?._id))
-                    ?.slice(page * 10, (page + 1) * 10)
-                    ?.map((row, index) => (
-                      <TableRow key={index} className={styles.tableRow}>
-                        <TableCell className={styles.cell}>
-                          {index + 1 + page * 10}
-                        </TableCell>
-                        <TableCell className={styles.cell}>
-                          {row.name}
-                        </TableCell>
-                        <TableCell className={styles.cell}>
-                          {moment(row.createdAt).format('DD-MMM-YYYY hh:mm A')}
-                        </TableCell>
-                        <TableCell className={styles.cell}>
-                          {getWorkName(row.files).map((fileName, index1) => (
-                            <Typography key={index1}>- {fileName}</Typography>
-                          ))}
-                          {row?.files?.length > 4 && (
-                            <Button
-                              onClick={() => handleViewFileList(row.files)}
-                              size="small"
-                            >
-                              View More
-                            </Button>
-                          )}
-                        </TableCell>
-
-                        <TableCell className={styles.cell}>
-                          <Button
-                            onClick={() =>
-                              handleView(
-                                row._id,
-                                row.workFlowToBeFollowed,
-                                row?.work,
-                              )
-                            }
-                          >
-                            View Details
-                          </Button>
-                          {/* <Button onClick={() => handleViewFileList(row.files)}>
-                                                            View Files
-                                                        </Button> */}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                ) : (
-                  <TableRow>
-                    <TableCell rowSpan={4}>No Data</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Stack
-            justifyContent="flex-end"
-            mt={1}
-            flexDirection="row"
-            alignItems="center"
-          >
-            <Pagination
-              page={page + 1}
-              onChange={(event, page) => handleChangePage(page - 1)}
-              count={Math.ceil((filteredData?.length || 0) / 10)}
-              variant="outlined"
-              shape="rounded"
-            />
-          </Stack>
-          <Dialog
-            open={fileListOpen}
-            sx={{ backdropFilter: 'blur(4px)' }}
-            onClose={() => setFileListOpen(false)}
-          >
-            <DialogTitle
-              sx={{ fontWeight: 700, position: 'relative' }}
-              textAlign="center"
-            >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Process Files
-              </Typography>
-              <IconButton
-                onClick={() => setFileListOpen(false)}
-                sx={{ position: 'absolute', right: '5px', top: '0px' }}
-              >
-                <IconSquareRoundedX />
-              </IconButton>
-            </DialogTitle>
-            <DialogContent>
-              <TableContainer
-                sx={{ minWidth: 300, border: '1px solid lightgray' }}
-              >
-                <Table>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, fontSize: '16px' }}>
-                      SR_No
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: '16px' }}>
-                      File Name
-                    </TableCell>
-                  </TableRow>
-                  {filesList?.length ? (
-                    filesList.map((file, index) => (
-                      <TableRow>
-                        <React.Fragment key={index}>
-                          <TableCell>{index}</TableCell>
-                          <TableCell>{file}</TableCell>
-                        </React.Fragment>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={2}>No files available</TableCell>
-                    </TableRow>
-                  )}
-                </Table>
-              </TableContainer>
-            </DialogContent>
-          </Dialog>
-        </>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            pageSize={10}
+            rowsPerPageOptions={[10]}
+          />
+        </CustomCard>
       )}
-    </>
+    </Box>
   );
 }

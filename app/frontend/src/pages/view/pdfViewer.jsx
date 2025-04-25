@@ -20,6 +20,8 @@ import {
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { IconInfoTriangle } from '@tabler/icons-react';
+import CustomModal from '../../CustomComponents/CustomModal';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
@@ -30,7 +32,7 @@ function PdfContainer({
   maxReceiverStepNumber,
   processId,
   currentStep,
-  controls,
+  controls = true,
   signed,
 }) {
   const username = sessionStorage.getItem('username');
@@ -40,7 +42,7 @@ function PdfContainer({
   const [coordinates, setCoordinates] = useState([]);
   const [openRemarksMenu, setOpenRemarksMenu] = useState(false);
   const [remark, setRemark] = useState('');
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [actionsLoading, setActionsLoading] = useState(false);
   const [highlights, setHighlights] = useState([]);
   const [signAreas, setSignAreas] = useState([]); // NEW STATE
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,8 @@ function PdfContainer({
   const pageRefs = useRef([]);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
+
+  const [userSignDialogOpen, setUserSignDialogOpen] = useState(false);
 
   useEffect(() => {
     if (mode === 'signSelection') {
@@ -133,6 +137,7 @@ function PdfContainer({
   }, [mode, highlights]);
 
   const handleMouseDown = (e) => {
+    if (userSignDialogOpen) return;
     if (mode === 'signSelection') {
       // Start drawing rectangle
       setDrawing(true);
@@ -172,7 +177,6 @@ function PdfContainer({
     }
   };
 
-  const [userSignDialogOpen, setUserSignDialogOpen] = useState(false);
   const handleMouseUp = () => {
     setDrawing(false);
     if (mode === 'signSelection' && drawing) {
@@ -185,6 +189,7 @@ function PdfContainer({
   // dialog inputs for user sign area
   const [userSelected, setUserSelected] = useState(null);
   const submitSignArea = async () => {
+    setActionsLoading(true);
     const url = backendUrl + '/storeSignCoordinates';
     try {
       await axios.post(
@@ -205,6 +210,8 @@ function PdfContainer({
       setUserSelected(null);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
   };
   const onSignAreaDialogClose = () => {
@@ -371,13 +378,14 @@ function PdfContainer({
     return pages;
   };
 
-  function generateColor(num) {
+  function generateLightColor(num) {
     const hash = num * 123456789;
-    const r = (hash & 0xff0000) >> 16;
-    const g = (hash & 0x00ff00) >> 8;
-    const b = hash & 0x0000ff;
-    return `rgba(${r % 256}, ${g % 256}, ${b % 256}, 0.3)`;
+    const r = 200 + (((hash & 0xff0000) >> 16) % 56); // 200–255
+    const g = 200 + (((hash & 0x00ff00) >> 8) % 56); // 200–255
+    const b = 200 + ((hash & 0x0000ff) % 56); // 200–255
+    return `rgba(${r}, ${g}, ${b}, 0.3)`;
   }
+
   const [remarkError, setRemarkError] = useState('');
   const getFileHighlights = async () => {
     const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
@@ -420,7 +428,7 @@ function PdfContainer({
       setRemarkError('Enter Remarks');
       return;
     }
-    setSubmitLoading(true);
+    setActionsLoading(true);
     const url = `${backendUrl}/postHighlightInFile`;
 
     const data = {
@@ -442,160 +450,130 @@ function PdfContainer({
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
-      setSubmitLoading(false);
+      setActionsLoading(false);
     }
   };
 
   return (
     <div
+      className="max-h-[88vh] overflow-auto"
       style={{
-        height: '100%',
-        overflow: 'auto',
         userSelect: mode === 'signSelection' ? 'none' : 'auto',
       }}
     >
       {controls ? (
-        <Box
-          sx={{
-            background: 'white',
-            position: 'sticky',
-            top: '2px',
-            zIndex: 21,
-            padding: '10px',
-            mb: 1,
-          }}
-        >
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Button
-              variant={mode === 'textSelection' ? 'contained' : 'outlined'}
+        <div className="bg-white sticky top-0 z-20 p-2 mb-1">
+          <div className="flex justify-between">
+            <button
+              className={`${
+                mode === 'textSelection'
+                  ? 'bg-blue-500 text-white'
+                  : 'border border-gray-300 text-gray-700'
+              } p-2 rounded-md`}
               onClick={() => setMode('textSelection')}
             >
               Text Selection Mode
-            </Button>
+            </button>
 
-            {initiator && documentId ? (
-              <Button
-                variant={mode === 'signSelection' ? 'contained' : 'outlined'}
-                onClick={() => setMode('signSelection')}
-              >
-                Sign Selection Mode
-              </Button>
-            ) : null}
-          </Box>
-        </Box>
+            {/* {initiator && documentId ? ( */}
+            <button
+              className={`${
+                mode === 'signSelection'
+                  ? 'bg-blue-500 text-white'
+                  : 'border border-gray-300 text-gray-700'
+              } p-2 rounded-md`}
+              onClick={() => setMode('signSelection')}
+            >
+              Sign Selection Mode
+            </button>
+            {/* ) : null} */}
+          </div>
+        </div>
       ) : null}
+
       <Document
         file={url}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100vh',
-            }}
-          >
-            <CircularProgress size={40} />
-          </Box>
+          <div className="flex justify-center items-center h-[70vh]">
+            <div className="animate-spin rounded-full border-t-4 border-blue-500 w-12 h-12"></div>
+          </div>
         }
       >
         {renderPages()}
       </Document>
-      <Dialog
-        fullWidth
-        maxWidth="xs"
-        open={openRemarksMenu}
-        onClose={() => setOpenRemarksMenu(false)}
-      >
-        <DialogTitle
-          sx={{
-            background: 'var(--themeColor)',
-            margin: '5px',
-            color: 'white',
-          }}
+
+      {openRemarksMenu && (
+        <CustomModal
+          isOpen={openRemarksMenu}
+          onClose={() => setOpenRemarksMenu(false)}
+          className="w-96"
         >
-          Enter Remarks
-        </DialogTitle>
-        <Stack spacing={2} sx={{ p: 2 }}>
-          <TextField
-            value={remark}
-            fullWidth
-            multiline
-            rows={3}
-            onChange={(e) => setRemark(e.target.value)}
-          />
-          <Button
-            variant="contained"
-            disabled={submitLoading}
-            onClick={() => submitRemarks()}
-          >
-            {submitLoading ? <CircularProgress size={20} /> : 'Submit'}
-          </Button>
-        </Stack>
-      </Dialog>
-      <Dialog open={userSignDialogOpen} onClose={onSignAreaDialogClose}>
-        <form>
-          <DialogTitle
-            sx={{ bgcolor: 'var(--themeColor)', margin: 1, color: 'white' }}
-          >
-            Select user you want sign of here
-          </DialogTitle>
-          <DialogContent>
-            <Select
-              value={userSelected}
-              onChange={(e) => setUserSelected(e.target.value)}
-              size="small"
-              fullWidth
-              sx={{ minWidth: '150px', color: '#333' }}
-            >
-              {workflow
-                ?.filter(
-                  (item) => !item.users.some((user) => user.user === username),
-                )
-                // .filter((item) => item.step > publishCheck.step)
-                .filter((item) => item.step <= maxReceiverStepNumber)
-                .map((item) => (
-                  <MenuItem key={item.step} value={item.step}>
-                    forward to
-                    <b
-                      style={{
-                        marginRight: '3px',
-                        marginLeft: '3px',
-                      }}
-                    >
-                      {item.users.map((user) => user.user).join(',')}
-                    </b>
-                    for work
-                    <b
-                      style={{
-                        marginRight: '3px',
-                        marginLeft: '3px',
-                      }}
-                    >
-                      {item.work}
-                    </b>
-                    (step - {item.step})
-                  </MenuItem>
-                ))}
-            </Select>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={submitSignArea}
-            >
-              Submit
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+          <div className="rounded-md font-semibold">Enter Remarks</div>
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={remark}
+              onChange={(e) => setRemark(e.target.value)}
+              rows={3}
+              className="w-full p-2 border border-gray-300 rounded-md resize-none"
+            ></textarea>
+            <CustomButton
+              click={submitRemarks}
+              text="Submit"
+              disabled={actionsLoading}
+            />
+          </div>
+        </CustomModal>
+      )}
+
+      {userSignDialogOpen && (
+        <CustomModal
+          isOpen={userSignDialogOpen}
+          onClose={onSignAreaDialogClose}
+        >
+          <form className="bg-white rounded-lg max-w-md mx-auto space-y-4">
+            {/* Modal Title */}
+            <div className="text-lg font-semibold rounded-md">
+              Select user you want sign of here
+            </div>
+
+            {/* Dropdown */}
+            <div>
+              <select
+                id="userSelect"
+                value={userSelected}
+                onChange={(e) => setUserSelected(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800"
+              >
+                {workflow
+                  ?.filter(
+                    (item) =>
+                      !item.users.some((user) => user.user === username),
+                  )
+                  .filter((item) => item.step <= maxReceiverStepNumber)
+                  .map((item) => (
+                    <option key={item.step} value={item.step}>
+                      forward to{' '}
+                      {item.users.map((user) => user.user).join(', ')} for work{' '}
+                      {item.work} (step - {item.step})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex w-full">
+              <CustomButton
+                className="w-full"
+                text="Submit"
+                type="button"
+                click={submitSignArea}
+                disabled={actionsLoading}
+              />
+            </div>
+          </form>
+        </CustomModal>
+      )}
     </div>
   );
 }

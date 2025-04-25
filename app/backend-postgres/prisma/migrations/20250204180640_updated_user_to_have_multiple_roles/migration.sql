@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "User" ALTER COLUMN "downloadable" DROP DEFAULT,
+ALTER COLUMN "readable" DROP DEFAULT,
+ALTER COLUMN "uploadable" DROP DEFAULT,
+ALTER COLUMN "writable" DROP DEFAULT;

@@ -1,4 +1,4 @@
-const defaultTheme = require('tailwindcss/defaultTheme')
+const defaultTheme = require('tailwindcss/defaultTheme');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -32,7 +32,7 @@ module.exports = {
         graydark: '#333A48',
         'gray-2': '#F7F9FC',
         'gray-3': '#FAFAFA',
-        whiten: '#F1F5F9',
+        whiten: '#F8F9FA',
         whiter: '#F5F7FD',
         boxdark: '#24303F',
         'boxdark-2': '#1A222C',
@@ -48,9 +48,74 @@ module.exports = {
         'meta-7': '#FF6766',
         'meta-8': '#F0950C',
         'meta-9': '#E5E7EB',
-        success: '#219653',
-        danger: '#D34053',
-        warning: '#FFA70B',
+        button: {
+          primary: {
+            default: '#3C50E0', // Deep blue
+            hover: '#2F3BBE', // Darker shade
+            disabled: '#A0AEC0', // Grayish for disabled state
+          },
+          secondary: {
+            default: '#6B7280', // Cool gray
+            hover: '#4B5563', // Darker gray
+            disabled: '#D1D5DB', // Light gray
+          },
+          success: {
+            default: '#10B981', // Green for success actions
+            hover: '#059669', // Darker green
+            disabled: '#A7F3D0', // Light green
+          },
+          danger: {
+            default: '#EF4444', // Red for destructive actions
+            hover: '#DC2626', // Darker red
+            disabled: '#FCA5A5', // Light red
+          },
+          warning: {
+            default: '#F59E0B', // Yellow for warnings
+            hover: '#D97706', // Darker yellow
+            disabled: '#FDE68A', // Light yellow
+          },
+          info: {
+            default: '#0EA5E9', // Sky blue for informational actions
+            hover: '#0284C7', // Darker blue
+            disabled: '#BAE6FD', // Light blue
+          },
+        },
+        input: {
+          border: '#CBD5E0',
+          focus: '#3C50E0',
+          disabled: '#E2E8F0',
+        },
+        sidebar: {
+          active: '#3C50E0', // Active menu item (matches primary button)
+          hover: '#2F3BBE', // Hover state for menu items
+          text: '#FFFFFF', // Text color for sidebar items
+        },
+      },
+      backgroundImage: {
+        video: "url('../images/video/video.png')",
+        // Existing gradients
+        'sidebar-gradient-1':
+          'linear-gradient(360deg, rgb(0 0 0), rgb(113 73 183))',
+        'sidebar-gradient-2':
+          'linear-gradient(180deg, rgb(30, 30, 30), rgb(60, 60, 60))',
+        'sidebar-gradient-3':
+          'linear-gradient(180deg, rgb(10, 42, 90), rgb(25, 100, 180))',
+        'sidebar-gradient-4':
+          'linear-gradient(180deg, rgb(50, 50, 50), rgb(80, 80, 80))',
+
+        // Additional banking-themed gradients
+        'sidebar-gradient-5':
+          'linear-gradient(180deg, rgb(0, 50, 90), rgb(0, 100, 150))', // **Financial Blue** (Trust & Security)
+        'sidebar-gradient-6':
+          'linear-gradient(180deg, rgb(20, 20, 20), rgb(45, 45, 45))', // **Dark Elegance** (Luxury & Professionalism)
+        'sidebar-gradient-7':
+          'linear-gradient(180deg, rgb(30, 80, 40), rgb(10, 140, 70))', // **Wealth Green** (Finance & Growth)
+        'sidebar-gradient-8':
+          'linear-gradient(180deg, rgb(100, 75, 50), rgb(140, 110, 80))', // **Gold Tone** (Premium & Stability)
+        'sidebar-gradient-9':
+          'linear-gradient(180deg, rgb(20, 20, 30), rgb(45, 45, 65))', // **Deep Navy** (Corporate Banking Look)
+        'sidebar-gradient-10':
+          'linear-gradient(180deg, rgb(150, 125, 80), rgb(180, 160, 100))', // **Luxury Gold** (High-end Banking)
       },
       fontSize: {
         'title-xxl': ['44px', '55px'],
@@ -61,6 +126,15 @@ module.exports = {
         'title-md2': ['26px', '30px'],
         'title-sm': ['20px', '26px'],
         'title-xsm': ['18px', '24px'],
+      },
+      zIndex: {
+        999999: '999999',
+        99999: '99999',
+        9999: '9999',
+        999: '999',
+        99: '99',
+        9: '9',
+        1: '1',
       },
       spacing: {
         4.5: '1.125rem',
@@ -110,106 +184,6 @@ module.exports = {
         39: '9.75rem',
         39.5: '9.875rem',
         40: '10rem',
-        42.5: '10.625rem',
-        44: '11rem',
-        45: '11.25rem',
-        46: '11.5rem',
-        47.5: '11.875rem',
-        49: '12.25rem',
-        50: '12.5rem',
-        52: '13rem',
-        52.5: '13.125rem',
-        54: '13.5rem',
-        54.5: '13.625rem',
-        55: '13.75rem',
-        55.5: '13.875rem',
-        59: '14.75rem',
-        60: '15rem',
-        62.5: '15.625rem',
-        65: '16.25rem',
-        67: '16.75rem',
-        67.5: '16.875rem',
-        70: '17.5rem',
-        72.5: '18.125rem',
-        73: '18.25rem',
-        75: '18.75rem',
-        90: '22.5rem',
-        94: '23.5rem',
-        95: '23.75rem',
-        100: '25rem',
-        115: '28.75rem',
-        125: '31.25rem',
-        132.5: '33.125rem',
-        150: '37.5rem',
-        171.5: '42.875rem',
-        180: '45rem',
-        187.5: '46.875rem',
-        203: '50.75rem',
-        230: '57.5rem',
-        242.5: '60.625rem',
-      },
-      maxWidth: {
-        2.5: '0.625rem',
-        3: '0.75rem',
-        4: '1rem',
-        11: '2.75rem',
-        13: '3.25rem',
-        14: '3.5rem',
-        15: '3.75rem',
-        22.5: '5.625rem',
-        25: '6.25rem',
-        30: '7.5rem',
-        34: '8.5rem',
-        35: '8.75rem',
-        40: '10rem',
-        42.5: '10.625rem',
-        44: '11rem',
-        45: '11.25rem',
-        70: '17.5rem',
-        90: '22.5rem',
-        94: '23.5rem',
-        125: '31.25rem',
-        132.5: '33.125rem',
-        142.5: '35.625rem',
-        150: '37.5rem',
-        180: '45rem',
-        203: '50.75rem',
-        230: '57.5rem',
-        242.5: '60.625rem',
-        270: '67.5rem',
-        280: '70rem',
-        292.5: '73.125rem',
-      },
-      maxHeight: {
-        35: '8.75rem',
-        70: '17.5rem',
-        90: '22.5rem',
-        550: '34.375rem',
-        300: '18.75rem',
-      },
-      minWidth: {
-        22.5: '5.625rem',
-        42.5: '10.625rem',
-        47.5: '11.875rem',
-        75: '18.75rem',
-      },
-      zIndex: {
-        999999: '999999',
-        99999: '99999',
-        9999: '9999',
-        999: '999',
-        99: '99',
-        9: '9',
-        1: '1',
-      },
-      opacity: {
-        65: '.65',
-      },
-      backgroundImage: {
-        video: "url('../images/video/video.png')",
-      },
-      content: {
-        'icon-copy': 'url("../images/icon/icon-copy-alt.svg")',
       },
       transitionProperty: { width: 'width', stroke: 'stroke' },
       borderWidth: {
@@ -230,25 +204,12 @@ module.exports = {
         6: '0px 3px 15px rgba(0, 0, 0, 0.1)',
         7: '-5px 0 0 #313D4A, 5px 0 0 #313D4A',
         8: '1px 0 0 #313D4A, -1px 0 0 #313D4A, 0 1px 0 #313D4A, 0 -1px 0 #313D4A, 0 3px 13px rgb(0 0 0 / 8%)',
+        button: '0px 2px 4px rgba(0, 0, 0, 0.1)',
       },
-      dropShadow: {
-        1: '0px 1px 0px #E2E8F0',
-        2: '0px 1px 4px rgba(0, 0, 0, 0.12)',
-      },
-      keyframes: {
-        rotating: {
-          '0%, 100%': { transform: 'rotate(360deg)' },
-          '50%': { transform: 'rotate(0deg)' },
-        },
-      },
-      animation: {
-        'ping-once': 'ping 5s cubic-bezier(0, 0, 0.2, 1)',
-        rotating: 'rotating 30s linear infinite',
-        'spin-1.5': 'spin 1.5s linear infinite',
-        'spin-2': 'spin 2s linear infinite',
-        'spin-3': 'spin 3s linear infinite',
+      opacity: {
+        65: '.65',
       },
     },
   },
   plugins: [],
-}
+};

@@ -17,14 +17,14 @@ import NewBranch from './pages/Branches/NewBranch';
 import NewUser from './pages/Users/NewUser';
 import NewRole from './pages/Roles/NewRole';
 import NewDepartment from './pages/Department/NewDepartment';
-import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
-import ShowFolder from './pages/Show Folder/ShowFolder';
+// import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
+import FileSystem from './pages/FileSystem';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
 import ViewLog from './pages/Logs/ViewLog';
 import MonitorView from './pages/Monitor/View';
-import InitiateForm from './pages/Processes/InitiateForm';
+import ProcessInitForm from './pages/Processes/InitiateProcess';
 import Monitor from './pages/Monitor/Monitor';
 import { useDispatch } from 'react-redux';
 import { onReload } from './Slices/PathSlice';
@@ -45,6 +45,8 @@ import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
+import Workflows from './pages/workflows';
+import RecycleBin from './pages/RecycleBin';
 
 function App() {
   const dispatch = useDispatch();
@@ -121,20 +123,20 @@ function App() {
           }
         />
         <Route
-          path="/files/:projectId/*"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Dashboard | Perticular Branch" />
-              <ShowFolder />
-            </DefaultLayout>
-          }
-        />
-        <Route
           path="/files"
           element={
             <DefaultLayout>
               <PageTitle title="Files" />
               <FileSystem />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/bin"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Recycle Bin" />
+              <RecycleBin />
             </DefaultLayout>
           }
         />
@@ -274,7 +276,7 @@ function App() {
           }
         />
         <Route
-          path="/processes/work/view"
+          path="/process/view/:id"
           element={
             <DefaultLayout>
               <PageTitle title="View Process" />
@@ -287,7 +289,7 @@ function App() {
           element={
             <DefaultLayout>
               <PageTitle title="Initiate Process" />
-              <InitiateForm />
+              <ProcessInitForm />
             </DefaultLayout>
           }
         />
@@ -372,7 +374,6 @@ function App() {
             </DefaultLayout>
           }
         />
-
         {/* editors route */}
         {/* <Route
           path="/editor"
@@ -424,65 +425,19 @@ function App() {
           }
         />
 
+        <Route
+          path="/workflows"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Workflows" />
+              <Workflows />
+            </DefaultLayout>
+          }
+        />
+
         <Route path="*" element={<NotFoundPage />} />
-        {/* <Route
-          path="/calendar"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Calendar" />
-              <Calendar />
-            </DefaultLayout>
-          }
-        />
-         */}
-        {/* <Route
-          path="/tables"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Tables" />
-              <Tables />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Settings" />
-              <Settings />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/chart"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Basic Chart" />
-              <Chart />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/ui/alerts"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Alerts" />
-              <Alerts />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/ui/buttons"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Buttons" />
-              <Buttons />
-            </DefaultLayout>
-          }
-        /> */}
       </Routes>
     </>
   );
 }
-
 export default App;

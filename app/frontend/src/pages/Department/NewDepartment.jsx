@@ -1,529 +1,168 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Paper,
-  Button,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Typography,
-  Grid,
-  Box,
-  CircularProgress,
-  Stack,
-  IconButton,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogActions,
-  Tooltip,
-  Grid2,
-} from '@mui/material';
+import { useForm, Controller } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { FaRegTrashAlt } from 'react-icons/fa';
-
-import CloseIcon from '@mui/icons-material/Close';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-// import Sidedrawer from '../drawer/Sidedrawer';
-import styles from './NewDepartment.module.css';
-import { IconArrowRight } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-// import useStoreData, { sessionData } from '../../Store';
-// table
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import ComponentLoader from '../../common/Loader/ComponentLoader';
-import Workflow from '../../components/Workflow';
+import {
+  createDepartment,
+  editDepartment,
+  getDepartmentbyID,
+  getDepartments,
+} from '../../common/Apis';
+import CustomCard from '../../CustomComponents/CustomCard';
+import CustomButton from '../../CustomComponents/CustomButton';
 
-export default function NewDepartment(props) {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+export default function NewDepartment() {
   const { id } = useParams();
-  const location = useLocation();
-
-  const [editObject, setEditObject] = useState({});
-  const initialUser = {
-    department: '',
-    branch: '',
-    head: '',
-    workFlow: [],
-  };
-  const [formData, setFormData] = useState({ ...initialUser });
-  const [flow, setFlow] = useState({ work: '', step: '' });
-  const [usersOnStep, setUsersOnStep] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [newWork, setNewWork] = useState(false);
-  const [finalBranch, setFinalBranch] = useState('');
-  const [openH, setOpenH] = useState(false);
-
-  // checking
-  const [roles, setRoles] = useState([]);
-  const [users, setUsers] = useState([]);
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    if (name !== 'userBranch') {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
-    if (name === 'branch') {
-      if (!userBranch) {
-        setUserBranch(value);
-        if (value) {
-          const { _id } = branches.find((data) => data.name === value);
-          getRoles(_id);
-        }
-      }
-    }
-    if (name === 'userBranch') {
-      if (value) {
-        const { _id } = branches.find((data) => data.name === value);
-        setRoles([]);
-        getRoles(_id);
-      }
-      setUserSelection({ user: '', role: '' });
-      setUserBranch(value);
-    }
-  };
-  const getRoles = async (id) => {
-    // setFieldsLoading(true);
-    const urlRole = backendUrl + '/getRolesInBranch/';
-    try {
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(urlRole + `${id}`, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setRoles(data.roles);
-    } catch {
-      console.error('Error getting roles for selected branch');
-    }
-  };
-
-  // --------------------
-  const getBranches = async () => {
-    try {
-      const url = backendUrl + '/getAllBranches';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setBranches(data.branches);
-      return data.branches;
-    } catch (error) {
-      console.error('unable to fetch branches');
-    }
-  };
-  const getWorks = async () => {
-    try {
-      const url = backendUrl + '/getWorks';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setWorks(data.works);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  const getUsers = async (branchValue, roleValue) => {
-    // const branchValue = value ? headInfo.branch : userBranch;
-    // const roleValue = value ? headInfo.role : flow.role;
-    // setFieldsLoading(true);
-    try {
-      const url = backendUrl + '/getUsersByRoleInBranch';
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { _id } = branches.find((item) => item.name === branchValue);
-      const id = roles.find((item) => item.role === roleValue);
-      const { data } = await axios.post(
-        url,
-        {
-          branchId: _id,
-          roleId: id._id,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      );
-      setUsers(data.users);
-    } catch (error) {
-      alert(error);
-    }
-  };
   const navigate = useNavigate();
-  const handleSubmit = async (id) => {
-    const finalData = {
-      department: formData.department,
-      branch: formData.branch,
-      workFlow: formData.workFlow,
-      head: formData.head,
+  const token = sessionStorage.getItem('accessToken');
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { isSubmitting },
+  } = useForm({
+    defaultValues: {
+      department: '',
+      code: '',
+      type: 'department',
+      parentDepartmentId: '',
+    },
+  });
+
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const { data } = await getDepartments();
+        setDepartments(data?.departments);
+      } catch (error) {
+        console.error('Error fetching departments', error);
+      }
     };
-    setLoading(true);
-    const url =
-      Object.keys(editObject).length > 0
-        ? backendUrl + `/editDepartment/${id}`
-        : backendUrl + '/addDepartment';
-    try {
-      const response = await axios.post(
-        url,
-        { ...finalData },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
-        },
-      );
 
-      if (response.status === 200) {
-        setEditObject({});
-        Object.keys(editObject).length > 0
-          ? toast.success('Department edited')
-          : toast.success('Department created');
-        setLoading(false);
-        setFormData({ ...initialUser });
+    fetchDepartments();
+
+    const fetchDepartmentById = async (id) => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        const response = await getDepartmentbyID(id);
+        reset(response.data.department);
+      } catch (error) {
+        toast.error(error?.response?.data?.message || error?.message);
         navigate('/departments/list');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      setLoading(false);
-      Object.keys(editObject).length > 0
-        ? toast.error('Not able to edit department')
-        : toast.error('Not able to add department');
-    }
-  };
-  const handleWorkFlow = () => {
-    if (formData.workFlow.length === 0 && flow.work !== 'upload') {
-      toast.info('First step should be upload');
-      return;
-    }
-    if (formData.workFlow.length === 0) {
-      setFinalBranch(formData.branch);
-    }
-    if (usersOnStep.length > 0 && flow.work) {
-      setFormData((prev) => {
-        const updatedWorkFlow = [...prev.workFlow];
+    };
 
-        if (flow.step > prev.workFlow.length) {
-          // If step is greater than the length, insert at the end
-          updatedWorkFlow.push({ ...flow, users: usersOnStep });
-        } else {
-          updatedWorkFlow.splice(flow.step - 1, 0, {
-            ...flow,
-            users: usersOnStep,
-          });
-
-          // Update step numbers for all items after the insertion point
-          for (let i = flow.step; i < updatedWorkFlow.length; i++) {
-            updatedWorkFlow[i].step++;
-          }
-        }
-
-        return {
-          ...prev,
-          workFlow: updatedWorkFlow,
-        };
-      });
-      setFlow({ work: '', step: '' });
-      // setUserBranch('');
-      setUsersOnStep([]);
-    } else {
-      toast.info('Please provide all inputs!');
+    if (id) {
+      fetchDepartmentById(id);
     }
-  };
-  const handleAddWork = () => {
-    setNewWork(false);
-  };
-  const handleClose = () => {
-    setOpenH(false);
-  };
-  const [headInfo, setHeadInfo] = useState({ branch: '', role: '' });
-  const handleSelectHead = (e) => {
-    const { name, value } = e.target;
-    if (name === 'branch') {
-      if (value) {
-        const { _id } = branches.find((data) => data.name === value);
-        getRoles(_id);
-      }
-      setHeadInfo((prev) => ({
-        ...prev,
-        branch: value,
-      }));
-    } else if (name === 'role') {
-      setHeadInfo((prev) => ({
-        ...prev,
-        role: value,
-      }));
-      getUsers(headInfo.branch, value);
-    } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
-  };
-  const getEditDetails = async () => {
+  }, [id, backendUrl, token, reset]);
+
+  const onSubmit = async (formData) => {
     setLoading(true);
+
     try {
-      const url = backendUrl + `/getDepartment/${id}`;
-      const res = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
-      });
-      if (res.status === 200) {
-        setEditObject(res.data.department[0]);
-        setFormData(res.data.department[0]);
+      let response;
+
+      if (id) {
+        response = await editDepartment(id, formData);
+      } else {
+        response = await createDepartment(formData);
       }
+
+      toast.success(response?.data?.message);
+      navigate('/departments/list');
     } catch (error) {
-      console.error(error.message);
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => {
-    getBranches();
-    if (id) {
-      getEditDetails();
-    }
-  }, []);
-  useEffect(() => {
-    setFlow((prevFlow) => ({
-      ...prevFlow,
-      step: formData?.workFlow?.length + 1,
-    }));
-  }, [formData?.workFlow]);
-  useEffect(() => {
-    setFormData(initialUser);
-  }, [location.pathname]);
 
   return (
-    <>
+    <CustomCard className={'max-w-4xl mx-auto'}>
+      <h2 className="text-2xl font-semibold text-center mb-4">
+        {id ? 'Edit Department' : 'Add Department'}
+      </h2>
       {loading ? (
-        <ComponentLoader />
-      ) : (
-        <div
-          className={styles.formContainer}
-          style={{
-            border: '1px solid lightgray',
-            borderRadius: '10px',
-            boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
-          }}
-        >
-          <Grid2 container spacing={3} sx={{ marginBottom: '20px' }}>
-            <Grid2 item size={{ xs: 12 }}>
-              <Typography variant="body1">Department Branch:</Typography>
-              <FormControl fullWidth variant="outlined">
-                <Select
-                  name="branch"
-                  size="small"
-                  value={formData?.branch}
-                  sx={{ backgroundColor: 'whitesmoke' }}
-                  onChange={handleInputChange}
-                >
-                  <MenuItem value="">
-                    <em>None</em>
-                  </MenuItem>
-                  {branches?.map((data) => (
-                    <MenuItem key={data.name} value={data.name}>
-                      {data.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid2>
-            <Grid2 item size={{ xs: 12 }}>
-              <Typography variant="body1">Department Name:</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                sx={{ backgroundColor: 'whitesmoke' }}
-                variant="outlined"
-                name="department"
-                value={formData?.department}
-                onChange={handleInputChange}
-              />
-            </Grid2>
-            <Grid2 item size={{ xs: 12 }}>
-              <Typography variant="body1">Department Head:</Typography>
-              <TextField
-                fullWidth
-                sx={{ backgroundColor: 'whitesmoke' }}
-                size="small"
-                variant="outlined"
-                name="head"
-                disabled
-                value={formData.head}
-              />
-            </Grid2>
-            <Grid2
-              item
-              size={{ xs: 12 }}
-              sx={{
-                marginBottom: '20px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Button onClick={() => setOpenH(true)}>
-                Select department head
-              </Button>
-            </Grid2>
-            <Dialog onClose={handleClose} open={openH}>
-              <DialogTitle
-                textAlign="center"
-                sx={{
-                  backgroundColor: 'var(--themeColor)',
-                  margin: '5px',
-                  color: 'white',
-                }}
-              >
-                Select Head
-              </DialogTitle>
-              <Box width={300} padding={1}>
-                <Typography variant="body1">Head Branch:</Typography>
-                <FormControl fullWidth variant="outlined">
-                  <Select
-                    size="small"
-                    name="branch"
-                    onChange={handleSelectHead}
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {branches?.map((data) => (
-                      <MenuItem key={data.name} value={data.name}>
-                        {data.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box width={300} padding={1}>
-                <Typography variant="body1">Actor Role:</Typography>
-                <FormControl fullWidth variant="outlined">
-                  <Select name="role" size="small" onChange={handleSelectHead}>
-                    <MenuItem value="" disabled>
-                      <em>None</em>
-                    </MenuItem>
-                    {roles?.map((data) => (
-                      <MenuItem key={data.role} value={data.role}>
-                        {data.role}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box width={300} padding={1}>
-                <Typography variant="body1">Head:</Typography>
-                <FormControl fullWidth variant="outlined">
-                  <Select name="head" size="small" onChange={handleSelectHead}>
-                    <MenuItem value="" disabled>
-                      <em>None</em>
-                    </MenuItem>
-                    {users?.map((data) => (
-                      <MenuItem key={data.username} value={data.username}>
-                        {data.username}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <DialogActions
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={() => setOpenH(false)}
-                  sx={{
-                    backgroundColor: '#65B741',
-                    ':hover': {
-                      backgroundColor: 'darkgreen',
-                    },
-                  }}
-                >
-                  Save
-                </Button>
-              </DialogActions>
-            </Dialog>
-          </Grid2>
-          <Divider sx={{mb: 2}}/>
-          <Typography
-            variant="h6"
-            sx={{ textAlign: 'center', mb: 4 }}
-            gutterBottom
-          >
-            Work Flow :
-          </Typography>
-          <Workflow
-            workFlow={formData?.workFlow}
-            workFlowLength={formData?.workFlow?.length || 0}
-            handleWorkFlow={handleWorkFlow}
-            setWorkFLow={setFormData}
-            flow={flow}
-            setFlow={setFlow}
-            usersOnStep={usersOnStep}
-            setUsersOnStep={setUsersOnStep}
-            branches={branches}
-            setBranches={setBranches}
-            fullState={formData}
-          />
-          {formData?.branch &&
-            formData?.head &&
-            formData?.department &&
-            formData?.workFlow?.length > 0 && (
-              <Stack
-                flexDirection="row"
-                gap={2}
-                justifyContent="center"
-                sx={{ margin: 1 }}
-              >
-                <Box>
-                  <Button
-                    variant="contained"
-                    disabled={loading}
-                    onClick={
-                      Object.keys(editObject).length > 0
-                        ? () => handleSubmit(formData._id)
-                        : () => handleSubmit()
-                    }
-                    sx={{
-                      backgroundColor: '#65B741',
-                      ':hover': {
-                        backgroundColor: 'darkgreen',
-                      },
-                      minWidth: '150px',
-                    }}
-                  >
-                    {loading ? (
-                      <CircularProgress size={20} /> // Show this when loading is true
-                    ) : Object.keys(editObject).length > 0 ? (
-                      'Save'
-                    ) : (
-                      'ADD DEPARTMENT'
-                    )}
-                  </Button>
-                </Box>
-              </Stack>
-            )}
+        <div className="flex justify-center items-center">
+          <div className="loader"></div>
         </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div>
+            <label className="block text-gray-700">Department Name</label>
+            <Controller
+              name="department"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  className="w-full p-2 border rounded"
+                  required
+                />
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Department Code</label>
+            <Controller
+              name="code"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  className="w-full p-2 border rounded"
+                  required
+                />
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700">Parent Department</label>
+            <Controller
+              name="parentDepartmentId"
+              control={control}
+              render={({ field }) => (
+                <select {...field} className="w-full p-2 border rounded">
+                  <option value="">None</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
+          </div>
+          <div className="flex gap-4">
+            <CustomButton
+              type="submit"
+              disabled={isSubmitting || loading}
+              className={'w-full'}
+              text={id ? 'Save Changes' : 'Create Department'}
+            />
+            <CustomButton
+              type="button"
+              variant={'info'}
+              className={'w-full'}
+              click={() => navigate('/roles/createNew')}
+              disabled={isSubmitting || loading}
+              text={'Redirect to create role'}
+            />
+          </div>
+        </form>
       )}
-    </>
+    </CustomCard>
   );
 }

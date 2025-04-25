@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Branch", // Assuming you have a 'Branch' model
+    ref: "Department", // Assuming you have a 'Branch' model
   },
   role: {
     type: mongoose.Schema.Types.ObjectId,
@@ -66,11 +66,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
       },
-      work: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Work",
-        default: null,
-      },
+      // work: {
+      //   type: mongoose.Schema.Types.ObjectId,
+      //   ref: "Work",
+      //   default: null,
+      // },
       workFlowToBeFollowed: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Department",

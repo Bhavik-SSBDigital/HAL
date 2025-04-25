@@ -1,3 +1,11 @@
+.container {
+  background-color: white;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  padding: 20px;
+  border-radius: 8px;
+  color: #000000;
+}
+
 .formContainer {
   margin-top: 90px;
   width: 100%;
@@ -17,6 +25,7 @@
 .workflowContent {
   padding: 3px;
 }
+
 .workFlowElements {
   padding: 7px 7px 7px 10px;
   margin: 15px;
@@ -25,6 +34,7 @@
   border-radius: 5px;
   background-color: #eeeeee;
 }
+
 .workflowIndex {
   /* position: absolute; */
   /* left: 50%; */
@@ -100,4 +110,20 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+
+.tab {
+  padding: 5px;
+  width: 100px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.selectedTab {
+  background-color: white;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+  transform: scale(1.05);
 }

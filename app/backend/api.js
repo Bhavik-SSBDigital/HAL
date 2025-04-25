@@ -33,12 +33,12 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
-};
+// const options = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/dms.ssbd.in/fullchain.pem"),
+// };
 
-const server = https.createServer(options, app);
+const server = http.createServer(app);
 
 initializeSocket(server);
 
@@ -58,7 +58,7 @@ initializeSocket(server);
 
 // Start the HTTP/2 server with spdy
 
-server.listen(5000, () => console.log(`Listening on port ${5000}`));
+server.listen(8000, () => console.log(`Listening on port ${8000}`));
 
 server.on("error", (error) => {
   console.error("Server error:", error);
@@ -224,246 +224,246 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   // connection(password);
   db();
-  const processChangeStream = Process.watch();
+  // const processChangeStream = Process.watch();
 
-  processChangeStream.on("change", async (change) => {
-    if (change.operationType === "update") {
-      const updatedProcess = await Process.findOne({
-        _id: change.documentKey._id,
-      });
+  // processChangeStream.on("change", async (change) => {
+  //   if (change.operationType === "update") {
+  //     const updatedProcess = await Process.findOne({
+  //       _id: change.documentKey._id,
+  //     });
 
-      if (updatedProcess.steps && updatedProcess.steps.length > 0) {
-        return;
-      }
+  //     if (updatedProcess.steps && updatedProcess.steps.length > 0) {
+  //       return;
+  //     }
 
-      const updatedConnectorPaths = Object.keys(
-        change.updateDescription.updatedFields
-      ).filter(
-        (path) =>
-          path.startsWith("connectors.") && path.endsWith(".currentActorUser")
-      );
+  //     const updatedConnectorPaths = Object.keys(
+  //       change.updateDescription.updatedFields
+  //     ).filter(
+  //       (path) =>
+  //         path.startsWith("connectors.") && path.endsWith(".currentActorUser")
+  //     );
 
-      try {
-        if (updatedProcess) {
-          if (
-            change.updateDescription.updatedFields.hasOwnProperty(
-              "lastStepDone"
-            )
-          ) {
-            // The 'lastStepDone' property exists within updatedFields
-            const department = await Department.findOne({
-              _id: updatedProcess.workFlow,
-            }).select("steps");
+  //     try {
+  //       if (updatedProcess) {
+  //         if (
+  //           change.updateDescription.updatedFields.hasOwnProperty(
+  //             "lastStepDone"
+  //           )
+  //         ) {
+  //           // The 'lastStepDone' property exists within updatedFields
+  //           const department = await Department.findOne({
+  //             _id: updatedProcess.workFlow,
+  //           }).select("steps");
 
-            const steps = department.steps;
+  //           const steps = department.steps;
 
-            const updatedLastStepNumber =
-              change.updateDescription.updatedFields.lastStepDone;
+  //           const updatedLastStepNumber =
+  //             change.updateDescription.updatedFields.lastStepDone;
 
-            if (updatedLastStepNumber < steps.length) {
-              // const userProcessIsForwardedTo =
-              //   steps[updatedLastStepNumber].actorUser;
+  //           if (updatedLastStepNumber < steps.length) {
+  //             // const userProcessIsForwardedTo =
+  //             //   steps[updatedLastStepNumber].actorUser;
 
-              const usersProcessIsForwardedTo = steps[
-                change.updateDescription.updatedFields.currentStepNumber - 1
-              ].users.map((item) => item.user);
+  //             const usersProcessIsForwardedTo = steps[
+  //               change.updateDescription.updatedFields.currentStepNumber - 1
+  //             ].users.map((item) => item.user);
 
-              let process = await Process.findOne({
-                _id: updatedProcess._id,
-              }).select(
-                "_id name completed createdAt isInterBranchProcess workFlow"
-              );
-              if (process !== undefined) {
-                for (let m = 0; m < usersProcessIsForwardedTo.length; m++) {
-                  let usernameOfProcessIsForwardedTo = await User.findOne({
-                    _id: usersProcessIsForwardedTo[m],
-                  }).select("username notifications");
+  //             let process = await Process.findOne({
+  //               _id: updatedProcess._id,
+  //             }).select(
+  //               "_id name completed createdAt isInterBranchProcess workFlow"
+  //             );
+  //             if (process !== undefined) {
+  //               for (let m = 0; m < usersProcessIsForwardedTo.length; m++) {
+  //                 let usernameOfProcessIsForwardedTo = await User.findOne({
+  //                   _id: usersProcessIsForwardedTo[m],
+  //                 }).select("username notifications");
 
-                  const username = usernameOfProcessIsForwardedTo.username;
+  //                 const username = usernameOfProcessIsForwardedTo.username;
 
-                  const userSocket = userSockets.get(username);
+  //                 const userSocket = userSockets.get(username);
 
-                  let notification = {
-                    processId: process._id,
-                    processName: process.name,
-                    completed: process.completed,
-                    receivedAt: Date.now(),
-                    isPending: updatedProcess.pending,
-                  };
+  //                 let notification = {
+  //                   processId: process._id,
+  //                   processName: process.name,
+  //                   completed: process.completed,
+  //                   receivedAt: Date.now(),
+  //                   isPending: updatedProcess.pending,
+  //                 };
 
-                  if (!process.isInterBranchProcess) {
-                    notification["workFlowToBeFollowed"] = process.workFlow;
-                  }
+  //                 if (!process.isInterBranchProcess) {
+  //                   notification["workFlowToBeFollowed"] = process.workFlow;
+  //                 }
 
-                  if (usernameOfProcessIsForwardedTo.notifications) {
-                    usernameOfProcessIsForwardedTo.notifications.push(
-                      notification
-                    );
-                    const z = await usernameOfProcessIsForwardedTo.save();
-                  } else {
-                    usernameOfProcessIsForwardedTo.notifications = [];
-                    usernameOfProcessIsForwardedTo.notifications.push(
-                      notification
-                    );
+  //                 if (usernameOfProcessIsForwardedTo.notifications) {
+  //                   usernameOfProcessIsForwardedTo.notifications.push(
+  //                     notification
+  //                   );
+  //                   const z = await usernameOfProcessIsForwardedTo.save();
+  //                 } else {
+  //                   usernameOfProcessIsForwardedTo.notifications = [];
+  //                   usernameOfProcessIsForwardedTo.notifications.push(
+  //                     notification
+  //                   );
 
-                    const z = await usernameOfProcessIsForwardedTo.save();
-                  }
+  //                   const z = await usernameOfProcessIsForwardedTo.save();
+  //                 }
 
-                  if (userSocket) {
-                    userSocket.emit("processesUpdated", {
-                      newProcess: {
-                        processId: process._id,
-                        processName: process.name,
-                        completed: process.completed,
-                        receivedAt: Date.now(),
-                        isPending: updatedProcess.pending,
-                        workFlowToBeFollowed: process.workFlow,
-                      },
-                    });
-                  }
-                }
-              }
-            }
-          } else if (
-            change.updateDescription.updatedFields.hasOwnProperty(
-              "currentActorUser"
-            )
-          ) {
-            const updatedCurrentActorUser =
-              change.updateDescription.updatedFields.currentActorUser;
+  //                 if (userSocket) {
+  //                   userSocket.emit("processesUpdated", {
+  //                     newProcess: {
+  //                       processId: process._id,
+  //                       processName: process.name,
+  //                       completed: process.completed,
+  //                       receivedAt: Date.now(),
+  //                       isPending: updatedProcess.pending,
+  //                       workFlowToBeFollowed: process.workFlow,
+  //                     },
+  //                   });
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         } else if (
+  //           change.updateDescription.updatedFields.hasOwnProperty(
+  //             "currentActorUser"
+  //           )
+  //         ) {
+  //           const updatedCurrentActorUser =
+  //             change.updateDescription.updatedFields.currentActorUser;
 
-            let process = await Process.findOne({
-              _id: updatedProcess._id,
-            }).select("_id currentStepNumber workFlow");
+  //           let process = await Process.findOne({
+  //             _id: updatedProcess._id,
+  //           }).select("_id currentStepNumber workFlow");
 
-            const department = await Department.findOne({
-              _id: process.workFlow,
-            }).select("steps");
+  //           const department = await Department.findOne({
+  //             _id: process.workFlow,
+  //           }).select("steps");
 
-            let currentStepUsersExceptUserWhoPickedProcess = department.steps[
-              process.currentStepNumber - 1
-            ].users
-              .map((item) => item.user)
-              .filter(
-                (item) => !item.equals(new ObjectId(updatedCurrentActorUser))
-              );
+  //           let currentStepUsersExceptUserWhoPickedProcess = department.steps[
+  //             process.currentStepNumber - 1
+  //           ].users
+  //             .map((item) => item.user)
+  //             .filter(
+  //               (item) => !item.equals(new ObjectId(updatedCurrentActorUser))
+  //             );
 
-            for (
-              let k = 0;
-              k < currentStepUsersExceptUserWhoPickedProcess.length;
-              k++
-            ) {
-              const user = currentStepUsersExceptUserWhoPickedProcess[k];
-              const userObject = await User.findOne({ _id: user }).select(
-                "notifications processes username"
-              );
-              userObject.notifications = userObject.notifications.filter(
-                (item) =>
-                  !item.processId.equals(new ObjectId(updatedProcess._id))
-              );
-              userObject.processes = userObject.processes.filter(
-                (item) => !item.process.equals(new ObjectId(updatedProcess._id))
-              );
+  //           for (
+  //             let k = 0;
+  //             k < currentStepUsersExceptUserWhoPickedProcess.length;
+  //             k++
+  //           ) {
+  //             const user = currentStepUsersExceptUserWhoPickedProcess[k];
+  //             const userObject = await User.findOne({ _id: user }).select(
+  //               "notifications processes username"
+  //             );
+  //             userObject.notifications = userObject.notifications.filter(
+  //               (item) =>
+  //                 !item.processId.equals(new ObjectId(updatedProcess._id))
+  //             );
+  //             userObject.processes = userObject.processes.filter(
+  //               (item) => !item.process.equals(new ObjectId(updatedProcess._id))
+  //             );
 
-              await userObject.save();
+  //             await userObject.save();
 
-              const userSocket = userSockets.get(userObject.username);
+  //             const userSocket = userSockets.get(userObject.username);
 
-              if (userSocket) {
-                userSocket.emit("pickedProcess", {
-                  processId: updatedProcess._id,
-                });
-              }
-            }
-          } else if (updatedConnectorPaths.length > 0) {
-            // Iterate over the paths of updated connectors
-            updatedConnectorPaths.forEach(async (path) => {
-              // Extract the updated currentActorUser value
+  //             if (userSocket) {
+  //               userSocket.emit("pickedProcess", {
+  //                 processId: updatedProcess._id,
+  //               });
+  //             }
+  //           }
+  //         } else if (updatedConnectorPaths.length > 0) {
+  //           // Iterate over the paths of updated connectors
+  //           updatedConnectorPaths.forEach(async (path) => {
+  //             // Extract the updated currentActorUser value
 
-              // Extract the index of the connector from the path
-              const connectorIndex = parseInt(path.split(".")[1]);
+  //             // Extract the index of the connector from the path
+  //             const connectorIndex = parseInt(path.split(".")[1]);
 
-              // Find the corresponding connector in the process
-              const updatedConnector =
-                updatedProcess.connectors[connectorIndex];
+  //             // Find the corresponding connector in the process
+  //             const updatedConnector =
+  //               updatedProcess.connectors[connectorIndex];
 
-              // Check if currentActorUser in this connector has changed
+  //             // Check if currentActorUser in this connector has changed
 
-              // Extract the updated currentActorUser value
+  //             // Extract the updated currentActorUser value
 
-              const updatedCurrentActorUser = updatedConnector.currentActorUser;
+  //             const updatedCurrentActorUser = updatedConnector.currentActorUser;
 
-              // Find the process corresponding to the updated connector
-              let process = await Process.findOne({
-                _id: updatedProcess._id,
-              }).select("_id connectors");
+  //             // Find the process corresponding to the updated connector
+  //             let process = await Process.findOne({
+  //               _id: updatedProcess._id,
+  //             }).select("_id connectors");
 
-              // Find the target connector in the process
-              const targetConnector = process.connectors.find((item) =>
-                item.department.equals(
-                  new ObjectId(updatedConnector.department)
-                )
-              );
+  //             // Find the target connector in the process
+  //             const targetConnector = process.connectors.find((item) =>
+  //               item.department.equals(
+  //                 new ObjectId(updatedConnector.department)
+  //               )
+  //             );
 
-              // Find the department associated with the updated connector
-              const department = await Department.findOne({
-                _id: updatedConnector.department,
-              }).select("steps");
+  //             // Find the department associated with the updated connector
+  //             const department = await Department.findOne({
+  //               _id: updatedConnector.department,
+  //             }).select("steps");
 
-              // Filter out the users who are not the updated currentActorUser
-              const currentStepNumber = targetConnector.currentStepNumber || 1;
-              let currentStepUsersExceptUserWhoPickedProcess = department.steps[
-                currentStepNumber - 1
-              ].users
-                .map((item) => item.user)
-                .filter(
-                  (item) => !item.equals(updatedConnector.currentActorUser)
-                );
+  //             // Filter out the users who are not the updated currentActorUser
+  //             const currentStepNumber = targetConnector.currentStepNumber || 1;
+  //             let currentStepUsersExceptUserWhoPickedProcess = department.steps[
+  //               currentStepNumber - 1
+  //             ].users
+  //               .map((item) => item.user)
+  //               .filter(
+  //                 (item) => !item.equals(updatedConnector.currentActorUser)
+  //               );
 
-              // Iterate over the filtered users
-              for (
-                let k = 0;
-                k < currentStepUsersExceptUserWhoPickedProcess.length;
-                k++
-              ) {
-                const user = currentStepUsersExceptUserWhoPickedProcess[k];
-                const userObject = await User.findOne({
-                  _id: user,
-                }).select("notifications processes username");
+  //             // Iterate over the filtered users
+  //             for (
+  //               let k = 0;
+  //               k < currentStepUsersExceptUserWhoPickedProcess.length;
+  //               k++
+  //             ) {
+  //               const user = currentStepUsersExceptUserWhoPickedProcess[k];
+  //               const userObject = await User.findOne({
+  //                 _id: user,
+  //               }).select("notifications processes username");
 
-                // Filter out notifications related to the updated process
-                userObject.notifications = userObject.notifications.filter(
-                  (item) =>
-                    !item.processId.equals(new ObjectId(updatedProcess._id))
-                );
+  //               // Filter out notifications related to the updated process
+  //               userObject.notifications = userObject.notifications.filter(
+  //                 (item) =>
+  //                   !item.processId.equals(new ObjectId(updatedProcess._id))
+  //               );
 
-                // Filter out processes related to the updated process
-                userObject.processes = userObject.processes.filter(
-                  (item) =>
-                    !item.process.equals(new ObjectId(updatedProcess._id))
-                );
+  //               // Filter out processes related to the updated process
+  //               userObject.processes = userObject.processes.filter(
+  //                 (item) =>
+  //                   !item.process.equals(new ObjectId(updatedProcess._id))
+  //               );
 
-                // Save the updated user object
-                await userObject.save();
+  //               // Save the updated user object
+  //               await userObject.save();
 
-                // Emit an event to the user's socket if available
-                const userSocket = userSockets.get(userObject.username);
-                if (userSocket) {
-                  userSocket.emit("pickedProcess", {
-                    processId: updatedProcess._id,
-                  });
-                }
-              }
-            });
-          } else {
-            console.log("problem found");
-          }
-        }
-      } catch (error) {
-        console.log("error reacting on updation of process", error);
-      }
-    }
-  });
+  //               // Emit an event to the user's socket if available
+  //               const userSocket = userSockets.get(userObject.username);
+  //               if (userSocket) {
+  //                 userSocket.emit("pickedProcess", {
+  //                   processId: updatedProcess._id,
+  //                 });
+  //               }
+  //             }
+  //           });
+  //         } else {
+  //           console.log("problem found");
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.log("error reacting on updation of process", error);
+  //     }
+  //   }
+  // });
   console.log("listening on", `${PORT}`);
 });
 

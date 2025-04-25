@@ -7,7 +7,11 @@ import {
   Button,
   CircularProgress,
   Dialog,
+  DialogActions,
+  DialogContent,
   DialogTitle,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -15,10 +19,22 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { IconInfoTriangle } from '@tabler/icons-react';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-function PdfContainer({ url, documentId }) {
+function PdfContainer({
+  url,
+  documentId,
+  workflow,
+  maxReceiverStepNumber,
+  processId,
+  currentStep,
+  controls,
+  signed,
+}) {
+  const username = sessionStorage.getItem('username');
+  const initiator = sessionStorage.getItem('initiator') == 'true';
   const [numPages, setNumPages] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [coordinates, setCoordinates] = useState([]);
@@ -26,41 +42,50 @@ function PdfContainer({ url, documentId }) {
   const [remark, setRemark] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [highlights, setHighlights] = useState([]);
+  const [signAreas, setSignAreas] = useState([]); // NEW STATE
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState(''); // NEW STATE
+  const [drawing, setDrawing] = useState(false); // For sign area drawing
+  const [currentSignArea, setCurrentSignArea] = useState(null); // For active rectangle
   const pageRefs = useRef([]);
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const token = sessionStorage.getItem('accessToken');
 
   useEffect(() => {
-    document.addEventListener('mouseup', handleTextSelection);
-    return () => {
-      document.removeEventListener('mouseup', handleTextSelection);
-    };
-  }, [highlights]);
-  const temp = window.getSelection();
-  const selected = temp.toString();
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    const selectedText = selection.toString();
-    if (selectedText == '' || selectedText == undefined) {
-      return;
+    if (mode === 'signSelection') {
+      document.addEventListener('dblclick', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('dblclick', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     }
-    if (selectedText.length > 0) {
-      const range = selection.getRangeAt(0);
-      const rects = range.getClientRects();
-      const newCoordinates = [];
-      let isOverlapDetected = false;
 
-      if (rects.length > 0) {
+    return () => {
+      document.removeEventListener('dblclick', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [mode, drawing, currentSignArea]);
+
+  useEffect(() => {
+    const handleTextSelection = () => {
+      if (mode !== 'textSelection') return; // Only handle text selection in text mode
+      const selection = window.getSelection();
+      const selectedText = selection.toString()?.trim() || '';
+      if (selectedText.length > 0 && selectedText) {
+        const range = selection.getRangeAt(0);
+        const rects = range.getClientRects();
+        const newCoordinates = [];
+        let isOverlapDetected = false;
+
         for (const rect of rects) {
-          const container = pageRefs.current.find(
-            (ref) => ref && ref.contains(range.commonAncestorContainer),
+          const container = pageRefs.current.find((ref) =>
+            ref.contains(range.commonAncestorContainer),
           );
           if (container) {
             const containerRect = container.getBoundingClientRect();
-            if (rect.left - containerRect.left == 0 || rect.width == 0) {
-              continue;
-            }
             const rectCoordinates = {
               page: pageRefs.current.indexOf(container) + 1,
               x: rect.left - containerRect.left,
@@ -77,13 +102,7 @@ function PdfContainer({ url, documentId }) {
                   ((hCoord.x >= rectCoordinates.x &&
                     hCoord.x <= rectCoordinates.x + rectCoordinates.width) ||
                     (rectCoordinates.x >= hCoord.x &&
-                      rectCoordinates.x <= hCoord.x + hCoord.width) ||
-                    (rectCoordinates.x <= hCoord.x &&
-                      rectCoordinates.x + rectCoordinates.width >=
-                        hCoord.x + hCoord.width) ||
-                    (hCoord.x <= rectCoordinates.x &&
-                      hCoord.x + hCoord.width >=
-                        rectCoordinates.x + rectCoordinates.width)),
+                      rectCoordinates.x <= hCoord.x + hCoord.width)),
               ),
             );
 
@@ -92,14 +111,10 @@ function PdfContainer({ url, documentId }) {
               break;
             } else {
               newCoordinates.push(rectCoordinates);
-              setCoordinates((prevCoordinates) => [
-                ...prevCoordinates,
-                { remark: '', coordinates: newCoordinates },
-              ]);
             }
           }
         }
-
+        console.log(isOverlapDetected);
         if (isOverlapDetected) {
           toast.info('Selected text overlaps with existing highlights.');
         } else if (newCoordinates.length > 0) {
@@ -108,7 +123,94 @@ function PdfContainer({ url, documentId }) {
           setOpenRemarksMenu(true);
         }
       }
+    };
+
+    document.addEventListener('mouseup', handleTextSelection);
+
+    return () => {
+      document.removeEventListener('mouseup', handleTextSelection);
+    };
+  }, [mode, highlights]);
+
+  const handleMouseDown = (e) => {
+    if (mode === 'signSelection') {
+      // Start drawing rectangle
+      setDrawing(true);
+      const container = pageRefs.current.find((ref) => ref.contains(e.target));
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        setCurrentSignArea({
+          page: pageRefs.current.indexOf(container) + 1,
+          x: e.clientX - containerRect.left,
+          y: e.clientY - containerRect.top,
+          width: 0,
+          height: 0,
+        });
+      }
     }
+  };
+
+  const handleMouseMove = (e) => {
+    if (mode === 'signSelection' && drawing && currentSignArea) {
+      const container = pageRefs.current[currentSignArea.page - 1];
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const width = Math.max(
+          0,
+          e.clientX - containerRect.left - currentSignArea.x,
+        );
+        const height = Math.max(
+          0,
+          e.clientY - containerRect.top - currentSignArea.y,
+        );
+        setCurrentSignArea({
+          ...currentSignArea,
+          width: width,
+          height: height,
+        });
+      }
+    }
+  };
+
+  const [userSignDialogOpen, setUserSignDialogOpen] = useState(false);
+  const handleMouseUp = () => {
+    setDrawing(false);
+    if (mode === 'signSelection' && drawing) {
+      setDrawing(false);
+      if (currentSignArea.width > 0 && currentSignArea.height > 0) {
+        setUserSignDialogOpen(true);
+      }
+    }
+  };
+  // dialog inputs for user sign area
+  const [userSelected, setUserSelected] = useState(null);
+  const submitSignArea = async () => {
+    const url = backendUrl + '/storeSignCoordinates';
+    try {
+      await axios.post(
+        url,
+        {
+          docId: documentId,
+          processId,
+          coordinates: [{ ...currentSignArea, stepNo: userSelected }],
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSignAreas((prev) => [
+        ...prev,
+        { ...currentSignArea, stepNo: userSelected },
+      ]);
+      setCurrentSignArea(null);
+      setUserSignDialogOpen(false);
+      setUserSelected(null);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+  const onSignAreaDialogClose = () => {
+    setCurrentSignArea(null);
+    setUserSignDialogOpen(false);
+    setUserSelected(null);
   };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
@@ -116,9 +218,23 @@ function PdfContainer({ url, documentId }) {
     setLoading(false);
   };
 
-  const onDocumentLoadError = () => {
-    setLoading(false);
+  const removeSignArea = async (signArea, index) => {
+    const url = backendUrl + '/removeCoordinates';
+
+    try {
+      const response = await axios.post(
+        url,
+        { documentId, coordinates: signArea },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSignAreas((prev) => prev.filter((_, i) => i !== index));
+      toast.success(response?.data?.message);
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
   };
+
   const [openTooltip, setOpenTooltip] = useState(false);
   const renderPages = () => {
     const pages = [];
@@ -129,7 +245,6 @@ function PdfContainer({ url, documentId }) {
           ref={(el) => (pageRefs.current[i - 1] = el)}
           className="pdf-page"
           position="relative"
-          sx={{ zIndex: 99 }}
         >
           <Page pageNumber={i} renderTextLayer />
           {highlights.map((highlight, index1) =>
@@ -152,7 +267,7 @@ function PdfContainer({ url, documentId }) {
                       padding: '2px',
                       top: coord.y + coord.height,
                       left: coord.x,
-                      zIndex: 999,
+                      zIndex: 3,
                     }}
                   >
                     <Typography fontWeight={700} fontSize={14} color="black">
@@ -170,6 +285,7 @@ function PdfContainer({ url, documentId }) {
                     style={{
                       userSelect: 'none',
                       position: 'absolute',
+                      zIndex: 2,
                       top: coord.y,
                       left: coord.x,
                       width: coord.width,
@@ -178,19 +294,128 @@ function PdfContainer({ url, documentId }) {
                       backgroundBlendMode: 'lighten',
                       borderRadius: '2px',
                       cursor: 'pointer',
-                      zIndex: 99,
                     }}
                   />
                 </>
               )),
           )}
+          {mode === 'signSelection' &&
+            currentSignArea &&
+            currentSignArea.page === i && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: currentSignArea.y,
+                  left: currentSignArea.x,
+                  width: currentSignArea.width,
+                  height: currentSignArea.height,
+                  border: '2px dashed red',
+                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                }}
+              />
+            )}
+
+          {signAreas
+            ?.filter((signArea) => signArea.page === i)
+            ?.map((signArea, index) => (
+              <Tooltip
+                title={
+                  signArea?.isSigned
+                    ? signArea.signedBy
+                    : workflow
+                        ?.find((item) => item.step == signArea.stepNo)
+                        ?.users?.map((user) => user.user)
+                        .join(',')
+                }
+              >
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'absolute',
+                    top: signArea.y,
+                    left: signArea.x,
+                    width: signArea.width,
+                    height: signArea.height,
+                    border: workflow?.length ? '2px solid red' : null,
+                    backgroundColor:
+                      signed && workflow?.length ? '#FAD4D477' : null,
+                    zIndex: 20,
+                  }}
+                >
+                  {initiator ? (
+                    <Button
+                      onClick={() => removeSignArea(signArea, index)}
+                      sx={{
+                        position: 'absolute',
+                        top: -10,
+                        right: -10,
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        width: '20px',
+                        height: '20px',
+                        minWidth: '0',
+                        padding: '0',
+                        border: '2px solid red',
+                        zIndex: 9,
+                      }}
+                    >
+                      X
+                    </Button>
+                  ) : null}
+                </Box>
+              </Tooltip>
+            ))}
         </Box>,
       );
     }
     return pages;
   };
 
+  function generateLightColor(num) {
+    const hash = num * 123456789;
+    const r = 200 + (((hash & 0xff0000) >> 16) % 56); // 200–255
+    const g = 200 + (((hash & 0x00ff00) >> 8) % 56); // 200–255
+    const b = 200 + ((hash & 0x0000ff) % 56); // 200–255
+    return `rgba(${r}, ${g}, ${b}, 0.3)`;
+  }
+
   const [remarkError, setRemarkError] = useState('');
+  const getFileHighlights = async () => {
+    const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
+    try {
+      const res = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setHighlights(res.data.highlights);
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+  const getSignCoordinates = async () => {
+    const url = backendUrl + '/getSignCoordinatesForCurrentStep';
+    try {
+      const res = await axios.post(
+        url,
+        {
+          docId: documentId,
+          processId: processId,
+          stepNo: currentStep,
+          initiator,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSignAreas(res?.data?.coordinates);
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+    }
+  };
+
+  useEffect(() => {
+    getFileHighlights();
+    getSignCoordinates();
+  }, []);
   const submitRemarks = async () => {
     if (!remark) {
       setRemarkError('Enter Remarks');
@@ -222,93 +447,158 @@ function PdfContainer({ url, documentId }) {
     }
   };
 
-  const getFileHighlights = async () => {
-    const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
-    try {
-      const res = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setHighlights(res.data.highlights);
-    } catch (error) {
-      console.log(error.message);
-    }
-  };
-  useEffect(() => {
-    getFileHighlights();
-  }, []);
-
-  function generateColor(num) {
-    const hash = num * 123456789;
-    const r = (hash & 0xff0000) >> 16;
-    const g = (hash & 0x00ff00) >> 8;
-    const b = hash & 0x0000ff;
-    return `rgb(${r % 256}, ${g % 256}, ${b % 256}, 0.2)`;
-  }
-
   return (
-    <>
-      <div style={{ height: '100%', overflow: 'auto' }}>
-        <Document
-          file={url}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={onDocumentLoadError}
-          loading={
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-              }}
-            >
-              <CircularProgress size={40} />
-            </Box>
-          }
+    <div
+      style={{
+        height: '100%',
+        overflow: 'auto',
+        userSelect: mode === 'signSelection' ? 'none' : 'auto',
+      }}
+    >
+      {controls ? (
+        <Box
+          sx={{
+            background: 'white',
+            position: 'sticky',
+            top: '2px',
+            zIndex: 21,
+            padding: '10px',
+            mb: 1,
+          }}
         >
-          {renderPages()}
-        </Document>
-      </div>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Button
+              variant={mode === 'textSelection' ? 'contained' : 'outlined'}
+              onClick={() => setMode('textSelection')}
+            >
+              Text Selection Mode
+            </Button>
+
+            {initiator && documentId ? (
+              <Button
+                variant={mode === 'signSelection' ? 'contained' : 'outlined'}
+                onClick={() => setMode('signSelection')}
+              >
+                Sign Selection Mode
+              </Button>
+            ) : null}
+          </Box>
+        </Box>
+      ) : null}
+      <Document
+        file={url}
+        onLoadSuccess={onDocumentLoadSuccess}
+        loading={
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+            }}
+          >
+            <CircularProgress size={40} />
+          </Box>
+        }
+      >
+        {renderPages()}
+      </Document>
       <Dialog
+        fullWidth
+        maxWidth="xs"
         open={openRemarksMenu}
-        sx={{ zIndex: '999999' }}
-        onClose={() => (submitLoading ? null : setOpenRemarksMenu(false))}
+        onClose={() => setOpenRemarksMenu(false)}
       >
         <DialogTitle
           sx={{
-            background: '#34546E',
-            width: '280px',
-            margin: '10px',
-            fontSize: '20px',
-            fontWeight: 700,
+            background: 'var(--themeColor)',
+            margin: '5px',
             color: 'white',
           }}
         >
           Enter Remarks
         </DialogTitle>
-        <Stack sx={{ padding: '10px', gap: 2 }}>
+        <Stack spacing={2} sx={{ p: 2 }}>
           <TextField
-            error={!!remarkError}
-            helperText={remarkError}
             value={remark}
-            onChange={(e) => {
-              setRemark(e.target.value);
-              if (e.target?.value?.length > 0) {
-                setRemarkError(null);
-              }
-            }}
+            fullWidth
+            multiline
+            rows={3}
+            onChange={(e) => setRemark(e.target.value)}
           />
           <Button
-            disabled={submitLoading}
             variant="contained"
-            onClick={submitRemarks}
+            disabled={submitLoading}
+            onClick={() => submitRemarks()}
           >
-            {submitLoading ? <CircularProgress size={26} /> : 'Submit'}
+            {submitLoading ? <CircularProgress size={20} /> : 'Submit'}
           </Button>
         </Stack>
       </Dialog>
-    </>
+      <Dialog open={userSignDialogOpen} onClose={onSignAreaDialogClose}>
+        <form>
+          <DialogTitle
+            sx={{ bgcolor: 'var(--themeColor)', margin: 1, color: 'white' }}
+          >
+            Select user you want sign of here
+          </DialogTitle>
+          <DialogContent>
+            <Select
+              value={userSelected}
+              onChange={(e) => setUserSelected(e.target.value)}
+              size="small"
+              fullWidth
+              sx={{ minWidth: '150px', color: '#333' }}
+            >
+              {workflow
+                ?.filter(
+                  (item) => !item.users.some((user) => user.user === username),
+                )
+                // .filter((item) => item.step > publishCheck.step)
+                .filter((item) => item.step <= maxReceiverStepNumber)
+                .map((item) => (
+                  <MenuItem key={item.step} value={item.step}>
+                    forward to
+                    <b
+                      style={{
+                        marginRight: '3px',
+                        marginLeft: '3px',
+                      }}
+                    >
+                      {item.users.map((user) => user.user).join(',')}
+                    </b>
+                    for work
+                    <b
+                      style={{
+                        marginRight: '3px',
+                        marginLeft: '3px',
+                      }}
+                    >
+                      {item.work}
+                    </b>
+                    (step - {item.step})
+                  </MenuItem>
+                ))}
+            </Select>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={submitSignArea}
+            >
+              Submit
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </div>
   );
 }
+
 export default PdfContainer;

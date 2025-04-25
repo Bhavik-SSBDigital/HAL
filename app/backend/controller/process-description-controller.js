@@ -8,11 +8,9 @@ import {
 import Department from "../models/department.js";
 import Work from "../models/work.js";
 import Document from "../models/document.js";
-import Branch from "../models/branch.js";
 import User from "../models/user.js";
 import Role from "../models/role.js";
 import { ObjectId } from "mongodb";
-import { is_branch_head_office } from "../utility/branch-handlers.js";
 import { get_edition_details } from "./log-controller.js";
 import { verifyUser } from "../utility/verifyUser.js";
 
@@ -143,7 +141,7 @@ export const get_process_history = async (req, res, next) => {
       );
 
       if (stepDone.stepNumber > workFlow.length) {
-        let work = await Work.findOne({ _id: stepDone.work }).select("name");
+        // let work = await Work.findOne({ _id: stepDone.work }).select("name");
         let user = await User.findOne({ _id: stepDone.actorUser }).select(
           "username"
         );
@@ -151,7 +149,7 @@ export const get_process_history = async (req, res, next) => {
           "role"
         );
         currentFormattedStep = {
-          work: work.name,
+          // work: work.name,
           user: user.username,
           role: role.role,
           step: stepDone.stepNumber,
@@ -160,12 +158,12 @@ export const get_process_history = async (req, res, next) => {
         if (
           currentLog.nextStep.actorRole &&
           currentLog.nextStep.actorUser &&
-          currentLog.nextStep.work &&
+          // currentLog.nextStep.work &&
           currentLog.nextStep.stepNumber
         ) {
-          work = await Work.findOne({ _id: currentLog.nextStep.work }).select(
-            "name"
-          );
+          // work = await Work.findOne({ _id: currentLog.nextStep.work }).select(
+          //   "name"
+          // );
           let nextUsers = currentLog.nextStep.users;
           let receivers = [];
           for (let j = 0; j < nextUsers.length; j++) {
@@ -181,7 +179,7 @@ export const get_process_history = async (req, res, next) => {
             _id: currentLog.nextStep.actorRole,
           }).select("role");
           nextFormattedStep = {
-            work: work.name,
+            // work: work.name,
             receivers: receivers,
             role: role.role,
             step: currentLog.nextStep.stepNumber,
@@ -216,7 +214,7 @@ export const get_process_history = async (req, res, next) => {
         };
       }
 
-      let workDoneName = await Work.findOne({ _id: stepDone.work });
+      // let workDoneName = await Work.findOne({ _id: stepDone.work });
       let documentsInvolvedInCurrentLog = currentLog.documents;
 
       let publishedTo = currentLog.publishedTo || [];
@@ -224,25 +222,17 @@ export const get_process_history = async (req, res, next) => {
       publishedTo = publishedTo.map(async (item) => {
         const department = await Department.findOne({
           _id: item.department,
-        }).select("branch name");
-        const branch = await Branch.findOne({ _id: department.branch }).select(
-          "name"
-        );
+        }).select("name");
 
-        const isHeadOffice = await is_branch_head_office(branch.name);
-        if (isHeadOffice) {
-          return department.name;
-        } else {
-          return branch.name;
-        }
+        return department.name;
       });
 
       publishedTo = await Promise.all(publishedTo);
 
       if (i === 0) {
         const completedOrForwardedStatement =
-          nextFormattedStep.work !== undefined
-            ? `was forwarded to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}.`
+          nextFormattedStep !== undefined
+            ? `was forwarded to ${nextFormattedStep.receivers}.`
             : `was completed`;
         history.description = `process initiated by ${currentFormattedStep.user}`;
         history.documentsInvolved = await Promise.all(
@@ -309,16 +299,14 @@ export const get_process_history = async (req, res, next) => {
 
         const documentChangeStatement = `${rejectionStatement} and ${signStatement} in the activity covered by this log`;
         const action = currentLog.reverted
-          ? `${currentFormattedStep.user} reverted process to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}`
-          : nextFormattedStep.work !== undefined
-          ? `${currentFormattedStep.user} forwarded process to ${nextFormattedStep.receivers} for ${nextFormattedStep.work}`
-          : "";
-
-        console.log("action statement", action);
+          ? `${currentFormattedStep.user} reverted process to ${nextFormattedStep.receivers}`
+          : nextFormattedStep !== undefined
+          ? `${currentFormattedStep.user} forwarded process to ${nextFormattedStep.receivers}`
+          : "and process was completed";
 
         history.description = currentLog.reverted
-          ? `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`
-          : `${currentFormattedStep.user} completed this step. ${documentChangeStatement}. ${action}`;
+          ? `${documentChangeStatement}. ${action}`
+          : `${currentFormattedStep.user} did work in this step. ${documentChangeStatement}. ${action}`;
         // history.documentsInvolved = documentsInvolvedInCurrentLog;
         history.isReverted = currentLog.reverted;
         history.date = currentLog.time;
@@ -363,8 +351,8 @@ export const get_process_history = async (req, res, next) => {
 
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
-        let work = await Work.findOne({ _id: step.work });
-        work = work.name;
+        // let work = await Work.findOne({ _id: step.work });
+        // work = work.name;
 
         let users = step.users;
 
@@ -386,7 +374,7 @@ export const get_process_history = async (req, res, next) => {
         );
 
         processSteps.push({
-          work: work,
+          // work: work,
           users: users,
           stepNumber: step.stepNumber,
         });
