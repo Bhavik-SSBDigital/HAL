@@ -644,7 +644,7 @@ const ViewProcess = () => {
         />
       </CustomModal>
 
-      {/* remarks modals */}
+      {/*sign remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"
@@ -653,6 +653,7 @@ const ViewProcess = () => {
         onSubmit={(remarks) => handleSignDocument(remarks)}
       />
 
+      {/* reject remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'reject'}
         title="Reject Remarks"
