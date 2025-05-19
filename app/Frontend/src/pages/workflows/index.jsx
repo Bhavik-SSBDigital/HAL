@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GetWorkflows } from '../../common/Apis';
+import { deleteWorkflow, GetWorkflows } from '../../common/Apis';
 import WorkflowForm from './WorkflowForm';
 import Show from './Show';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,8 +12,11 @@ import {
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
+import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
+import { toast } from 'react-toastify';
 
 export default function WorkflowVisualizer() {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [workflows, setWorkflows] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -21,6 +24,8 @@ export default function WorkflowVisualizer() {
   const [selectedVersions, setSelectedVersions] = useState({});
   const [expandedWorkflow, setExpandedWorkflow] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState(null);
   useEffect(() => {
     const getList = async () => {
       try {
@@ -54,6 +59,25 @@ export default function WorkflowVisualizer() {
     };
     setEditData(editObject);
     setShowForm(true);
+  };
+  const handleDelete = async (id) => {
+    setDeleteLoading(true);
+    const url = `${backendUrl}/deleteBranch/${id}`;
+    const accessToken = sessionStorage.getItem('accessToken');
+
+    try {
+      const response = await deleteWorkflow(id);
+
+      if (response.status === 200) {
+        setWorkflows((prev) => prev.filter((item) => item._id !== id));
+        toast.success(response?.data?.message);
+      }
+    } catch (error) {
+      console.error('Error deleting branch:', error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+    setDeleteItemId(null);
+    setDeleteLoading(false);
   };
 
   if (loading) {
@@ -131,7 +155,7 @@ export default function WorkflowVisualizer() {
                     title={'Edit'}
                   />
                   <CustomButton
-                    click={() => console.log('delete workflow')}
+                    click={() => setDeleteItemId(selectedVersion?.id)}
                     text={<IconTrash size={20} />}
                     title={'Delete'}
                     variant={'danger'}
@@ -221,6 +245,13 @@ export default function WorkflowVisualizer() {
           No workflows found.
         </p>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={deleteItemId !== null}
+        onClose={() => setDeleteItemId(null)}
+        onConfirm={() => handleDelete(deleteItemId)}
+        isLoading={deleteLoading}
+      />
     </div>
   );
 }

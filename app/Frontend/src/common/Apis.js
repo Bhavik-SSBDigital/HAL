@@ -93,6 +93,9 @@ export const EditWorkflow = async (id, data) => {
 export const GetWorkflows = async () => {
   return apiClient.get('/workflows/getWorkflows');
 };
+export const deleteWorkflow = async (id) => {
+  return apiClient.delete(`/workflows/deleteWorkflow/${id}`);
+};
 // usernames endpoints
 export const GetUsersWithDetails = async () => {
   return apiClient.get('/getUsersWithDetails');
