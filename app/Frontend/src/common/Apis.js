@@ -45,6 +45,7 @@ export const editDepartment = async (id, data) => {
 export const deleteDepartment = async (id) => {
   return apiClient.delete(`/deleteDepartment/${id}`);
 };
+
 // users endpoints
 export const getUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: false } });
@@ -67,6 +68,7 @@ export const DeleteUser = async (id) => {
 export const GetUser = async (id) => {
   return apiClient.get(`/getUser/${id}`);
 };
+
 // roles endpoints
 export const GetRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
@@ -89,6 +91,7 @@ export const AddRole = async (data) => {
 export const deleteRole = async (id) => {
   return apiClient.delete(`/deleteRole/${id}`);
 };
+
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);
@@ -102,10 +105,12 @@ export const GetWorkflows = async () => {
 export const deleteWorkflow = async (id) => {
   return apiClient.delete(`/workflows/deleteWorkflow/${id}`);
 };
+
 // usernames endpoints
 export const GetUsersWithDetails = async () => {
   return apiClient.get('/getUsersWithDetails');
 };
+
 // documents apis
 export const uploadDocumentInProcess = async (fileList, name, tags) => {
   const res = await upload(fileList, '../check', name, true, tags);
@@ -173,6 +178,7 @@ export const CopyPaste = async (body) => {
 export const CreateFolder = async (path, folder) => {
   return apiClient.post('/createFolder', { path: `${path}/${folder}` });
 };
+
 // processes endpoints
 export const ProcessInitiate = async (data) => {
   return apiClient.post('/initiateProcess', data);
@@ -195,6 +201,7 @@ export const CreateQuery = async (data) => {
 export const removeProcessNotification = async (id) => {
   return apiClient.post(`/removeProcessNotification/${id}`);
 };
+
 // file and folders
 export const GetFolderData = async (path) => {
   return apiClient.post('/accessFolder', { path });
@@ -202,6 +209,7 @@ export const GetFolderData = async (path) => {
 export const GetRootFolders = async () => {
   return apiClient.post('/getProjects');
 };
+
 // profile
 export const GetSignature = async () => {
   return apiClient.get('/getUserSignature', { responseType: 'blob' });
