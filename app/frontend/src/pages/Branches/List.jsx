@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
+import { getAllBranches } from '../../common/Apis';
 
 const List = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -33,11 +34,7 @@ const List = (props) => {
     const accessToken = sessionStorage.getItem('accessToken');
 
     try {
-      const response = await axios.post(`${backendUrl}/getAllBranches`, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await getAllBranches();
 
       if (response.status === 200) {
         setIsLoading(false);

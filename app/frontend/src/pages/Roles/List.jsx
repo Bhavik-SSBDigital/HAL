@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import moment from 'moment';
 import { IconTrash, IconEdit } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
-import { GetRoles } from '../../common/Apis';
+import { deleteRole, GetRoles } from '../../common/Apis';
 import CustomButtom from '../../CustomComponents/CustomButton';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import CustomCard from '../../CustomComponents/CustomCard';
@@ -39,17 +38,13 @@ const RolesList = () => {
   const handleDelete = async (id) => {
     setActionsLoading(true);
     try {
-      const url = `${backendUrl}/deleteRole/${id}`;
-      const accessToken = sessionStorage.getItem('accessToken');
-      const { status } = await axios.post(url, null, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (status === 200) {
+      const response = await deleteRole(id);
+      if (response?.status === 200) {
         setRoles((prev) => prev.filter((item) => item._id !== id));
-        toast.success('Role deleted');
+        toast.success(response?.data?.message);
       }
     } catch (error) {
-      toast.error('Error deleting role');
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
       setModalOpen(false);

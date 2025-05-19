@@ -83,6 +83,9 @@ export const EditRoleById = async (id, data) => {
 export const AddRole = async (data) => {
   return apiClient.post(`/addRole`, data);
 };
+export const deleteRole = async (id) => {
+  return apiClient.delete(`/deleteRole/${id}`);
+};
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);
@@ -203,4 +206,9 @@ export const GetProfilePic = () => {
 };
 export const GetProfileData = () => {
   return apiClient.get('/getUserProfileData');
+};
+
+// branches endpoints
+export const getAllBranches = () => {
+  return apiClient.post('/getAllBranches');
 };

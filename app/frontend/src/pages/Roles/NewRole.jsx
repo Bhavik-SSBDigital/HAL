@@ -26,6 +26,7 @@ import TopLoader from '../../common/Loader/TopLoader';
 import {
   AddRole,
   EditRoleById,
+  getAllBranches,
   GetRoleDetailsById,
   GetRoles,
 } from '../../common/Apis';
@@ -70,14 +71,10 @@ export default function NewRole() {
   const getBranches = async () => {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(`${backendUrl}/getAllBranches`, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setBranches(data.departments);
+      const response = await getAllBranches();
+      setBranches(response?.data?.departments);
     } catch (error) {
-      alert('Unable to fetch branches. Please try again.');
+      console.error('Unable to fetch branches. Please try again.', error);
     }
   };
 
