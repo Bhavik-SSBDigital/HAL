@@ -8,7 +8,6 @@ import {
   Typography,
   IconButton,
 } from '@mui/material';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -17,10 +16,9 @@ import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
-import { getAllBranches } from '../../common/Apis';
+import { deleteBranch, getAllBranches } from '../../common/Apis';
 
 const List = (props) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,23 +54,16 @@ const List = (props) => {
 
   const handleDelete = async (id) => {
     setDeleteLoading(true);
-    const url = `${backendUrl}/deleteBranch/${id}`;
-    const accessToken = sessionStorage.getItem('accessToken');
-
     try {
-      const response = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await deleteBranch(id);
 
       if (response.status === 200) {
         setData((prev) => prev.filter((item) => item._id !== id));
-        toast.success('Branch deleted');
+        toast.success(response?.data?.message);
       }
     } catch (error) {
       console.error('Error deleting branch:', error);
-      toast.error('Error deleting branch');
+      toast.error(error?.response?.data?.message);
     }
     setDeleteItemId(null);
     setDeleteLoading(false);

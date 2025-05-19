@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import ShowWorkflow from './ShowWorkflow';
+import { GetRoles } from '../Apis';
 
 export default function Workflow({
   workFlow,
@@ -19,10 +19,8 @@ export default function Workflow({
   useEffect(() => {
     const getRoles = async () => {
       try {
-        const { data } = await axios.post(`${backendUrl}/getRoles`, null, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setRoles(data.roles);
+        const response = await GetRoles();
+        setRoles(response?.data?.roles);
       } catch (error) {
         console.error('Error fetching roles:', error);
       }

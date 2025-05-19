@@ -15,6 +15,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Workflow from '../../common/Workflow';
+import { getAllBranches } from '../../common/Apis';
 
 const NewBranch = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -44,15 +45,8 @@ const NewBranch = () => {
   // fetch all branches
   const getBranches = async () => {
     try {
-      const url = backendUrl + '/getAllBranches';
-
-      const { data } = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      console.log(data.departments);
-      setBranches(data.departments);
+      const response = await getAllBranches();
+      setBranches(response?.data?.departments);
     } catch (error) {
       console.error('unable to fetch branches');
     }

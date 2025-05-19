@@ -30,17 +30,20 @@ export const getDepartments = async () => {
 export const getRolesHierarchyInDepartment = async (id) => {
   return apiClient.get(`/getRolesHierarchyInDepartment/${id}`);
 };
-export const getDepartmentsHierarchy = () => {
+export const getDepartmentsHierarchy = async () => {
   return apiClient.get('/getDepartmentsHierarchy');
 };
-export const getDepartmentbyID = (id) => {
+export const getDepartmentbyID = async (id) => {
   return apiClient.get(`/getDepartment/${id}`);
 };
-export const createDepartment = (data) => {
+export const createDepartment = async (data) => {
   return apiClient.post(`/addDepartment`, data);
 };
-export const editDepartment = (id, data) => {
+export const editDepartment = async (id, data) => {
   return apiClient.put(`/editDepartment/${id}`, data);
+};
+export const deleteDepartment = async (id) => {
+  return apiClient.delete(`/deleteDepartment/${id}`);
 };
 // users endpoints
 export const getUsers = async () => {
@@ -49,19 +52,19 @@ export const getUsers = async () => {
 export const getAllUsers = async () => {
   return apiClient.get('/getUsers');
 };
-export const getRootLevelUsers = () => {
+export const getRootLevelUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: true } });
 };
-export const CreateUser = (data) => {
+export const CreateUser = async (data) => {
   return apiClient.post('/signup', data);
 };
-export const EditUser = (id, data) => {
+export const EditUser = async (id, data) => {
   return apiClient.put(`/editUser/${id}`, data);
 };
-export const DeleteUser = (id) => {
+export const DeleteUser = async (id) => {
   return apiClient.post(`/deleteUser/${id}`);
 };
-export const GetUser = (id) => {
+export const GetUser = async (id) => {
   return apiClient.get(`/getUser/${id}`);
 };
 // roles endpoints
@@ -144,7 +147,7 @@ export const RevokeRejection = async (processId, documentId) => {
     documentId,
   });
 };
-export const DownloadFolder = (folderPath, folderName) => {
+export const DownloadFolder = async (folderPath, folderName) => {
   return apiClient.post(
     '/downloadFolder',
     {
@@ -161,14 +164,13 @@ export const DownloadFile = async (name, path) => {
     toast.error(error?.response?.data?.message || error?.messsage);
   }
 };
-export const CutPaste = (body) => {
-  console.log(body);
+export const CutPaste = async (body) => {
   return apiClient.post('/cutFile', body);
 };
-export const CopyPaste = (body) => {
+export const CopyPaste = async (body) => {
   return apiClient.post('/copyFile', body);
 };
-export const CreateFolder = (path, folder) => {
+export const CreateFolder = async (path, folder) => {
   return apiClient.post('/createFolder', { path: `${path}/${folder}` });
 };
 // processes endpoints
@@ -190,25 +192,58 @@ export const ClaimProcess = async (processId, stepInstanceId) => {
 export const CreateQuery = async (data) => {
   return apiClient.post('/queries/createQuery', data);
 };
+export const removeProcessNotification = async (id) => {
+  return apiClient.post(`/removeProcessNotification/${id}`);
+};
 // file and folders
-export const GetFolderData = (path) => {
+export const GetFolderData = async (path) => {
   return apiClient.post('/accessFolder', { path });
 };
-export const GetRootFolders = () => {
+export const GetRootFolders = async () => {
   return apiClient.post('/getProjects');
 };
 // profile
-export const GetSignature = () => {
+export const GetSignature = async () => {
   return apiClient.get('/getUserSignature', { responseType: 'blob' });
 };
-export const GetProfilePic = () => {
+export const GetProfilePic = async () => {
   return apiClient.get('/getUserProfilePic', { responseType: 'blob' });
 };
-export const GetProfileData = () => {
+export const GetProfileData = async () => {
   return apiClient.get('/getUserProfileData');
 };
 
 // branches endpoints
-export const getAllBranches = () => {
+export const getAllBranches = async () => {
   return apiClient.post('/getAllBranches');
+};
+export const deleteBranch = async (id) => {
+  return apiClient.post(`/deleteBranch/${id}`);
+};
+
+// signin endpoints
+export const signIn = async (data) => {
+  return apiClient.post(`/login`, data);
+};
+
+// signUp endpoints
+export const changePassword = async (data) => {
+  return apiClient.post(`/changePassword`, data);
+};
+
+// viewer endpoints
+export const storeSignCoordinates = async (data) => {
+  return apiClient.post(`/storeSignCoordinates`, data);
+};
+export const removeCoordinates = async (data) => {
+  return apiClient.post(`/removeCoordinates`, data);
+};
+export const getHighlightsInFile = async (docId) => {
+  return apiClient.get(`/getHighlightsInFile/${docId}`);
+};
+export const getSignCoordinatesForCurrentStep = async (docId) => {
+  return apiClient.post(`/getSignCoordinatesForCurrentStep/${docId}`);
+};
+export const postHighlightInFile = async (data) => {
+  return apiClient.post(`/postHighlightInFile`, data);
 };

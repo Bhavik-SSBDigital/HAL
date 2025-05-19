@@ -17,7 +17,6 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Filefolders from '../Filefolders/Filefolders';
 import { toast } from 'react-toastify';

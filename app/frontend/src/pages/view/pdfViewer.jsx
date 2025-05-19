@@ -17,11 +17,17 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import axios from 'axios';
 import { toast } from 'react-toastify';
 import { IconInfoTriangle } from '@tabler/icons-react';
 import CustomModal from '../../CustomComponents/CustomModal';
 import CustomButton from '../../CustomComponents/CustomButton';
+import {
+  getHighlightsInFile,
+  getSignCoordinatesForCurrentStep,
+  postHighlightInFile,
+  removeCoordinates,
+  storeSignCoordinates,
+} from '../../common/Apis';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
@@ -190,17 +196,12 @@ function PdfContainer({
   const [userSelected, setUserSelected] = useState(null);
   const submitSignArea = async () => {
     setActionsLoading(true);
-    const url = backendUrl + '/storeSignCoordinates';
     try {
-      await axios.post(
-        url,
-        {
-          docId: documentId,
-          processId,
-          coordinates: [{ ...currentSignArea, stepNo: userSelected }],
-        },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      await storeSignCoordinates({
+        docId: documentId,
+        processId,
+        coordinates: [{ ...currentSignArea, stepNo: userSelected }],
+      });
       setSignAreas((prev) => [
         ...prev,
         { ...currentSignArea, stepNo: userSelected },
@@ -226,18 +227,14 @@ function PdfContainer({
   };
 
   const removeSignArea = async (signArea, index) => {
-    const url = backendUrl + '/removeCoordinates';
-
     try {
-      const response = await axios.post(
-        url,
-        { documentId, coordinates: signArea },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await removeCoordinates({
+        documentId,
+        coordinates: signArea,
+      });
       setSignAreas((prev) => prev.filter((_, i) => i !== index));
       toast.success(response?.data?.message);
     } catch (error) {
-      console.log(error);
       toast.error(error?.response?.data?.message || error?.message);
     }
   };
@@ -388,31 +385,21 @@ function PdfContainer({
 
   const [remarkError, setRemarkError] = useState('');
   const getFileHighlights = async () => {
-    const url = `${backendUrl}/getHighlightsInFile/${documentId}`;
     try {
-      const res = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await getHighlightsInFile(documentId);
       setHighlights(res.data.highlights);
     } catch (error) {
       console.log(error.message);
     }
   };
   const getSignCoordinates = async () => {
-    const url = backendUrl + '/getSignCoordinatesForCurrentStep';
     try {
-      const res = await axios.post(
-        url,
-        {
-          docId: documentId,
-          processId: processId,
-          stepNo: currentStep,
-          initiator,
-        },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const res = await getSignCoordinatesForCurrentStep({
+        docId: documentId,
+        processId: processId,
+        stepNo: currentStep,
+        initiator,
+      });
       setSignAreas(res?.data?.coordinates);
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
@@ -429,20 +416,13 @@ function PdfContainer({
       return;
     }
     setActionsLoading(true);
-    const url = `${backendUrl}/postHighlightInFile`;
-
     const data = {
       remark,
       coordinates: coordinates[0].coordinates,
       documentId,
     };
-
     try {
-      const res = await axios.post(url, data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await postHighlightInFile(data);
       toast.success(res?.data?.message || 'Remarks Submitted');
       setOpenRemarksMenu(false);
       getFileHighlights();
