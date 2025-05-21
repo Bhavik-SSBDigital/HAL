@@ -108,9 +108,13 @@ const PdfViewer = ({
   };
 
   return (
-    <CustomModal isOpen={!!docu} onClose={handleViewClose}>
+    <CustomModal
+      isOpen={!!docu}
+      onClose={handleViewClose}
+      className={'max-h-[90vh] overflow-auto'}
+    >
       {/* Top Navigation/Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
+      <div className="sticky top-0 border left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
         <div className="flex items-center gap-2">
           {documents.length > 1 && (
             <>
@@ -162,7 +166,7 @@ const PdfViewer = ({
       </div>
 
       {/* Viewer Area */}
-      <div className="pt-7 w-full flex items-center justify-center overflow-auto">
+      <div className="pt-7 w-full ">
         {currentDoc ? (
           currentDoc.type === 'pdf' ? (
             <PdfContainer

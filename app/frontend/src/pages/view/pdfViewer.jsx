@@ -436,13 +436,12 @@ function PdfContainer({
 
   return (
     <div
-      className="max-h-[88vh] overflow-auto"
       style={{
         userSelect: mode === 'signSelection' ? 'none' : 'auto',
       }}
     >
       {controls ? (
-        <div className="bg-white sticky top-0 z-20 p-2 mb-1">
+        <div className="bg-white sticky top-10 z-20 p-2 mb-1">
           <div className="flex justify-between">
             <button
               className={`${
