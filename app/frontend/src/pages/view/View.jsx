@@ -166,7 +166,7 @@ const PdfViewer = ({
       </div>
 
       {/* Viewer Area */}
-      <div className="pt-7 w-full ">
+      <div className="pt-7 w-fit">
         {currentDoc ? (
           currentDoc.type === 'pdf' ? (
             <PdfContainer
