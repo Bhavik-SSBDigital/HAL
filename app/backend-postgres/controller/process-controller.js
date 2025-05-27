@@ -395,13 +395,22 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
   });
 
   // Filter users by current level if hierarchical
-  const usersToAssign = assignment.allowParallel
-    ? users
-    : users.filter((user) => {
-        // Implement your role hierarchy level check here
-        // This depends on how your role hierarchy is structured
-        return true; // Placeholder - adjust based on your hierarchy logic
-      });
+  let usersToAssign = [];
+
+  if (assignment.allowParallel) {
+    usersToAssign = users;
+  } else {
+    const hierarchy = JSON.parse(progress.roleHierarchy);
+    const currentLevel = assignment.allowParallel ? 0 : progress.currentLevel;
+    const currentRoles = hierarchy[currentLevel];
+
+    usersToAssign = await tx.userRole.findMany({
+      where: {
+        roleId: { in: assignment.assigneeIds },
+      },
+      select: { userId: true, roleId: true, departmentId: true },
+    });
+  }
 
   for (const user of usersToAssign) {
     const stepInstance = await tx.processStepInstance.create({
@@ -445,9 +454,6 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
   }
 }
 
-// processViews.js
-// processViews.js
-// processViews.js
 export const view_process = async (req, res) => {
   try {
     const { processId } = req.params;
