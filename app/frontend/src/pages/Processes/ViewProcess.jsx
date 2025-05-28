@@ -634,7 +634,7 @@ const ViewProcess = () => {
       <CustomModal
         isOpen={queryModalOpen}
         onClose={() => setQueryModalOpen(false)}
-        className={'max-h-[95vh] overflow-auto'}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <Query
           processId={process.processId}
