@@ -129,7 +129,6 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
             </label>
             <input
               {...register('recirculateFromStepId')}
-              required
               className="w-full border p-2 rounded"
               placeholder="Recirculate From Step ID"
             />
