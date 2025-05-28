@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { CreateQuery, uploadDocumentInProcess } from '../../../common/Apis';
 
 export default function Query({ processId, close, stepInstanceId, documents }) {
-  const [formType, setFormType] = useState('query');
+  const [formType, setFormType] = useState('replacement');
 
   const {
     register,
@@ -21,7 +21,6 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
       processId,
       stepInstanceId,
       queryText: '',
-      processSummary: '',
       documentChanges: [],
       documentSummaries: [],
     },
@@ -74,8 +73,8 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
   };
 
   return (
-    <div className="max-w-6xl w-full space-y-3">
-      <div className="w-full">
+    <div className="space-y-3">
+      {/* <div className="w-full">
         <label className="block text-sm font-medium mb-1">Form Type</label>
         <select
           className="border rounded p-2 w-full"
@@ -85,7 +84,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
               processId,
               stepInstanceId,
               queryText: '',
-              processSummary: '',
+              // processSummary: '',
               documentChanges: [],
               documentSummaries: [],
               recirculateFromStepId: '',
@@ -96,12 +95,12 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
           <option value="query">Query</option>
           <option value="replacement">Replacement</option>
         </select>
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Common Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium mb-1">Process ID</label>
             <input
               {...register('processId')}
@@ -121,7 +120,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
               className="w-full border p-2 rounded"
               placeholder="Step Instance ID"
             />
-          </div>
+          </div> */}
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1">
@@ -151,7 +150,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
               />
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium mb-1">
                 Process Summary
               </label>
@@ -162,7 +161,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                 rows={3}
                 placeholder="Write a summary of the process"
               />
-            </div>
+            </div> */}
 
             <div>
               <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
@@ -224,15 +223,50 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
           <>
             <div>
               <label className="block text-sm font-medium mb-1">
-                Process Summary
+                Query Text
               </label>
               <textarea
-                {...register('processSummary')}
+                {...register('queryText')}
                 required
                 className="w-full border p-2 rounded"
                 rows={3}
                 placeholder="Write a summary of the process"
               />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
+              <table className="w-full border border-gray-300 text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border p-2 text-left">Document Name</th>
+                    <th className="border p-2 text-left">Summary Text</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc, index) => (
+                    <tr key={doc.id} className="bg-white">
+                      <td className="border p-2">{doc.name}</td>
+                      <td className="border p-2">
+                        <textarea
+                          {...register(
+                            `documentSummaries.${index}.summaryText`,
+                          )}
+                          className="w-full border p-2 rounded"
+                          rows={2}
+                          placeholder="Enter document summary"
+                        />
+                        {/* Hidden input to include documentId in form submission */}
+                        <input
+                          type="hidden"
+                          value={doc.id}
+                          {...register(`documentSummaries.${index}.documentId`)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div>
