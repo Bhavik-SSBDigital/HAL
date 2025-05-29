@@ -498,7 +498,6 @@ export const view_process = async (req, res) => {
                 user: {
                   select: {
                     id: true,
-                    name: true,
                     username: true,
                   },
                 },
@@ -507,7 +506,6 @@ export const view_process = async (req, res) => {
             rejectedBy: {
               select: {
                 id: true,
-                name: true,
                 username: true,
               },
             },
@@ -547,8 +545,15 @@ export const view_process = async (req, res) => {
               },
             },
             workflowAssignment: {
-              select: {
-                assigneeIds: true,
+              include: {
+                step: {
+                  select: {
+                    id: true,
+                    stepName: true,
+                    stepNumber: true,
+                    stepType: true,
+                  },
+                },
               },
             },
             pickedBy: {
@@ -628,8 +633,13 @@ export const view_process = async (req, res) => {
         ? step.workflowAssignment.assigneeIds
         : [step.assignedTo];
 
+      console.log("step", step);
+
       return {
-        stepName: step.workflowStep?.stepName ?? "Unknown Step",
+        stepName: step.workflowAssignment?.step?.stepName ?? "Unknown Step",
+        stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
+        stepId: step.workflowAssignment?.step?.id ?? null,
+        stepType: step.workflowAssignment?.step?.stepType ?? "UNKNOWN",
         assignees: assigneeIds.map((id) => ({
           assigneeId: id,
           assigneeName: assigneeMap[id]?.username ?? "Unknown User",
@@ -637,16 +647,18 @@ export const view_process = async (req, res) => {
       };
     });
 
+    console.log("steps", steps);
+
     const transformedDocuments = process.documents.map((doc) => {
       const signedBy = doc.signatures.map((sig) => ({
-        signedBy: sig.user.name,
+        signedBy: sig.user.username,
         signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
         remarks: sig.reason || null,
       }));
 
       const rejectionDetails = doc.rejectedBy
         ? {
-            rejectedBy: doc.rejectedBy.name,
+            rejectedBy: doc.rejectedBy.username,
             rejectionReason: doc.rejectionReason,
             rejectedAt: doc.rejectedAt ? doc.rejectedAt.toISOString() : null,
           }
@@ -694,14 +706,14 @@ export const view_process = async (req, res) => {
               (dc) => dc.documentHistoryId
             ) || []),
             ...(qa.details?.documentSummaries?.map(
-              (ds) => dc.documentHistoryId
+              (ds) => ds.documentHistoryId
             ) || []),
           ];
 
           const documentHistories =
             documentHistoryIds.length > 0
               ? await prisma.documentHistory.findMany({
-                  where: { id: { in: documentAmberIds } },
+                  where: { id: { in: documentHistoryIds } },
                   include: {
                     document: {
                       select: {
@@ -731,17 +743,14 @@ export const view_process = async (req, res) => {
               : [];
 
           return {
-            queryId: qa.id,
-            processId: qa.process.id,
-            processName: qa.process.name,
             stepInstanceId: step.id,
-            stepName: step.workflowStep?.stepName ?? null,
-            stepNumber: step.workflowStep?.stepNumber ?? null,
+            stepName: step.workflowAssignment?.step?.stepName ?? null,
+            stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
             status: step.status,
             taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
             queryText: qa.question,
             answerText: qa.answer || null,
-            initiatorName: qa.initiator.name,
+            initiatorName: qa.initiator.username,
             createdAt: qa.createdAt.toISOString(),
             answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
             documentChanges:
@@ -784,17 +793,17 @@ export const view_process = async (req, res) => {
                   documentId: ds.documentId,
                   feedbackText: ds.feedbackText,
                   documentHistoryId: ds.documentHistoryId,
-                  document: history?.document
+                  documentDetails: history?.document
                     ? {
                         id: history.document.id,
                         name: history.document.name,
-                        type: history.document.type,
+                        // type: history.document.type,
                         path: history.document.path,
-                        tags: history.document.tags,
+                        // tags: history.document.tags,
                       }
                     : null,
-                  actionDetails: history?.actionDetails,
-                  user: history?.user.name,
+                  // actionDetails: history?.actionDetails,
+                  user: history?.user.username,
                   createdAt: history?.createdAt.toISOString(),
                 };
               }) || [],
@@ -808,11 +817,13 @@ export const view_process = async (req, res) => {
                     ? (
                         await prisma.user.findUnique({
                           where: {
-                            id: qa.details.assigneeDetails.assignedAssigneeId,
+                            id: parseInt(
+                              qa.details.assigneeDetails.assignedAssigneeId
+                            ),
                           },
-                          select: { name: true },
+                          select: { username: true },
                         })
-                      )?.name || null
+                      )?.username || null
                     : null,
                 }
               : null,
@@ -1525,7 +1536,7 @@ export const createQuery = async (req, res) => {
         where: {
           id: stepInstanceId,
           assignedTo: userData.id,
-          status: "IN_PROGRESS",
+          status: "PENDING",
         },
         include: { process: true, workflowAssignment: true },
       });
@@ -1562,7 +1573,7 @@ export const createQuery = async (req, res) => {
             processId,
             stepInstanceId,
             initiatorId: userData.id,
-            entityId: assignedAssigneeId || userData.id,
+            entityId: parseInt(assignedAssigneeId) || userData.id,
             entityType: assignedAssigneeId
               ? "USER"
               : stepInstance.workflowAssignment.assigneeType,
@@ -1645,7 +1656,7 @@ export const createQuery = async (req, res) => {
       for (const summary of documentSummaries) {
         const { documentId, feedbackText } = summary;
         const document = await tx.document.findUnique({
-          where: { id: documentId },
+          where: { id: parseInt(documentId) },
         });
         if (!document) {
           throw new Error(`Document ${documentId} not found`);
@@ -1653,7 +1664,7 @@ export const createQuery = async (req, res) => {
 
         const history = await tx.documentHistory.create({
           data: {
-            documentId,
+            documentId: parseInt(documentId),
             processId,
             stepInstanceId,
             userId: userData.id,
@@ -1683,7 +1694,11 @@ export const createQuery = async (req, res) => {
       }
 
       // 6. Update step instance status
-      if (isDelegatedTask.key && documentChanges.length > 0) {
+      if (
+        isDelegatedTask &&
+        isDelegatedTask.key &&
+        documentChanges.length > 0
+      ) {
         // For delegated upload tasks with documents, mark as APPROVED
         await tx.processStepInstance.update({
           where: { id: stepInstanceId },
@@ -1728,8 +1743,8 @@ export const createQuery = async (req, res) => {
         const newStepInstance = await tx.processStepInstance.create({
           data: {
             processId,
-            workflowStepId: workflowStep.id,
-            assignedTo: assignedAssigneeId,
+            stepId: workflowStep.id,
+            assignedTo: parseInt(assignedAssigneeId),
             status: "PENDING",
             createdAt: new Date(),
             deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
@@ -1738,8 +1753,8 @@ export const createQuery = async (req, res) => {
 
         await tx.processNotification.create({
           data: {
-            stepInstanceId: newStepInstance.id,
-            userId: assignedAssigneeId,
+            stepId: newStepInstance.id,
+            userId: parseInt(assignedAssigneeId),
             type: "DOCUMENT_QUERY",
             status: "ACTIVE",
             metadata: { queryText, processId },
@@ -1756,7 +1771,7 @@ export const createQuery = async (req, res) => {
       const engagedStepInstances = await tx.processStepInstance.findMany({
         where: {
           processId,
-          workflowStepId: firstStep.id,
+          stepId: firstStep.id,
           OR: [
             { pickedById: { not: null } },
             { claimedAt: { not: null } },
