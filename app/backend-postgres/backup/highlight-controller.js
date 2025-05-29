@@ -140,23 +140,170 @@ export const getHighlights = async (req, res) => {
 
     const { documentId } = req.params;
     const {
-      contextType,
-      contextId,
-      processInstanceId,
-      tempContextType,
-      contextFlag,
+      action, // e.g., query_submission, recommendation_response_submission
+      contextId, // Specific ID (e.g., queryId, recommendationId)
+      tempContextType, // e.g., query, recommendationResponse
+      contextFlag, // e.g., doubt, response (for recommendation-related)
     } = req.query;
+
+    // Validate action
+    const validActions = [
+      "query_submission",
+      "query_response_submission",
+      "query_doubt_submission",
+      "query_doubt_response_submission",
+      "recommendation_submission",
+      "recommendation_response_submission",
+      "recommendation_doubt_submission",
+      "recommendation_doubt_response_submission",
+    ];
+
+    if (action && !validActions.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "Invalid action type",
+          code: "INVALID_ACTION",
+        },
+      });
+    }
 
     let whereClause = { documentId: parseInt(documentId) };
 
-    if (contextType && contextId) {
-      whereClause[contextType] = contextId;
-    } else if (processInstanceId && tempContextType) {
-      whereClause.processInstanceId = processInstanceId;
-      whereClause.tempContextType = tempContextType;
-      if (contextFlag) {
-        whereClause.contextFlag = contextFlag;
+    // Filter highlights based on action
+    if (action) {
+      switch (action) {
+        case "query_submission":
+        case "query_response_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              { queryId: contextId ? parseInt(contextId) : { not: null } },
+              {
+                tempContextType: "query",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "query_doubt_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              { queryDoubtId: contextId ? parseInt(contextId) : { not: null } },
+              {
+                tempContextType: "queryDoubt",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "query_doubt_response_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              {
+                queryDoubtResponseId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+              {
+                tempContextType: "queryDoubtResponse",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "recommendation_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              {
+                recommendationId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+              {
+                tempContextType: "recommendation",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "recommendation_response_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              {
+                recommendationResponseId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+              {
+                tempContextType: "recommendationResponse",
+                contextFlag: "response",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "recommendation_doubt_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              {
+                recommendationDoubtId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+              {
+                tempContextType: "recommendationDoubt",
+                contextFlag: "doubt",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
+        case "recommendation_doubt_response_submission":
+          whereClause = {
+            ...whereClause,
+            OR: [
+              {
+                recommendationDoubtResponseId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+              {
+                tempContextType: "recommendationDoubtResponse",
+                contextFlag: "response",
+                processInstanceId: contextId
+                  ? parseInt(contextId)
+                  : { not: null },
+              },
+            ],
+          };
+          break;
       }
+    } else if (contextId && tempContextType) {
+      // Fallback for generic context-based filtering
+      whereClause = {
+        ...whereClause,
+        processInstanceId: contextId ? parseInt(contextId) : undefined,
+        tempContextType,
+        contextFlag: contextFlag || undefined,
+      };
     }
 
     const highlights = await prisma.documentHighlight.findMany({
@@ -285,8 +432,7 @@ export const getHighlights = async (req, res) => {
         contextInfo = {
           type: "recommendationResponse",
           author:
-            highlight.recommendationResponse?.respondedounidBy?.name ||
-            "Unknown",
+            highlight.recommendationResponse?.respondedBy?.name || "Unknown",
         };
       } else if (highlight.recommendationDoubtId) {
         contextInfo = {

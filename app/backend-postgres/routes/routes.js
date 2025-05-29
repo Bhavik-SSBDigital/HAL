@@ -24,31 +24,31 @@ import {
   get_workflows,
 } from "../controller/workflow-controller.js";
 
-import {
-  createQuery,
-  getProcessQueries,
-  respondToQuery,
-  approveQueryDocument,
-  approveRecirculation,
-  createQueryDoubt,
-  respondToQueryDoubt,
-} from "../controller/query-controller.js";
+// import {
+//   createQuery,
+//   getProcessQueries,
+//   respondToQuery,
+//   approveQueryDocument,
+//   approveRecirculation,
+//   createQueryDoubt,
+//   respondToQueryDoubt,
+// } from "../controller/query-controller.js";
 
-import {
-  requestRecommendation,
-  submitRecommendation,
-  getRecommendations,
-  getRecommendationDetails,
-  requestRecommendationClarification,
-  respondToRecommendationClarification,
-  createRecommendationDoubt,
-  respondToRecommendationDoubt,
-} from "../controller/recommendation-controller.js";
+// import {
+//   requestRecommendation,
+//   submitRecommendation,
+//   getRecommendations,
+//   getRecommendationDetails,
+//   requestRecommendationClarification,
+//   respondToRecommendationClarification,
+//   createRecommendationDoubt,
+//   respondToRecommendationDoubt,
+// } from "../controller/recommendation-controller.js";
 
-import {
-  postHighlight,
-  getHighlights,
-} from "../controller/highlight-controller.js";
+// import {
+//   postHighlight,
+//   getHighlights,
+// } from "../controller/highlight-controller.js";
 
 import {
   getDocumentDetailsOnTheBasisOfPath,
@@ -210,30 +210,30 @@ router.post(
   upload_signature
 );
 
-router.post("/queries/createQuery", createQuery);
-router.get("/queries/process/:processId", getProcessQueries);
-router.post("/queries/respond/:queryId", respondToQuery);
-router.post("/queries/documents/approve/:documentId", approveQueryDocument);
-router.post("/queries/approve-recirculation/:queryId", approveRecirculation);
-router.post("/queries/doubts/:queryId", createQueryDoubt);
-router.post("/doubts/respond/:doubtId", respondToQueryDoubt);
+// router.post("/queries/createQuery", createQuery);
+// router.get("/queries/process/:processId", getProcessQueries);
+// router.post("/queries/respond/:queryId", respondToQuery);
+// router.post("/queries/documents/approve/:documentId", approveQueryDocument);
+// router.post("/queries/approve-recirculation/:queryId", approveRecirculation);
+// router.post("/queries/doubts/:queryId", createQueryDoubt);
+// router.post("/doubts/respond/:doubtId", respondToQueryDoubt);
 
-// Recommendation routes
-router.post("/recommendations", requestRecommendation);
-router.post("/recommendations/submit/:recommendationId", submitRecommendation);
-router.get("/recommendations", getRecommendations);
-router.get("/recommendations/:id", getRecommendationDetails);
-router.post(
-  "/recommendations/request-clarification/:recommendationId",
-  createRecommendationDoubt
-);
-router.post(
-  "/recommendations/respond-clarification/:recommendationId",
-  respondToRecommendationDoubt
-);
+// // Recommendation routes
+// router.post("/recommendations", requestRecommendation);
+// router.post("/recommendations/submit/:recommendationId", submitRecommendation);
+// router.get("/recommendations", getRecommendations);
+// router.get("/recommendations/:id", getRecommendationDetails);
+// router.post(
+//   "/recommendations/request-clarification/:recommendationId",
+//   createRecommendationDoubt
+// );
+// router.post(
+//   "/recommendations/respond-clarification/:recommendationId",
+//   respondToRecommendationDoubt
+// );
 
-// Highlight routes
-router.post("/highlights", postHighlight);
-router.get("/documents/highlights/:documentId", getHighlights);
+// // Highlight routes
+// router.post("/highlights", postHighlight);
+// router.get("/documents/highlights/:documentId", getHighlights);
 
 export default router;
