@@ -17,7 +17,6 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Filefolders from '../Filefolders/Filefolders';
 import { toast } from 'react-toastify';
@@ -26,6 +25,7 @@ import TopLoader from '../../common/Loader/TopLoader';
 import {
   AddRole,
   EditRoleById,
+  getAllBranches,
   GetRoleDetailsById,
   GetRoles,
 } from '../../common/Apis';
@@ -70,14 +70,10 @@ export default function NewRole() {
   const getBranches = async () => {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
-      const { data } = await axios.post(`${backendUrl}/getAllBranches`, null, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      setBranches(data.departments);
+      const response = await getAllBranches();
+      setBranches(response?.data?.departments);
     } catch (error) {
-      alert('Unable to fetch branches. Please try again.');
+      console.error('Unable to fetch branches. Please try again.', error);
     }
   };
 

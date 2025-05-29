@@ -17,6 +17,8 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconAlignBoxCenterMiddle,
+  IconQuestionMark,
+  IconFileText,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -41,6 +43,28 @@ const ViewProcess = () => {
   const [fileView, setFileView] = useState(null);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [queries, setQueries] = useState([
+    {
+      id: 'query_123',
+      processId: 'proc_123',
+      raisedBy: {
+        id: 1,
+        name: 'John Doe',
+        username: 'johndoe',
+      },
+      queryText: 'Please clarify the budget allocation',
+      status: 'OPEN',
+      documents: [
+        {
+          document: {
+            id: 789,
+            name: 'Budget.docx',
+          },
+        },
+      ],
+      responses: [],
+    },
+  ]);
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -299,115 +323,215 @@ const ViewProcess = () => {
         </div>
       </CustomCard>
 
+      {/* documnets section */}
       {process?.documents?.length > 0 && (
-        <div className="mt-8">
-          <CustomCard className="flex justify-between gap-2">
-            <h3 className="text-lg h-fit font-bold text-gray-800">Documents</h3>
+        <>
+          <div className="flex items-center mt-12 mb-2">
+            <div className="flex-grow border-t border-slate-400"></div>
+            <span className="mx-4 text-sm text-gray-500 uppercase tracking-wide font-medium">
+              Documents
+            </span>
+            <div className="flex-grow border-t border-slate-400"></div>
+          </div>
+          <div>
             <CustomButton
               disabled={selectedDocs.length == 0}
+              className={'ml-auto block'}
               text={`View All Selected (${selectedDocs.length})`}
               click={handleViewAllSelectedFiles}
             />
-          </CustomCard>
-          <div className="mt-2 space-y-2">
-            {process.documents.map((doc) => {
-              const isSelected = selectedDocs.includes(doc.id);
-              const toggleSelect = () => {
-                setSelectedDocs((prev) =>
-                  isSelected
-                    ? prev.filter((id) => id !== doc.id)
-                    : [...prev, doc.id],
+            <div className="mt-2 space-y-2">
+              {process.documents.map((doc) => {
+                const isSelected = selectedDocs.includes(doc.id);
+                const toggleSelect = () => {
+                  setSelectedDocs((prev) =>
+                    isSelected
+                      ? prev.filter((id) => id !== doc.id)
+                      : [...prev, doc.id],
+                  );
+                };
+
+                return (
+                  <CustomCard
+                    key={doc.id}
+                    className="flex items-center justify-between p-4 gap-5 flex-wrap"
+                  >
+                    <div className="flex gap-4 flex-wrap">
+                      <input
+                        type="checkbox"
+                        className="h-10 w-4"
+                        checked={isSelected}
+                        onChange={toggleSelect}
+                      />
+
+                      <div className="min-w-fit">
+                        <p className="text-gray-900 font-semibold">
+                          {doc.name}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          Type: {doc?.type?.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center flex-wrap gap-1">
+                      <CustomButton
+                        className="px-1"
+                        click={() => handleViewFile(doc?.name, doc?.path)}
+                        disabled={actionsLoading}
+                        title="View Document"
+                        text={<IconEye size={18} className="text-white" />}
+                      />
+                      <CustomButton
+                        variant={'success'}
+                        className="px-1"
+                        click={() =>
+                          setRemarksModalOpen({ id: doc.id, open: 'sign' })
+                        }
+                        disabled={actionsLoading || doc?.signedBy?.length}
+                        title="Sign Document"
+                        text={<IconCheck size={18} className="text-white" />}
+                      />
+                      <CustomButton
+                        variant={'danger'}
+                        className="px-1"
+                        click={() =>
+                          setRemarksModalOpen({ id: doc.id, open: 'reject' })
+                        }
+                        disabled={actionsLoading || doc.rejectionDetails}
+                        title="Reject Document"
+                        text={<IconX size={18} className="text-white" />}
+                      />
+                      <CustomButton
+                        variant={'secondary'}
+                        className="px-1"
+                        click={() => handleRevokeSign(doc.id)}
+                        disabled={actionsLoading || !doc.signedBy.length}
+                        title="Revoke Sign"
+                        text={
+                          <IconArrowBackUp size={18} className="text-white" />
+                        }
+                      />
+                      <CustomButton
+                        variant={'info'}
+                        className="px-1"
+                        click={() => handleRevokeRejection(doc.id)}
+                        disabled={actionsLoading || !doc.rejectionDetails}
+                        title="Revoke Rejection"
+                        text={
+                          <IconArrowForwardUp
+                            size={18}
+                            className="text-white"
+                          />
+                        }
+                      />
+                      <CustomButton
+                        variant={'info'}
+                        className="px-1"
+                        click={() => setDocumentModalOpen(doc)}
+                        disabled={actionsLoading}
+                        title="Details"
+                        text={
+                          <IconAlignBoxCenterMiddle
+                            size={18}
+                            className="text-white"
+                          />
+                        }
+                      />
+                    </div>
+                  </CustomCard>
                 );
-              };
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
-              return (
-                <CustomCard
-                  key={doc.id}
-                  className="flex items-center justify-between p-4 gap-5 flex-wrap"
-                >
-                  <div className="flex gap-4 flex-wrap">
-                    <input
-                      type="checkbox"
-                      className="h-10 w-4"
-                      checked={isSelected}
-                      onChange={toggleSelect}
-                    />
-
-                    <div className="min-w-fit">
-                      <p className="text-gray-900 font-semibold">{doc.name}</p>
-                      <p className="text-gray-500 text-sm">
-                        Type: {doc?.type?.toUpperCase()}
+      {/* queries section*/}
+      {queries?.length > 0 && (
+        <>
+          <div className="flex items-center mt-12 mb-2">
+            <div className="flex-grow border-t border-slate-400"></div>
+            <span className="mx-4 text-sm text-gray-500 uppercase tracking-wide font-medium">
+              Queries
+            </span>
+            <div className="flex-grow border-t border-slate-400"></div>
+          </div>
+          <div className="mt-2">
+            <div className="space-y-4">
+              {queries.map((query) => (
+                <CustomCard>
+                  {/* Query Header */}
+                  <div className="flex justify-between items-start flex-wrap">
+                    <div>
+                      <p className="text-sm text-gray-500">
+                        <span className="font-semibold">Raised By:</span>{' '}
+                        {query.raisedBy.name} ({query.raisedBy.username})
+                      </p>
+                      <p className="text-gray-700">
+                        <span className="font-semibold">Query:</span>{' '}
+                        {query.queryText}
                       </p>
                     </div>
+                    <span
+                      className={`text-xs font-semibold rounded px-2 py-1 ${
+                        query.status === 'OPEN'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : query.status === 'CLOSED'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {query.status}
+                    </span>
                   </div>
 
-                  <div className="flex items-center flex-wrap gap-1">
-                    <CustomButton
-                      className="px-1"
-                      click={() => handleViewFile(doc?.name, doc?.path)}
-                      disabled={actionsLoading}
-                      title="View Document"
-                      text={<IconEye size={18} className="text-white" />}
-                    />
-                    <CustomButton
-                      variant={'success'}
-                      className="px-1"
-                      click={() =>
-                        setRemarksModalOpen({ id: doc.id, open: 'sign' })
-                      }
-                      disabled={actionsLoading || doc?.signedBy?.length}
-                      title="Sign Document"
-                      text={<IconCheck size={18} className="text-white" />}
-                    />
-                    <CustomButton
-                      variant={'danger'}
-                      className="px-1"
-                      click={() =>
-                        setRemarksModalOpen({ id: doc.id, open: 'reject' })
-                      }
-                      disabled={actionsLoading || doc.rejectionDetails}
-                      title="Reject Document"
-                      text={<IconX size={18} className="text-white" />}
-                    />
-                    <CustomButton
-                      variant={'secondary'}
-                      className="px-1"
-                      click={() => handleRevokeSign(doc.id)}
-                      disabled={actionsLoading || !doc.signedBy.length}
-                      title="Revoke Sign"
-                      text={
-                        <IconArrowBackUp size={18} className="text-white" />
-                      }
-                    />
-                    <CustomButton
-                      variant={'info'}
-                      className="px-1"
-                      click={() => handleRevokeRejection(doc.id)}
-                      disabled={actionsLoading || !doc.rejectionDetails}
-                      title="Revoke Rejection"
-                      text={
-                        <IconArrowForwardUp size={18} className="text-white" />
-                      }
-                    />
-                    <CustomButton
-                      variant={'info'}
-                      className="px-1"
-                      click={() => setDocumentModalOpen(doc)}
-                      disabled={actionsLoading}
-                      title="Details"
-                      text={
-                        <IconAlignBoxCenterMiddle
-                          size={18}
-                          className="text-white"
-                        />
-                      }
-                    />
-                  </div>
+                  {/* Attached Documents */}
+                  {query.documents?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-2">
+                        Attached Documents:
+                      </p>
+                      <div className="space-y-2">
+                        {query.documents.map((docObj, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between border border-gray-100 bg-gray-50 p-3 rounded-md shadow-sm"
+                          >
+                            <div>
+                              <p className="text-gray-900 font-medium">
+                                {docObj.document.name}
+                              </p>
+                            </div>
+                            <CustomButton
+                              text="View"
+                              variant="secondary"
+                              click={() => handleViewFile(docObj.document.name)} // Define this handler
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Responses */}
+                  {query.responses?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">
+                        Responses:
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-gray-700">
+                        {query.responses.map((res, idx) => (
+                          <li key={idx}>{res.responseText}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CustomCard>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* view file modal */}
@@ -510,7 +634,7 @@ const ViewProcess = () => {
       <CustomModal
         isOpen={queryModalOpen}
         onClose={() => setQueryModalOpen(false)}
-        className={'max-h-[95vh] overflow-auto'}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <Query
           processId={process.processId}
@@ -520,7 +644,7 @@ const ViewProcess = () => {
         />
       </CustomModal>
 
-      {/* remarks modals */}
+      {/*sign remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"
@@ -529,6 +653,7 @@ const ViewProcess = () => {
         onSubmit={(remarks) => handleSignDocument(remarks)}
       />
 
+      {/* reject remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'reject'}
         title="Reject Remarks"

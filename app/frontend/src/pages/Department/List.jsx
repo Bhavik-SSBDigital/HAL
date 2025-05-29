@@ -3,12 +3,12 @@ import { IconTrash, IconEdit, IconEye } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import {
   getDepartments,
   getRolesHierarchyInDepartment,
   getDepartmentsHierarchy,
+  deleteDepartment,
 } from '../../common/Apis';
 import TreeGraph from '../../components/TreeGraph';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
@@ -17,7 +17,6 @@ import CustomCard from '../../CustomComponents/CustomCard';
 import CustomButton from '../../CustomComponents/CustomButton';
 
 export default function List() {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [isLoading, setIsLoading] = useState(true);
   const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,15 +58,7 @@ export default function List() {
   const handleDepDelete = async (id) => {
     setActionsLoading(true);
     try {
-      const response = await axios.post(
-        `${backendUrl}/deleteDepartment/${id}`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
-        },
-      );
+      const response = await deleteDepartment(id);
       if (response.status === 200) {
         setDepartments((prev) => prev.filter((item) => item._id !== id));
         toast.success(response.data.message);

@@ -10,12 +10,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import { changePassword } from '../../common/Apis';
 
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   // states
   const [showPass, setShowPass] = useState(false);
   const [showPass1, setShowPass1] = useState(false);
@@ -74,8 +73,7 @@ const SignUp: React.FC = () => {
 
     try {
       setLoading(true);
-      const url = backendUrl + '/changePassword';
-      const res = await axios.post(url, data);
+      const res = await changePassword(data);
       if (res.status === 200) {
         toast.success('Password Changed');
         navigate('/auth/signin');

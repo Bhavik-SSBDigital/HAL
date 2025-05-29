@@ -11,18 +11,16 @@ import {
   IconButton,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import moment from 'moment';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { IconEye, IconSquareRoundedX } from '@tabler/icons-react';
 import sessionData from '../../Store';
-import { GetProcessesList } from '../../common/Apis';
+import { GetProcessesList, removeProcessNotification } from '../../common/Apis';
 import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function List() {
   const { setNotifications, notifications } = sessionData();
   const [data, setData] = useState([]);
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -49,11 +47,7 @@ export default function List() {
 
   const handleRemoveNotification = async (id) => {
     try {
-      await axios.post(`${backendUrl}/removeProcessNotification/${id}`, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
-      });
+      await removeProcessNotification(id);
       setNotifications(notifications.filter((item) => item.processId !== id));
     } catch (error) {
       console.error('Error removing notification', error);

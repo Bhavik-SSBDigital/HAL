@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { Autocomplete, TextField as MuiTextField } from '@mui/material';
-import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { CreateUser, EditUser, GetRoles, GetUser } from '../../common/Apis';

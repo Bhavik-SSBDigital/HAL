@@ -36,10 +36,12 @@ import { copy, cut } from '../../Slices/PathSlice';
 import TopLoader from '../../common/Loader/TopLoader';
 import moment from 'moment';
 import { useForm } from 'react-hook-form';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
 
 export default function FileSysten() {
   // States
   const dispatch = useDispatch();
+  const username = sessionStorage.getItem('username');
   const [fileType, setFileType] = useState('all');
   const [showUploadFileModal, setUploadFileModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -292,23 +294,56 @@ export default function FileSysten() {
     reset: resetFile,
   } = useForm();
 
+  // function to create metadata of newly uploaded file
+  const createUploadedFileMetadata = (file, uploadPath, createdBy, fileExt) => {
+    const now = new Date().toISOString();
+
+    return {
+      id: Date.now(), // or from backend if available
+      path: uploadPath,
+      name: file.name,
+      type: fileExt,
+      createdOn: now,
+      lastUpdated: now,
+      lastAccessed: now,
+      size: file.size,
+      isInvolvedInProcess: false,
+      createdBy,
+      isUploadable: false,
+      isDownloadable: true,
+      isRejected: false,
+      children: [], // Only relevant for folders, but keep empty for consistency
+    };
+  };
+
   const handleFileUpload = async (data) => {
+    console.log(currentPath);
     setActionsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', data.file[0]); // Get the first selected file
+      const selectedFile = data.file[0]; // Assuming this is from react-hook-form or similar
+      const fileName = selectedFile.name.split('.').slice(0, -1).join('.');
+      const fileExt = selectedFile.name.split('.').pop();
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const uploadResult = await upload(
+        [selectedFile], // File array
+        currentPath, // Target path
+        `${fileName}.${fileExt}`, // Final file name
+        false, // Overwrite = true
+      );
+      setUploadFileModal(false);
+      toast.success('File Uploaded');
+      const newFileData = createUploadedFileMetadata(
+        selectedFile,
+        currentPath,
+        username,
+        fileExt,
+      );
 
-      if (!response.ok) {
-        throw new Error('File upload failed');
-      }
+      // Update your state (e.g., file list, folder contents)
+      setData((prev) => [...prev, newFileData]);
       resetFile();
     } catch (error) {
-      console.error('Upload error:', error.message);
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
     }

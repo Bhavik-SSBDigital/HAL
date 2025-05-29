@@ -13,16 +13,15 @@ import {
 } from '@mui/material';
 import { IconEye } from '@tabler/icons-react';
 import { IconEyeOff } from '@tabler/icons-react';
-import axios from 'axios';
 import sessionData from '../../Store';
 import userSocket from '../Socket_Connection';
+import { signIn } from '../../common/Apis';
 
 const SignIn: React.FC = () => {
   const { setShow } = sessionData();
   const { connect_socket } = userSocket();
   // states
   const navigate = useNavigate();
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -44,8 +43,7 @@ const SignIn: React.FC = () => {
     setLoading(true);
     e.preventDefault();
     try {
-      const url = backendUrl + '/login';
-      const res = await axios.post(url, data);
+      const res = await signIn(data);
       if (res.status === 200) {
         if (res.data.userName === 'admin') {
           setShow(true);
