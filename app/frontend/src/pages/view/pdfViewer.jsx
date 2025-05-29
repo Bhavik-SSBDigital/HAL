@@ -443,16 +443,18 @@ function PdfContainer({
       {controls ? (
         <div className="bg-white sticky top-11 z-20 p-2 mb-1">
           <div className="flex justify-between">
-            <button
-              className={`${
-                mode === 'textSelection'
-                  ? 'bg-blue-500 text-white'
-                  : 'border border-gray-300 text-gray-700'
-              } p-2 rounded-md`}
-              onClick={() => setMode('textSelection')}
-            >
-              Text Selection Mode
-            </button>
+            {false ? (
+              <button
+                className={`${
+                  mode === 'textSelection'
+                    ? 'bg-blue-500 text-white'
+                    : 'border border-gray-300 text-gray-700'
+                } p-2 rounded-md`}
+                onClick={() => setMode('textSelection')}
+              >
+                Text Selection Mode
+              </button>
+            ) : null}
 
             {/* {initiator && documentId ? ( */}
             <button

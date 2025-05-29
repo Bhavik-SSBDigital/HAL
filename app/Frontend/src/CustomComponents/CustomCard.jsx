@@ -6,6 +6,7 @@ export default function CustomCard({
   click,
   title,
   style,
+  ...rest
 }) {
   return (
     <div
@@ -13,6 +14,7 @@ export default function CustomCard({
       style={style}
       onClick={click}
       className={`p-6 bg-white border border-slate-300 rounded-md ${className}`}
+      {...rest}
     >
       {children}
     </div>

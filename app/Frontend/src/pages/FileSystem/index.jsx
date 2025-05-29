@@ -145,8 +145,8 @@ export default function FileSysten() {
       if (!newPath.startsWith('..')) {
         newPath = '..' + newPath;
       }
-      setCurrentPath(newPath);
-      sessionStorage.setItem('path', newPath);
+      setCurrentPath(`${newPath}/${item.name}`);
+      sessionStorage.setItem('path', `${newPath}/${item.name}`);
     }
     resetFilters();
   };
@@ -535,6 +535,11 @@ export default function FileSysten() {
                     className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
                     click={() =>
                       item.type == 'folder' ? handleFolderClick(item) : null
+                    }
+                    onDoubleClick={() =>
+                      item.type == 'folder'
+                        ? null
+                        : handleViewFile(item.name, item.path)
                     }
                   >
                     <button

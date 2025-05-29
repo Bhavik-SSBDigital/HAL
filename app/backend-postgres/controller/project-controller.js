@@ -128,7 +128,7 @@ export const getRootDocumentsWithAccess = async (req, res) => {
           return {
             id: doc.id,
             name: doc.name,
-            path: `..${doc.path.substring(19)}/${doc.name}`,
+            path: `..${doc.path.substring(19)}`,
             type: doc.type,
             createdOn: doc.createdOn,
             createdBy: doc.createdById,
