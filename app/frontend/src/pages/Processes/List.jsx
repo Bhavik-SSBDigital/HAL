@@ -61,8 +61,8 @@ export default function List() {
       field: 'createdAt',
       headerName: 'Created At',
       width: 200,
-      valueFormatter: ({ value }) =>
-        moment(value).format('DD-MMM-YYYY hh:mm A'),
+      valueGetter: (value) =>
+        value ? moment(value).format('DD-MMM-YYYY hh:mm A') : '--',
     },
     { field: 'actionType', headerName: 'Action Type', width: 150 },
     { field: 'stepName', headerName: 'Step Name', width: 150 },
