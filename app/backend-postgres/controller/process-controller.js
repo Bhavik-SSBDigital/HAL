@@ -542,12 +542,7 @@ export const view_process = async (req, res) => {
           where: {
             assignedTo: userData.id,
             status: {
-              in: [
-                "PENDING",
-                "IN_PROGRESSAPPROVED",
-                "FOR_RECAPPROVED",
-                "APPROVED",
-              ],
+              in: ["PENDING", "IN_PROGRESS", "FOR_RECIRCULATION", "APPROVED"],
             },
           },
           include: {
@@ -562,7 +557,7 @@ export const view_process = async (req, res) => {
             processQA: {
               where: {
                 OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-                status: "OPEN", // Filter for open queries
+                status: "OPEN",
               },
               include: {
                 initiator: {
@@ -622,31 +617,33 @@ export const view_process = async (req, res) => {
           },
           select: {
             assignedTo: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
           },
         },
       },
       orderBy: { stepNumber: "asc" },
     });
 
-    const workflow = workflowSteps.map((step) => ({
-      stepName: step.stepName,
-      stepNumber: step.stepNumber,
-      engagedAssignees: step.processSteps
-        .map((instance) => ({
-          assigneeName: instance.user.name,
-          assigneeId: instance.assignedTo,
-        }))
-        .filter(
-          (value, index, self) =>
-            index === self.findIndex((t) => t.assigneeId === value.assigneeId)
-        ),
-    }));
+    // Fetch user details for assignees
+    const workflow = await Promise.all(
+      workflowSteps.map(async (step) => {
+        const assigneeIds = [
+          ...new Set(step.processSteps.map((instance) => instance.assignedTo)),
+        ];
+        const assignees = await prisma.user.findMany({
+          where: { id: { in: assigneeIds } },
+          select: { id: true, name: true },
+        });
+
+        return {
+          stepName: step.stepName,
+          stepNumber: step.stepNumber,
+          engagedAssignees: assignees.map((user) => ({
+            assigneeName: user.name,
+            assigneeId: user.id,
+          })),
+        };
+      })
+    );
 
     const transformedDocuments = process.documents.map((doc) => {
       const signedBy = doc.signatures.map((sig) => ({
@@ -747,8 +744,8 @@ export const view_process = async (req, res) => {
             processId: qa.process.id,
             processName: qa.process.name,
             stepInstanceId: step.id,
-            stepName: step.workflowStep.stepName,
-            stepNumber: step.workflowStep.stepNumber,
+            stepName: step.workflowStep?.stepName ?? null,
+            stepNumber: step.workflowStep?.stepNumber ?? null,
             status: step.status,
             taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
             queryText: qa.question,
@@ -844,12 +841,12 @@ export const view_process = async (req, res) => {
         toBePicked,
         isRecirculated: process.isRecirculated,
         documents: transformedDocuments,
-        stepInstances: process.stepInstances.map((step) => ({
-          stepInstanceId: step.id,
-          stepName: step.workflowStep.stepName,
-          stepNumber: step.workflowStep.stepNumber,
-          status: step.status,
-        })),
+        // stepInstances: process.stepInstances.map((step) => ({
+        //   stepInstanceId: step.id,
+        //   stepName: step.workflowStep?.stepName ?? null,
+        //   stepNumber: step.workflowStep?.stepNumber ?? null,
+        //   status: step.status,
+        // })),
         queryDetails,
         workflow,
       },
