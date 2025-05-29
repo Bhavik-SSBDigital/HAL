@@ -384,7 +384,7 @@ model ProcessStepInstance {
   documentAccesses    DocumentAccess[] @relation("StepInstanceDocumentAccess")
   notifications       ProcessNotification[] @relation("StepInstanceNotifications")
   escalations         Escalation[]
-  qaChannels          ProcessQA[] @relation("StepInstanceQA")
+  processQA           ProcessQA[] @relation("StepInstanceQA") // Changed from qaChannels to processQA
   decisionComment     String?
   decisionAt          DateTime?
   isRecirculated      Boolean   @default(false)
@@ -476,6 +476,7 @@ model ProcessQA {
   answer          String?
   createdAt       DateTime  @default(now())
   answeredAt      DateTime?
+  details         Json?     // New field to store documentChanges, documentSummaries, and assigneeDetails
 }
 
 model DepartmentStepProgress {

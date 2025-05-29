@@ -546,12 +546,16 @@ export const view_process = async (req, res) => {
             },
             processQA: {
               where: {
-                status: "OPEN",
-                initiatorId: { not: userData.id },
-                entityId: userData.id,
+                OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
               },
               include: {
                 initiator: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+                process: {
                   select: {
                     id: true,
                     name: true,
@@ -675,21 +679,140 @@ export const view_process = async (req, res) => {
       };
     });
 
-    const transformedStepInstances = process.stepInstances.map((step) => ({
-      stepInstanceId: step.id,
-      stepName: step.workflowStep.stepName,
-      stepNumber: step.workflowStep.stepNumber,
-      status: step.status,
-      taskType: step.processQA.length > 0 ? "QUERY_UPLOAD" : "REGULAR",
-      queryDetails:
-        step.processQA.length > 0
-          ? {
-              queryText: step.processQA[0].question,
-              initiatorName: step.processQA[0].initiator.name,
-              createdAt: step.processQA[0].createdAt.toISOString(),
-            }
-          : null,
-    }));
+    // Fetch query details with associated documents
+    const queryDetails = await Promise.all(
+      process.stepInstances.flatMap((step) =>
+        step.processQA.map(async (qa) => {
+          const documentHistories = await prisma.documentHistory.findMany({
+            where: {
+              id: {
+                in: [
+                  ...(qa.details?.documentChanges?.map(
+                    (dc) => dc.documentHistoryId
+                  ) || []),
+                  ...(qa.details?.documentSummaries?.map(
+                    (ds) => ds.documentHistoryId
+                  ) || []),
+                ],
+              },
+            },
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                  tags: true,
+                },
+              },
+              replacedDocument: {
+                select: {
+                  id: true,
+                  name: true,
+                  path: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                },
+              },
+            },
+          });
+
+          return {
+            queryId: qa.id,
+            processId: qa.process.id,
+            processName: qa.process.name,
+            stepInstanceId: step.id,
+            stepName: step.workflowStep.stepName,
+            stepNumber: step.workflowStep.stepNumber,
+            status: step.status,
+            taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
+            queryText: qa.question,
+            answerText: qa.answer || null,
+            initiatorName: qa.initiator.name,
+            createdAt: qa.createdAt.toISOString(),
+            answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
+            documentChanges:
+              qa.details?.documentChanges?.map((dc) => {
+                const history = documentHistories.find(
+                  (h) => h.id === dc.documentHistoryId
+                );
+                return {
+                  documentId: dc.documentId,
+                  requiresApproval: dc.requiresApproval,
+                  isReplacement: dc.isReplacement,
+                  documentHistoryId: dc.documentHistoryId,
+                  document: history?.document
+                    ? {
+                        id: history.document.id,
+                        name: history.document.name,
+                        type: history.document.type,
+                        path: history.document.path,
+                        tags: history.document.tags,
+                      }
+                    : null,
+                  actionDetails: history?.actionDetails,
+                  user: history?.user.name,
+                  createdAt: history?.createdAt.toISOString(),
+                  replacedDocument: history?.replacedDocument
+                    ? {
+                        id: history.replacedDocument.id,
+                        name: history.replacedDocument.name,
+                        path: history.replacedDocument.path,
+                      }
+                    : null,
+                };
+              }) || [],
+            documentSummaries:
+              qa.details?.documentSummaries?.map((ds) => {
+                const history = documentHistories.find(
+                  (h) => h.id === ds.documentHistoryId
+                );
+                return {
+                  documentId: ds.documentId,
+                  feedbackText: ds.feedbackText,
+                  documentHistoryId: ds.documentHistoryId,
+                  document: history?.document
+                    ? {
+                        id: history.document.id,
+                        name: history.document.name,
+                        type: history.document.type,
+                        path: history.document.path,
+                        tags: history.document.tags,
+                      }
+                    : null,
+                  actionDetails: history?.actionDetails,
+                  user: history?.user.name,
+                  createdAt: history?.createdAt.toISOString(),
+                };
+              }) || [],
+            assigneeDetails: qa.details?.assigneeDetails
+              ? {
+                  assignedStepName: qa.details.assigneeDetails.assignedStepName,
+                  assignedAssigneeId:
+                    qa.details.assigneeDetails.assignedAssigneeId,
+                  assignedAssigneeName: qa.details.assigneeDetails
+                    .assignedAssigneeId
+                    ? (
+                        await prisma.user.findUnique({
+                          where: {
+                            id: qa.details.assigneeDetails.assignedAssigneeId,
+                          },
+                          select: { name: true },
+                        })
+                      )?.name || null
+                    : null,
+                }
+              : null,
+          };
+        })
+      )
+    );
 
     const toBePicked = process.stepInstances.some(
       (step) => step.assignedTo === userData.id && step.status === "PENDING"
@@ -702,7 +825,13 @@ export const view_process = async (req, res) => {
         toBePicked,
         isRecirculated: process.isRecirculated,
         documents: transformedDocuments,
-        stepInstances: transformedStepInstances,
+        stepInstances: process.stepInstances.map((step) => ({
+          stepInstanceId: step.id,
+          stepName: step.workflowStep.stepName,
+          stepNumber: step.workflowStep.stepNumber,
+          status: step.status,
+        })),
+        queryDetails,
         workflow,
       },
     };
@@ -1392,11 +1521,21 @@ export const createQuery = async (req, res) => {
       const isDelegatedTask = await tx.processQA.findFirst({
         where: {
           stepInstanceId,
-          initiatorId: { not: userData.id }, // Initiated by someone else
-          entityId: userData.id, // Assigned to current user
-          answer: null, // Not yet answered
+          initiatorId: { not: userData.id },
+          entityId: userData.id,
+          answer: null,
         },
       });
+
+      // Prepare details for ProcessQA
+      const qaDetails = {
+        documentChanges: [],
+        documentSummaries: [],
+        assigneeDetails:
+          assignedStepName && assignedAssigneeId
+            ? { assignedStepName, assignedAssigneeId }
+            : null,
+      };
 
       let processQA;
       if (!isDelegatedTask) {
@@ -1412,6 +1551,7 @@ export const createQuery = async (req, res) => {
               : stepInstance.workflowAssignment.assigneeType,
             question: queryText,
             createdAt: new Date(),
+            details: qaDetails,
           },
         });
       } else {
@@ -1422,6 +1562,7 @@ export const createQuery = async (req, res) => {
             answer: queryText,
             answeredAt: new Date(),
             status: "RESOLVED",
+            details: qaDetails,
           },
         });
       }
@@ -1460,10 +1601,17 @@ export const createQuery = async (req, res) => {
             },
             isRecirculationTrigger: true,
             createdAt: new Date(),
+            processDocumentId: processDocument.id,
           },
         });
 
         documentHistoryEntries.push(history);
+        qaDetails.documentChanges.push({
+          documentId,
+          requiresApproval,
+          isReplacement,
+          documentHistoryId: history.id,
+        });
 
         await ensureDocumentAccessWithParents(tx, {
           documentId,
@@ -1486,7 +1634,7 @@ export const createQuery = async (req, res) => {
           throw new Error(`Document ${documentId} not found`);
         }
 
-        await tx.documentHistory.create({
+        const history = await tx.documentHistory.create({
           data: {
             documentId,
             processId,
@@ -1498,10 +1646,27 @@ export const createQuery = async (req, res) => {
             createdAt: new Date(),
           },
         });
+
+        qaDetails.documentSummaries.push({
+          documentId,
+          feedbackText,
+          documentHistoryId: history.id,
+        });
+      }
+
+      // Update ProcessQA with document details
+      if (
+        qaDetails.documentChanges.length > 0 ||
+        qaDetails.documentSummaries.length > 0
+      ) {
+        await tx.processQA.update({
+          where: { id: processQA.id },
+          data: { details: qaDetails },
+        });
       }
 
       // 6. Update step instance status
-      if (isDelegatedTask && documentChanges.length > 0) {
+      if (isDelegatedTask.key && documentChanges.length > 0) {
         // For delegated upload tasks with documents, mark as APPROVED
         await tx.processStepInstance.update({
           where: { id: stepInstanceId },
