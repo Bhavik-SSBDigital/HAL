@@ -544,6 +544,21 @@ export const view_process = async (req, res) => {
                 stepType: true,
               },
             },
+            processQA: {
+              where: {
+                status: "OPEN",
+                initiatorId: { not: userData.id },
+                entityId: userData.id,
+              },
+              include: {
+                initiator: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -609,7 +624,7 @@ export const view_process = async (req, res) => {
         .filter(
           (value, index, self) =>
             index === self.findIndex((t) => t.assigneeId === value.assigneeId)
-        ), // Remove duplicates
+        ),
     }));
 
     const transformedDocuments = process.documents.map((doc) => {
@@ -660,6 +675,22 @@ export const view_process = async (req, res) => {
       };
     });
 
+    const transformedStepInstances = process.stepInstances.map((step) => ({
+      stepInstanceId: step.id,
+      stepName: step.workflowStep.stepName,
+      stepNumber: step.workflowStep.stepNumber,
+      status: step.status,
+      taskType: step.processQA.length > 0 ? "QUERY_UPLOAD" : "REGULAR",
+      queryDetails:
+        step.processQA.length > 0
+          ? {
+              queryText: step.processQA[0].question,
+              initiatorName: step.processQA[0].initiator.name,
+              createdAt: step.processQA[0].createdAt.toISOString(),
+            }
+          : null,
+    }));
+
     const toBePicked = process.stepInstances.some(
       (step) => step.assignedTo === userData.id && step.status === "PENDING"
     );
@@ -671,6 +702,7 @@ export const view_process = async (req, res) => {
         toBePicked,
         isRecirculated: process.isRecirculated,
         documents: transformedDocuments,
+        stepInstances: transformedStepInstances,
         workflow,
       },
     };
@@ -1084,15 +1116,15 @@ export const get_user_processes = async (req, res, next) => {
             initiator: {
               select: { username: true },
             },
-            queries: {
-              where: {
-                OR: [
-                  { raisedById: userId },
-                  { recirculationApprovals: { some: { approverId: userId } } },
-                ],
-              },
-              select: { id: true, queryText: true, status: true },
-            },
+            // queries: {
+            //   where: {
+            //     OR: [
+            //       { raisedById: userId },
+            //       { recirculationApprovals: { some: { approverId: userId } } },
+            //     ],
+            //   },
+            //   select: { id: true, queryText: true, status: true },
+            // },
             recommendations: {
               where: {
                 OR: [{ requestedById: userId }, { recommendedToId: userId }],
