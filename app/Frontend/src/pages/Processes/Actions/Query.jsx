@@ -122,7 +122,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
             />
           </div> */}
 
-          <div className="md:col-span-2">
+          {/* <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1">
               Recirculate From Step ID
             </label>
@@ -131,7 +131,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
               className="w-full border p-2 rounded"
               placeholder="Recirculate From Step ID"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Query Form */}
@@ -192,7 +192,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                       Summary Text
                     </label>
                     <textarea
-                      {...register(`documentSummaries.${index}.summaryText`)}
+                      {...register(`documentSummaries.${index}.feedbackText`)}
                       className="w-full border p-2 rounded"
                       required
                       rows={2}
@@ -211,7 +211,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
               ))}
               <CustomButton
                 type="button"
-                click={() => appendSummary({ documentId: '', summaryText: '' })}
+                click={() => appendSummary({ documentId: '', feedbackText: '' })}
                 text={'Add Summary'}
               />
             </div>
@@ -250,7 +250,7 @@ export default function Query({ processId, close, stepInstanceId, documents }) {
                       <td className="border p-2">
                         <textarea
                           {...register(
-                            `documentSummaries.${index}.summaryText`,
+                            `documentSummaries.${index}.feedbackText`,
                           )}
                           className="w-full border p-2 rounded"
                           rows={2}
