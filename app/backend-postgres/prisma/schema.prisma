@@ -363,7 +363,7 @@ model AssignmentProgress {
 }
 
 model ProcessStepInstance {
-  id                  String    @id @default(uuid())
+  id                  String       @id @default(uuid())
   process             ProcessInstance @relation(fields: [processId], references: [id])
   processId           String
   workflowAssignment  WorkflowAssignment? @relation(fields: [assignmentId], references: [id])
@@ -373,21 +373,21 @@ model ProcessStepInstance {
   assignedTo          Int
   roleId              Int?
   departmentId        Int?
-  status              StepStatus @default(PENDING)
+  status              StepStatus   @default(PENDING)
   claimedAt           DateTime?
   deadline            DateTime?
-  pickedBy            User?     @relation(fields: [pickedById], references: [id], name: "UserPickedSteps")
+  pickedBy            User?        @relation(fields: [pickedById], references: [id], name: "UserPickedSteps")
   pickedById          Int?
-  createdAt           DateTime  @default(now())
+  createdAt           DateTime     @default(now())
   workflowStep        WorkflowStep? @relation(fields: [stepId], references: [id])
   stepId              String?
   documentAccesses    DocumentAccess[] @relation("StepInstanceDocumentAccess")
   notifications       ProcessNotification[] @relation("StepInstanceNotifications")
   escalations         Escalation[]
-  processQA           ProcessQA[] @relation("StepInstanceQA") // Changed from qaChannels to processQA
+  processQA           ProcessQA[]  @relation("StepInstanceQA") // Renamed from qaChannels
   decisionComment     String?
   decisionAt          DateTime?
-  isRecirculated      Boolean   @default(false)
+  isRecirculated      Boolean      @default(false)
   originalStepInstanceId String?
   recirculationReason String?
   documentHistory     DocumentHistory[] @relation("StepInstanceDocumentHistory")
@@ -463,20 +463,21 @@ model DocumentSignature {
 }
 
 model ProcessQA {
-  id              String    @id @default(uuid())
+  id              String       @id @default(uuid())
   processId       String
   process         ProcessInstance @relation(fields: [processId], references: [id])
   stepInstanceId  String
   stepInstance    ProcessStepInstance @relation("StepInstanceQA", fields: [stepInstanceId], references: [id])
   initiatorId     Int
-  initiator       User      @relation(fields: [initiatorId], references: [id])
+  initiator       User         @relation(fields: [initiatorId], references: [id])
   entityId        Int
   entityType      AssigneeType
   question        String
   answer          String?
-  createdAt       DateTime  @default(now())
+  status          String?      @default("OPEN") // Added status field
+  createdAt       DateTime     @default(now())
   answeredAt      DateTime?
-  details         Json?     // New field to store documentChanges, documentSummaries, and assigneeDetails
+  details         Json?        // Stores documentChanges, documentSummaries, assigneeDetails
 }
 
 model DepartmentStepProgress {
