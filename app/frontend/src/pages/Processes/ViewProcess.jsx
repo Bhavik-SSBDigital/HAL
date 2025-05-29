@@ -638,6 +638,7 @@ const ViewProcess = () => {
       >
         <Query
           processId={process.processId}
+          steps={process?.steps}
           close={() => setQueryModalOpen(false)}
           stepInstanceId={process.processStepInstanceId}
           documents={process.documents}
