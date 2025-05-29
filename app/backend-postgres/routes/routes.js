@@ -104,6 +104,7 @@ import {
   get_user_processes,
   initiate_process,
   view_process,
+  createQuery,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
 
@@ -210,7 +211,7 @@ router.post(
   upload_signature
 );
 
-// router.post("/queries/createQuery", createQuery);
+router.post("/queries/createQuery", createQuery);
 // router.get("/queries/process/:processId", getProcessQueries);
 // router.post("/queries/respond/:queryId", respondToQuery);
 // router.post("/queries/documents/approve/:documentId", approveQueryDocument);
