@@ -102,7 +102,7 @@ export const initiate_process = async (req, res, next) => {
 
       // 4. Process First Step
       const step = workflow.steps[0];
-      console.log("step", step);
+
       for (const assignment of step.assignments) {
         await processAssignment(
           tx,
@@ -152,8 +152,6 @@ async function ensureDocumentAccessWithParents(
 ) {
   // First get all parent folders up to root
   const parents = await getDocumentParentHierarchy(tx, documentId);
-
-  console.log("parents", parents);
 
   // Check which parents the user doesn't already have access to
   const existingAccess = await tx.documentAccess.findMany({
@@ -236,10 +234,6 @@ async function processAssignment(
       completed: false,
     },
   });
-
-  console.log("progress", progress);
-
-  console.log("doc ids", documentIds);
 
   // Create Initial Step Instances
   switch (assignment.assigneeType) {
@@ -342,7 +336,7 @@ async function handleDepartmentAssignment(
 
 async function handleUserAssignment(tx, assignment, progress, documentIds) {
   // Direct assignment to specified users
-  console.log("assignment", assignment);
+
   for (const userId of assignment.assigneeIds) {
     // Create step instance for user
     const stepInstance = await tx.processStepInstance.create({
@@ -453,7 +447,6 @@ async function handleRoleAssignment(tx, assignment, progress, documentIds) {
     });
   }
 }
-
 export const view_process = async (req, res) => {
   try {
     const { processId } = req.params;
@@ -540,7 +533,6 @@ export const view_process = async (req, res) => {
         },
         stepInstances: {
           where: {
-            assignedTo: userData.id,
             status: {
               in: ["PENDING", "IN_PROGRESS", "FOR_RECIRCULATION", "APPROVED"],
             },
@@ -552,6 +544,17 @@ export const view_process = async (req, res) => {
                 stepName: true,
                 stepNumber: true,
                 stepType: true,
+              },
+            },
+            workflowAssignment: {
+              select: {
+                assigneeIds: true,
+              },
+            },
+            pickedBy: {
+              select: {
+                id: true,
+                username: true,
               },
             },
             processQA: {
@@ -590,60 +593,49 @@ export const view_process = async (req, res) => {
       });
     }
 
-    // Fetch workflow steps with engaged assignees
-    const workflowSteps = await prisma.workflowStep.findMany({
+    // Log step instance details for debugging
+
+    // Fetch assignee details for all assigneeIds in workflowAssignments
+    const assigneeIds = [
+      ...new Set(
+        process.stepInstances.flatMap((step) =>
+          step.workflowAssignment?.assigneeIds?.length
+            ? step.workflowAssignment.assigneeIds
+            : [step.assignedTo]
+        )
+      ),
+    ];
+
+    const assignees = await prisma.user.findMany({
       where: {
-        workflowId: process.workflow.id,
-        processSteps: {
-          some: {
-            processId,
-            OR: [
-              { pickedById: { not: null } },
-              { status: { in: ["APPROVED", "IN_PROGRESS"] } },
-            ],
-          },
-        },
+        id: { in: assigneeIds },
       },
       select: {
-        stepName: true,
-        stepNumber: true,
-        processSteps: {
-          where: {
-            processId,
-            OR: [
-              { pickedById: { not: null } },
-              { status: { in: ["APPROVED", "IN_PROGRESS"] } },
-            ],
-          },
-          select: {
-            assignedTo: true,
-          },
-        },
+        id: true,
+        username: true,
       },
-      orderBy: { stepNumber: "asc" },
     });
 
-    // Fetch user details for assignees
-    const workflow = await Promise.all(
-      workflowSteps.map(async (step) => {
-        const assigneeIds = [
-          ...new Set(step.processSteps.map((instance) => instance.assignedTo)),
-        ];
-        const assignees = await prisma.user.findMany({
-          where: { id: { in: assigneeIds } },
-          select: { id: true, name: true },
-        });
+    // Map assignees to a lookup object for efficient access
+    const assigneeMap = assignees.reduce((map, user) => {
+      map[user.id] = user;
+      return map;
+    }, {});
 
-        return {
-          stepName: step.stepName,
-          stepNumber: step.stepNumber,
-          engagedAssignees: assignees.map((user) => ({
-            assigneeName: user.name,
-            assigneeId: user.id,
-          })),
-        };
-      })
-    );
+    // Transform step instances to include stepName and assignees
+    const steps = process.stepInstances.map((step) => {
+      const assigneeIds = step.workflowAssignment?.assigneeIds?.length
+        ? step.workflowAssignment.assigneeIds
+        : [step.assignedTo];
+
+      return {
+        stepName: step.workflowStep?.stepName ?? "Unknown Step",
+        assignees: assigneeIds.map((id) => ({
+          assigneeId: id,
+          assigneeName: assigneeMap[id]?.username ?? "Unknown User",
+        })),
+      };
+    });
 
     const transformedDocuments = process.documents.map((doc) => {
       const signedBy = doc.signatures.map((sig) => ({
@@ -694,7 +686,6 @@ export const view_process = async (req, res) => {
       };
     });
 
-    // Fetch query details with associated documents
     const queryDetails = await Promise.all(
       process.stepInstances.flatMap((step) =>
         step.processQA.map(async (qa) => {
@@ -703,14 +694,14 @@ export const view_process = async (req, res) => {
               (dc) => dc.documentHistoryId
             ) || []),
             ...(qa.details?.documentSummaries?.map(
-              (ds) => ds.documentHistoryId
+              (ds) => dc.documentHistoryId
             ) || []),
           ];
 
           const documentHistories =
             documentHistoryIds.length > 0
               ? await prisma.documentHistory.findMany({
-                  where: { id: { in: documentHistoryIds } },
+                  where: { id: { in: documentAmberIds } },
                   include: {
                     document: {
                       select: {
@@ -834,19 +825,22 @@ export const view_process = async (req, res) => {
       (step) => step.assignedTo === userData.id && step.status === "PENDING"
     );
 
+    const workflow = {
+      id: process.workflow.id,
+      name: process.workflow.name,
+      version: process.workflow.version,
+    };
+
     return res.status(200).json({
       process: {
         processId: process.id,
-        processStepInstanceId: process.currentStep?.id || null,
+        processStepInstanceId:
+          process.stepInstances.filter((item) => item.status === "PENDING")[0]
+            ?.id || null,
         toBePicked,
         isRecirculated: process.isRecirculated,
         documents: transformedDocuments,
-        // stepInstances: process.stepInstances.map((step) => ({
-        //   stepInstanceId: step.id,
-        //   stepName: step.workflowStep?.stepName ?? null,
-        //   stepNumber: step.workflowStep?.stepNumber ?? null,
-        //   status: step.status,
-        // })),
+        steps,
         queryDetails,
         workflow,
       },
@@ -1327,7 +1321,6 @@ export const get_user_processes = async (req, res, next) => {
     console.error("Error in get_user_processes:", error);
     return res.status(500).json({
       message: "Failed to retrieve processes",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -1341,15 +1334,25 @@ export const complete_process_step = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
+    //3a63-43a8-8a2e-780d468ac107
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. Validate step instance
+
       const stepInstance = await tx.processStepInstance.findUnique({
         where: {
           id: stepInstanceId,
           assignedTo: userData.id,
-          status: "IN_PROGRESS",
+          status: "PENDING",
         },
-        include: { process: true, workflowStep: true },
+        include: {
+          process: {
+            include: {
+              currentStep: true, // Ensure 'currentStep' is a valid relation in your Prisma schema
+            },
+          },
+          workflowStep: true,
+        },
       });
 
       if (!stepInstance) {
@@ -1396,7 +1399,7 @@ export const complete_process_step = async (req, res) => {
         if (openQueries.length === 0) {
           // 5. No open queries, advance to next step
           const currentStep = await tx.workflowStep.findUnique({
-            where: { id: stepInstance.workflowStepId },
+            where: { id: stepInstance.process.currentStep.id },
           });
 
           const nextStep = await tx.workflowStep.findFirst({
@@ -1413,7 +1416,7 @@ export const complete_process_step = async (req, res) => {
               {
                 where: {
                   processId: stepInstance.processId,
-                  workflowStepId: nextStep.id,
+                  id: nextStep.id,
                   status: "FOR_RECIRCULATION",
                 },
               }
