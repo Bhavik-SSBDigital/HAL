@@ -1125,13 +1125,13 @@ export const get_user_processes = async (req, res, next) => {
             //   },
             //   select: { id: true, queryText: true, status: true },
             // },
-            recommendations: {
-              where: {
-                OR: [{ requestedById: userId }, { recommendedToId: userId }],
-                status: "PENDING",
-              },
-              select: { id: true, remarks: true, status: true },
-            },
+            // recommendations: {
+            //   where: {
+            //     OR: [{ requestedById: userId }, { recommendedToId: userId }],
+            //     status: "PENDING",
+            //   },
+            //   select: { id: true, remarks: true, status: true },
+            // },
           },
         },
         workflowAssignment: {
@@ -1166,16 +1166,16 @@ export const get_user_processes = async (req, res, next) => {
         currentStepAssignedAt: assignedAt,
         assignmentId: step.assignmentId,
         deadline: step.deadline,
-        queries: step.process.queries.map((q) => ({
-          id: q.id,
-          queryText: q.queryText,
-          status: q.status,
-        })),
-        recommendations: step.process.recommendations.map((r) => ({
-          id: r.id,
-          remarks: r.remarks,
-          status: r.status,
-        })),
+        // queries: step.process.queries.map((q) => ({
+        //   id: q.id,
+        //   queryText: q.queryText,
+        //   status: q.status,
+        // })),
+        // recommendations: step.process.recommendations.map((r) => ({
+        //   id: r.id,
+        //   remarks: r.remarks,
+        //   status: r.status,
+        // })),
       };
     });
 
