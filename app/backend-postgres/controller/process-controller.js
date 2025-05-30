@@ -1452,9 +1452,6 @@ export const complete_process_step = async (req, res) => {
             orderBy: { stepNumber: "asc" },
           });
 
-          console.log("next step", nextStep.id);
-          console.log("step instance", stepInstance.process.id);
-
           if (nextStep) {
             // 6. Reset FOR_RECIRCULATION steps to IN_PROGRESS
             const forRecirculationSteps = await tx.processStepInstance.findMany(
@@ -1483,9 +1480,9 @@ export const complete_process_step = async (req, res) => {
 
                 await tx.processNotification.create({
                   data: {
-                    stepInstanceId: recircStep.id,
+                    stepId: recircStep.id,
                     userId: recircStep.assignedTo,
-                    type: "STEP_ASSIGNED",
+                    type: "STEP_ASSIGNMENT",
                     status: "ACTIVE",
                     metadata: { processId: stepInstance.processId },
                   },
@@ -1828,15 +1825,6 @@ export const createQuery = async (req, res) => {
       // 6. Update step instance status
       if (isDelegatedTask && documentChanges.length > 0) {
         // For delegated upload tasks with documents, mark as APPROVED
-        await tx.processStepInstance.update({
-          where: { id: stepInstanceId },
-          data: {
-            status: "APPROVED",
-            decisionAt: new Date(),
-            isRecirculated: true,
-            recirculationReason: queryText,
-          },
-        });
 
         // 9. Reset first step instances for engaged assignees
         const firstStep = await tx.workflowStep.findFirst({
@@ -1851,7 +1839,7 @@ export const createQuery = async (req, res) => {
             OR: [
               { pickedById: { not: null } },
               { claimedAt: { not: null } },
-              { status: { in: ["APPROVED", "IN_PROGRESS"] } },
+              { status: { in: ["APPROVED"] } },
             ],
           },
         });
@@ -1879,6 +1867,16 @@ export const createQuery = async (req, res) => {
             },
           });
         }
+
+        await tx.processStepInstance.update({
+          where: { id: stepInstanceId },
+          data: {
+            status: "APPROVED",
+            decisionAt: new Date(),
+            isRecirculated: true,
+            recirculationReason: queryText,
+          },
+        });
 
         await tx.processInstance.update({
           where: { id: stepInstance.processId },
@@ -2091,6 +2089,7 @@ export const assignDocumentUpload = async (req, res) => {
         where: {
           processId,
           workflowStepId: firstStep.id,
+          stepId: { not: stepInstanceId },
           OR: [
             { pickedById: { not: null } },
             { claimedAt: { not: null } },
