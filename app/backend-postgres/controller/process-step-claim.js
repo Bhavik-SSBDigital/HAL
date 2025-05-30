@@ -13,7 +13,7 @@ export const pick_process_step = async (req, res, next) => {
       const step = await tx.processStepInstance.update({
         where: {
           id: stepInstanceId,
-          status: "PENDING",
+          status: "IN_PROGRESS",
           assignedTo: userData.id,
         },
         data: {
@@ -51,7 +51,7 @@ export const pick_process_step = async (req, res, next) => {
           const otherSteps = await tx.processStepInstance.findMany({
             where: {
               assignmentId: step.assignmentId,
-              status: "PENDING",
+              status: "IN_PROGRESS",
               NOT: { id: step.id },
             },
           });
@@ -85,7 +85,7 @@ async function handleRolePickup(tx, step) {
   const pendingSteps = await tx.processStepInstance.findMany({
     where: {
       assignmentId: step.assignmentId,
-      status: "PENDING",
+      status: "IN_PROGRESS",
     },
   });
 
@@ -177,7 +177,7 @@ async function createRoleSteps(tx, params) {
           assignedTo: user.userId,
           roleId: user.roleId,
           departmentId: user.departmentId,
-          status: "PENDING",
+          status: "IN_PROGRESS",
           deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
         },
       })
