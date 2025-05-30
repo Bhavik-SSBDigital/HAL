@@ -10,6 +10,7 @@ export default function QuerySolve({
   processId,
   close,
   stepInstanceId,
+  queryRaiserStepInstanceId,
   existingQuery,
 }) {
   console.log('querySolve');
@@ -23,7 +24,12 @@ export default function QuerySolve({
     watch,
     formState: { isSubmitting },
   } = useForm({
-    defaultValues: { ...existingQuery, processId, stepInstanceId },
+    defaultValues: {
+      ...existingQuery,
+      processId,
+      stepInstanceId,
+      queryRaiserStepInstanceId,
+    },
   });
   const navigate = useNavigate();
   const {

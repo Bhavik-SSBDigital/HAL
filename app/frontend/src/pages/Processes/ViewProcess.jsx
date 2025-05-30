@@ -464,22 +464,30 @@ const ViewProcess = () => {
                         {query.stepNumber}
                       </p>
                     )}
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Status:</span>{' '}
-                      {query.status}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Task Type:</span>{' '}
-                      {query.taskType}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Query Text:</span>{' '}
-                      {query.queryText}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Created At:</span>{' '}
-                      {new Date(query.createdAt).toLocaleString()}
-                    </p>
+                    {query.status && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Status:</span>{' '}
+                        {query.status}
+                      </p>
+                    )}
+                    {query.taskType && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Task Type:</span>{' '}
+                        {query.taskType}
+                      </p>
+                    )}
+                    {query.queryText && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Query Text:</span>{' '}
+                        {query.queryText}
+                      </p>
+                    )}
+                    {query.createdAt && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Created At:</span>{' '}
+                        {new Date(query.createdAt).toLocaleString()}
+                      </p>
+                    )}
                   </div>
 
                   {/* Solve Query Button */}
@@ -628,6 +636,7 @@ const ViewProcess = () => {
             setExistingQuery(null);
           }}
           stepInstanceId={process.processStepInstanceId}
+          queryRaiserStepInstanceId={process?.queryDetails[0]?.stepInstanceId}
           existingQuery={existingQuery}
         />
       </CustomModal>
