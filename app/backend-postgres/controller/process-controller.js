@@ -1418,8 +1418,13 @@ export const complete_process_step = async (req, res) => {
               workflowId: stepInstance.process.workflowId,
               stepNumber: { gt: currentStep.stepNumber },
             },
+            include: {
+              assignments: true,
+            },
             orderBy: { stepNumber: "asc" },
           });
+
+          console.log("next step", nextStep);
 
           if (nextStep) {
             // 6. Reset FOR_RECIRCULATION steps to PENDING
@@ -1433,24 +1438,45 @@ export const complete_process_step = async (req, res) => {
               }
             );
 
-            for (const recircStep of forRecirculationSteps) {
-              await tx.processStepInstance.update({
-                where: { id: recircStep.id },
-                data: {
-                  status: "PENDING",
-                  recirculationReason: null,
-                },
-              });
+            if (forRecirculationSteps && forRecirculationSteps.length > 0) {
+              for (const recircStep of forRecirculationSteps) {
+                await tx.processStepInstance.update({
+                  where: { id: recircStep.id },
+                  data: {
+                    status: "PENDING",
+                    recirculationReason: null,
+                  },
+                });
 
-              await tx.processNotification.create({
-                data: {
-                  stepInstanceId: recircStep.id,
-                  userId: recircStep.assignedTo,
-                  type: "STEP_ASSIGNED",
-                  status: "ACTIVE",
-                  metadata: { processId: stepInstance.processId },
-                },
+                await tx.processNotification.create({
+                  data: {
+                    stepInstanceId: recircStep.id,
+                    userId: recircStep.assignedTo,
+                    type: "STEP_ASSIGNED",
+                    status: "ACTIVE",
+                    metadata: { processId: stepInstance.processId },
+                  },
+                });
+              }
+            } else {
+              console.log("next step assignement", nextStep.assignments);
+              const process = await tx.processInstance.findUnique({
+                where: { id: stepInstance.processId },
+                include: { documents: true },
               });
+              const docsIds = process.documents.map((doc) => doc.documentId);
+
+              console.log("process docs", process.documents);
+              for (const assignment of nextStep.assignments) {
+                await processAssignment(
+                  tx,
+                  process,
+                  nextStep,
+                  assignment,
+                  docsIds,
+                  false
+                );
+              }
             }
 
             // 7. Update currentStepId
