@@ -43,28 +43,8 @@ const ViewProcess = () => {
   const [fileView, setFileView] = useState(null);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
-  const [queries, setQueries] = useState([
-    {
-      id: 'query_123',
-      processId: 'proc_123',
-      raisedBy: {
-        id: 1,
-        name: 'John Doe',
-        username: 'johndoe',
-      },
-      queryText: 'Please clarify the budget allocation',
-      status: 'OPEN',
-      documents: [
-        {
-          document: {
-            id: 789,
-            name: 'Budget.docx',
-          },
-        },
-      ],
-      responses: [],
-    },
-  ]);
+  const [existingQuery, setExistingQuery] = useState(null);
+
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -448,7 +428,7 @@ const ViewProcess = () => {
       )}
 
       {/* queries section*/}
-      {queries?.length > 0 && (
+      {process?.queryDetails?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
             <div className="flex-grow border-t border-slate-400"></div>
@@ -459,74 +439,55 @@ const ViewProcess = () => {
           </div>
           <div className="mt-2">
             <div className="space-y-4">
-              {queries.map((query) => (
-                <CustomCard>
-                  {/* Query Header */}
-                  <div className="flex justify-between items-start flex-wrap">
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        <span className="font-semibold">Raised By:</span>{' '}
-                        {query.raisedBy.name} ({query.raisedBy.username})
+              {process?.queryDetails?.map((query, index) => (
+                <CustomCard key={index}>
+                  {/* Query Summary */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Step Instance ID:</span>{' '}
+                      {query.stepInstanceId}
+                    </p>
+                    {query.stepName && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Step Name:</span>{' '}
+                        {query.stepName}
                       </p>
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Query:</span>{' '}
-                        {query.queryText}
+                    )}
+                    {query.stepNumber && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Step Number:</span>{' '}
+                        {query.stepNumber}
                       </p>
-                    </div>
-                    <span
-                      className={`text-xs font-semibold rounded px-2 py-1 ${
-                        query.status === 'OPEN'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : query.status === 'CLOSED'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
+                    )}
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Status:</span>{' '}
                       {query.status}
-                    </span>
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Task Type:</span>{' '}
+                      {query.taskType}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Query Text:</span>{' '}
+                      {query.queryText}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Created At:</span>{' '}
+                      {new Date(query.createdAt).toLocaleString()}
+                    </p>
                   </div>
 
-                  {/* Attached Documents */}
-                  {query.documents?.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">
-                        Attached Documents:
-                      </p>
-                      <div className="space-y-2">
-                        {query.documents.map((docObj, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between border border-gray-100 bg-gray-50 p-3 rounded-md shadow-sm"
-                          >
-                            <div>
-                              <p className="text-gray-900 font-medium">
-                                {docObj.document.name}
-                              </p>
-                            </div>
-                            <CustomButton
-                              text="View"
-                              variant="secondary"
-                              click={() => handleViewFile(docObj.document.name)} // Define this handler
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Responses */}
-                  {query.responses?.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Responses:
-                      </p>
-                      <ul className="list-disc list-inside text-sm text-gray-700">
-                        {query.responses.map((res, idx) => (
-                          <li key={idx}>{res.responseText}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {/* Solve Query Button */}
+                  <div className="mt-4 flex justify-end">
+                    <CustomButton
+                      text="Solve Query"
+                      variant="primary"
+                      click={() => {
+                        setExistingQuery(query);
+                        setQueryModalOpen(true);
+                      }}
+                    />
+                  </div>
                 </CustomCard>
               ))}
             </div>
@@ -633,15 +594,16 @@ const ViewProcess = () => {
       {/* Query Modal */}
       <CustomModal
         isOpen={queryModalOpen}
-        onClose={() => setQueryModalOpen(false)}
+        onClose={() => {setQueryModalOpen(false); setExistingQuery(null)}}
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <Query
           processId={process.processId}
           steps={process?.steps}
-          close={() => setQueryModalOpen(false)}
+          close={() => {setQueryModalOpen(false); setExistingQuery(null)}}
           stepInstanceId={process.processStepInstanceId}
           documents={process.documents}
+          existingQuery={existingQuery}
         />
       </CustomModal>
 

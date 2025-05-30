@@ -11,6 +11,7 @@ export default function Query({
   close,
   stepInstanceId,
   documents,
+  existingQuery,
 }) {
   const {
     register,
@@ -22,15 +23,17 @@ export default function Query({
     watch,
     formState: { isSubmitting },
   } = useForm({
-    defaultValues: {
-      processId,
-      stepInstanceId,
-      queryText: '',
-      documentChanges: [],
-      documentSummaries: [],
-      assignedStepName: '',
-      assignedAssigneeId: '',
-    },
+    defaultValues: existingQuery
+      ? existingQuery
+      : {
+          processId,
+          stepInstanceId,
+          queryText: '',
+          documentChanges: [],
+          documentSummaries: [],
+          assignedStepName: '',
+          assignedAssigneeId: '',
+        },
   });
   const [selectedStep, setSelectedStep] = useState(null);
   const {
@@ -100,46 +103,52 @@ export default function Query({
             placeholder="Write a summary of the process"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Select Step</label>
-          <select
-            {...register('assignedStepName')}
-            required
-            className="w-full border p-2 rounded"
-            onChange={handleStepChange}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Select a Step
-            </option>
-            {steps.map((step, index) => (
-              <option key={index} value={step.stepName}>
-                {step.stepName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Select Assignee
-          </label>
-          <select
-            {...register('assignedAssigneeId')}
-            required
-            className="w-full border p-2 rounded"
-            disabled={!selectedStep}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Select a assignee
-            </option>
-            {selectedStep?.assignees?.map((assignee, index) => (
-              <option key={index} value={assignee.assigneeId}>
-                {assignee.assigneeName}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!existingQuery ? (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Select Step
+              </label>
+              <select
+                {...register('assignedStepName')}
+                required
+                className="w-full border p-2 rounded"
+                onChange={handleStepChange}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select a Step
+                </option>
+                {steps.map((step, index) => (
+                  <option key={index} value={step.stepName}>
+                    {step.stepName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Select Assignee
+              </label>
+              <select
+                {...register('assignedAssigneeId')}
+                required
+                className="w-full border p-2 rounded"
+                disabled={!selectedStep}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select a assignee
+                </option>
+                {selectedStep?.assignees?.map((assignee, index) => (
+                  <option key={index} value={assignee.assigneeId}>
+                    {assignee.assigneeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : null}
         <div>
           <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
           <table className="w-full border border-gray-300 text-sm">
