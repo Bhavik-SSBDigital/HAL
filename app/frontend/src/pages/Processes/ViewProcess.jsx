@@ -30,6 +30,7 @@ import RemarksModal from '../../CustomComponents/RemarksModal';
 import DocumentViewer from '../Viewer';
 import CustomModal from '../../CustomComponents/CustomModal';
 import Query from './Actions/Query';
+import QuerySolve from './Actions/QuerySolve';
 
 const ViewProcess = () => {
   // states and data
@@ -238,6 +239,14 @@ const ViewProcess = () => {
     } finally {
       setActionsLoading(false);
     }
+  };
+
+  const handleSolveQuery = (query) => {
+    setExistingQuery({
+      queryText: query?.queryText,
+      documentSummaries: query?.documentSummaries,
+      documentChanges: [],
+    });
   };
 
   if (loading) return <ComponentLoader />;
@@ -482,10 +491,7 @@ const ViewProcess = () => {
                     <CustomButton
                       text="Solve Query"
                       variant="primary"
-                      click={() => {
-                        setExistingQuery(query);
-                        setQueryModalOpen(true);
-                      }}
+                      click={() => handleSolveQuery(query)}
                     />
                   </div>
                 </CustomCard>
@@ -594,15 +600,38 @@ const ViewProcess = () => {
       {/* Query Modal */}
       <CustomModal
         isOpen={queryModalOpen}
-        onClose={() => {setQueryModalOpen(false); setExistingQuery(null)}}
+        onClose={() => {
+          setQueryModalOpen(false);
+          setExistingQuery(null);
+        }}
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <Query
           processId={process.processId}
           steps={process?.steps}
-          close={() => {setQueryModalOpen(false); setExistingQuery(null)}}
+          close={() => {
+            setQueryModalOpen(false);
+            setExistingQuery(null);
+          }}
           stepInstanceId={process.processStepInstanceId}
           documents={process.documents}
+        />
+      </CustomModal>
+
+      {/* Query Solve Modal */}
+      <CustomModal
+        isOpen={existingQuery}
+        onClose={() => {
+          setExistingQuery(null);
+        }}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+      >
+        <QuerySolve
+          processId={process.processId}
+          close={() => {
+            setExistingQuery(null);
+          }}
+          stepInstanceId={process.processStepInstanceId}
           existingQuery={existingQuery}
         />
       </CustomModal>

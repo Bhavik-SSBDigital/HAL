@@ -5,13 +5,13 @@ import { IconSquareX } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import { CreateQuery, uploadDocumentInProcess } from '../../../common/Apis';
 
-export default function Query({
+export default function QuerySolve({
   processId,
-  steps,
   close,
   stepInstanceId,
-  documents,
+  existingQuery,
 }) {
+  console.log('querySolve');
   const {
     register,
     control,
@@ -22,17 +22,8 @@ export default function Query({
     watch,
     formState: { isSubmitting },
   } = useForm({
-    defaultValues: {
-      processId,
-      stepInstanceId,
-      queryText: '',
-      documentChanges: [],
-      documentSummaries: [],
-      assignedStepName: '',
-      assignedAssigneeId: '',
-    },
+    defaultValues: { ...existingQuery, processId, stepInstanceId },
   });
-  const [selectedStep, setSelectedStep] = useState(null);
   const {
     fields: summaryFields,
     append: appendSummary,
@@ -79,6 +70,10 @@ export default function Query({
     setSelectedStep(fullStepObj); // Store the full object
   };
   const onSubmit = async (data) => {
+    if (!data.documentChanges.length) {
+      toast.warn('Document Changes Part Is Required.');
+      return;
+    }
     try {
       const response = await CreateQuery(data);
       toast.success(response?.data?.message);
@@ -95,50 +90,11 @@ export default function Query({
           <textarea
             {...register('queryText')}
             required
+            disabled
             className="w-full border p-2 rounded"
             rows={3}
             placeholder="Write your query here"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Select Step</label>
-          <select
-            {...register('assignedStepName')}
-            required
-            className="w-full border p-2 rounded"
-            onChange={handleStepChange}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Select a Step
-            </option>
-            {steps.map((step, index) => (
-              <option key={index} value={step.stepName}>
-                {step.stepName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Select Assignee
-          </label>
-          <select
-            {...register('assignedAssigneeId')}
-            required
-            className="w-full border p-2 rounded"
-            disabled={!selectedStep}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Select a assignee
-            </option>
-            {selectedStep?.assignees?.map((assignee, index) => (
-              <option key={index} value={assignee.assigneeId}>
-                {assignee.assigneeName}
-              </option>
-            ))}
-          </select>
         </div>
         <div>
           <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
@@ -150,19 +106,21 @@ export default function Query({
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc, index) => (
-                <tr key={doc.id} className="bg-white">
-                  <td className="border p-2">{doc.name}</td>
+              {summaryFields.map((doc, index) => (
+                <tr key={doc.documentId} className="bg-white">
+                  <td className="border p-2">{doc?.documentDetails?.name}</td>
                   <td className="border p-2">
                     <textarea
                       {...register(`documentSummaries.${index}.feedbackText`)}
                       className="w-full border p-2 rounded"
+                      disabled
                       rows={2}
                       placeholder="Enter document summary"
                     />
                     {/* Hidden input to include documentId in form submission */}
                     <input
                       type="hidden"
+                      disabled
                       value={doc.id}
                       {...register(`documentSummaries.${index}.documentId`)}
                     />
@@ -209,9 +167,9 @@ export default function Query({
                       className="w-full border p-2 rounded"
                     >
                       <option value="">Select Document</option>
-                      {documents.map((doc) => (
-                        <option key={doc.id} value={doc.id}>
-                          {doc.name}
+                      {summaryFields?.map((doc) => (
+                        <option key={doc.documentId} value={doc.documentId}>
+                          {doc?.documentDetails?.name}
                         </option>
                       ))}
                     </select>
