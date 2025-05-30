@@ -4,6 +4,7 @@ import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquareX } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import { CreateQuery, uploadDocumentInProcess } from '../../../common/Apis';
+import { useNavigate } from 'react-router-dom';
 
 export default function Query({
   processId,
@@ -33,6 +34,7 @@ export default function Query({
     },
   });
   const [selectedStep, setSelectedStep] = useState(null);
+  const navigate = useNavigate();
   const {
     fields: summaryFields,
     append: appendSummary,
@@ -82,6 +84,7 @@ export default function Query({
     try {
       const response = await CreateQuery(data);
       toast.success(response?.data?.message);
+      navigate('/processes/work');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
