@@ -452,10 +452,6 @@ const ViewProcess = () => {
                 <CustomCard key={index}>
                   {/* Query Summary */}
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold">Step Instance ID:</span>{' '}
-                      {query.stepInstanceId}
-                    </p>
                     {query.stepName && (
                       <p className="text-sm text-gray-700">
                         <span className="font-semibold">Step Name:</span>{' '}
