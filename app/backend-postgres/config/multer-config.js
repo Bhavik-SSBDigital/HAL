@@ -9,20 +9,30 @@ const __dirname = dirname(__filename);
 
 const storage = multer.diskStorage({
   destination: async function (req, file, cb) {
-    let destinationDirectory =
-      req.body.purpose === "signature"
-        ? process.env.SIGNATURE_FOLDER_PATH
-        : process.env.PROFILE_PIC_FOLDER_PATH;
+    let destinationDirectory;
+    switch (req.body.purpose) {
+      case "signature":
+        destinationDirectory = process.env.SIGNATURE_FOLDER_PATH;
+        break;
+      case "profile":
+        destinationDirectory = process.env.PROFILE_PIC_FOLDER_PATH;
+        break;
+      case "dsc":
+        destinationDirectory = process.env.DSC_FOLDER_PATH;
+        break;
+      default:
+        return cb(new Error("Invalid purpose specified"));
+    }
 
     destinationDirectory = path.join(__dirname, destinationDirectory);
 
     try {
-      let stat = await fs.access(destinationDirectory);
+      await fs.access(destinationDirectory);
       cb(null, destinationDirectory);
     } catch (error) {
       console.log("error accessing dest", error);
       await fs.mkdir(destinationDirectory, { recursive: true });
-      cb(null, destinationDirectory); // Define the directory where files will be stored
+      cb(null, destinationDirectory);
     }
   },
   filename: async function (req, file, cb) {
@@ -31,11 +41,22 @@ const storage = multer.diskStorage({
     if (userData === "Unauthorized") {
       return cb(new Error("Unauthorized request"));
     }
-    // Access custom name from the request and use it in the filename
-    const customName =
-      req.body.purpose === "signature"
-        ? userData.username.toLowerCase()
-        : `${userData.username.toLowerCase() + "_profile_pic"}`; // Provide a default name if customName is not present
+
+    let customName;
+    switch (req.body.purpose) {
+      case "signature":
+        customName = userData.username.toLowerCase();
+        break;
+      case "profile":
+        customName = `${userData.username.toLowerCase()}_profile_pic`;
+        break;
+      case "dsc":
+        customName = `${userData.username.toLowerCase()}_dsc`;
+        break;
+      default:
+        return cb(new Error("Invalid purpose specified"));
+    }
+
     const originalName = file.originalname;
     const extension = path.extname(originalName);
     const fileName = customName + extension;

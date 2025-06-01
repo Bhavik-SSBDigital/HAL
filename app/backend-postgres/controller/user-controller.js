@@ -372,16 +372,11 @@ export const get_user_signature = async (req, res, next) => {
       return res.status(400).json({ message: "Please upload signature first" });
     }
 
-    console.log("image path ENV", process.env.SIGNATURE_FOLDER_PATH);
     const imagePath = path.join(
       __dirname,
       process.env.SIGNATURE_FOLDER_PATH, // Use absolute path in env
       user.signaturePicFileName
     );
-
-    console.log("user pic file name", user.signaturePicFileName);
-
-    console.log("image path", imagePath);
 
     // Add file existence check
     if (!fs.existsSync(imagePath)) {
@@ -416,6 +411,7 @@ export const get_user_profile_pic = async (req, res, next) => {
     }
 
     const imagePath = path.join(
+      __dirname,
       process.env.PROFILE_PIC_FOLDER_PATH, // Use absolute path in env
       user.profilePicFileName
     );
@@ -428,5 +424,42 @@ export const get_user_profile_pic = async (req, res, next) => {
   } catch (error) {
     console.error("Error getting profile pic:", error);
     res.status(500).json({ message: "Error retrieving profile picture" });
+  }
+};
+
+export const get_user_dsc = async (req, res, next) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userData.id },
+      select: { dscName: true },
+    });
+
+    if (!user?.dscName) {
+      return res.status(400).json({ message: "Please upload DSC" });
+    }
+
+    const imagePath = path.join(
+      __dirname,
+      process.env.DSC_FOLDER_PATH, // Use absolute path in env
+      user.dscName
+    );
+
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ message: "DSC not found" });
+    }
+
+    res.sendFile(imagePath);
+  } catch (error) {
+    console.error("Error getting DSC:", error);
+    res.status(500).json({ message: "Error retrieving DSC" });
   }
 };

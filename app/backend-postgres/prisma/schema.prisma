@@ -105,6 +105,8 @@ model User {
   rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
   signatures           DocumentSignature[] @relation("UserSignatures")
   signaturePicFileName String?
+  profilePicFileName   String?
+  dscName       String?
   signCoordinates      SignCoordinate[] @relation
   documentAccesses     DocumentAccess[] @relation()
   grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")

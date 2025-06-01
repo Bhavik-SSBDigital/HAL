@@ -93,6 +93,7 @@ import {
 import {
   edit_user,
   get_user,
+  get_user_dsc,
   get_user_profile_data,
   get_user_profile_pic,
   get_user_signature,
@@ -201,12 +202,13 @@ router.post("/rejectDocument", reject_document);
 router.post("/revokeRejection", revoke_rejection);
 
 router.get("/getUserSignature", get_user_signature);
-router.get("/getUserProfilePic", get_user_profile_pic);
+router.post("/getUserProfilePic", get_user_profile_pic);
 
 router.get("/getUserProfileData", get_user_profile_data);
 
 router.get("/getUserSignature", get_user_signature);
 router.get("/getUserProfilePic", get_user_profile_pic);
+router.get("/getUserDSC", get_user_dsc);
 
 router.post(
   "/uploadSignature",
