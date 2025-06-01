@@ -444,6 +444,153 @@ export const delete_workflow = async (req, res) => {
   }
 };
 
+// export const get_workflows = async (req, res) => {
+//   try {
+//     const accessToken = req.headers["authorization"].substring(7);
+//     const userData = await verifyUser(accessToken);
+//     if (userData === "Unauthorized") {
+//       return res.status(401).json({ message: "Unauthorized request" });
+//     }
+
+//     const workflows = await prisma.workflow.findMany({
+//       where: { isActive: true, createdById: userData.id },
+//       include: {
+//         steps: {
+//           include: {
+//             assignments: {
+//               select: {
+//                 id: true,
+//                 assigneeType: true,
+//                 assigneeIds: true,
+//                 actionType: true,
+//                 accessTypes: true,
+//                 direction: true,
+//                 allowParallel: true,
+//               },
+//             },
+//           },
+//         },
+//         createdBy: { select: { id: true, name: true, email: true } },
+//       },
+//       orderBy: { createdAt: "desc" },
+//     });
+
+//     // Collect all assignee IDs by type
+//     const departmentIds = new Set();
+//     const roleIds = new Set();
+//     const userIds = new Set();
+
+//     workflows.forEach((workflow) => {
+//       workflow.steps.forEach((step) => {
+//         step.assignments.forEach((assignment) => {
+//           assignment.assigneeIds.forEach((id) => {
+//             switch (assignment.assigneeType) {
+//               case "DEPARTMENT":
+//                 departmentIds.add(id);
+//                 break;
+//               case "ROLE":
+//                 roleIds.add(id);
+//                 break;
+//               case "USER":
+//                 userIds.add(id);
+//                 break;
+//             }
+//           });
+//         });
+//       });
+//     });
+
+//     // Fetch related entities in bulk
+//     const [departments, roles, users] = await Promise.all([
+//       prisma.department.findMany({
+//         where: { id: { in: Array.from(departmentIds) } },
+//         select: { id: true, name: true },
+//       }),
+//       prisma.role.findMany({
+//         where: { id: { in: Array.from(roleIds) } },
+//         select: { id: true, role: true },
+//       }),
+//       prisma.user.findMany({
+//         where: { id: { in: Array.from(userIds) } },
+//         select: { id: true, username: true },
+//       }),
+//     ]);
+
+//     // Create lookup maps
+//     const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
+
+//     console.log("dep", departmentMap);
+//     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+//     console.log("role map", roleMap);
+//     const userMap = new Map(users.map((u) => [u.id, u.username]));
+//     console.log("user map", userMap);
+
+//     // Enrich assigneeIds with names
+//     const processedWorkflows = workflows.map((workflow) => ({
+//       ...workflow,
+//       steps: workflow.steps.map((step) => ({
+//         ...step,
+//         assignments: step.assignments.map((assignment) => ({
+//           ...assignment,
+//           assigneeIds: assignment.assigneeIds.map((id) => {
+//             let name = "Unknown";
+//             switch (assignment.assigneeType) {
+//               case "DEPARTMENT":
+//                 name = departmentMap.get(id) || "Unknown Department";
+//                 break;
+//               case "ROLE":
+//                 name = roleMap.get(id) || "Unknown Role";
+//                 break;
+//               case "USER":
+//                 name = userMap.get(id) || "Unknown User";
+//                 break;
+//             }
+//             return { id, name };
+//           }),
+//         })),
+//       })),
+//     }));
+
+//     const groupedWorkflows = processedWorkflows.reduce((acc, workflow) => {
+//       const key = workflow.name;
+//       if (!acc[key]) acc[key] = [];
+//       acc[key].push(workflow);
+//       return acc;
+//     }, {});
+
+//     return res.status(200).json({
+//       message: "Workflows retrieved successfully",
+//       workflows: Object.entries(groupedWorkflows).map(([name, versions]) => ({
+//         name,
+//         versions: versions.map((wf) => ({
+//           id: wf.id,
+//           version: wf.version,
+//           description: wf.description,
+//           createdBy: wf.createdBy,
+//           createdAt: wf.createdAt,
+//           steps: wf.steps.map((step) => ({
+//             stepNumber: step.stepNumber,
+//             stepName: step.stepName,
+//             allowParallel: step.allowParallel,
+//             requiresDocument: step.requiresDocument,
+//             assignments: step.assignments.map((a) => ({
+//               assigneeType: a.assigneeType,
+//               assigneeIds: a.assigneeIds,
+//               actionType: a.actionType,
+//               accessTypes: a.accessTypes,
+//               direction: a.direction,
+//               allowParallel: a.allowParallel,
+//             })),
+//           })),
+//         })),
+//       })),
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ error: "Failed to retrieve workflows" });
+//   }
+// };
+
 export const get_workflows = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
@@ -452,8 +599,45 @@ export const get_workflows = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
+    // Fetch user's roles for ROLE and DEPARTMENT checks
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: userData.id },
+      select: { roleId: true },
+    });
+    const userRoleIds = userRoles.map((r) => r.roleId);
+
+    // Fetch workflows where user is assigned to step 1
     const workflows = await prisma.workflow.findMany({
-      where: { isActive: true, createdById: userData.id },
+      where: {
+        isActive: true,
+        steps: {
+          some: {
+            stepNumber: 1,
+            assignments: {
+              some: {
+                OR: [
+                  // USER: Direct user assignment
+                  { assigneeType: "USER", assigneeIds: { has: userData.id } },
+                  // ROLE: User has one of the assigned roles
+                  {
+                    assigneeType: "ROLE",
+                    assigneeIds: { hasSome: userRoleIds },
+                  },
+                  // DEPARTMENT: User has one of the selected roles in DepartmentRoleAssignment
+                  {
+                    assigneeType: "DEPARTMENT",
+                    departmentRoles: {
+                      some: {
+                        roleId: { in: userRoleIds },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
       include: {
         steps: {
           include: {
@@ -518,12 +702,8 @@ export const get_workflows = async (req, res) => {
 
     // Create lookup maps
     const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
-
-    console.log("dep", departmentMap);
     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
-    console.log("role map", roleMap);
     const userMap = new Map(users.map((u) => [u.id, u.username]));
-    console.log("user map", userMap);
 
     // Enrich assigneeIds with names
     const processedWorkflows = workflows.map((workflow) => ({
@@ -551,6 +731,7 @@ export const get_workflows = async (req, res) => {
       })),
     }));
 
+    // Group workflows by name
     const groupedWorkflows = processedWorkflows.reduce((acc, workflow) => {
       const key = workflow.name;
       if (!acc[key]) acc[key] = [];
