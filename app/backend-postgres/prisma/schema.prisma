@@ -109,6 +109,8 @@ model User {
   documentAccesses     DocumentAccess[] @relation()
   grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")
   documentHistory      DocumentHistory[] @relation("DocumentHistoryByUser")
+  initiatedRecommendations Recommendation[] @relation("RecommendationInitiator")
+  recommendedRecommendations Recommendation[] @relation("RecommendationRecommender")
 }
 
 model Token {
@@ -333,6 +335,7 @@ model ProcessInstance {
   trackings           ProcessTracking[]
   documentAccess      DocumentAccess[]
   assignmentProgresses AssignmentProgress[] @relation()
+  recommendations     Recommendation[]
   departmentStepProgresses DepartmentStepProgress[] @relation()
   isRecirculated      Boolean   @default(false)
   documentHistory     DocumentHistory[] @relation("ProcessDocumentHistory")
@@ -384,6 +387,7 @@ model ProcessStepInstance {
   documentAccesses    DocumentAccess[] @relation("StepInstanceDocumentAccess")
   notifications       ProcessNotification[] @relation("StepInstanceNotifications")
   escalations         Escalation[]
+  recommendations     Recommendation[] @relation
   processQA           ProcessQA[]  @relation("StepInstanceQA") // Renamed from qaChannels
   decisionComment     String?
   decisionAt          DateTime?
@@ -402,6 +406,7 @@ enum StepStatus {
   IN_PROGRESS
   ESCALATED
   FOR_RECIRCULATION
+  FOR_RECOMMENDATION
 }
 
 model Escalation {
@@ -460,6 +465,8 @@ model DocumentSignature {
   user            User      @relation("UserSignatures", fields: [userId], references: [id])
   reason          String?
   signedAt        DateTime  @default(now())
+  byRecommender               Boolean   @default(false) // Indicates if signed by a recommender
+  isAttachedWithRecommendation Boolean  @default(false)
 }
 
 model ProcessQA {
@@ -542,4 +549,24 @@ enum DocumentActionType {
   REJECTED
   SIGNED
   FEEDBACK
+}
+
+
+model Recommendation {
+  id                  String       @id @default(uuid())
+  processId           String
+  process             ProcessInstance @relation(fields: [processId], references: [id])
+  stepInstanceId      String
+  stepInstance        ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
+  initiatorId         Int
+  initiator           User         @relation("RecommendationInitiator", fields: [initiatorId], references: [id])
+  recommenderId       Int
+  recommender         User         @relation("RecommendationRecommender", fields: [recommenderId], references: [id])
+  recommendationText  String
+  documentSummaries   Json?        // Stores [{documentId, queryText, requiresApproval}]
+  responseText        String?      // Recommender's overall response
+  status              String       @default("OPEN") // OPEN, RESOLVED
+  createdAt           DateTime     @default(now())
+  respondedAt         DateTime?
+  details             Json?        // Stores document-specific responses
 }

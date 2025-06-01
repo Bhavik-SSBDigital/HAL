@@ -457,6 +457,446 @@ async function handleRoleAssignment(
     });
   }
 }
+// export const view_process = async (req, res) => {
+//   try {
+//     const { processId } = req.params;
+//     const accessToken = req.headers["authorization"]?.substring(7);
+//     const userData = await verifyUser(accessToken);
+
+//     if (userData === "Unauthorized" || !userData?.id) {
+//       return res.status(401).json({
+//         success: false,
+//         error: {
+//           message: "Unauthorized request",
+//           details: "Invalid or missing authorization token.",
+//           code: "UNAUTHORIZED",
+//         },
+//       });
+//     }
+
+//     const process = await prisma.processInstance.findUnique({
+//       where: { id: processId },
+//       include: {
+//         initiator: {
+//           select: { id: true, username: true, name: true, email: true },
+//         },
+//         workflow: {
+//           select: {
+//             id: true,
+//             name: true,
+//             version: true,
+//           },
+//         },
+//         currentStep: {
+//           select: {
+//             id: true,
+//             stepName: true,
+//             stepNumber: true,
+//             stepType: true,
+//           },
+//         },
+//         documents: {
+//           include: {
+//             document: {
+//               select: {
+//                 id: true,
+//                 name: true,
+//                 type: true,
+//                 path: true,
+//                 tags: true,
+//               },
+//             },
+//             signatures: {
+//               include: {
+//                 user: {
+//                   select: {
+//                     id: true,
+//                     username: true,
+//                   },
+//                 },
+//               },
+//             },
+//             rejectedBy: {
+//               select: {
+//                 id: true,
+//                 username: true,
+//               },
+//             },
+//             documentHistory: {
+//               include: {
+//                 user: {
+//                   select: {
+//                     id: true,
+//                     name: true,
+//                     username: true,
+//                   },
+//                 },
+//                 replacedDocument: {
+//                   select: {
+//                     id: true,
+//                     name: true,
+//                     path: true,
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//         stepInstances: {
+//           where: {
+//             status: {
+//               in: [
+//                 "IN_PROGRESS",
+//                 "IN_PROGRESS",
+//                 "FOR_RECIRCULATION",
+//                 "APPROVED",
+//               ],
+//             },
+//           },
+//           include: {
+//             workflowStep: {
+//               select: {
+//                 id: true,
+//                 stepName: true,
+//                 stepNumber: true,
+//                 stepType: true,
+//               },
+//             },
+//             workflowAssignment: {
+//               include: {
+//                 step: {
+//                   select: {
+//                     id: true,
+//                     stepName: true,
+//                     stepNumber: true,
+//                     stepType: true,
+//                   },
+//                 },
+//               },
+//             },
+//             pickedBy: {
+//               select: {
+//                 id: true,
+//                 username: true,
+//               },
+//             },
+//             processQA: {
+//               where: {
+//                 OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
+//                 status: "OPEN",
+//               },
+//               include: {
+//                 initiator: {
+//                   select: {
+//                     id: true,
+//                     name: true,
+//                   },
+//                 },
+//                 process: {
+//                   select: {
+//                     id: true,
+//                     name: true,
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     if (!process) {
+//       return res.status(404).json({
+//         success: false,
+//         error: {
+//           message: "Process not found",
+//           details: "No process found with the specified ID.",
+//           code: "PROCESS_NOT_FOUND",
+//         },
+//       });
+//     }
+
+//     // Log step instance details for debugging
+
+//     // Fetch assignee details for all assigneeIds in workflowAssignments
+//     const assigneeIds = [
+//       ...new Set(
+//         process.stepInstances.flatMap((step) =>
+//           step.workflowAssignment?.assigneeIds?.length
+//             ? step.workflowAssignment.assigneeIds
+//             : [step.assignedTo]
+//         )
+//       ),
+//     ];
+
+//     const assignees = await prisma.user.findMany({
+//       where: {
+//         id: { in: assigneeIds },
+//       },
+//       select: {
+//         id: true,
+//         username: true,
+//       },
+//     });
+
+//     // Map assignees to a lookup object for efficient access
+//     const assigneeMap = assignees.reduce((map, user) => {
+//       map[user.id] = user;
+//       return map;
+//     }, {});
+
+//     // Transform step instances to include stepName and assignees
+//     const steps = process.stepInstances.map((step) => {
+//       const assigneeIds = step.workflowAssignment?.assigneeIds?.length
+//         ? step.workflowAssignment.assigneeIds
+//         : [step.assignedTo];
+
+//       return {
+//         stepName: step.workflowAssignment?.step?.stepName ?? "Unknown Step",
+//         stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
+//         stepId: step.workflowAssignment?.step?.id ?? null,
+//         stepType: step.workflowAssignment?.step?.stepType ?? "UNKNOWN",
+//         assignees: assigneeIds.map((id) => ({
+//           assigneeId: id,
+//           assigneeName: assigneeMap[id]?.username ?? "Unknown User",
+//         })),
+//       };
+//     });
+
+//     const transformedDocuments = process.documents.map((doc) => {
+//       const signedBy = doc.signatures.map((sig) => ({
+//         signedBy: sig.user.username,
+//         signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
+//         remarks: sig.reason || null,
+//       }));
+
+//       const rejectionDetails = doc.rejectedBy
+//         ? {
+//             rejectedBy: doc.rejectedBy.username,
+//             rejectionReason: doc.rejectionReason,
+//             rejectedAt: doc.rejectedAt ? doc.rejectedAt.toISOString() : null,
+//           }
+//         : null;
+
+//       const documentHistory = doc.documentHistory.map((history) => ({
+//         actionType: history.actionType,
+//         user: history.user.name,
+//         createdAt: history.createdAt.toISOString(),
+//         details: history.actionDetails,
+//         replacedDocument: history.replacedDocument
+//           ? {
+//               id: history.replacedDocument.id,
+//               name: history.replacedDocument.name,
+//               path: history.replacedDocument.path,
+//             }
+//           : null,
+//         isRecirculationTrigger: history.isRecirculationTrigger,
+//       }));
+
+//       return {
+//         id: doc.document.id,
+//         name: doc.document.name,
+//         type: doc.document.type,
+//         path: doc.document.path,
+//         tags: doc.document.tags,
+//         signedBy,
+//         rejectionDetails,
+//         documentHistory,
+//         isRecirculationTrigger: doc.documentHistory.some(
+//           (history) => history.isRecirculationTrigger
+//         ),
+//         access: doc.document.tags.includes("confidential")
+//           ? ["auditor"]
+//           : ["auditor", "manager"],
+//         approvalCount: signedBy.length,
+//       };
+//     });
+
+//     const queryDetails = await Promise.all(
+//       process.stepInstances.flatMap((step) =>
+//         step.processQA.map(async (qa) => {
+//           const documentHistoryIds = [
+//             ...(qa.details?.documentChanges?.map(
+//               (dc) => dc.documentHistoryId
+//             ) || []),
+//             ...(qa.details?.documentSummaries?.map(
+//               (ds) => ds.documentHistoryId
+//             ) || []),
+//           ];
+
+//           const documentHistories =
+//             documentHistoryIds.length > 0
+//               ? await prisma.documentHistory.findMany({
+//                   where: { id: { in: documentHistoryIds } },
+//                   include: {
+//                     document: {
+//                       select: {
+//                         id: true,
+//                         name: true,
+//                         type: true,
+//                         path: true,
+//                         tags: true,
+//                       },
+//                     },
+//                     replacedDocument: {
+//                       select: {
+//                         id: true,
+//                         name: true,
+//                         path: true,
+//                       },
+//                     },
+//                     user: {
+//                       select: {
+//                         id: true,
+//                         name: true,
+//                         username: true,
+//                       },
+//                     },
+//                   },
+//                 })
+//               : [];
+
+//           return {
+//             stepInstanceId: step.id,
+//             stepName: step.workflowAssignment?.step?.stepName ?? null,
+//             stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
+//             status: step.status,
+//             taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
+//             queryText: qa.question,
+//             answerText: qa.answer || null,
+//             initiatorName: qa.initiator.username,
+//             createdAt: qa.createdAt.toISOString(),
+//             answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
+//             documentChanges:
+//               qa.details?.documentChanges?.map((dc) => {
+//                 const history = documentHistories.find(
+//                   (h) => h.id === dc.documentHistoryId
+//                 );
+//                 return {
+//                   documentId: dc.documentId,
+//                   requiresApproval: dc.requiresApproval,
+//                   isReplacement: dc.isReplacement,
+//                   documentHistoryId: dc.documentHistoryId,
+//                   document: history?.document
+//                     ? {
+//                         id: history.document.id,
+//                         name: history.document.name,
+//                         type: history.document.type,
+//                         path: history.document.path,
+//                         tags: history.document.tags,
+//                       }
+//                     : null,
+//                   actionDetails: history?.actionDetails,
+//                   user: history?.user.name,
+//                   createdAt: history?.createdAt.toISOString(),
+//                   replacedDocument: history?.replacedDocument
+//                     ? {
+//                         id: history.replacedDocument.id,
+//                         name: history.replacedDocument.name,
+//                         path: history.replacedDocument.path,
+//                       }
+//                     : null,
+//                 };
+//               }) || [],
+//             documentSummaries:
+//               qa.details?.documentSummaries?.map((ds) => {
+//                 const history = documentHistories.find(
+//                   (h) => h.id === ds.documentHistoryId
+//                 );
+//                 return {
+//                   documentId: ds.documentId,
+//                   feedbackText: ds.feedbackText,
+//                   documentHistoryId: ds.documentHistoryId,
+//                   documentDetails: history?.document
+//                     ? {
+//                         id: history.document.id,
+//                         name: history.document.name,
+//                         // type: history.document.type,
+//                         path: history.document.path,
+//                         // tags: history.document.tags,
+//                       }
+//                     : null,
+//                   // actionDetails: history?.actionDetails,
+//                   user: history?.user.username,
+//                   createdAt: history?.createdAt.toISOString(),
+//                 };
+//               }) || [],
+//             assigneeDetails: qa.details?.assigneeDetails
+//               ? {
+//                   assignedStepName: qa.details.assigneeDetails.assignedStepName,
+//                   assignedAssigneeId:
+//                     qa.details.assigneeDetails.assignedAssigneeId,
+//                   assignedAssigneeName: qa.details.assigneeDetails
+//                     .assignedAssigneeId
+//                     ? (
+//                         await prisma.user.findUnique({
+//                           where: {
+//                             id: parseInt(
+//                               qa.details.assigneeDetails.assignedAssigneeId
+//                             ),
+//                           },
+//                           select: { username: true },
+//                         })
+//                       )?.username || null
+//                     : null,
+//                 }
+//               : null,
+//           };
+//         })
+//       )
+//     );
+
+//     const toBePicked = process.stepInstances.some(
+//       (step) => step.assignedTo === userData.id && step.status === "IN_PROGRESS"
+//     );
+
+//     const workflow = {
+//       id: process.workflow.id,
+//       name: process.workflow.name,
+//       version: process.workflow.version,
+//     };
+
+//     return res.status(200).json({
+//       process: {
+//         processName: process.name,
+//         initiatorName: process.initiator.username,
+//         status: process.status,
+//         createdAt: process.createdAt,
+//         processId: process.id,
+//         processStepInstanceId:
+//           process.stepInstances.filter(
+//             (item) => item.status === "IN_PROGRESS"
+//           )[0]?.id || null,
+//         arrivedAt:
+//           process.stepInstances.filter(
+//             (item) => item.status === "IN_PROGRESS"
+//           )[0]?.updatedAt ||
+//           process.stepInstances.filter(
+//             (item) => item.status === "IN_PROGRESS"
+//           )[0]?.createdAt ||
+//           null,
+//         updatedAt: process.updatedAt,
+//         toBePicked,
+//         isRecirculated: process.isRecirculated,
+//         documents: transformedDocuments,
+//         steps,
+//         queryDetails,
+//         workflow,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error getting process:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: {
+//         message: "Failed to view process",
+//         details: error.message,
+//         code: "PROCESS_VIEW_ERROR",
+//       },
+//     });
+//   }
+// };
+
 export const view_process = async (req, res) => {
   try {
     const { processId } = req.params;
@@ -547,9 +987,9 @@ export const view_process = async (req, res) => {
             status: {
               in: [
                 "IN_PROGRESS",
-                "IN_PROGRESS",
                 "FOR_RECIRCULATION",
                 "APPROVED",
+                "FOR_RECOMMENDATION",
               ],
             },
           },
@@ -600,6 +1040,16 @@ export const view_process = async (req, res) => {
                 },
               },
             },
+            recommendations: {
+              include: {
+                initiator: {
+                  select: { id: true, username: true },
+                },
+                recommender: {
+                  select: { id: true, username: true },
+                },
+              },
+            },
           },
         },
       },
@@ -615,8 +1065,6 @@ export const view_process = async (req, res) => {
         },
       });
     }
-
-    // Log step instance details for debugging
 
     // Fetch assignee details for all assigneeIds in workflowAssignments
     const assigneeIds = [
@@ -668,6 +1116,8 @@ export const view_process = async (req, res) => {
         signedBy: sig.user.username,
         signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
         remarks: sig.reason || null,
+        byRecommender: sig.byRecommender,
+        isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
       }));
 
       const rejectionDetails = doc.rejectedBy
@@ -764,7 +1214,7 @@ export const view_process = async (req, res) => {
             taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
             queryText: qa.question,
             answerText: qa.answer || null,
-            initiatorName: qa.initiator.username,
+            initiatorName: qa.initiator.name,
             createdAt: qa.createdAt.toISOString(),
             answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
             documentChanges:
@@ -811,12 +1261,9 @@ export const view_process = async (req, res) => {
                     ? {
                         id: history.document.id,
                         name: history.document.name,
-                        // type: history.document.type,
                         path: history.document.path,
-                        // tags: history.document.tags,
                       }
                     : null,
-                  // actionDetails: history?.actionDetails,
                   user: history?.user.username,
                   createdAt: history?.createdAt.toISOString(),
                 };
@@ -841,6 +1288,58 @@ export const view_process = async (req, res) => {
                     : null,
                 }
               : null,
+          };
+        })
+      )
+    );
+
+    // Add recommendation details with merged documentDetails
+    const recommendationDetails = await Promise.all(
+      process.stepInstances.flatMap((step) =>
+        step.recommendations.map(async (rec) => {
+          const documentSummaries = rec.documentSummaries || [];
+          const documentResponses = rec.details?.documentResponses || [];
+          const documentIds = documentSummaries.map((ds) =>
+            parseInt(ds.documentId)
+          );
+          const documents = documentIds.length
+            ? await prisma.document.findMany({
+                where: { id: { in: documentIds } },
+                select: { id: true, name: true },
+              })
+            : [];
+
+          const documentMap = documents.reduce((map, doc) => {
+            map[doc.id] = doc.name;
+            return map;
+          }, {});
+
+          // Merge documentSummaries and documentResponses into documentDetails
+          const documentDetails = documentSummaries.map((ds) => {
+            const response = documentResponses.find(
+              (dr) => dr.documentId === parseInt(ds.documentId)
+            );
+            return {
+              documentId: ds.documentId,
+              documentName: documentMap[ds.documentId] || "Unknown Document",
+              queryText: ds.queryText,
+              answerText: response?.answerText || null,
+            };
+          });
+
+          return {
+            recommendationId: rec.id,
+            stepInstanceId: step.id,
+            stepName: step.workflowAssignment?.step?.stepName ?? null,
+            stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
+            status: rec.status,
+            recommendationText: rec.recommendationText,
+            responseText: rec.responseText || null,
+            initiatorName: rec.initiator.username,
+            recommenderName: rec.recommender.username,
+            createdAt: rec.createdAt.toISOString(),
+            respondedAt: rec.respondedAt ? rec.respondedAt.toISOString() : null,
+            documentDetails, // Merged document summaries and responses
           };
         })
       )
@@ -881,6 +1380,7 @@ export const view_process = async (req, res) => {
         documents: transformedDocuments,
         steps,
         queryDetails,
+        recommendationDetails,
         workflow,
       },
     });
@@ -896,30 +1396,6 @@ export const view_process = async (req, res) => {
     });
   }
 };
-// export const view_process = async (req, res, next) => {
-//   try {
-// const accessToken = req.headers["authorization"]?.substring(7);
-// const userData = await verifyUser(accessToken);
-
-// if (userData === "Unauthorized") {
-//   return res.status(401).json({ message: "Unauthorized request" });
-// }
-
-//     req.user = userData;
-
-//     const { processId } = req.params;
-//     const process = await viewProcess(processId, userData.id);
-
-//     return res.status(200).json({ process: process });
-//   } catch (error) {
-//     console.log("Error viewing process", error);
-//     return res.status(500).json({
-//       message: "Error viewing the process",
-//     });
-//   }
-// };
-
-// processHandling.js
 async function handleProcessClaim(userId, stepInstanceId) {
   return prisma.$transaction(async (tx) => {
     // 2. Claim the step
@@ -2133,6 +2609,538 @@ export const assignDocumentUpload = async (req, res) => {
     return res.status(500).json({
       message: "Error assigning document upload",
       error: error.message,
+    });
+  }
+};
+
+export const createRecommendation = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const {
+      processId,
+      stepInstanceId,
+      recommendationText,
+      documentSummaries = [],
+      recommenderUsername,
+    } = req.body;
+
+    if (
+      !processId ||
+      !stepInstanceId ||
+      !recommendationText ||
+      !recommenderUsername
+    ) {
+      return res.status(400).json({
+        message:
+          "Missing required fields: processId, stepInstanceId, recommendationText, recommenderUsername",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Validate step instance and user access
+      const stepInstance = await tx.processStepInstance.findUnique({
+        where: {
+          id: stepInstanceId,
+          assignedTo: userData.id,
+          status: "IN_PROGRESS",
+        },
+        include: {
+          process: true,
+        },
+      });
+
+      if (!stepInstance) {
+        throw new Error("Invalid step instance or user not assigned");
+      }
+
+      // 2. Validate recommender
+      const recommender = await tx.user.findUnique({
+        where: { username: recommenderUsername },
+        select: { id: true },
+      });
+
+      if (!recommender) {
+        throw new Error(
+          `Recommender with username ${recommenderUsername} not found`
+        );
+      }
+
+      // 3. Validate document summaries
+      for (const summary of documentSummaries) {
+        const { documentId, queryText, requiresApproval } = summary;
+        if (!documentId || !queryText || requiresApproval === undefined) {
+          throw new Error(
+            "Invalid document summary: documentId, queryText, and requiresApproval are required"
+          );
+        }
+        const document = await tx.document.findUnique({
+          where: { id: parseInt(documentId) },
+        });
+        if (!document) {
+          throw new Error(
+            `Document ${`One with ID ${documentId} not found`} not found`
+          );
+        }
+      }
+
+      // 4. Create Recommendation entry
+      const recommendation = await tx.recommendation.create({
+        data: {
+          processId,
+          stepInstanceId,
+          initiatorId: userData.id,
+          recommenderId: recommender.id,
+          recommendationText,
+          documentSummaries,
+          status: "OPEN",
+          createdAt: new Date(),
+        },
+      });
+
+      // 5. Update step instance status to FOR_RECOMMENDATION
+      await tx.processStepInstance.update({
+        where: { id: stepInstanceId },
+        data: {
+          status: "FOR_RECOMMENDATION",
+        },
+      });
+
+      // 6. Create notification for the recommender
+      await tx.processNotification.create({
+        data: {
+          stepId: stepInstanceId,
+          userId: recommender.id,
+          type: "DOCUMENT_QUERY", // Reusing DOCUMENT_QUERY type for consistency
+          status: "ACTIVE",
+          metadata: { recommendationText, processId },
+        },
+      });
+
+      return recommendation;
+    });
+
+    return res.status(200).json({
+      message: "Recommendation request submitted successfully",
+      recommendationId: result.id,
+    });
+  } catch (error) {
+    console.error("Error creating recommendation:", error);
+    return res.status(500).json({
+      message: "Error creating recommendation",
+      error: error.message,
+    });
+  }
+};
+
+export const signAsRecommender = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { recommendationId, documentId, reason } = req.body;
+
+    if (!recommendationId || !documentId) {
+      return res.status(400).json({
+        message: "Missing required fields: recommendationId, documentId",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Validate recommendation and user
+      const recommendation = await tx.recommendation.findUnique({
+        where: { id: recommendationId },
+        include: { process: true },
+      });
+
+      if (!recommendation) {
+        throw new Error("Recommendation not found");
+      }
+
+      if (recommendation.recommenderId !== userData.id) {
+        throw new Error("User is not the assigned recommender");
+      }
+
+      if (recommendation.status !== "OPEN") {
+        throw new Error("Recommendation is not open for signing");
+      }
+
+      // 2. Validate document and ensure it requires approval
+      const documentSummary = recommendation.documentSummaries?.find(
+        (ds) => ds.documentId === parseInt(documentId) && ds.requiresApproval
+      );
+
+      if (!documentSummary) {
+        throw new Error(
+          `Document ${documentId} does not require approval or is not part of this recommendation`
+        );
+      }
+
+      // 3. Find or create ProcessDocument
+      let processDocument = await tx.processDocument.findFirst({
+        where: {
+          processId: recommendation.processId,
+          documentId: parseInt(documentId),
+        },
+      });
+
+      if (!processDocument) {
+        processDocument = await tx.processDocument.create({
+          data: {
+            processId: recommendation.processId,
+            documentId: parseInt(documentId),
+          },
+        });
+      }
+
+      // 4. Create DocumentSignature with recommender flags
+      const signature = await tx.documentSignature.create({
+        data: {
+          processDocumentId: processDocument.id,
+          userId: userData.id,
+          reason: reason || "Signed as recommender",
+          signedAt: new Date(),
+          byRecommender: true,
+          isAttachedWithRecommendation: false, // Will be updated to true in response
+        },
+      });
+
+      // 5. Create DocumentHistory entry
+      await tx.documentHistory.create({
+        data: {
+          documentId: parseInt(documentId),
+          processId: recommendation.processId,
+          stepInstanceId: recommendation.stepInstanceId,
+          userId: userData.id,
+          actionType: "SIGNED",
+          actionDetails: {
+            reason: reason || "Signed as recommender",
+            byRecommender: true,
+          },
+          createdAt: new Date(),
+          processDocumentId: processDocument.id,
+        },
+      });
+
+      return signature;
+    });
+
+    return res.status(200).json({
+      message: "Document signed successfully by recommender",
+      signatureId: result.id,
+    });
+  } catch (error) {
+    console.error("Error signing as recommender:", error);
+    return res.status(500).json({
+      message: "Error signing document",
+      error: error.message,
+    });
+  }
+};
+
+export const submitRecommendationResponse = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { recommendationId, responseText, documentResponses = [] } = req.body;
+
+    if (!recommendationId || !responseText) {
+      return res.status(400).json({
+        message: "Missing required fields: recommendationId, responseText",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Validate recommendation and user
+      const recommendation = await tx.recommendation.findUnique({
+        where: { id: recommendationId },
+        include: { process: true, stepInstance: true },
+      });
+
+      if (!recommendation) {
+        throw new Error("Recommendation not found");
+      }
+
+      if (recommendation.recommenderId !== userData.id) {
+        throw new Error("User is not the assigned recommender");
+      }
+
+      if (recommendation.status !== "OPEN") {
+        throw new Error("Recommendation is already resolved");
+      }
+
+      // 2. Validate document responses
+      for (const response of documentResponses) {
+        const { documentId, answerText } = response;
+        if (!documentId || !answerText) {
+          throw new Error(
+            "Invalid document response: documentId and answerText are required"
+          );
+        }
+        const documentSummary = recommendation.documentSummaries?.find(
+          (ds) => ds.documentId === parseInt(documentId)
+        );
+        if (!documentSummary) {
+          throw new Error(
+            `Document ${documentId} is not part of this recommendation`
+          );
+        }
+      }
+
+      // 3. Find and attach signatures
+      const signatures = await tx.documentSignature.findMany({
+        where: {
+          processDocument: {
+            processId: recommendation.processId,
+            documentId: {
+              in: recommendation.documentSummaries.map((ds) =>
+                parseInt(ds.documentId)
+              ),
+            },
+          },
+          userId: userData.id,
+          byRecommender: true,
+          isAttachedWithRecommendation: false,
+        },
+      });
+
+      for (const signature of signatures) {
+        await tx.documentSignature.update({
+          where: { id: signature.id },
+          data: { isAttachedWithRecommendation: true },
+        });
+      }
+
+      // 4. Create document history for responses
+      const documentHistoryEntries = [];
+      for (const response of documentResponses) {
+        const { documentId, answerText } = response;
+        const history = await tx.documentHistory.create({
+          data: {
+            documentId: parseInt(documentId),
+            processId: recommendation.processId,
+            stepInstanceId: recommendation.stepInstanceId,
+            userId: userData.id,
+            actionType: "FEEDBACK",
+            actionDetails: { answerText, byRecommender: true },
+            createdAt: new Date(),
+          },
+        });
+        documentHistoryEntries.push(history);
+      }
+
+      // 5. Update Recommendation with response
+      const updatedRecommendation = await tx.recommendation.update({
+        where: { id: recommendationId },
+        data: {
+          responseText,
+          details: { documentResponses },
+          status: "RESOLVED",
+          respondedAt: new Date(),
+        },
+      });
+
+      // 6. Unfreeze the step instance
+      await tx.processStepInstance.update({
+        where: { id: recommendation.stepInstanceId },
+        data: { status: "IN_PROGRESS" },
+      });
+
+      // 7. Create notification for the initiator
+      await tx.processNotification.create({
+        data: {
+          stepId: recommendation.stepInstanceId,
+          userId: recommendation.initiatorId,
+          type: "DOCUMENT_QUERY",
+          status: "ACTIVE",
+          metadata: { responseText, processId: recommendation.processId },
+        },
+      });
+
+      return { recommendation: updatedRecommendation, documentHistoryEntries };
+    });
+
+    return res.status(200).json({
+      message: "Recommendation response submitted successfully",
+      recommendationId: result.recommendation.id,
+    });
+  } catch (error) {
+    console.error("Error submitting recommendation response:", error);
+    return res.status(500).json({
+      message: "Error submitting recommendation response",
+      error: error.message,
+    });
+  }
+};
+
+export const get_recommendations = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized" || !userData?.id) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: "Unauthorized request",
+          details: "Invalid or missing authorization token.",
+          code: "UNAUTHORIZED",
+        },
+      });
+    }
+
+    const recommendations = await prisma.recommendation.findMany({
+      where: {
+        recommenderId: userData.id,
+        status: "OPEN",
+      },
+      include: {
+        process: {
+          select: { id: true, name: true },
+        },
+        initiator: {
+          select: { id: true, username: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formattedRecommendations = recommendations.map((rec) => ({
+      recommendationId: rec.id,
+      processId: rec.processId,
+      processName: rec.process.name,
+      initiatorUsername: rec.initiator.username,
+      recommendationText: rec.recommendationText,
+      createdAt: rec.createdAt.toISOString(),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      recommendations: formattedRecommendations,
+    });
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to fetch recommendations",
+        details: error.message,
+        code: "RECOMMENDATIONS_FETCH_ERROR",
+      },
+    });
+  }
+};
+
+export const get_recommendation = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized" || !userData?.id) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: "Unauthorized request",
+          details: "Invalid or missing authorization token.",
+          code: "UNAUTHORIZED",
+        },
+      });
+    }
+
+    const { recommendationId } = req.params;
+
+    const recommendation = await prisma.recommendation.findUnique({
+      where: { id: recommendationId },
+      include: {
+        process: {
+          select: { id: true, name: true },
+        },
+        initiator: {
+          select: { id: true, username: true },
+        },
+      },
+    });
+
+    if (!recommendation) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: "Recommendation not found",
+          details: "No recommendation found with the specified ID.",
+          code: "RECOMMENDATION_NOT_FOUND",
+        },
+      });
+    }
+
+    if (recommendation.recommenderId !== userData.id) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: "Forbidden",
+          details: "User is not the assigned recommender.",
+          code: "FORBIDDEN",
+        },
+      });
+    }
+
+    // Fetch document names for documentSummaries
+    const documentSummaries = recommendation.documentSummaries || [];
+    const documentIds = documentSummaries.map((ds) => parseInt(ds.documentId));
+    const documents = documentIds.length
+      ? await prisma.document.findMany({
+          where: { id: { in: documentIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+
+    const documentMap = documents.reduce((map, doc) => {
+      map[doc.id] = doc.name;
+      return map;
+    }, {});
+
+    const formattedDocumentSummaries = documentSummaries.map((ds) => ({
+      documentId: ds.documentId,
+      documentName: documentMap[ds.documentId] || "Unknown Document",
+      queryText: ds.queryText,
+      requiresApproval: ds.requiresApproval,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      recommendation: {
+        recommendationId: recommendation.id,
+        processId: recommendation.processId,
+        processName: recommendation.process.name,
+        initiatorUsername: recommendation.initiator.username,
+        recommendationText: recommendation.recommendationText,
+        documentSummaries: formattedDocumentSummaries,
+        status: recommendation.status,
+        createdAt: recommendation.createdAt.toISOString(),
+        responseText: recommendation.responseText || null,
+        respondedAt: recommendation.respondedAt
+          ? recommendation.respondedAt.toISOString()
+          : null,
+        documentResponses: recommendation.details?.documentResponses || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching recommendation:", error);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to fetch recommendation",
+        details: error.message,
+        code: "RECOMMENDATION_FETCH_ERROR",
+      },
     });
   }
 };

@@ -105,6 +105,11 @@ import {
   initiate_process,
   view_process,
   createQuery,
+  createRecommendation,
+  submitRecommendationResponse,
+  get_recommendation,
+  get_recommendations,
+  signAsRecommender,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
 
@@ -212,6 +217,12 @@ router.post(
 );
 
 router.post("/queries/createQuery", createQuery);
+
+router.post("/recommendations/createRecommendation", createRecommendation);
+router.post("/recommendations/signDocument", signAsRecommender);
+router.post("/recommendations/respond", submitRecommendationResponse);
+router.get("/recommendations/getRecommendations", get_recommendations);
+router.get("/recommendations/:recommendationId", get_recommendation);
 // router.get("/queries/process/:processId", getProcessQueries);
 // router.post("/queries/respond/:queryId", respondToQuery);
 // router.post("/queries/documents/approve/:documentId", approveQueryDocument);
