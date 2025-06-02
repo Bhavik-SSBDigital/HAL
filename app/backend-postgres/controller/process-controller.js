@@ -2880,6 +2880,8 @@ export const submitRecommendationResponse = async (req, res) => {
         throw new Error("Recommendation is already resolved");
       }
 
+      console.log("recommendtion document summaries", recommendation.documentSummaries);
+
       // 2. Validate document responses
       for (const response of documentResponses) {
         const { documentId, answerText } = response;
@@ -2889,7 +2891,7 @@ export const submitRecommendationResponse = async (req, res) => {
           );
         }
         const documentSummary = recommendation.documentSummaries?.find(
-          (ds) => ds.documentId === parseInt(documentId)
+          (ds) => parseInt(ds.documentId) === parseInt(documentId)
         );
         if (!documentSummary) {
           throw new Error(
