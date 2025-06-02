@@ -527,7 +527,7 @@ const ViewProcess = () => {
       )}
 
       {/* recommendations section */}
-      {recommendations?.length > 0 && (
+      {process?.recommendationDetails?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
             <div className="flex-grow border-t border-slate-400"></div>
@@ -537,48 +537,86 @@ const ViewProcess = () => {
             <div className="flex-grow border-t border-slate-400"></div>
           </div>
 
-          <div className="mt-2">
-            <div className="space-y-4">
-              {recommendations.map((rec, index) => (
-                <CustomCard key={rec.recommendationId || index}>
-                  <div className="space-y-1">
-                    {rec.processName && (
-                      <p className="text-sm text-gray-700">
-                        <span className="font-semibold">Process:</span>{' '}
-                        {rec.processName}
-                      </p>
-                    )}
-                    {rec.initiatorUsername && (
-                      <p className="text-sm text-gray-700">
-                        <span className="font-semibold">Initiated By:</span>{' '}
-                        {rec.initiatorUsername}
-                      </p>
-                    )}
-                    {rec.recommendationText && (
-                      <p className="text-sm text-gray-700">
-                        <span className="font-semibold">Recommendation:</span>{' '}
-                        {rec.recommendationText}
-                      </p>
-                    )}
-                    {rec.createdAt && (
-                      <p className="text-sm text-gray-700">
-                        <span className="font-semibold">Created At:</span>{' '}
-                        {new Date(rec.createdAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
+          <div className="mt-2 space-y-4">
+            {process?.recommendationDetails?.map((rec, index) => (
+              <CustomCard key={rec.recommendationId || index}>
+                <div className="space-y-1 text-sm text-gray-700">
+                  <p>
+                    <span className="font-semibold">Step:</span> {rec.stepName}{' '}
+                    (#{rec.stepNumber})
+                  </p>
+                  <p>
+                    <span className="font-semibold">Status:</span> {rec.status}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Initiator:</span>{' '}
+                    {rec.initiatorName}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Recommender:</span>{' '}
+                    {rec.recommenderName}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Recommendation:</span>{' '}
+                    {rec.recommendationText}
+                  </p>
+                  {rec.responseText && (
+                    <p>
+                      <span className="font-semibold">Response:</span>{' '}
+                      {rec.responseText}
+                    </p>
+                  )}
+                  <p>
+                    <span className="font-semibold">Created At:</span>{' '}
+                    {new Date(rec.createdAt).toLocaleString()}
+                  </p>
+                  {rec.respondedAt && (
+                    <p>
+                      <span className="font-semibold">Responded At:</span>{' '}
+                      {new Date(rec.respondedAt).toLocaleString()}
+                    </p>
+                  )}
 
-                  {/* Respond Button */}
-                  <div className="mt-4 flex justify-end">
-                    <CustomButton
-                      text="Respond"
-                      variant="primary"
-                      click={() => handleRespondRecommendation(rec)}
-                    />
-                  </div>
-                </CustomCard>
-              ))}
-            </div>
+                  {rec.documentDetails?.length > 0 && (
+                    <div className="mt-4">
+                      <p className="font-semibold mb-2">Attached Documents:</p>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full border text-sm">
+                          <thead className="bg-slate-100">
+                            <tr>
+                              <th className="border px-3 py-2 text-left">
+                                Document Name
+                              </th>
+                              <th className="border px-3 py-2 text-left">
+                                Query Text
+                              </th>
+                              <th className="border px-3 py-2 text-left">
+                                Answer Text
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rec.documentDetails.map((doc) => (
+                              <tr key={doc.documentId}>
+                                <td className="border px-3 py-2">
+                                  {doc.documentName}
+                                </td>
+                                <td className="border px-3 py-2">
+                                  {doc.queryText || '-'}
+                                </td>
+                                <td className="border px-3 py-2">
+                                  {doc.answerText || '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CustomCard>
+            ))}
           </div>
         </>
       )}
