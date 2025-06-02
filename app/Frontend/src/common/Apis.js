@@ -68,6 +68,9 @@ export const DeleteUser = async (id) => {
 export const GetUser = async (id) => {
   return apiClient.get(`/getUser/${id}`);
 };
+export const GetUsersWithDetails = async () => {
+  return apiClient.get('/getUsersWithDetails');
+};
 
 // roles endpoints
 export const GetRoles = async () => {
@@ -104,11 +107,6 @@ export const GetWorkflows = async () => {
 };
 export const deleteWorkflow = async (id) => {
   return apiClient.delete(`/workflows/deleteWorkflow/${id}`);
-};
-
-// usernames endpoints
-export const GetUsersWithDetails = async () => {
-  return apiClient.get('/getUsersWithDetails');
 };
 
 // documents apis
@@ -254,4 +252,9 @@ export const getSignCoordinatesForCurrentStep = async (docId) => {
 };
 export const postHighlightInFile = async (data) => {
   return apiClient.post(`/postHighlightInFile`, data);
+};
+
+// recommend endpoints
+export const createRecommend = async (data) => {
+  return apiClient.post('/recommendations/createRecommendation', data);
 };

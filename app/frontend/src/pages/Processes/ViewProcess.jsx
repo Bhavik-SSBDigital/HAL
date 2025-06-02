@@ -31,6 +31,7 @@ import DocumentViewer from '../Viewer';
 import CustomModal from '../../CustomComponents/CustomModal';
 import Query from './Actions/Query';
 import QuerySolve from './Actions/QuerySolve';
+import Recommend from './Actions/Recommend';
 
 const ViewProcess = () => {
   // states and data
@@ -42,9 +43,9 @@ const ViewProcess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileView, setFileView] = useState(null);
-  const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
+  const [openModal, setOpenModal] = useState('');
 
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
@@ -287,7 +288,14 @@ const ViewProcess = () => {
             variant={'secondary'}
             text={'Query'}
             className={'min-w-[150px]'}
-            click={() => setQueryModalOpen(true)}
+            click={() => setOpenModal('query')}
+            disabled={actionsLoading}
+          />
+          <CustomButton
+            variant={'secondary'}
+            text={'Recommend'}
+            className={'min-w-[150px]'}
+            click={() => setOpenModal('recommend')}
             disabled={actionsLoading}
           />
           <CustomButton
@@ -603,9 +611,9 @@ const ViewProcess = () => {
 
       {/* Query Modal */}
       <CustomModal
-        isOpen={queryModalOpen}
+        isOpen={openModal == 'query'}
         onClose={() => {
-          setQueryModalOpen(false);
+          setOpenModal('');
           setExistingQuery(null);
         }}
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
@@ -614,7 +622,7 @@ const ViewProcess = () => {
           processId={process.processId}
           steps={process?.steps}
           close={() => {
-            setQueryModalOpen(false);
+            setOpenModal('');
             setExistingQuery(null);
           }}
           stepInstanceId={process.processStepInstanceId}
@@ -638,6 +646,24 @@ const ViewProcess = () => {
           stepInstanceId={process.processStepInstanceId}
           queryRaiserStepInstanceId={process?.queryDetails[0]?.stepInstanceId}
           existingQuery={existingQuery}
+        />
+      </CustomModal>
+
+      {/* recommendation modal */}
+      <CustomModal
+        isOpen={openModal == 'recommend'}
+        onClose={() => {
+          setOpenModal('');
+        }}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+      >
+        <Recommend
+          processId={process.processId}
+          close={() => {
+            setOpenModal('');
+          }}
+          stepInstanceId={process.processStepInstanceId}
+          documents={process.documents}
         />
       </CustomModal>
 
