@@ -2880,7 +2880,10 @@ export const submitRecommendationResponse = async (req, res) => {
         throw new Error("Recommendation is already resolved");
       }
 
-      console.log("recommendtion document summaries", recommendation.documentSummaries);
+      console.log(
+        "recommendtion document summaries",
+        recommendation.documentSummaries
+      );
 
       // 2. Validate document responses
       for (const response of documentResponses) {
@@ -3112,7 +3115,11 @@ export const get_recommendation = async (req, res) => {
     const formattedDocumentSummaries = documentSummaries.map((ds) => ({
       documentId: ds.documentId,
       documentName: documentMap[ds.documentId]?.name || "Unknown Document",
-      documentPath: documentMap[ds.documentId]?.path || "Unknown Path",
+      documentPath:
+        documentMap[ds.documentId]?.path.substring(
+          0,
+          documentMap[ds.documentId]?.path.lastIndexOf("/")
+        ) || "Unknown Path",
       queryText: ds.queryText,
       requiresApproval: ds.requiresApproval,
     }));
