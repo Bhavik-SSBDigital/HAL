@@ -51,11 +51,12 @@ const ViewRecommendation = () => {
     setActionsLoading(true);
     try {
       const selected = data.documentSummaries.filter((doc) =>
-        selectedDocs.includes(doc.id),
+        selectedDocs.includes(doc.documentId),
       );
+      console.log(selected);
       const formattedDocs = await Promise.all(
         selected.map(async (doc) => {
-          const res = await ViewDocument(doc.name, doc.path);
+          const res = await ViewDocument(doc.documentName, doc.documentPath);
           return {
             url: res.data,
             type: res.fileType,
