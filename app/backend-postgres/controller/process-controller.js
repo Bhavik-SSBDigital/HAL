@@ -2774,7 +2774,9 @@ export const signAsRecommender = async (req, res) => {
 
       // 2. Validate document and ensure it requires approval
       const documentSummary = recommendation.documentSummaries?.find(
-        (ds) => ds.documentId === parseInt(documentId) && ds.requiresApproval
+        (ds) =>
+          parseInt(ds.documentId) === parseInt(documentId) &&
+          ds.requiresApproval
       );
 
       if (!documentSummary) {
@@ -2879,11 +2881,6 @@ export const submitRecommendationResponse = async (req, res) => {
       if (recommendation.status !== "OPEN") {
         throw new Error("Recommendation is already resolved");
       }
-
-      console.log(
-        "recommendtion document summaries",
-        recommendation.documentSummaries
-      );
 
       // 2. Validate document responses
       for (const response of documentResponses) {
