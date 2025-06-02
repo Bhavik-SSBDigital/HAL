@@ -4,6 +4,7 @@ import {
   ClaimProcess,
   CompleteProcess,
   GetProcessData,
+  getRecommendations,
   RejectDocument,
   RevokeRejection,
   SignDocument,
@@ -31,7 +32,7 @@ import DocumentViewer from '../Viewer';
 import CustomModal from '../../CustomComponents/CustomModal';
 import Query from './Actions/Query';
 import QuerySolve from './Actions/QuerySolve';
-import Recommend from './Actions/Recommend';
+import AskRecommend from './Actions/AskRecommend';
 
 const ViewProcess = () => {
   // states and data
@@ -46,6 +47,7 @@ const ViewProcess = () => {
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
   const [openModal, setOpenModal] = useState('');
+  const [recommendations, setRecommendations] = useState([]);
 
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
@@ -100,10 +102,6 @@ const ViewProcess = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchProcess();
-  }, [id]);
 
   // custom UIS
   const DetailItem = ({ label, value }) => (
@@ -250,6 +248,21 @@ const ViewProcess = () => {
     });
   };
 
+  // network
+  const GetRecommendations = async () => {
+    try {
+      const response = await getRecommendations();
+      setRecommendations(response?.data?.recommendations);
+    } catch (error) {
+      console.error(error?.response?.data?.message || error?.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchProcess();
+    GetRecommendations();
+  }, [id]);
+
   if (loading) return <ComponentLoader />;
   if (error)
     return (
@@ -293,7 +306,7 @@ const ViewProcess = () => {
           />
           <CustomButton
             variant={'secondary'}
-            text={'Recommend'}
+            text={'Ask Recommendation'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('recommend')}
             disabled={actionsLoading}
@@ -513,6 +526,63 @@ const ViewProcess = () => {
         </>
       )}
 
+      {/* recommendations section */}
+      {recommendations?.length > 0 && (
+        <>
+          <div className="flex items-center mt-12 mb-2">
+            <div className="flex-grow border-t border-slate-400"></div>
+            <span className="mx-4 text-sm text-gray-500 uppercase tracking-wide font-medium">
+              Recommendations
+            </span>
+            <div className="flex-grow border-t border-slate-400"></div>
+          </div>
+
+          <div className="mt-2">
+            <div className="space-y-4">
+              {recommendations.map((rec, index) => (
+                <CustomCard key={rec.recommendationId || index}>
+                  <div className="space-y-1">
+                    {rec.processName && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Process:</span>{' '}
+                        {rec.processName}
+                      </p>
+                    )}
+                    {rec.initiatorUsername && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Initiated By:</span>{' '}
+                        {rec.initiatorUsername}
+                      </p>
+                    )}
+                    {rec.recommendationText && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Recommendation:</span>{' '}
+                        {rec.recommendationText}
+                      </p>
+                    )}
+                    {rec.createdAt && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-semibold">Created At:</span>{' '}
+                        {new Date(rec.createdAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Respond Button */}
+                  <div className="mt-4 flex justify-end">
+                    <CustomButton
+                      text="Respond"
+                      variant="primary"
+                      click={() => handleRespondRecommendation(rec)}
+                    />
+                  </div>
+                </CustomCard>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* view file modal */}
       {fileView && (
         <ViewFile
@@ -657,7 +727,7 @@ const ViewProcess = () => {
         }}
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
-        <Recommend
+        <AskRecommend
           processId={process.processId}
           close={() => {
             setOpenModal('');

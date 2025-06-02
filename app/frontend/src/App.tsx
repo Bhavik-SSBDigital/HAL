@@ -47,6 +47,8 @@ import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 import SlateEditor from './pages/view/Editor/SlateEditor';
 import Workflows from './pages/workflows';
 import RecycleBin from './pages/RecycleBin';
+import Recommendations from './pages/Recommendations';
+import ViewRecommendation from './pages/Recommendations/ViewRecommendation';
 
 function App() {
   const dispatch = useDispatch();
@@ -272,6 +274,24 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Work List" />
               <WorkList />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/recommendations"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Recommendations" />
+              <Recommendations />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/recommendation/:id"
+          element={
+            <DefaultLayout>
+              <PageTitle title="View Recommedation" />
+              <ViewRecommendation />
             </DefaultLayout>
           }
         />

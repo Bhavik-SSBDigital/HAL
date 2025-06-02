@@ -18,6 +18,7 @@ import {
   IconChartDots3,
   IconSquareLetterX,
   IconRecycle,
+  IconDeviceIpadHorizontalQuestion,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -206,12 +207,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       ),
       dropdown: [
         { path: '/processes/work', label: 'Pending Work' },
+        { path: '/processes/recommendations', label: 'Recommendations' },
         { path: '/processes/logs', label: 'Logs' },
         { path: '/processes/published', label: 'Published' },
         { path: '/processes/initiate', label: 'Initiate Process' },
       ],
       active: pathname.includes('process'),
     },
+    {
+      path: '/recommendations',
+      label: 'Recommendations',
+      icon: <IconDeviceIpadHorizontalQuestion size={26} />,
+      active: pathname.includes('recommendation'),
+    },
+
     isPhysicalDocumentKeeper && {
       path: '/physicalDocuments',
       label: 'Documents Tracking',

@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { createRecommend, GetUsersWithDetails } from '../../../common/Apis';
 
-export default function Recommend({
+export default function RespondRecommendation({
   processId,
   steps,
   close,

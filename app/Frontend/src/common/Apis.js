@@ -258,3 +258,12 @@ export const postHighlightInFile = async (data) => {
 export const createRecommend = async (data) => {
   return apiClient.post('/recommendations/createRecommendation', data);
 };
+export const getRecommendations = async () => {
+  return apiClient.get('/recommendations/getRecommendations');
+};
+export const getRecommendationDetails = async (id) => {
+  return apiClient.get(`/recommendations/${id}`);
+};
+export const signRecommendDocument = async (data) => {
+  return apiClient.post(`/recommendations/signDocument`, data);
+};

@@ -26,17 +26,17 @@ export default function WorkflowVisualizer() {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
+  const getList = async () => {
+    try {
+      const res = await GetWorkflows();
+      setWorkflows(res?.data?.workflows || []);
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const getList = async () => {
-      try {
-        const res = await GetWorkflows();
-        setWorkflows(res?.data?.workflows || []);
-      } catch (error) {
-        console.error('Error fetching workflows:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     getList();
   }, []);
 
@@ -125,6 +125,7 @@ export default function WorkflowVisualizer() {
                   setShowForm(false);
                   setEditData(null);
                 }}
+                updateList={getList}
                 editData={editData}
                 setEditData={setEditData}
               />

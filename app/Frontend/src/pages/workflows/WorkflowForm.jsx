@@ -23,6 +23,7 @@ export default function WorkflowForm({
   handleCloseForm,
   editData,
   setEditData,
+  updateList,
 }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
   const { register, handleSubmit, control, setValue, getValues, reset } =
@@ -74,6 +75,7 @@ export default function WorkflowForm({
         ? await EditWorkflow(editData?.id, data)
         : await CreateWorkflow(data);
       toast.success(res?.data?.message);
+      updateList();
       handleCloseForm();
       reset();
       setEditData(null);
