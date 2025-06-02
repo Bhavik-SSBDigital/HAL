@@ -267,3 +267,6 @@ export const getRecommendationDetails = async (id) => {
 export const signRecommendDocument = async (data) => {
   return apiClient.post(`/recommendations/signDocument`, data);
 };
+export const respondRecommendation = async (data) => {
+  return apiClient.post(`/recommendations/respond`, data);
+};

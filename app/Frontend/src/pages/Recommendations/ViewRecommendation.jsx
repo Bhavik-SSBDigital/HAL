@@ -13,6 +13,8 @@ import { toast } from 'react-toastify';
 import TopLoader from '../../common/Loader/TopLoader';
 import { IconArrowLeft, IconCheck, IconEye } from '@tabler/icons-react';
 import RemarksModal from '../../CustomComponents/RemarksModal';
+import CustomModal from '../../CustomComponents/CustomModal';
+import RespondRecommendation from './Actions/RespondRecommendation';
 
 const ViewRecommendation = () => {
   // variables
@@ -28,6 +30,7 @@ const ViewRecommendation = () => {
     id: null,
     open: false,
   });
+  const [openModal, setOpenModal] = useState('');
 
   // handlers
   const handleViewFile = async (name, path) => {
@@ -173,7 +176,7 @@ const ViewRecommendation = () => {
           <CustomButton
             variant={'primary'}
             text={<div className="flex items-center  gap-2">Respond</div>}
-            click={handleBack}
+            click={() => setOpenModal('recommend')}
             disabled={actionsLoading}
           />
           <CustomButton
@@ -316,6 +319,23 @@ const ViewRecommendation = () => {
           handleViewClose={() => setFileView(null)}
         />
       )}
+
+      {/* Respond Recommendation Modal */}
+      <CustomModal
+        isOpen={openModal == 'recommend'}
+        onClose={() => {
+          setOpenModal('');
+        }}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+      >
+        <RespondRecommendation
+          recommendationId={data?.recommendationId}
+          close={() => {
+            setOpenModal('');
+          }}
+          documents={data?.documentSummaries || []}
+        />
+      </CustomModal>
 
       {/* sign remarks modal */}
       <RemarksModal

@@ -4,13 +4,15 @@ import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquareX } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { createRecommend, GetUsersWithDetails } from '../../../common/Apis';
+import {
+  createRecommend,
+  GetUsersWithDetails,
+  respondRecommendation,
+} from '../../../common/Apis';
 
 export default function RespondRecommendation({
-  processId,
-  steps,
+  recommendationId,
   close,
-  stepInstanceId,
   documents,
 }) {
   // variables
@@ -25,88 +27,46 @@ export default function RespondRecommendation({
     formState: { isSubmitting },
   } = useForm({
     defaultValues: {
-      processId,
-      stepInstanceId,
-      recommendationText: '',
-      recommenderUsername: '',
-      documentSummaries: [],
+      recommendationId,
+      responseText: '',
+      documentResponses: [],
     },
   });
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
   const {
     fields: summaryFields,
     append: appendSummary,
     remove: removeSummary,
-  } = useFieldArray({ control, name: 'documentSummaries' });
+  } = useFieldArray({ control, name: 'documentResponses' });
 
   //   handlers
   const onSubmit = async (data) => {
     try {
-      const response = await createRecommend(data);
+      console.log(data);
+      const response = await respondRecommendation(data);
       toast.success(response?.data?.message);
-      navigate('/processes/work');
+      navigate('/recommendations');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
   };
-
-  const getUsers = async () => {
-    try {
-      const response = await GetUsersWithDetails();
-      setUsers(response?.data);
-    } catch (error) {
-      console.error(error?.response?.data?.message || error?.message);
-    }
-  };
-
-  //   network
-  useEffect(() => {
-    getUsers();
-  }, []);
 
   return (
     <div className="space-y-3">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
           <label className="block text-sm font-medium mb-1">
-            Recommendation
+            Response Text
           </label>
           <textarea
-            {...register('recommendationText')}
+            {...register('responseText')}
             required
             className="w-full border p-2 rounded"
             rows={3}
             placeholder="Write your query here"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Select Recommendation User
-          </label>
-          <select
-            {...register('recommenderUsername')}
-            required
-            className="w-full border p-2 rounded"
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Select user
-            </option>
-            {users?.map((user, index) => {
-              const roles = user.roles?.join(', ') || 'No Roles';
-              const departments = user.departments?.length
-                ? `(${user.departments.join(', ')})`
-                : '';
 
-              return (
-                <option key={user.id} value={user.username}>
-                  {`${user.username} - ${roles} ${departments}`}
-                </option>
-              );
-            })}
-          </select>
-        </div>
         <div>
           <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
           <table className="w-full border border-gray-300 text-sm">
@@ -114,16 +74,15 @@ export default function RespondRecommendation({
               <tr>
                 <th className="border p-2 text-left">Document Name</th>
                 <th className="border p-2 text-left">Summary Text</th>
-                <th className="border p-2 text-left">Requires Approval</th>
               </tr>
             </thead>
             <tbody>
               {documents?.map((doc, index) => (
-                <tr key={doc.id} className="bg-white">
-                  <td className="border p-2">{doc.name}</td>
+                <tr key={doc.documentId} className="bg-white">
+                  <td className="border p-2">{doc.documentName}</td>
                   <td className="border p-2">
                     <textarea
-                      {...register(`documentSummaries.${index}.queryText`)}
+                      {...register(`documentResponses.${index}.answerText`)}
                       className="w-full border p-2 rounded"
                       rows={2}
                       placeholder="Enter document summary"
@@ -131,21 +90,9 @@ export default function RespondRecommendation({
                     {/* Hidden input for documentId */}
                     <input
                       type="hidden"
-                      value={doc.id}
-                      {...register(`documentSummaries.${index}.documentId`)}
+                      value={doc.documentId}
+                      {...register(`documentResponses.${index}.documentId`)}
                     />
-                  </td>
-                  <td className="border p-2">
-                    <label className="inline-flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        {...register(
-                          `documentSummaries.${index}.requiresApproval`,
-                        )}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">Yes</span>
-                    </label>
                   </td>
                 </tr>
               ))}
