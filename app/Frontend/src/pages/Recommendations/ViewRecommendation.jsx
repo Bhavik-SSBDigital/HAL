@@ -74,13 +74,14 @@ const ViewRecommendation = () => {
   };
 
   const handleSignDocument = async (reason) => {
-    console.log(remarksModalOpen);
     try {
       const response = await signRecommendDocument({
         reason,
         documentId: remarksModalOpen.id,
         recommendationId: data?.recommendationId,
       });
+      toast.success(response?.data?.message);
+      setRemarksModalOpen({ id: null, open: false });
     } catch (error) {
       toast.error(error?.respone?.data?.message || error?.message);
     }
