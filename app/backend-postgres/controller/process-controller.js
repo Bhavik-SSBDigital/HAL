@@ -3100,18 +3100,19 @@ export const get_recommendation = async (req, res) => {
     const documents = documentIds.length
       ? await prisma.document.findMany({
           where: { id: { in: documentIds } },
-          select: { id: true, name: true },
+          select: { id: true, name: true, path: true },
         })
       : [];
 
     const documentMap = documents.reduce((map, doc) => {
-      map[doc.id] = doc.name;
+      map[doc.id] = { name: doc.name, path: doc.path };
       return map;
     }, {});
 
     const formattedDocumentSummaries = documentSummaries.map((ds) => ({
       documentId: ds.documentId,
-      documentName: documentMap[ds.documentId] || "Unknown Document",
+      documentName: documentMap[ds.documentId]?.name || "Unknown Document",
+      documentPath: documentMap[ds.documentId]?.path || "Unknown Path",
       queryText: ds.queryText,
       requiresApproval: ds.requiresApproval,
     }));
