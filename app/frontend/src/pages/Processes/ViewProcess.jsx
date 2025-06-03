@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ClaimProcess,
@@ -22,6 +22,7 @@ import {
   IconQuestionMark,
   IconFileText,
   IconDownload,
+  IconMenu2,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -39,6 +40,8 @@ import AskRecommend from './Actions/AskRecommend';
 const ViewProcess = () => {
   // states and data
   const [selectedDocs, setSelectedDocs] = useState([]);
+  const [showActions, setShowActions] = useState(false);
+  const menuRef = useRef();
   const { id } = useParams();
   const [actionsLoading, setActionsLoading] = useState(false);
   const [process, setProcess] = useState(null);
@@ -156,6 +159,7 @@ const ViewProcess = () => {
       setActionsLoading(false);
     }
   };
+
   const handleDownloadFile = async (name, path) => {
     setActionsLoading(true);
     await DownloadFile(name, path);
@@ -255,6 +259,19 @@ const ViewProcess = () => {
       documentChanges: [],
     });
   };
+
+  // Optional: Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // network
   const GetRecommendations = async () => {
@@ -392,77 +409,190 @@ const ViewProcess = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center flex-wrap gap-1">
-                      <CustomButton
-                        className="px-1"
-                        click={() => handleViewFile(doc?.name, doc?.path)}
-                        disabled={actionsLoading}
-                        title="View Document"
-                        text={<IconEye size={18} className="text-white" />}
-                      />
-                      <CustomButton
-                        className="px-1"
-                        click={() => handleDownloadFile(doc?.name, doc?.path)}
-                        disabled={actionsLoading}
-                        title="View Document"
-                        text={<IconDownload size={18} className="text-white" />}
-                      />
-                      <CustomButton
-                        variant={'success'}
-                        className="px-1"
-                        click={() =>
-                          setRemarksModalOpen({ id: doc.id, open: 'sign' })
-                        }
-                        disabled={actionsLoading || doc?.signedBy?.length}
-                        title="Sign Document"
-                        text={<IconCheck size={18} className="text-white" />}
-                      />
-                      <CustomButton
-                        variant={'danger'}
-                        className="px-1"
-                        click={() =>
-                          setRemarksModalOpen({ id: doc.id, open: 'reject' })
-                        }
-                        disabled={actionsLoading || doc.rejectionDetails}
-                        title="Reject Document"
-                        text={<IconX size={18} className="text-white" />}
-                      />
-                      <CustomButton
-                        variant={'secondary'}
-                        className="px-1"
-                        click={() => handleRevokeSign(doc.id)}
-                        disabled={actionsLoading || !doc.signedBy.length}
-                        title="Revoke Sign"
-                        text={
-                          <IconArrowBackUp size={18} className="text-white" />
-                        }
-                      />
-                      <CustomButton
-                        variant={'info'}
-                        className="px-1"
-                        click={() => handleRevokeRejection(doc.id)}
-                        disabled={actionsLoading || !doc.rejectionDetails}
-                        title="Revoke Rejection"
-                        text={
-                          <IconArrowForwardUp
-                            size={18}
-                            className="text-white"
-                          />
-                        }
-                      />
-                      <CustomButton
-                        variant={'info'}
-                        className="px-1"
-                        click={() => setDocumentModalOpen(doc)}
-                        disabled={actionsLoading}
-                        title="Details"
-                        text={
-                          <IconAlignBoxCenterMiddle
-                            size={18}
-                            className="text-white"
-                          />
-                        }
-                      />
+                    <div className="w-full">
+                      {/* Desktop Buttons */}
+                      <div className="hidden sm:flex flex-wrap gap-2">
+                        <CustomButton
+                          className="px-2"
+                          click={() => handleViewFile(doc?.name, doc?.path)}
+                          disabled={actionsLoading}
+                          title="View Document"
+                          text={<IconEye size={18} className="text-white" />}
+                        />
+                        <CustomButton
+                          className="px-2"
+                          click={() => handleDownloadFile(doc?.name, doc?.path)}
+                          disabled={actionsLoading}
+                          title="Download Document"
+                          text={
+                            <IconDownload size={18} className="text-white" />
+                          }
+                        />
+                        <CustomButton
+                          variant="success"
+                          className="px-2"
+                          click={() =>
+                            setRemarksModalOpen({ id: doc.id, open: 'sign' })
+                          }
+                          disabled={actionsLoading || doc?.signedBy?.length}
+                          title="Sign Document"
+                          text={<IconCheck size={18} className="text-white" />}
+                        />
+                        <CustomButton
+                          variant="danger"
+                          className="px-2"
+                          click={() =>
+                            setRemarksModalOpen({ id: doc.id, open: 'reject' })
+                          }
+                          disabled={actionsLoading || doc.rejectionDetails}
+                          title="Reject Document"
+                          text={<IconX size={18} className="text-white" />}
+                        />
+                        <CustomButton
+                          variant="secondary"
+                          className="px-2"
+                          click={() => handleRevokeSign(doc.id)}
+                          disabled={actionsLoading || !doc.signedBy.length}
+                          title="Revoke Sign"
+                          text={
+                            <IconArrowBackUp size={18} className="text-white" />
+                          }
+                        />
+                        <CustomButton
+                          variant="info"
+                          className="px-2"
+                          click={() => handleRevokeRejection(doc.id)}
+                          disabled={actionsLoading || !doc.rejectionDetails}
+                          title="Revoke Rejection"
+                          text={
+                            <IconArrowForwardUp
+                              size={18}
+                              className="text-white"
+                            />
+                          }
+                        />
+                        <CustomButton
+                          variant="info"
+                          className="px-2"
+                          click={() => setDocumentModalOpen(doc)}
+                          disabled={actionsLoading}
+                          title="Details"
+                          text={
+                            <IconAlignBoxCenterMiddle
+                              size={18}
+                              className="text-white"
+                            />
+                          }
+                        />
+                      </div>
+
+                      {/* Mobile: Actions Dropdown */}
+                      <div className="sm:hidden relative inline-block">
+                        <CustomButton
+                          variant="info"
+                          className="w-full justify-center"
+                          click={() => setShowActions((prev) => !prev)}
+                          text={
+                            <div className="flex items-center gap-2">
+                              <IconMenu2 size={18} />
+                              <span>Actions</span>
+                            </div>
+                          }
+                        />
+
+                        {/* Floating Dropdown Menu */}
+                        {showActions && (
+                          <div
+                            ref={menuRef}
+                            className="absolute right-[-20] mt-2 w-48 bg-white border rounded-lg shadow-lg z-50"
+                          >
+                            <div className="p-1 flex flex-col gap-1">
+                              <CustomButton
+                                className="w-full justify-start"
+                                click={() => {
+                                  handleViewFile(doc?.name, doc?.path);
+                                  setShowActions(false);
+                                }}
+                                disabled={actionsLoading}
+                                text="View"
+                              />
+                              <CustomButton
+                                className="w-full justify-start"
+                                click={() => {
+                                  handleDownloadFile(doc?.name, doc?.path);
+                                  setShowActions(false);
+                                }}
+                                disabled={actionsLoading}
+                                text="Download"
+                              />
+                              <CustomButton
+                                variant="success"
+                                className="w-full justify-start"
+                                click={() => {
+                                  setRemarksModalOpen({
+                                    id: doc.id,
+                                    open: 'sign',
+                                  });
+                                  setShowActions(false);
+                                }}
+                                disabled={
+                                  actionsLoading || doc?.signedBy?.length
+                                }
+                                text="Sign"
+                              />
+                              <CustomButton
+                                variant="danger"
+                                className="w-full justify-start"
+                                click={() => {
+                                  setRemarksModalOpen({
+                                    id: doc.id,
+                                    open: 'reject',
+                                  });
+                                  setShowActions(false);
+                                }}
+                                disabled={
+                                  actionsLoading || doc.rejectionDetails
+                                }
+                                text="Reject"
+                              />
+                              <CustomButton
+                                variant="secondary"
+                                className="w-full justify-start"
+                                click={() => {
+                                  handleRevokeSign(doc.id);
+                                  setShowActions(false);
+                                }}
+                                disabled={
+                                  actionsLoading || !doc.signedBy.length
+                                }
+                                text="Revoke Sign"
+                              />
+                              <CustomButton
+                                variant="info"
+                                className="w-full justify-start"
+                                click={() => {
+                                  handleRevokeRejection(doc.id);
+                                  setShowActions(false);
+                                }}
+                                disabled={
+                                  actionsLoading || !doc.rejectionDetails
+                                }
+                                text="Revoke Rejection"
+                              />
+                              <CustomButton
+                                variant="info"
+                                className="w-full justify-start"
+                                click={() => {
+                                  setDocumentModalOpen(doc);
+                                  setShowActions(false);
+                                }}
+                                disabled={actionsLoading}
+                                text="Details"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CustomCard>
                 );
