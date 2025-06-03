@@ -102,15 +102,21 @@ export const get_users_with_details = async (req, res) => {
 
 export const get_user_profile_data = async (req, res) => {
   try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return cb(new Error("Unauthorized request"));
+    }
     const user = await prisma.user.findFirst({
+      where: { id: userData.id },
       select: {
         id: true,
         username: true,
-        branches: {
-          select: {
-            name: true,
-          },
-        },
+        email: true,
+        signaturePicFileName: true,
+        profilePicFileName: true,
+        dscName: true,
+        branches: true,
         roles: {
           select: {
             role: {
@@ -120,9 +126,10 @@ export const get_user_profile_data = async (req, res) => {
             },
           },
         },
-        email: true,
       },
     });
+
+    console.log("user", user);
 
     const formattedUser = {
       id: user.id,
@@ -130,6 +137,9 @@ export const get_user_profile_data = async (req, res) => {
       departmentsInvoledIn: user.branches.map((branch) => branch.name),
       roles: user.roles.map((role) => role.role.role),
       email: user.email,
+      signaturePicFileName: user.signaturePicFileName,
+      profilePicFileName: user.profilePicFileName,
+      dscName: user.dscName,
     };
 
     res.status(200).json({
