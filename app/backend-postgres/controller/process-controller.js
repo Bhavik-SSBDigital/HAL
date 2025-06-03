@@ -70,7 +70,8 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { processName, description, workflowId } = req.body;
-    const documentIds = req.body.documents.map((item) => item.documentId) || [];
+    const documentIds =
+      req.body.documents?.map((item) => item.documentId) || [];
 
     if (documentIds.length === 0) {
       return res.status(400).json({
@@ -82,7 +83,7 @@ export const initiate_process = async (req, res, next) => {
 
     const process = await prisma.$transaction(async (tx) => {
       // 1. Create Process Instance
-      const process = await tx.processInstance.create({
+      const process_ = await tx.processInstance.create({
         data: {
           workflowId,
           initiatorId,
@@ -95,7 +96,7 @@ export const initiate_process = async (req, res, next) => {
       // 2. Link documents
       await tx.processDocument.createMany({
         data: documentIds.map((docId) => ({
-          processId: process.id,
+          processId: process_.id,
           documentId: docId,
         })),
       });
@@ -106,29 +107,34 @@ export const initiate_process = async (req, res, next) => {
         include: { steps: { include: { assignments: true } } },
       });
 
+      if (!workflow || !workflow.steps.length) {
+        throw new Error("Workflow or steps not found");
+      }
+
       // 4. Process First Step
       const step = workflow.steps[0];
 
       for (const assignment of step.assignments) {
         await processAssignment(
           tx,
-          process,
+          process_,
           step,
           assignment,
           documentIds,
-          false
+          false,
+          true,
+          workflowId
         );
       }
 
       // 5. Set first step as current
       await tx.processInstance.update({
-        where: { id: process.id },
+        where: { id: process_.id },
         data: { currentStepId: step.id, status: "IN_PROGRESS" },
       });
 
-      // 6. Create initial notifications
-
-      return process;
+      // 6. Create initial notifications (assuming this is handled elsewhere)
+      return process_;
     });
 
     return res.status(200).json({
@@ -223,23 +229,32 @@ async function getDocumentParentHierarchy(tx, documentId) {
 
 async function processAssignment(
   tx,
-  process,
+  process_,
   step,
   assignment,
   documentIds,
-  isRecirculated
+  isRecirculated,
+  fromInitiator,
+  workflowId
 ) {
+  console.log("assignment called");
   // Create Assignment Progress
+  // if (!fromInitiator) {
   const progress = await tx.assignmentProgress.create({
     data: {
-      assignmentId: assignment.id,
-      processId: process.id,
+      process: {
+        connect: { id: process_.id }, // Connect to existing ProcessInstance
+      },
+      workflowAssignment: {
+        connect: { id: assignment.id }, // Connect to existing WorkflowAssignment
+      },
       roleHierarchy: assignment.allowParallel
         ? await buildRoleHierarchy(assignment)
         : null,
       completed: false,
     },
   });
+  // }
 
   // Create Initial Step Instances
   switch (assignment.assigneeType) {
@@ -249,14 +264,32 @@ async function processAssignment(
         assignment,
         progress,
         documentIds,
-        step
+        step,
+        fromInitiator,
+        workflowId
       );
       break;
     case "ROLE":
-      await handleRoleAssignment(tx, assignment, progress, documentIds, step);
+      await handleRoleAssignment(
+        tx,
+        assignment,
+        progress,
+        documentIds,
+        step,
+        fromInitiator,
+        workflowId
+      );
       break;
     case "USER":
-      await handleUserAssignment(tx, assignment, progress, documentIds, step);
+      await handleUserAssignment(
+        tx,
+        assignment,
+        progress,
+        documentIds,
+        step,
+        fromInitiator,
+        workflowId
+      );
       break;
   }
 }
@@ -335,22 +368,36 @@ async function handleUserAssignment(
   assignment,
   progress,
   documentIds,
-  step
+  step,
+  fromInitiator,
+  workflowId
 ) {
+  console.log("user assignment called");
   // Direct assignment to specified users
 
   for (const userId of assignment.assigneeIds) {
     // Create step instance for user
-    const stepInstance = await tx.processStepInstance.create({
-      data: {
-        processId: progress.processId,
-        assignmentId: assignment.id,
-        progressId: progress.id,
-        assignedTo: userId,
-        status: "IN_PROGRESS",
-        stepId: step.id,
-      },
-    });
+    const stepInstance = fromInitiator
+      ? await tx.processStepInstance.create({
+          data: {
+            processId: progress.processId,
+            assignmentId: assignment.id,
+            progressId: progress.id,
+            assignedTo: userId,
+            status: "APPROVED",
+            stepId: step.id,
+          },
+        })
+      : await tx.processStepInstance.create({
+          data: {
+            processId: progress.processId,
+            assignmentId: assignment.id,
+            progressId: progress.id,
+            assignedTo: userId,
+            status: "IN_PROGRESS",
+            stepId: step.id,
+          },
+        });
 
     // Handle document access with parent hierarchy for each document
     for (const docId of documentIds) {
@@ -364,18 +411,54 @@ async function handleUserAssignment(
     }
 
     // Create user notification
-    await tx.processNotification.create({
-      data: {
-        stepInstance: {
-          connect: { id: stepInstance.id },
+    if (!fromInitiator) {
+      await tx.processNotification.create({
+        data: {
+          stepInstance: {
+            connect: { id: stepInstance.id },
+          },
+          user: {
+            connect: { id: userId },
+          },
+          status: "ACTIVE",
+          type: NotificationType.STEP_ASSIGNMENT,
         },
-        user: {
-          connect: { id: userId },
-        },
-        status: "ACTIVE",
-        type: NotificationType.STEP_ASSIGNMENT,
-      },
+      });
+    }
+  }
+  if (fromInitiator) {
+    const process = await tx.processInstance.findUnique({
+      where: { id: progress.processId }, // Ensure progress.processId exists
     });
+
+    const workflow = await tx.workflow.findUnique({
+      where: { id: workflowId },
+      include: { steps: { include: { assignments: true } } },
+    });
+
+    // 4. Process Second Step
+    const step = workflow.steps[1];
+
+    for (const assignment of step.assignments) {
+      await processAssignment(
+        tx,
+        process,
+        step,
+        assignment,
+        documentIds,
+        false,
+        false,
+        workflowId
+      );
+    }
+
+    console.log("step", step);
+    // 5. Set second step as current
+    const updatedProcess = await tx.processInstance.update({
+      where: { id: process.id },
+      data: { currentStepId: step.id, status: "IN_PROGRESS" },
+    });
+    console.log("updated process", updatedProcess);
   }
 }
 
@@ -1879,13 +1962,14 @@ export const complete_process_step = async (req, res) => {
       }
 
       // 2. Mark step as APPROVED
-      await tx.processStepInstance.update({
+      const updatedStepInstance = await tx.processStepInstance.update({
         where: { id: stepInstanceId },
         data: {
           status: "APPROVED",
           decisionAt: new Date(),
         },
       });
+      console.log("upgraded step instance", updatedStepInstance);
 
       // 3. Check if all assignments for this step are complete
       const incompleteAssignments = await tx.processStepInstance.findMany({
@@ -1914,7 +1998,7 @@ export const complete_process_step = async (req, res) => {
         if (openQueries.length === 0) {
           // 5. No open queries, advance to next step
           const currentStep = await tx.workflowStep.findUnique({
-            where: { id: stepInstance.process.currentStep.id },
+            where: { id: stepInstance.stepId },
           });
 
           const nextStep = await tx.workflowStep.findFirst({
@@ -1941,8 +2025,6 @@ export const complete_process_step = async (req, res) => {
                 },
               }
             );
-
-            console.log("for recirculation", forRecirculationSteps);
 
             if (forRecirculationSteps && forRecirculationSteps.length > 0) {
               for (const recircStep of forRecirculationSteps) {
@@ -2090,8 +2172,6 @@ export const createQuery = async (req, res) => {
         throw new Error("Invalid step instance or user not assigned");
       }
 
-      console.log("user data id", userData.id);
-
       // 2. Check if this is a delegated upload task
       let isDelegatedTask;
 
@@ -2115,9 +2195,8 @@ export const createQuery = async (req, res) => {
       };
 
       let processQA;
-      console.log("is delegated", isDelegatedTask);
+
       if (!isDelegatedTask) {
-        console.log("reached for non deletegated task");
         // 3. Create ProcessQA for non-delegated tasks
         processQA = await tx.processQA.create({
           data: {
@@ -2133,8 +2212,6 @@ export const createQuery = async (req, res) => {
             details: qaDetails,
           },
         });
-
-        console.log("process qa", processQA);
       } else {
         // Update existing ProcessQA for delegated task
         processQA = await tx.processQA.update({
@@ -2332,7 +2409,6 @@ export const createQuery = async (req, res) => {
             },
           });
 
-          console.log("instance updated", instanceUpdated);
           await tx.processNotification.create({
             data: {
               stepId: instance.id,

@@ -42,7 +42,7 @@ export const upload_signature = async (req, res) => {
         break;
       case "dsc":
         fileName = `${userData.username.toLowerCase()}_dsc.${fileExtension}`;
-        updateData = { dscPicFileName: fileName };
+        updateData = { dscFileName: fileName };
         break;
       default:
         return res.status(400).json({ message: "Invalid purpose specified" });

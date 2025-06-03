@@ -124,7 +124,13 @@ export const sign_document = async (req, res, next) => {
     };
 
     const jpegImagePath = await convertToJpeg(imagePath);
-    const { documentId, processId, passphrase } = req.body;
+    const {
+      documentId,
+      processId,
+      passphrase,
+      processStepInstanceId,
+      p12Password,
+    } = req.body;
 
     const document = await prisma.document.findUnique({
       where: { id: documentId },
@@ -176,10 +182,11 @@ export const sign_document = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { username: userData.username },
-      select: { dscName: true },
+      select: { dscFileName: true },
     });
     if (coordinates.length > 0) {
-      if (user.dscName) {
+      if (user.dscFileName) {
+        console.log("dir name", __dirname);
         await print_signature_at_coordinates(
           pdfDoc,
           coordinates,
@@ -191,15 +198,11 @@ export const sign_document = async (req, res, next) => {
           path.join(__dirname, "../../../../", "storage", documentPath),
           documentId,
           userData,
-          path.join(
-            __dirname,
-            "../../../../",
-            "storage",
-            process.env.DSC_FOLDER_PATH,
-            user.dscName
-          )
+          path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName),
+          p12Password
         );
       } else {
+        console.log("dir name", __dirname);
         await print_signature_at_coordinates(
           pdfDoc,
           coordinates,
@@ -210,18 +213,25 @@ export const sign_document = async (req, res, next) => {
           helveticaFont,
           path.join(__dirname, "../../../../", "storage", documentPath),
           documentId,
-          userData,
-          path.join(
-            __dirname,
-            "../../../../",
-            "storage",
-            process.env.DSC_FOLDER_PATH
-            // user.dscName
-          )
+          userData
+          // path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName),
+          // p12Password
         );
       }
     } else {
-      const signatureCoordinates = user.dscName
+      console.log("env variables", envVariables);
+      console.log("user", user);
+      console.log(
+        "wdf",
+        path.join(
+          __dirname,
+          "../../../../",
+          "storage",
+          envVariables.DSC_FOLDER_PATH,
+          user.dscFileName
+        )
+      );
+      const signatureCoordinates = user.dscFileName
         ? await print_signature_after_content_on_the_last_page(
             pdfDoc,
             lastPage,
@@ -235,11 +245,10 @@ export const sign_document = async (req, res, next) => {
             pythonScriptPath,
             path.join(
               __dirname,
-              "../../../../",
-              "storage",
               envVariables.DSC_FOLDER_PATH,
-              user.dscName
-            )
+              user.dscFileName
+            ),
+            p12Password
           )
         : await print_signature_after_content_on_the_last_page(
             pdfDoc,
@@ -251,14 +260,7 @@ export const sign_document = async (req, res, next) => {
             remarks,
             helveticaFont,
             pythonEnvPath,
-            pythonScriptPath,
-            path.join(
-              __dirname,
-              "../../../../",
-              "storage",
-              envVariables.DSC_FOLDER_PATH
-              // user.dscName
-            )
+            pythonScriptPath
           );
 
       await prisma.signCoordinate.create({
@@ -278,14 +280,16 @@ export const sign_document = async (req, res, next) => {
       });
     }
 
-    await prisma.documentSignature.create({
+    const signDetails = await prisma.documentSignature.create({
       data: {
         processDocumentId: processDocument.id,
         userId: userData.id,
+        processStepInstanceId: processStepInstanceId,
         reason: remarks,
       },
     });
 
+    console.log("signed details", signDetails);
     const processResult = await is_process_forwardable(process, userData.id);
 
     return res.status(200).json({
@@ -646,11 +650,12 @@ async function print_signature_after_content_on_the_last_page(
   helveticaFont,
   pythonEnvPath,
   pythonScriptPath,
-  p12Path
+  p12Path,
+  p12Password
 ) {
   const user = await prisma.user.findUnique({
     where: { username: username },
-    select: { dscName: true },
+    select: { dscFileName: true },
   });
 
   const absDocumentPath = path.join(
@@ -778,7 +783,7 @@ async function print_signature_after_content_on_the_last_page(
 
   let pdfBytes;
 
-  if (!user.dscName) {
+  if (!user.dscFileName) {
     pdfBytes = await pdfDoc.save();
     await fs.writeFile(absDocumentPath, pdfBytes);
   } else {
@@ -810,14 +815,15 @@ async function print_signature_at_coordinates(
   absDocumentPath,
   documentId,
   userData,
-  p12Path
+  p12Path,
+  p12Password
 ) {
   const user = await prisma.user.findUnique({
     where: { username: username },
-    select: { dscName: true },
+    select: { dscFileName: true },
   });
 
-  if (!user.dscName) {
+  if (!user.dscFileName) {
     throw new Error("Please Upload your DSC to sign the document");
   }
   const signatureImageBytes = await fs.readFile(jpegImagePath);
@@ -869,7 +875,7 @@ async function print_signature_at_coordinates(
   }
 
   let pdfBytes;
-  if (!user.dscName) {
+  if (!user.dscFileName) {
     pdfBytes = await pdfDoc.save();
     await fs.writeFile(absDocumentPath, pdfBytes);
   } else {

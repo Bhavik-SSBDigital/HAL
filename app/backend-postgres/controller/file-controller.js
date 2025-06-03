@@ -117,7 +117,6 @@ export const file_upload = async (req, res) => {
     writableStream.on("finish", async () => {
       if (chunkNumber === totalChunks - 1) {
         try {
-          console.log("is involved in process", isInvolvedInProcess);
           const newDocument = await prisma.document.create({
             data: {
               name: fileName,
@@ -342,7 +341,6 @@ export const createUserPermissions = async (documentId, username, writable) => {
       },
     });
 
-    console.log("Document access created successfully", documentAccess);
     return documentAccess;
   } catch (error) {
     console.error("Error creating document access:", error);
@@ -1065,7 +1063,7 @@ export const get_file_data = async (req, res) => {
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
 
-    const filePath = join(__dirname, relativePath, fileName);
+    const filePath = join(__dirname, relativePath);
     console.log("file path", filePath);
 
     // Fetch document metadata from PostgreSQL using Prisma
@@ -1120,7 +1118,7 @@ export const get_file_data = async (req, res) => {
       fsCB.createReadStream(filePath).pipe(res);
     }
   } catch (error) {
-    console.error("Error while processing file data:", error);
+    console.log("Error while processing file data:", error);
     res.status(500).json({
       message: "Error downloading file",
     });

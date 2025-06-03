@@ -106,6 +106,7 @@ model User {
   signatures           DocumentSignature[] @relation("UserSignatures")
   signaturePicFileName String?
   profilePicFileName   String?
+  dscFileName      String?
   dscName       String?
   signCoordinates      SignCoordinate[] @relation
   documentAccesses     DocumentAccess[] @relation()
@@ -397,6 +398,7 @@ model ProcessStepInstance {
   originalStepInstanceId String?
   recirculationReason String?
   documentHistory     DocumentHistory[] @relation("StepInstanceDocumentHistory")
+  documentSignatures  DocumentSignature[] @relation // New relation
   @@index([assignmentId])
 }
 
@@ -469,6 +471,8 @@ model DocumentSignature {
   signedAt        DateTime  @default(now())
   byRecommender               Boolean   @default(false) // Indicates if signed by a recommender
   isAttachedWithRecommendation Boolean  @default(false)
+  processStepInstanceId String?         // New field
+  processStepInstance ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id])
 }
 
 model ProcessQA {
