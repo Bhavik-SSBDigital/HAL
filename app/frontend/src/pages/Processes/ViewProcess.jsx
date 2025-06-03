@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ClaimProcess,
   CompleteProcess,
+  DownloadFile,
   GetProcessData,
   getRecommendations,
   RejectDocument,
@@ -20,6 +21,7 @@ import {
   IconAlignBoxCenterMiddle,
   IconQuestionMark,
   IconFileText,
+  IconDownload,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -153,6 +155,11 @@ const ViewProcess = () => {
     } finally {
       setActionsLoading(false);
     }
+  };
+  const handleDownloadFile = async (name, path) => {
+    setActionsLoading(true);
+    await DownloadFile(name, path);
+    setActionsLoading(false);
   };
 
   const handleViewAllSelectedFiles = async () => {
@@ -392,6 +399,13 @@ const ViewProcess = () => {
                         disabled={actionsLoading}
                         title="View Document"
                         text={<IconEye size={18} className="text-white" />}
+                      />
+                      <CustomButton
+                        className="px-1"
+                        click={() => handleDownloadFile(doc?.name, doc?.path)}
+                        disabled={actionsLoading}
+                        title="View Document"
+                        text={<IconDownload size={18} className="text-white" />}
                       />
                       <CustomButton
                         variant={'success'}
