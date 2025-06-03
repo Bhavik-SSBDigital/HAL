@@ -118,10 +118,16 @@ export const ViewDocument = async (name, path) => {
   const res = await download(name, path, true);
   return res;
 };
-export const RejectDocument = async (processId, documentId, reason) => {
+export const RejectDocument = async (
+  processId,
+  documentId,
+  processStepInstanceId,
+  reason,
+) => {
   return apiClient.post('/rejectDocument', {
     processId,
     documentId,
+    processStepInstanceId,
     reason,
   });
 };

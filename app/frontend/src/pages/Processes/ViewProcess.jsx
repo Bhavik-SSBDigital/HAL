@@ -205,6 +205,7 @@ const ViewProcess = () => {
       const response = await RejectDocument(
         process.processId,
         remarksModalOpen.id,
+        process?.processStepInstanceId,
         remarks,
       );
       setRemarksModalOpen({ id: null, open: false });
