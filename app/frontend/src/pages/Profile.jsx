@@ -58,7 +58,14 @@ const Profile = () => {
     const allowedFormats =
       purpose === 'signature'
         ? ['image/jpeg', 'image/png', 'image/gif']
-        : ['image/jpeg'];
+        : purpose === 'profile'
+          ? ['image/jpeg']
+          : [
+              'application/x-pkcs12',
+              'application/x-x509-ca-cert',
+              'application/x-pem-file',
+            ];
+
     if (!allowedFormats.includes(file.type)) {
       toast.warning('Unsupported File Type');
       return;
