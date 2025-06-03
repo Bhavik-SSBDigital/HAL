@@ -107,6 +107,7 @@ model User {
   signaturePicFileName String?
   profilePicFileName   String?
   dscFileName      String?
+  rejections           DocumentRejection[] @relation("UserRejections")
   dscName       String?
   signCoordinates      SignCoordinate[] @relation
   documentAccesses     DocumentAccess[] @relation()
@@ -399,6 +400,7 @@ model ProcessStepInstance {
   recirculationReason String?
   documentHistory     DocumentHistory[] @relation("StepInstanceDocumentHistory")
   documentSignatures  DocumentSignature[] @relation // New relation
+  documentRejections  DocumentRejection[] @relation
   @@index([assignmentId])
 }
 
@@ -450,15 +452,14 @@ model ProcessDocument {
   documentId          Int
   document            Document  @relation("ProcessDocumentRelation", fields: [documentId], references: [id])
   signatures          DocumentSignature[]
-  rejectedById        Int?
-  rejectionReason     String?
-  rejectedAt          DateTime?
-  rejectedBy          User?     @relation("RejectedByUser", fields: [rejectedById], references: [id])
+  rejections          DocumentRejection[] // New relation to DocumentRejection
   signCoordinates     SignCoordinate[] @relation
   documentHistory     DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
   isReplacement       Boolean   @default(false)
   replacedDocumentId  Int?
   replacedDocument    Document? @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id])
+  rejectedBy          User?     @relation("RejectedByUser", fields: [rejectedById], references: [id]) // Added relation
+  rejectedById        Int?      // Added foreign key field
 }
 
 model DocumentSignature {
@@ -575,4 +576,18 @@ model Recommendation {
   createdAt           DateTime     @default(now())
   respondedAt         DateTime?
   details             Json?        // Stores document-specific responses
+}
+
+model DocumentRejection {
+  id                        String    @id @default(uuid())
+  processDocumentId         String
+  processDocument           ProcessDocument @relation(fields: [processDocumentId], references: [id])
+  userId                    Int
+  user                      User      @relation("UserRejections", fields: [userId], references: [id])
+  reason                    String?
+  rejectedAt                DateTime  @default(now())
+  byRecommender             Boolean   @default(false) // Indicates if rejected by a recommender
+  isAttachedWithRecommendation Boolean @default(false)
+  processStepInstanceId     String?
+  processStepInstance       ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id])
 }

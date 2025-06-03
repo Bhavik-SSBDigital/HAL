@@ -10,28 +10,6 @@ import {
 
 const prisma = new PrismaClient();
 
-/*
-
-EXAMPLE ON HOW TO CHECK DOCUMENT ACCESS
-
-// Check if user has edit access to document
-const hasEditAccess = await checkDocumentAccess(user.id, documentId, "EDIT");
-
-// Get all access types for document
-const accessRecords = await prisma.documentAccess.findMany({
-  where: {
-    documentId,
-    OR: [
-      { userId: user.id },
-      { roleId: { in: userRoles } },
-      { departmentId: { in: userDepartments } },
-    ],
-    stepInstance: { status: "IN_PROGRESS" },
-  },
-  select: { accessType: true },
-});
-
-*/
 async function checkDocumentAccess(userId, documentId, requiredAccess) {
   const userRoles = await prisma.userRole.findMany({
     where: { userId },
@@ -540,445 +518,6 @@ async function handleRoleAssignment(
     });
   }
 }
-// export const view_process = async (req, res) => {
-//   try {
-//     const { processId } = req.params;
-//     const accessToken = req.headers["authorization"]?.substring(7);
-//     const userData = await verifyUser(accessToken);
-
-//     if (userData === "Unauthorized" || !userData?.id) {
-//       return res.status(401).json({
-//         success: false,
-//         error: {
-//           message: "Unauthorized request",
-//           details: "Invalid or missing authorization token.",
-//           code: "UNAUTHORIZED",
-//         },
-//       });
-//     }
-
-//     const process = await prisma.processInstance.findUnique({
-//       where: { id: processId },
-//       include: {
-//         initiator: {
-//           select: { id: true, username: true, name: true, email: true },
-//         },
-//         workflow: {
-//           select: {
-//             id: true,
-//             name: true,
-//             version: true,
-//           },
-//         },
-//         currentStep: {
-//           select: {
-//             id: true,
-//             stepName: true,
-//             stepNumber: true,
-//             stepType: true,
-//           },
-//         },
-//         documents: {
-//           include: {
-//             document: {
-//               select: {
-//                 id: true,
-//                 name: true,
-//                 type: true,
-//                 path: true,
-//                 tags: true,
-//               },
-//             },
-//             signatures: {
-//               include: {
-//                 user: {
-//                   select: {
-//                     id: true,
-//                     username: true,
-//                   },
-//                 },
-//               },
-//             },
-//             rejectedBy: {
-//               select: {
-//                 id: true,
-//                 username: true,
-//               },
-//             },
-//             documentHistory: {
-//               include: {
-//                 user: {
-//                   select: {
-//                     id: true,
-//                     name: true,
-//                     username: true,
-//                   },
-//                 },
-//                 replacedDocument: {
-//                   select: {
-//                     id: true,
-//                     name: true,
-//                     path: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//         stepInstances: {
-//           where: {
-//             status: {
-//               in: [
-//                 "IN_PROGRESS",
-//                 "IN_PROGRESS",
-//                 "FOR_RECIRCULATION",
-//                 "APPROVED",
-//               ],
-//             },
-//           },
-//           include: {
-//             workflowStep: {
-//               select: {
-//                 id: true,
-//                 stepName: true,
-//                 stepNumber: true,
-//                 stepType: true,
-//               },
-//             },
-//             workflowAssignment: {
-//               include: {
-//                 step: {
-//                   select: {
-//                     id: true,
-//                     stepName: true,
-//                     stepNumber: true,
-//                     stepType: true,
-//                   },
-//                 },
-//               },
-//             },
-//             pickedBy: {
-//               select: {
-//                 id: true,
-//                 username: true,
-//               },
-//             },
-//             processQA: {
-//               where: {
-//                 OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-//                 status: "OPEN",
-//               },
-//               include: {
-//                 initiator: {
-//                   select: {
-//                     id: true,
-//                     name: true,
-//                   },
-//                 },
-//                 process: {
-//                   select: {
-//                     id: true,
-//                     name: true,
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     });
-
-//     if (!process) {
-//       return res.status(404).json({
-//         success: false,
-//         error: {
-//           message: "Process not found",
-//           details: "No process found with the specified ID.",
-//           code: "PROCESS_NOT_FOUND",
-//         },
-//       });
-//     }
-
-//     // Log step instance details for debugging
-
-//     // Fetch assignee details for all assigneeIds in workflowAssignments
-//     const assigneeIds = [
-//       ...new Set(
-//         process.stepInstances.flatMap((step) =>
-//           step.workflowAssignment?.assigneeIds?.length
-//             ? step.workflowAssignment.assigneeIds
-//             : [step.assignedTo]
-//         )
-//       ),
-//     ];
-
-//     const assignees = await prisma.user.findMany({
-//       where: {
-//         id: { in: assigneeIds },
-//       },
-//       select: {
-//         id: true,
-//         username: true,
-//       },
-//     });
-
-//     // Map assignees to a lookup object for efficient access
-//     const assigneeMap = assignees.reduce((map, user) => {
-//       map[user.id] = user;
-//       return map;
-//     }, {});
-
-//     // Transform step instances to include stepName and assignees
-//     const steps = process.stepInstances.map((step) => {
-//       const assigneeIds = step.workflowAssignment?.assigneeIds?.length
-//         ? step.workflowAssignment.assigneeIds
-//         : [step.assignedTo];
-
-//       return {
-//         stepName: step.workflowAssignment?.step?.stepName ?? "Unknown Step",
-//         stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
-//         stepId: step.workflowAssignment?.step?.id ?? null,
-//         stepType: step.workflowAssignment?.step?.stepType ?? "UNKNOWN",
-//         assignees: assigneeIds.map((id) => ({
-//           assigneeId: id,
-//           assigneeName: assigneeMap[id]?.username ?? "Unknown User",
-//         })),
-//       };
-//     });
-
-//     const transformedDocuments = process.documents.map((doc) => {
-//       const signedBy = doc.signatures.map((sig) => ({
-//         signedBy: sig.user.username,
-//         signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
-//         remarks: sig.reason || null,
-//       }));
-
-//       const rejectionDetails = doc.rejectedBy
-//         ? {
-//             rejectedBy: doc.rejectedBy.username,
-//             rejectionReason: doc.rejectionReason,
-//             rejectedAt: doc.rejectedAt ? doc.rejectedAt.toISOString() : null,
-//           }
-//         : null;
-
-//       const documentHistory = doc.documentHistory.map((history) => ({
-//         actionType: history.actionType,
-//         user: history.user.name,
-//         createdAt: history.createdAt.toISOString(),
-//         details: history.actionDetails,
-//         replacedDocument: history.replacedDocument
-//           ? {
-//               id: history.replacedDocument.id,
-//               name: history.replacedDocument.name,
-//               path: history.replacedDocument.path,
-//             }
-//           : null,
-//         isRecirculationTrigger: history.isRecirculationTrigger,
-//       }));
-
-//       return {
-//         id: doc.document.id,
-//         name: doc.document.name,
-//         type: doc.document.type,
-//         path: doc.document.path,
-//         tags: doc.document.tags,
-//         signedBy,
-//         rejectionDetails,
-//         documentHistory,
-//         isRecirculationTrigger: doc.documentHistory.some(
-//           (history) => history.isRecirculationTrigger
-//         ),
-//         access: doc.document.tags.includes("confidential")
-//           ? ["auditor"]
-//           : ["auditor", "manager"],
-//         approvalCount: signedBy.length,
-//       };
-//     });
-
-//     const queryDetails = await Promise.all(
-//       process.stepInstances.flatMap((step) =>
-//         step.processQA.map(async (qa) => {
-//           const documentHistoryIds = [
-//             ...(qa.details?.documentChanges?.map(
-//               (dc) => dc.documentHistoryId
-//             ) || []),
-//             ...(qa.details?.documentSummaries?.map(
-//               (ds) => ds.documentHistoryId
-//             ) || []),
-//           ];
-
-//           const documentHistories =
-//             documentHistoryIds.length > 0
-//               ? await prisma.documentHistory.findMany({
-//                   where: { id: { in: documentHistoryIds } },
-//                   include: {
-//                     document: {
-//                       select: {
-//                         id: true,
-//                         name: true,
-//                         type: true,
-//                         path: true,
-//                         tags: true,
-//                       },
-//                     },
-//                     replacedDocument: {
-//                       select: {
-//                         id: true,
-//                         name: true,
-//                         path: true,
-//                       },
-//                     },
-//                     user: {
-//                       select: {
-//                         id: true,
-//                         name: true,
-//                         username: true,
-//                       },
-//                     },
-//                   },
-//                 })
-//               : [];
-
-//           return {
-//             stepInstanceId: step.id,
-//             stepName: step.workflowAssignment?.step?.stepName ?? null,
-//             stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
-//             status: step.status,
-//             taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
-//             queryText: qa.question,
-//             answerText: qa.answer || null,
-//             initiatorName: qa.initiator.username,
-//             createdAt: qa.createdAt.toISOString(),
-//             answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
-//             documentChanges:
-//               qa.details?.documentChanges?.map((dc) => {
-//                 const history = documentHistories.find(
-//                   (h) => h.id === dc.documentHistoryId
-//                 );
-//                 return {
-//                   documentId: dc.documentId,
-//                   requiresApproval: dc.requiresApproval,
-//                   isReplacement: dc.isReplacement,
-//                   documentHistoryId: dc.documentHistoryId,
-//                   document: history?.document
-//                     ? {
-//                         id: history.document.id,
-//                         name: history.document.name,
-//                         type: history.document.type,
-//                         path: history.document.path,
-//                         tags: history.document.tags,
-//                       }
-//                     : null,
-//                   actionDetails: history?.actionDetails,
-//                   user: history?.user.name,
-//                   createdAt: history?.createdAt.toISOString(),
-//                   replacedDocument: history?.replacedDocument
-//                     ? {
-//                         id: history.replacedDocument.id,
-//                         name: history.replacedDocument.name,
-//                         path: history.replacedDocument.path,
-//                       }
-//                     : null,
-//                 };
-//               }) || [],
-//             documentSummaries:
-//               qa.details?.documentSummaries?.map((ds) => {
-//                 const history = documentHistories.find(
-//                   (h) => h.id === ds.documentHistoryId
-//                 );
-//                 return {
-//                   documentId: ds.documentId,
-//                   feedbackText: ds.feedbackText,
-//                   documentHistoryId: ds.documentHistoryId,
-//                   documentDetails: history?.document
-//                     ? {
-//                         id: history.document.id,
-//                         name: history.document.name,
-//                         // type: history.document.type,
-//                         path: history.document.path,
-//                         // tags: history.document.tags,
-//                       }
-//                     : null,
-//                   // actionDetails: history?.actionDetails,
-//                   user: history?.user.username,
-//                   createdAt: history?.createdAt.toISOString(),
-//                 };
-//               }) || [],
-//             assigneeDetails: qa.details?.assigneeDetails
-//               ? {
-//                   assignedStepName: qa.details.assigneeDetails.assignedStepName,
-//                   assignedAssigneeId:
-//                     qa.details.assigneeDetails.assignedAssigneeId,
-//                   assignedAssigneeName: qa.details.assigneeDetails
-//                     .assignedAssigneeId
-//                     ? (
-//                         await prisma.user.findUnique({
-//                           where: {
-//                             id: parseInt(
-//                               qa.details.assigneeDetails.assignedAssigneeId
-//                             ),
-//                           },
-//                           select: { username: true },
-//                         })
-//                       )?.username || null
-//                     : null,
-//                 }
-//               : null,
-//           };
-//         })
-//       )
-//     );
-
-//     const toBePicked = process.stepInstances.some(
-//       (step) => step.assignedTo === userData.id && step.status === "IN_PROGRESS"
-//     );
-
-//     const workflow = {
-//       id: process.workflow.id,
-//       name: process.workflow.name,
-//       version: process.workflow.version,
-//     };
-
-//     return res.status(200).json({
-//       process: {
-//         processName: process.name,
-//         initiatorName: process.initiator.username,
-//         status: process.status,
-//         createdAt: process.createdAt,
-//         processId: process.id,
-//         processStepInstanceId:
-//           process.stepInstances.filter(
-//             (item) => item.status === "IN_PROGRESS"
-//           )[0]?.id || null,
-//         arrivedAt:
-//           process.stepInstances.filter(
-//             (item) => item.status === "IN_PROGRESS"
-//           )[0]?.updatedAt ||
-//           process.stepInstances.filter(
-//             (item) => item.status === "IN_PROGRESS"
-//           )[0]?.createdAt ||
-//           null,
-//         updatedAt: process.updatedAt,
-//         toBePicked,
-//         isRecirculated: process.isRecirculated,
-//         documents: transformedDocuments,
-//         steps,
-//         queryDetails,
-//         workflow,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error getting process:", error);
-//     return res.status(500).json({
-//       success: false,
-//       error: {
-//         message: "Failed to view process",
-//         details: error.message,
-//         code: "PROCESS_VIEW_ERROR",
-//       },
-//     });
-//   }
-// };
 
 export const view_process = async (req, res) => {
   try {
@@ -1039,10 +578,14 @@ export const view_process = async (req, res) => {
                 },
               },
             },
-            rejectedBy: {
-              select: {
-                id: true,
-                username: true,
+            rejections: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                  },
+                },
               },
             },
             documentHistory: {
@@ -1203,13 +746,20 @@ export const view_process = async (req, res) => {
         isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
       }));
 
-      const rejectionDetails = doc.rejectedBy
-        ? {
-            rejectedBy: doc.rejectedBy.username,
-            rejectionReason: doc.rejectionReason,
-            rejectedAt: doc.rejectedAt ? doc.rejectedAt.toISOString() : null,
-          }
-        : null;
+      // Transform rejections to maintain the same response structure
+      const rejectionDetails =
+        doc.rejections.length > 0
+          ? {
+              rejectedBy: doc.rejections[0].user.username,
+              rejectionReason: doc.rejections[0].reason || null,
+              rejectedAt: doc.rejections[0].rejectedAt
+                ? doc.rejections[0].rejectedAt.toISOString()
+                : null,
+              byRecommender: doc.rejections[0].byRecommender,
+              isAttachedWithRecommendation:
+                doc.rejections[0].isAttachedWithRecommendation,
+            }
+          : null;
 
       const documentHistory = doc.documentHistory.map((history) => ({
         actionType: history.actionType,
@@ -1376,7 +926,6 @@ export const view_process = async (req, res) => {
       )
     );
 
-    // Add recommendation details with merged documentDetails
     const recommendationDetails = await Promise.all(
       process.stepInstances.flatMap((step) =>
         step.recommendations.map(async (rec) => {
@@ -1397,7 +946,6 @@ export const view_process = async (req, res) => {
             return map;
           }, {});
 
-          // Merge documentSummaries and documentResponses into documentDetails
           const documentDetails = documentSummaries.map((ds) => {
             const response = documentResponses.find(
               (dr) => dr.documentId === parseInt(ds.documentId)
@@ -1422,7 +970,7 @@ export const view_process = async (req, res) => {
             recommenderName: rec.recommender.username,
             createdAt: rec.createdAt.toISOString(),
             respondedAt: rec.respondedAt ? rec.respondedAt.toISOString() : null,
-            documentDetails, // Merged document summaries and responses
+            documentDetails,
           };
         })
       )

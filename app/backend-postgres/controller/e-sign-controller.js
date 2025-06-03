@@ -380,7 +380,14 @@ export const reject_document = async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { processId, documentId, reason } = req.body;
+    const {
+      processId,
+      documentId,
+      reason,
+      processStepInstanceId,
+      byRecommender = false,
+      isAttachedWithRecommendation = false,
+    } = req.body;
 
     const process = await prisma.processInstance.findUnique({
       where: { id: processId },
@@ -512,12 +519,14 @@ export const reject_document = async (req, res, next) => {
       data: { isRejected: true },
     });
 
-    await prisma.processDocument.update({
-      where: { id: processDocument.id },
+    await prisma.documentRejection.create({
       data: {
-        rejectedById: userData.id,
-        rejectionReason,
-        rejectedAt: new Date(),
+        processDocumentId: processDocument.id,
+        userId: userData.id,
+        reason: rejectionReason,
+        processStepInstanceId,
+        byRecommender,
+        isAttachedWithRecommendation,
       },
     });
 
