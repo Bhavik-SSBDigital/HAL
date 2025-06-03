@@ -179,38 +179,18 @@ export const sign_document = async (req, res, next) => {
       select: { dscName: true },
     });
     if (coordinates.length > 0) {
-      await print_signature_at_coordinates(
-        pdfDoc,
-        coordinates,
-        jpegImagePath,
-        userData.username,
-        remarks,
-        formatDate(Date.now()),
-        helveticaFont,
-        path.join(__dirname, "../../../../", "storage", documentPath),
-        documentId,
-        userData,
-        path.join(
-          __dirname,
-          "../../../../",
-          "storage",
-          process.env.DSC_FOLDER_PATH,
-          user.dscName
-        )
-      );
-    } else {
-      const signatureCoordinates =
-        await print_signature_after_content_on_the_last_page(
+      if (user.dscName) {
+        await print_signature_at_coordinates(
           pdfDoc,
-          lastPage,
-          documentPath,
+          coordinates,
           jpegImagePath,
           userData.username,
-          formatDate(Date.now()),
           remarks,
+          formatDate(Date.now()),
           helveticaFont,
-          pythonEnvPath,
-          pythonScriptPath,
+          path.join(__dirname, "../../../../", "storage", documentPath),
+          documentId,
+          userData,
           path.join(
             __dirname,
             "../../../../",
@@ -219,6 +199,67 @@ export const sign_document = async (req, res, next) => {
             user.dscName
           )
         );
+      } else {
+        await print_signature_at_coordinates(
+          pdfDoc,
+          coordinates,
+          jpegImagePath,
+          userData.username,
+          remarks,
+          formatDate(Date.now()),
+          helveticaFont,
+          path.join(__dirname, "../../../../", "storage", documentPath),
+          documentId,
+          userData,
+          path.join(
+            __dirname,
+            "../../../../",
+            "storage",
+            process.env.DSC_FOLDER_PATH
+            // user.dscName
+          )
+        );
+      }
+    } else {
+      const signatureCoordinates = user.dscName
+        ? await print_signature_after_content_on_the_last_page(
+            pdfDoc,
+            lastPage,
+            documentPath,
+            jpegImagePath,
+            userData.username,
+            formatDate(Date.now()),
+            remarks,
+            helveticaFont,
+            pythonEnvPath,
+            pythonScriptPath,
+            path.join(
+              __dirname,
+              "../../../../",
+              "storage",
+              envVariables.DSC_FOLDER_PATH,
+              user.dscName
+            )
+          )
+        : await print_signature_after_content_on_the_last_page(
+            pdfDoc,
+            lastPage,
+            documentPath,
+            jpegImagePath,
+            userData.username,
+            formatDate(Date.now()),
+            remarks,
+            helveticaFont,
+            pythonEnvPath,
+            pythonScriptPath,
+            path.join(
+              __dirname,
+              "../../../../",
+              "storage",
+              envVariables.DSC_FOLDER_PATH
+              // user.dscName
+            )
+          );
 
       await prisma.signCoordinate.create({
         data: {
