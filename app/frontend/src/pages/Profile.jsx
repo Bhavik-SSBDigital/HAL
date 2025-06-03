@@ -100,113 +100,174 @@ const Profile = () => {
       {loading ? (
         <ComponentLoader />
       ) : (
-        <div className="flex flex-col gap-6 p-6 rounded-lg border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-          {/* Cover Image */}
-          <div className="relative h-48 md:h-64 w-full">
-            <img
-              src={CoverOne}
-              alt="profile cover"
-              className="h-full w-full object-cover"
-            />
-          </div>
+        <div className="flex flex-col gap-8 p-6 rounded-lg border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-w-5xl mx-auto">
+          {/* Section 1: Cover & Profile */}
+          <section>
+            <div className="relative h-48 md:h-64 w-full rounded-lg overflow-hidden">
+              <img
+                src={CoverOne}
+                alt="profile cover"
+                className="h-full w-full object-cover"
+              />
+            </div>
 
-          {/* Profile & Details Container */}
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-19 px-10">
-            {/* Profile Image */}
-            <div className="flex flex-col items-center order-first md:order-none">
-              <div className="relative h-39 w-39 rounded-full border bg-gray-200 shadow-lg overflow-hidden group">
-                {profileImage ? (
-                  <img
-                    src={profileImage}
-                    alt="profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    No Image
-                  </div>
-                )}
-
-                {/* File Input Overlay */}
-                <label className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <span className="text-sm">Change</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg"
-                    onChange={(e) => handleUpload('profile', e)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-10 mt-6">
+              {/* Profile Image */}
+              <div className="flex flex-col items-center">
+                <div className="relative h-40 w-40 rounded-full border bg-gray-200 shadow-lg overflow-hidden group">
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt="profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      No Image
+                    </div>
+                  )}
+                  <label className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <span className="text-sm">Change</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg"
+                      onChange={(e) => handleUpload('profile', e)}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
+                  {userDetails?.username || '---'}
+                </h3>
               </div>
-              <h3 className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
-                {userDetails?.username || '---'}
-              </h3>
-            </div>
 
-            {/* User Details */}
-            <div className="flex-1 space-y-4 text-lg text-gray-700 dark:text-gray-300">
-              <p>
-                <strong>Department:</strong>{' '}
-                {userDetails?.departmentsInvolvedIn
-                  ?.map((d) => d.departmentName)
-                  .join(', ') || '---'}
-              </p>
-              <p>
-                <strong>Email:</strong> {userDetails.email || '---'}
-              </p>
-              <p>
-                <strong>Role:</strong> {userDetails.roles?.join(', ') || '---'}
-              </p>
-            </div>
-          </div>
-
-          {/* Signature Upload */}
-          <div className="flex flex-col items-center">
-            <strong>Signature:</strong>
-            {signatureImage ? (
-              <button
-                className="ml-2 text-blue-600 underline"
-                onClick={() => setSignatureViewModalOpen(true)}
-              >
-                View Signature
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 text-red-600 bg-red-100 p-3 rounded-md border border-red-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-red-600"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.766-1.36 2.72-1.36 3.486 0l6.516 11.57c.746 1.324-.2 2.98-1.743 2.98H3.484c-1.543 0-2.49-1.656-1.743-2.98l6.516-11.57zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-3a1 1 0 011-1v-2a1 1 0 10-2 0v2a1 1 0 011 1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <p className="font-semibold">
-                  Signature is required. Please upload your signature.
+              {/* User Info */}
+              <div className="flex-1 space-y-3 text-base text-gray-700 dark:text-gray-300">
+                <p>
+                  <strong>Department:</strong>{' '}
+                  {userDetails?.departmentsInvolvedIn
+                    ?.map((d) => d.departmentName)
+                    .join(', ') || '---'}
+                </p>
+                <p>
+                  <strong>Email:</strong> {userDetails.email || '---'}
+                </p>
+                <p>
+                  <strong>Roles:</strong>{' '}
+                  {userDetails.roles?.join(', ') || '---'}
                 </p>
               </div>
-            )}
-            <label className="mt-4 block text-lg font-semibold">
-              Upload Signature:
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={(e) => handleUpload('signature', e)}
-              className="mt-2 border rounded p-2 w-full"
-            />
-          </div>
+            </div>
+          </section>
+
+          {/* Section 2: Signature */}
+          <section className="border-t pt-6">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+              Signature
+            </h2>
+            <div className="flex flex-col items-start gap-4">
+              {signatureImage ? (
+                <div className="flex items-center gap-4">
+                  <strong className="text-green-600">Uploaded</strong>
+                  <button
+                    className="text-blue-600 underline"
+                    onClick={() => setSignatureViewModalOpen(true)}
+                  >
+                    View Signature
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-red-600 bg-red-100 p-3 rounded-md border border-red-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-red-600"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.766-1.36 2.72-1.36 3.486 0l6.516 11.57c.746 1.324-.2 2.98-1.743 2.98H3.484c-1.543 0-2.49-1.656-1.743-2.98l6.516-11.57zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-3a1 1 0 011-1v-2a1 1 0 10-2 0v2a1 1 0 011 1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <p className="font-semibold">
+                    Signature is required. Please upload your signature.
+                  </p>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={(e) => handleUpload('signature', e)}
+                className="border rounded p-2 w-full max-w-sm"
+              />
+            </div>
+          </section>
+
+          {/* Section 3: DSC Upload */}
+          <section className="border-t pt-6">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+              DSC Certificate
+            </h2>
+
+            <div className="flex flex-col items-start gap-2 text-base text-gray-700 dark:text-gray-300">
+              {userDetails?.dscName ? (
+                <div className="flex items-center gap-2 text-green-700">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-green-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span className="font-medium">Current DSC:</span>
+                  <span>{userDetails.dscName}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-red-600 bg-red-100 p-2 rounded-md border border-red-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-red-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.766-1.36 2.72-1.36 3.486 0l6.516 11.57c.746 1.324-.2 2.98-1.743 2.98H3.484c-1.543 0-2.49-1.656-1.743-2.98l6.516-11.57zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-3a1 1 0 011-1v-2a1 1 0 10-2 0v2a1 1 0 011 1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>No DSC uploaded yet.</span>
+                </div>
+              )}
+
+              <label className="mt-4 font-semibold">
+                Upload New DSC Certificate:
+              </label>
+              <input
+                type="file"
+                onChange={(e) => handleUpload('dsc', e)}
+                className="border rounded p-2 w-full max-w-sm"
+              />
+            </div>
+          </section>
         </div>
       )}
+
+      {/* Signature Modal */}
       <CustomModal
         isOpen={signatureViewModalOpen}
         onClose={() => setSignatureViewModalOpen(false)}
       >
-        <img src={signatureImage} alt="signature" width={250} />
+        <img src={signatureImage} alt="signature" className="max-w-xs" />
       </CustomModal>
     </>
   );
