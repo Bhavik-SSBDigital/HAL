@@ -1954,6 +1954,7 @@ export const createQuery = async (req, res) => {
               recirculationReason: queryText,
               claimedAt: null,
               pickedById: null,
+              recirculationCycle: { increment: 1 },
             },
           });
 

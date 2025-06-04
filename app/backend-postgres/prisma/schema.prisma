@@ -8,51 +8,51 @@ datasource db {
 }
 
 model Department {
-  id                  Int       @id @default(autoincrement())
-  type                String
-  code                String    @unique
-  name                String    @unique
-  status              String
-  headId              Int?
-  adminId             Int?
-  parentDepartmentId  Int?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime? @updatedAt
-  createdById         Int
-  head                User?     @relation("HeadOfDepartment", fields: [headId], references: [id])
-  admin               User?     @relation("AdminOfDepartment", fields: [adminId], references: [id])
-  parentDepartment    Department? @relation("ParentDepartment", fields: [parentDepartmentId], references: [id])
-  subDepartments      Department[] @relation("ParentDepartment")
-  documents           Document[]
-  roles               Role[]    @relation("BranchRoles")
-  users               User[]    @relation("BranchUsers")
+  id                 Int       @id @default(autoincrement())
+  type               String
+  code               String    @unique
+  name               String    @unique
+  status             String
+  headId             Int?
+  adminId            Int?
+  parentDepartmentId Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime? @updatedAt
+  createdById        Int
+  head               User?     @relation("HeadOfDepartment", fields: [headId], references: [id], onDelete: Cascade)
+  admin              User?     @relation("AdminOfDepartment", fields: [adminId], references: [id], onDelete: Cascade)
+  parentDepartment   Department? @relation("ParentDepartment", fields: [parentDepartmentId], references: [id], onDelete: Cascade)
+  subDepartments     Department[] @relation("ParentDepartment")
+  documents          Document[]
+  roles              Role[]    @relation("BranchRoles")
+  users              User[]    @relation("BranchUsers")
   DepartmentRoleAssignment DepartmentRoleAssignment[]
   departmentStepProgresses DepartmentStepProgress[] @relation()
-  documentAccesses    DocumentAccess[] @relation()
+  documentAccesses   DocumentAccess[] @relation()
 }
 
 model Document {
-  id                   Int       @id @default(autoincrement())
-  name                 String
-  type                 String
-  path                 String    @unique
-  createdById          Int
-  createdOn            DateTime  @default(now())
-  lastUpdatedOn        DateTime  @updatedAt
-  children             Document[] @relation("DocumentChildren")
-  parent               Document? @relation("DocumentChildren", fields: [parentId], references: [id])
-  parentId             Int?
-  departmentId         Int?
-  department           Department? @relation(fields: [departmentId], references: [id])
-  isProject            Boolean?
-  isInvolvedInProcess  Boolean   @default(false)
+  id                    Int       @id @default(autoincrement())
+  name                  String
+  type                  String
+  path                  String    @unique
+  createdById           Int
+  createdOn             DateTime  @default(now())
+  lastUpdatedOn         DateTime  @updatedAt
+  parentId              Int?
+  departmentId           Int?
+  isProject             Boolean?
+  isInvolvedInProcess   Boolean   @default(false)
   minimumSignsOnFirstPage Int?
-  isRejected           Boolean   @default(false)
-  tags                 String[]  @default([])
-  processDocuments     ProcessDocument[] @relation("ProcessDocumentRelation")
-  documentAccesses     DocumentAccess[] @relation("DocumentAccesses")
-  isRecord             Boolean   @default(true)
-  documentHistory      DocumentHistory[] @relation("DocumentHistory")
+  isRejected            Boolean   @default(false)
+  tags                  String[]  @default([])
+  isRecord              Boolean   @default(true)
+  children              Document[] @relation("DocumentChildren")
+  parent                Document? @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  department            Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  processDocuments      ProcessDocument[] @relation("ProcessDocumentRelation")
+  documentAccesses      DocumentAccess[] @relation("DocumentAccesses")
+  documentHistory       DocumentHistory[] @relation("DocumentHistory")
   replacedByProcessDocuments ProcessDocument[] @relation("ReplacedDocument")
   replacedByDocumentHistory DocumentHistory[] @relation("ReplacedDocumentHistory")
 }
@@ -68,8 +68,8 @@ model Role {
   parentRoleId    Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime? @updatedAt
-  branch          Department? @relation("BranchRoles", fields: [departmentId], references: [id])
-  parentRole      Role?     @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  branch          Department? @relation("BranchRoles", fields: [departmentId], references: [id], onDelete: Cascade)
+  parentRole      Role?     @relation("RoleHierarchy", fields: [parentRoleId], references: [id], onDelete: Cascade)
   childRoles      Role[]    @relation("RoleHierarchy")
   users           UserRole[]
   departmentRoleAssignment DepartmentRoleAssignment[]
@@ -77,101 +77,425 @@ model Role {
 }
 
 model User {
-  id                   Int       @id @default(autoincrement())
-  username             String    @unique
-  email                String
-  password             String
-  name                 String?
-  specialUser          Boolean   @default(false)
-  createdAt            DateTime  @default(now())
-  isRootLevel          Boolean?
-  isAdmin              Boolean?
-  tokens               Token[]
-  updatedAt            DateTime? @updatedAt
-  createdById          Int?
-  createdBy            User?     @relation("CreatedByRelation", fields: [createdById], references: [id])
-  createdUsers         User[]    @relation("CreatedByRelation")
-  roles                UserRole[]
-  branches             Department[] @relation("BranchUsers")
-  headOfDepartments    Department[] @relation("HeadOfDepartment")
-  adminOfDepartments   Department[] @relation("AdminOfDepartment")
-  workflowsCreated     Workflow[]
-  initiatedProcesses   ProcessInstance[]
-  qaInitiations        ProcessQA[]
-  processNotifications ProcessNotification[] @relation("UserNotifications")
-  processClaims        ProcessClaim[] @relation("UserClaims")
-  systemLogs           SystemLog[] @relation("UserSystemLogs")
-  pickedProcessSteps   ProcessStepInstance[] @relation("UserPickedSteps")
+  id                    Int       @id @default(autoincrement())
+  username              String    @unique
+  email                 String
+  password              String
+  name                  String?
+  specialUser           Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  isRootLevel           Boolean?
+  isAdmin               Boolean?
+  updatedAt             DateTime? @updatedAt
+  createdById           Int?
+  signaturePicFileName  String?
+  profilePicFileName    String?
+  dscFileName           String?
+  dscName               String?
+  createdBy             User?     @relation("CreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
+  createdUsers          User[]    @relation("CreatedByRelation")
+  tokens                Token[]
+  roles                 UserRole[]
+  branches              Department[] @relation("BranchUsers")
+  headOfDepartments     Department[] @relation("HeadOfDepartment")
+  adminOfDepartments    Department[] @relation("AdminOfDepartment")
+  workflowsCreated      Workflow[]
+  initiatedProcesses    ProcessInstance[]
+  qaInitiations         ProcessQA[]
+  processNotifications  ProcessNotification[] @relation("UserNotifications")
+  processClaims         ProcessClaim[] @relation("UserClaims")
+  systemLogs            SystemLog[] @relation("UserSystemLogs")
+  pickedProcessSteps    ProcessStepInstance[] @relation("UserPickedSteps")
   rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
-  signatures           DocumentSignature[] @relation("UserSignatures")
-  signaturePicFileName String?
-  profilePicFileName   String?
-  dscFileName      String?
-  rejections           DocumentRejection[] @relation("UserRejections")
-  dscName       String?
-  signCoordinates      SignCoordinate[] @relation
-  documentAccesses     DocumentAccess[] @relation()
+  signatures            DocumentSignature[] @relation("UserSignatures")
+  rejections            DocumentRejection[] @relation("UserRejections")
+  signCoordinates       SignCoordinate[] @relation()
+  documentAccesses      DocumentAccess[] @relation()
   grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")
-  documentHistory      DocumentHistory[] @relation("DocumentHistoryByUser")
+  documentHistory       DocumentHistory[] @relation("DocumentHistoryByUser")
   initiatedRecommendations Recommendation[] @relation("RecommendationInitiator")
   recommendedRecommendations Recommendation[] @relation("RecommendationRecommender")
 }
 
 model Token {
-  id      Int    @id @default(autoincrement())
+  id      Int       @id @default(autoincrement())
   token   String
   userId  Int
-  user    User   @relation(fields: [userId], references: [id])
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId])
 }
 
 model UserRole {
-  id      Int    @id @default(autoincrement())
+  id      Int       @id @default(autoincrement())
   userId  Int
   roleId  Int
-  user    User   @relation(fields: [userId], references: [id])
-  role    Role   @relation(fields: [roleId], references: [id])
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role    Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
 }
 
 model Workflow {
-  id                String    @id @default(uuid())
-  name              String
-  description       String?
-  version           Int       @default(1)
+  id               String    @id @default(uuid())
+  name             String
+  description      String?
+  version          Int       @default(1)
   previousVersionId String?
-  previousVersion   Workflow? @relation("WorkflowVersion", fields: [previousVersionId], references: [id])
-  createdById       Int
-  createdBy         User      @relation(fields: [createdById], references: [id])
-  isActive          Boolean   @default(true)
-  steps             WorkflowStep[]
-  processes         ProcessInstance[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  nextVersions      Workflow[] @relation("WorkflowVersion")
-  escalationTime    Int?      @default(48)
-  autoApprovalAfter Int?      @default(168)
+  createdById      Int
+  isActive         Boolean   @default(true)
+  escalationTime   Int?      @default(48)
+  autoApprovalAfter Int?     @default(168)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime? @updatedAt
+  previousVersion  Workflow? @relation("WorkflowVersion", fields: [previousVersionId], references: [id], onDelete: Cascade)
+  createdBy        User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  steps            WorkflowStep[]
+  processes        ProcessInstance[]
+  nextVersions     Workflow[] @relation("WorkflowVersion")
 }
 
 model WorkflowStep {
-  id                  String    @id @default(uuid())
-  workflowId          String
-  workflow            Workflow  @relation(fields: [workflowId], references: [id])
-  stepNumber          Int
-  stepName            String
-  stepType            StepType  @default(APPROVAL)
-  allowParallel       Boolean   @default(false)
-  isHierarchical      Boolean   @default(false)
-  direction           String?   @default("downwards")
-  selectedRoles       Int[]     @default([])
-  assignments         WorkflowAssignment[]
-  processSteps        ProcessStepInstance[]
-  escalationTime      Int?      @default(24)
-  autoApprovalAfter   Int?      @default(72)
-  requiresDocument    Boolean   @default(true)
+  id              String    @id @default(uuid())
+  workflowId      String
+  stepNumber      Int
+  stepName        String
+  stepType        StepType  @default(APPROVAL)
+  allowParallel   Boolean   @default(false)
+  isHierarchical  Boolean   @default(false)
+  direction       String?   @default("downwards")
+  selectedRoles   Int[]     @default([])
+  escalationTime  Int?      @default(24)
+  autoApprovalAfter Int?    @default(72)
+  requiresDocument Boolean  @default(true)
+  workflow        Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  assignments     WorkflowAssignment[]
+  processSteps    ProcessStepInstance[]
   currentStepProcessInstances ProcessInstance[] @relation("CurrentStepRelation")
   departmentStepProgresses DepartmentStepProgress[]
-  signCoordinates     SignCoordinate[] @relation
+  signCoordinates SignCoordinate[] @relation()
   @@unique([workflowId, stepNumber])
+}
+
+model WorkflowAssignment {
+  id            String       @id @default(uuid())
+  stepId        String
+  actionType    ActionType
+  assigneeIds   Int[]
+  assigneeType  AssigneeType
+  allowParallel Boolean      @default(false)
+  accessTypes   AccessType[] @default([])
+  direction     Direction?
+  step          WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  departmentRoles DepartmentRoleAssignment[]
+  documentAccesses DocumentAccess[] @relation("WorkflowAssignmentDocAccess")
+  stepInstances   ProcessStepInstance[]
+  assignmentProgresses AssignmentProgress[]
+}
+
+model DepartmentRoleAssignment {
+  id                 Int       @id @default(autoincrement())
+  workflowAssignmentId String
+  departmentId       Int
+  roleId             Int
+  workflowAssignment WorkflowAssignment @relation(fields: [workflowAssignmentId], references: [id], onDelete: Cascade)
+  department         Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  role               Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@unique([workflowAssignmentId, departmentId, roleId])
+}
+
+model ProcessWorkflowVersion {
+  id          String    @id @default(uuid())
+  processId   String
+  oldVersion  Int
+  newVersion  Int
+  migratedAt  DateTime  @default(now())
+}
+
+model DocumentAccess {
+  id               String       @id @default(uuid())
+  documentId       Int
+  stepInstanceId   String?
+  processId        String?
+  userId           Int?
+  roleId           Int?
+  departmentId     Int?
+  grantedById      Int?
+  accessType       AccessType[] @default([])
+  accessLevel      AccessLevel  @default(STANDARD)
+  docAccessThrough DocAccessThrough @default(SELF)
+  grantedAt        DateTime     @default(now())
+  document         Document     @relation("DocumentAccesses", fields: [documentId], references: [id], onDelete: Cascade)
+  stepInstance     ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id], onDelete: Cascade)
+  processInstance  ProcessInstance? @relation(fields: [processId], references: [id], onDelete: Cascade)
+  assignment       WorkflowAssignment? @relation("WorkflowAssignmentDocAccess", fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentId     String?
+  user             User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             Role?        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  department       Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  grantedBy        User?        @relation("GrantedByUser", fields: [grantedById], references: [id], onDelete: Cascade)
+}
+
+model ProcessNotification {
+  id          String    @id @default(uuid())
+  stepId      String?
+  userId      Int
+  notifiedAt  DateTime  @default(now())
+  removedAt   DateTime?
+  readAt      DateTime?
+  status      String    @default("ACTIVE")
+  type        NotificationType
+  metadata    Json?
+  stepInstance ProcessStepInstance? @relation("StepInstanceNotifications", fields: [stepId], references: [id], onDelete: Cascade)
+  user        User      @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProcessClaim {
+  id         String    @id @default(uuid())
+  stepId     String
+  userId     Int
+  claimedAt  DateTime  @default(now())
+  user       User      @relation("UserClaims", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SystemLog {
+  id        String    @id @default(uuid())
+  userId    Int?
+  action    String
+  details   Json?
+  timestamp DateTime  @default(now())
+  user      User?     @relation("UserSystemLogs", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProcessInstance {
+  id               String    @id @default(uuid())
+  name             String
+  workflowId       String
+  initiatorId      Int
+  currentStepId    String?
+  status           ProcessStatus @default(PENDING)
+  customizations   Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime? @updatedAt
+  isRecirculated   Boolean   @default(false)
+  workflow         Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  initiator        User      @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
+  currentStep      WorkflowStep? @relation("CurrentStepRelation", fields: [currentStepId], references: [id], onDelete: Cascade)
+  stepInstances    ProcessStepInstance[]
+  documents        ProcessDocument[] @relation("ProcessDocumentRelation")
+  qaChannels       ProcessQA[]
+  trackings        ProcessTracking[]
+  documentAccess   DocumentAccess[]
+  assignmentProgresses AssignmentProgress[] @relation()
+  recommendations   Recommendation[]
+  departmentStepProgresses DepartmentStepProgress[] @relation()
+  documentHistory  DocumentHistory[] @relation("ProcessDocumentHistory")
+}
+
+model AssignmentProgress {
+  id                String    @id @default(uuid())
+  assignmentId      String
+  processId         String
+  currentLevel      Int?
+  roleHierarchy     Json?
+  completed         Boolean   @default(false)
+  completedAt       DateTime?
+  peerApprovalRequired Boolean? @default(false)
+  completedRoles    Int[]     @default([])
+  workflowAssignment WorkflowAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  process           ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+  stepInstances     ProcessStepInstance[]
+  departmentStepProgress DepartmentStepProgress? @relation("DepartmentAssignmentProgress")
+  @@unique([assignmentId, processId])
+}
+
+model ProcessStepInstance {
+  id                 String    @id @default(uuid())
+  processId          String
+  assignmentId       String?
+  progressId         String?
+  assignedTo         Int
+  roleId             Int?
+  departmentId       Int?
+  status             StepStatus @default(PENDING)
+  claimedAt          DateTime?
+  deadline           DateTime?
+  pickedById         Int?
+  createdAt          DateTime  @default(now())
+  stepId             String?
+  decisionComment    String?
+  decisionAt         DateTime?
+  isRecirculated     Boolean   @default(false)
+  recirculationCycle Int       @default(0)
+  originalStepInstanceId String?
+  recirculationReason String?
+  process            ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+  workflowAssignment WorkflowAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentProgress AssignmentProgress? @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  pickedBy           User?     @relation(fields: [pickedById], references: [id], name: "UserPickedSteps", onDelete: Cascade)
+  workflowStep       WorkflowStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  documentAccesses   DocumentAccess[] @relation("StepInstanceDocumentAccess")
+  notifications      ProcessNotification[] @relation("StepInstanceNotifications")
+  escalations        Escalation[]
+  recommendations    Recommendation[] @relation()
+  processQA          ProcessQA[] @relation("StepInstanceQA")
+  documentHistory    DocumentHistory[] @relation("StepInstanceDocumentHistory")
+  documentSignatures DocumentSignature[] @relation()
+  documentRejections DocumentRejection[] @relation()
+  @@index([assignmentId])
+}
+
+model Escalation {
+  id             String         @id @default(uuid())
+  stepInstanceId String
+  escalationType EscalationType
+  triggerTime    DateTime
+  status         EscalationStatus @default(PENDING)
+  stepInstance   ProcessStepInstance @relation(fields: [stepInstanceId], references: [id], onDelete: Cascade)
+}
+
+model ProcessTracking {
+  id         String    @id @default(uuid())
+  processId  String
+  userId     Int
+  actionType ActionType
+  timestamp  DateTime  @default(now())
+  process    ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model ProcessDocument {
+  id               String    @id @default(uuid())
+  processId        String
+  documentId       Int
+  isReplacement    Boolean   @default(false)
+  replacedDocumentId Int?
+  rejectedById     Int?
+  process          ProcessInstance @relation("ProcessDocumentRelation", fields: [processId], references: [id], onDelete: Cascade)
+  document         Document  @relation("ProcessDocumentRelation", fields: [documentId], references: [id], onDelete: Cascade)
+  replacedDocument Document? @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id], onDelete: Cascade)
+  rejectedBy       User?     @relation("RejectedByUser", fields: [rejectedById], references: [id], onDelete: Cascade)
+  signatures       DocumentSignature[]
+  rejections       DocumentRejection[]
+  signCoordinates  SignCoordinate[] @relation()
+  documentHistory  DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
+}
+
+model DocumentSignature {
+  id                        String    @id @default(uuid())
+  processDocumentId         String
+  userId                    Int
+  reason                    String?
+  signedAt                  DateTime  @default(now())
+  byRecommender             Boolean   @default(false)
+  isAttachedWithRecommendation Boolean @default(false)
+  processStepInstanceId     String?
+  processDocument           ProcessDocument @relation(fields: [processDocumentId], references: [id], onDelete: Cascade)
+  user                      User      @relation("UserSignatures", fields: [userId], references: [id], onDelete: Cascade)
+  processStepInstance       ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id], onDelete: Cascade)
+}
+
+model ProcessQA {
+  id           String    @id @default(uuid())
+  processId    String
+  stepInstanceId String
+  initiatorId  Int
+  entityId     Int
+  entityType   AssigneeType
+  question     String
+  answer       String?
+  status       String?   @default("OPEN")
+  createdAt    DateTime  @default(now())
+  answeredAt   DateTime?
+  details      Json?
+  process      ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+  stepInstance ProcessStepInstance @relation("StepInstanceQA", fields: [stepInstanceId], references: [id], onDelete: Cascade)
+  initiator    User      @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
+}
+
+model DepartmentStepProgress {
+  id               String    @id @default(uuid())
+  processId        String
+  stepId           String
+  departmentId     Int
+  roleLevels       Json
+  currentLevel     Int
+  isCompleted      Boolean   @default(false)
+  direction        Direction
+  completedRoles   Int[]     @default([])
+  requiredRoles    Int[]
+  assignmentProgressId String? @unique
+  process          ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+  step             WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  department       Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  assignmentProgress AssignmentProgress? @relation(name: "DepartmentAssignmentProgress", fields: [assignmentProgressId], references: [id], onDelete: Cascade)
+  @@unique([processId, stepId, departmentId])
+}
+
+model SignCoordinate {
+  id              String    @id @default(uuid())
+  processDocumentId String
+  page            Int
+  x               Float
+  y               Float
+  width           Float
+  height          Float
+  stepId          String?
+  isSigned        Boolean   @default(false)
+  signedById      Int?
+  createdAt       DateTime  @default(now())
+  processDocument ProcessDocument @relation(fields: [processDocumentId], references: [id], onDelete: Cascade)
+  step            WorkflowStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  signedBy        User?     @relation(fields: [signedById], references: [id], onDelete: Cascade)
+}
+
+model DocumentHistory {
+  id                 String    @id @default(uuid())
+  documentId         Int
+  processId          String
+  stepInstanceId     String?
+  userId             Int
+  actionType         DocumentActionType
+  actionDetails      Json?
+  createdAt          DateTime  @default(now())
+  replacedDocumentId Int?
+  isRecirculationTrigger Boolean @default(false)
+  processDocumentId  String?
+  document           Document  @relation("DocumentHistory", fields: [documentId], references: [id], onDelete: Cascade)
+  process            ProcessInstance @relation("ProcessDocumentHistory", fields: [processId], references: [id], onDelete: Cascade)
+  stepInstance       ProcessStepInstance? @relation("StepInstanceDocumentHistory", fields: [stepInstanceId], references: [id], onDelete: Cascade)
+  user               User      @relation("DocumentHistoryByUser", fields: [userId], references: [id], onDelete: Cascade)
+  replacedDocument   Document? @relation("ReplacedDocumentHistory", fields: [replacedDocumentId], references: [id], onDelete: Cascade)
+  processDocument    ProcessDocument? @relation("ProcessDocumentDocumentHistory", fields: [processDocumentId], references: [id], onDelete: Cascade)
+}
+
+model Recommendation {
+  id               String    @id @default(uuid())
+  processId        String
+  stepInstanceId   String
+  initiatorId      Int
+  recommenderId    Int
+  recommendationText String
+  documentSummaries Json?
+  responseText     String?
+  status           String    @default("OPEN")
+  createdAt        DateTime  @default(now())
+  respondedAt      DateTime?
+  details          Json?
+  process          ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
+  stepInstance     ProcessStepInstance @relation(fields: [stepInstanceId], references: [id], onDelete: Cascade)
+  initiator        User      @relation("RecommendationInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  recommender      User      @relation("RecommendationRecommender", fields: [recommenderId], references: [id], onDelete: Cascade)
+}
+
+model DocumentRejection {
+  id                        String    @id @default(uuid())
+  processDocumentId         String
+  userId                    Int
+  reason                    String?
+  rejectedAt                DateTime  @default(now())
+  byRecommender             Boolean   @default(false)
+  isAttachedWithRecommendation Boolean @default(false)
+  processStepInstanceId     String?
+  processDocument           ProcessDocument @relation(fields: [processDocumentId], references: [id], onDelete: Cascade)
+  user                      User      @relation("UserRejections", fields: [userId], references: [id], onDelete: Cascade)
+  processStepInstance       ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id], onDelete: Cascade)
 }
 
 enum StepType {
@@ -190,65 +514,6 @@ enum ApproverType {
 enum Direction {
   UPWARDS
   DOWNWARDS
-}
-
-model WorkflowAssignment {
-  id              String    @id @default(uuid())
-  stepId          String
-  step            WorkflowStep @relation(fields: [stepId], references: [id])
-  actionType      ActionType
-  assigneeIds     Int[]
-  assigneeType    AssigneeType
-  departmentRoles DepartmentRoleAssignment[]
-  accessTypes     AccessType[] @default([])
-  direction       Direction?
-  allowParallel   Boolean   @default(false)
-  documentAccesses DocumentAccess[] @relation("WorkflowAssignmentDocAccess")
-  stepInstances   ProcessStepInstance[]
-  assignmentProgresses AssignmentProgress[]
-}
-
-model DepartmentRoleAssignment {
-  id                  Int       @id @default(autoincrement())
-  workflowAssignment   WorkflowAssignment @relation(fields: [workflowAssignmentId], references: [id])
-  workflowAssignmentId String
-  department           Department @relation(fields: [departmentId], references: [id])
-  departmentId        Int
-  role                Role      @relation(fields: [roleId], references: [id])
-  roleId              Int
-  @@unique([workflowAssignmentId, departmentId, roleId])
-}
-
-model ProcessWorkflowVersion {
-  id          String    @id @default(uuid())
-  processId   String
-  oldVersion  Int
-  newVersion  Int
-  migratedAt  DateTime  @default(now())
-}
-
-model DocumentAccess {
-  id                  String    @id @default(uuid())
-  documentId          Int
-  document            Document  @relation("DocumentAccesses", fields: [documentId], references: [id])
-  stepInstanceId      String?
-  stepInstance        ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id])
-  accessType          AccessType[] @default([])
-  accessLevel         AccessLevel @default(STANDARD)
-  processInstance     ProcessInstance? @relation(fields: [processId], references: [id])
-  assignmentId        String?
-  assignment          WorkflowAssignment? @relation("WorkflowAssignmentDocAccess", fields: [assignmentId], references: [id])
-  processId           String?
-  userId              Int?
-  user                User?     @relation(fields: [userId], references: [id])
-  roleId              Int?
-  role                Role?     @relation(fields: [roleId], references: [id])
-  departmentId        Int?
-  department          Department? @relation(fields: [departmentId], references: [id])
-  grantedAt           DateTime  @default(now())
-  grantedById         Int?
-  grantedBy           User?     @relation("GrantedByUser", fields: [grantedById], references: [id])
-  docAccessThrough    DocAccessThrough @default(SELF)
 }
 
 enum AccessLevel {
@@ -270,37 +535,6 @@ enum NotificationType {
   DOCUMENT_QUERY
 }
 
-model ProcessNotification {
-  id          String    @id @default(uuid())
-  stepId      String?
-  stepInstance ProcessStepInstance? @relation("StepInstanceNotifications", fields: [stepId], references: [id])
-  userId      Int
-  user        User      @relation("UserNotifications", fields: [userId], references: [id])
-  notifiedAt  DateTime  @default(now())
-  removedAt   DateTime?
-  status      String    @default("ACTIVE")
-  type        NotificationType
-  readAt      DateTime?
-  metadata    Json?
-}
-
-model ProcessClaim {
-  id          String    @id @default(uuid())
-  stepId      String
-  userId      Int
-  user        User      @relation("UserClaims", fields: [userId], references: [id])
-  claimedAt   DateTime  @default(now())
-}
-
-model SystemLog {
-  id          String    @id @default(uuid())
-  userId      Int?
-  user        User?     @relation("UserSystemLogs", fields: [userId], references: [id])
-  action      String
-  details     Json?
-  timestamp   DateTime  @default(now())
-}
-
 enum AccessType {
   READ
   EDIT
@@ -320,88 +554,11 @@ enum ActionType {
   NOTIFICATION
 }
 
-model ProcessInstance {
-  id                  String    @id @default(uuid())
-  name                String
-  workflowId          String
-  workflow            Workflow  @relation(fields: [workflowId], references: [id])
-  initiatorId         Int
-  initiator           User      @relation(fields: [initiatorId], references: [id])
-  currentStepId       String?
-  currentStep         WorkflowStep? @relation("CurrentStepRelation", fields: [currentStepId], references: [id])
-  status              ProcessStatus @default(PENDING)
-  customizations      Json?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime? @updatedAt
-  stepInstances       ProcessStepInstance[]
-  documents           ProcessDocument[] @relation("ProcessDocumentRelation")
-  qaChannels          ProcessQA[]
-  trackings           ProcessTracking[]
-  documentAccess      DocumentAccess[]
-  assignmentProgresses AssignmentProgress[] @relation()
-  recommendations     Recommendation[]
-  departmentStepProgresses DepartmentStepProgress[] @relation()
-  isRecirculated      Boolean   @default(false)
-  documentHistory     DocumentHistory[] @relation("ProcessDocumentHistory")
-}
-
 enum ProcessStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
   REJECTED
-}
-
-model AssignmentProgress {
-  id              String    @id @default(uuid())
-  workflowAssignment WorkflowAssignment @relation(fields: [assignmentId], references: [id])
-  assignmentId    String
-  process         ProcessInstance @relation(fields: [processId], references: [id])
-  processId       String
-  currentLevel    Int?
-  roleHierarchy   Json?
-  completed       Boolean   @default(false)
-  completedAt     DateTime?
-  peerApprovalRequired Boolean? @default(false)
-  stepInstances   ProcessStepInstance[]
-  completedRoles  Int[]     @default([])
-  departmentStepProgress DepartmentStepProgress? @relation("DepartmentAssignmentProgress")
-  @@unique([assignmentId, processId])
-}
-
-model ProcessStepInstance {
-  id                  String       @id @default(uuid())
-  process             ProcessInstance @relation(fields: [processId], references: [id])
-  processId           String
-  workflowAssignment  WorkflowAssignment? @relation(fields: [assignmentId], references: [id])
-  assignmentId        String?
-  assignmentProgress  AssignmentProgress? @relation(fields: [progressId], references: [id])
-  progressId          String?
-  assignedTo          Int
-  roleId              Int?
-  departmentId        Int?
-  status              StepStatus   @default(PENDING)
-  claimedAt           DateTime?
-  deadline            DateTime?
-  pickedBy            User?        @relation(fields: [pickedById], references: [id], name: "UserPickedSteps")
-  pickedById          Int?
-  createdAt           DateTime     @default(now())
-  workflowStep        WorkflowStep? @relation(fields: [stepId], references: [id])
-  stepId              String?
-  documentAccesses    DocumentAccess[] @relation("StepInstanceDocumentAccess")
-  notifications       ProcessNotification[] @relation("StepInstanceNotifications")
-  escalations         Escalation[]
-  recommendations     Recommendation[] @relation
-  processQA           ProcessQA[]  @relation("StepInstanceQA") // Renamed from qaChannels
-  decisionComment     String?
-  decisionAt          DateTime?
-  isRecirculated      Boolean      @default(false)
-  originalStepInstanceId String?
-  recirculationReason String?
-  documentHistory     DocumentHistory[] @relation("StepInstanceDocumentHistory")
-  documentSignatures  DocumentSignature[] @relation // New relation
-  documentRejections  DocumentRejection[] @relation
-  @@index([assignmentId])
 }
 
 enum StepStatus {
@@ -413,15 +570,6 @@ enum StepStatus {
   ESCALATED
   FOR_RECIRCULATION
   FOR_RECOMMENDATION
-}
-
-model Escalation {
-  id              String    @id @default(uuid())
-  stepInstanceId  String
-  stepInstance    ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
-  escalationType  EscalationType
-  triggerTime     DateTime
-  status          EscalationStatus @default(PENDING)
 }
 
 enum EscalationType {
@@ -436,158 +584,10 @@ enum EscalationStatus {
   COMPLETED
 }
 
-model ProcessTracking {
-  id          String    @id @default(uuid())
-  processId   String
-  process     ProcessInstance @relation(fields: [processId], references: [id])
-  userId      Int
-  actionType  ActionType
-  timestamp   DateTime  @default(now())
-}
-
-model ProcessDocument {
-  id                  String    @id @default(uuid())
-  processId           String
-  process             ProcessInstance @relation("ProcessDocumentRelation", fields: [processId], references: [id])
-  documentId          Int
-  document            Document  @relation("ProcessDocumentRelation", fields: [documentId], references: [id])
-  signatures          DocumentSignature[]
-  rejections          DocumentRejection[] // New relation to DocumentRejection
-  signCoordinates     SignCoordinate[] @relation
-  documentHistory     DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
-  isReplacement       Boolean   @default(false)
-  replacedDocumentId  Int?
-  replacedDocument    Document? @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id])
-  rejectedBy          User?     @relation("RejectedByUser", fields: [rejectedById], references: [id]) // Added relation
-  rejectedById        Int?      // Added foreign key field
-}
-
-model DocumentSignature {
-  id              String    @id @default(uuid())
-  processDocument ProcessDocument @relation(fields: [processDocumentId], references: [id])
-  processDocumentId String
-  userId          Int
-  user            User      @relation("UserSignatures", fields: [userId], references: [id])
-  reason          String?
-  signedAt        DateTime  @default(now())
-  byRecommender               Boolean   @default(false) // Indicates if signed by a recommender
-  isAttachedWithRecommendation Boolean  @default(false)
-  processStepInstanceId String?         // New field
-  processStepInstance ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id])
-}
-
-model ProcessQA {
-  id              String       @id @default(uuid())
-  processId       String
-  process         ProcessInstance @relation(fields: [processId], references: [id])
-  stepInstanceId  String
-  stepInstance    ProcessStepInstance @relation("StepInstanceQA", fields: [stepInstanceId], references: [id])
-  initiatorId     Int
-  initiator       User         @relation(fields: [initiatorId], references: [id])
-  entityId        Int
-  entityType      AssigneeType
-  question        String
-  answer          String?
-  status          String?      @default("OPEN") // Added status field
-  createdAt       DateTime     @default(now())
-  answeredAt      DateTime?
-  details         Json?        // Stores documentChanges, documentSummaries, assigneeDetails
-}
-
-model DepartmentStepProgress {
-  id                  String    @id @default(uuid())
-  process             ProcessInstance @relation(fields: [processId], references: [id])
-  processId           String
-  step                WorkflowStep @relation(fields: [stepId], references: [id])
-  stepId              String
-  department          Department @relation(fields: [departmentId], references: [id])
-  departmentId        Int
-  roleLevels          Json
-  currentLevel        Int
-  isCompleted         Boolean   @default(false)
-  direction           Direction
-  completedRoles      Int[]     @default([])
-  requiredRoles       Int[]
-  assignmentProgress  AssignmentProgress? @relation(name: "DepartmentAssignmentProgress", fields: [assignmentProgressId], references: [id])
-  assignmentProgressId String?   @unique
-  @@unique([processId, stepId, departmentId])
-}
-
-model SignCoordinate {
-  id              String    @id @default(uuid())
-  processDocumentId String
-  processDocument ProcessDocument @relation(fields: [processDocumentId], references: [id])
-  page            Int
-  x               Float
-  y               Float
-  width           Float
-  height          Float
-  stepId          String?
-  step            WorkflowStep? @relation(fields: [stepId], references: [id])
-  isSigned        Boolean   @default(false)
-  signedById      Int?
-  signedBy        User?     @relation(fields: [signedById], references: [id])
-  createdAt       DateTime  @default(now())
-}
-
-model DocumentHistory {
-  id                  String    @id @default(uuid())
-  documentId          Int
-  document            Document  @relation("DocumentHistory", fields: [documentId], references: [id])
-  processId           String
-  process             ProcessInstance @relation("ProcessDocumentHistory", fields: [processId], references: [id])
-  stepInstanceId      String?
-  stepInstance        ProcessStepInstance? @relation("StepInstanceDocumentHistory", fields: [stepInstanceId], references: [id])
-  userId              Int
-  user                User      @relation("DocumentHistoryByUser", fields: [userId], references: [id])
-  actionType          DocumentActionType
-  actionDetails       Json?
-  createdAt           DateTime  @default(now())
-  replacedDocumentId  Int?
-  replacedDocument    Document? @relation("ReplacedDocumentHistory", fields: [replacedDocumentId], references: [id])
-  isRecirculationTrigger Boolean @default(false)
-  processDocument     ProcessDocument? @relation("ProcessDocumentDocumentHistory", fields: [processDocumentId], references: [id])
-  processDocumentId   String?
-}
-
 enum DocumentActionType {
   UPLOADED
   REPLACED
   REJECTED
   SIGNED
   FEEDBACK
-}
-
-
-model Recommendation {
-  id                  String       @id @default(uuid())
-  processId           String
-  process             ProcessInstance @relation(fields: [processId], references: [id])
-  stepInstanceId      String
-  stepInstance        ProcessStepInstance @relation(fields: [stepInstanceId], references: [id])
-  initiatorId         Int
-  initiator           User         @relation("RecommendationInitiator", fields: [initiatorId], references: [id])
-  recommenderId       Int
-  recommender         User         @relation("RecommendationRecommender", fields: [recommenderId], references: [id])
-  recommendationText  String
-  documentSummaries   Json?        // Stores [{documentId, queryText, requiresApproval}]
-  responseText        String?      // Recommender's overall response
-  status              String       @default("OPEN") // OPEN, RESOLVED
-  createdAt           DateTime     @default(now())
-  respondedAt         DateTime?
-  details             Json?        // Stores document-specific responses
-}
-
-model DocumentRejection {
-  id                        String    @id @default(uuid())
-  processDocumentId         String
-  processDocument           ProcessDocument @relation(fields: [processDocumentId], references: [id])
-  userId                    Int
-  user                      User      @relation("UserRejections", fields: [userId], references: [id])
-  reason                    String?
-  rejectedAt                DateTime  @default(now())
-  byRecommender             Boolean   @default(false) // Indicates if rejected by a recommender
-  isAttachedWithRecommendation Boolean @default(false)
-  processStepInstanceId     String?
-  processStepInstance       ProcessStepInstance? @relation(fields: [processStepInstanceId], references: [id])
 }

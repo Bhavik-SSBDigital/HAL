@@ -115,6 +115,10 @@ import {
 import { pick_process_step } from "../controller/process-step-claim.js";
 
 import { upload_signature } from "../controller/image-controller.js";
+import {
+  get_user_activity_logs,
+  get_user_activity_log,
+} from "../controller/log-controller.js";
 
 const router = express.Router();
 
@@ -250,4 +254,6 @@ router.get("/recommendations/:recommendationId", get_recommendation);
 // router.post("/highlights", postHighlight);
 // router.get("/documents/highlights/:documentId", getHighlights);
 
+router.get("/logs/getUserLogs", get_user_activity_logs);
+router.get("/logs/:processId/:stepInstanceId?", get_user_activity_log);
 export default router;
