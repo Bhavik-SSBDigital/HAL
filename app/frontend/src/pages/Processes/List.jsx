@@ -1,25 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
-import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-} from '@mui/material';
+
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { IconEye, IconSquareRoundedX } from '@tabler/icons-react';
-import sessionData from '../../Store';
-import { GetProcessesList, removeProcessNotification } from '../../common/Apis';
+import { GetProcessesList } from '../../common/Apis';
 import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function List() {
-  const { setNotifications, notifications } = sessionData();
   const [data, setData] = useState([]);
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,18 +31,7 @@ export default function List() {
 
   const handleView = (id) => {
     navigate(`/process/view/${id}`);
-    // handleRemoveNotification(id);
   };
-
-  const handleRemoveNotification = async (id) => {
-    try {
-      await removeProcessNotification(id);
-      setNotifications(notifications.filter((item) => item.processId !== id));
-    } catch (error) {
-      console.error('Error removing notification', error);
-    }
-  };
-
   const columns = [
     { field: 'processName', headerName: 'Process Name', width: 200 },
     { field: 'initiatorUsername', headerName: 'Initiator', width: 200 },
@@ -98,7 +76,7 @@ export default function List() {
   }, []);
 
   return (
-    <Box>
+    <div>
       {loading ? (
         <ComponentLoader />
       ) : (
@@ -119,6 +97,6 @@ export default function List() {
           />
         </CustomCard>
       )}
-    </Box>
+    </div>
   );
 }

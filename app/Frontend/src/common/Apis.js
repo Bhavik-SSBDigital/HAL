@@ -276,3 +276,11 @@ export const signRecommendDocument = async (data) => {
 export const respondRecommendation = async (data) => {
   return apiClient.post(`/recommendations/respond`, data);
 };
+
+// logs
+export const GetUserLogs = async () => {
+  return apiClient.get('/logs/getUserLogs');
+};
+export const viewLog = async (id) => {
+  return apiClient.get(`/logs/${id}`);
+};

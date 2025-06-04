@@ -7,18 +7,17 @@ import {
   IconBrandSpeedtest,
   IconCaretDown,
   IconCornerDownRight,
-  IconChartHistogram,
   IconFolderOpen,
   IconFolderSearch,
   IconBuildingEstate,
   IconUser,
   IconUserSquareRounded,
   IconDatabaseCog,
-  IconCalendarStats,
   IconChartDots3,
   IconSquareLetterX,
   IconRecycle,
   IconDeviceIpadHorizontalQuestion,
+  IconHistory,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -119,18 +118,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       icon: <IconFolderSearch size={26} />,
       active: pathname == '/Search',
     },
-    {
-      path: '/meeting-manager',
-      label: 'Meeting Manager',
-      icon: <IconCalendarStats />,
-      active: pathname == '/meeting-manager',
-    },
-    {
-      path: '/monitor',
-      label: 'Monitor Processes',
-      icon: <IconChartHistogram size={26} />,
-      active: pathname == '/monitor',
-    },
+    // {
+    //   path: '/meeting-manager',
+    //   label: 'Meeting Manager',
+    //   icon: <IconCalendarStats />,
+    //   active: pathname == '/meeting-manager',
+    // },
+    // {
+    //   path: '/monitor',
+    //   label: 'Monitor Processes',
+    //   icon: <IconChartHistogram size={26} />,
+    //   active: pathname == '/monitor',
+    // },
     {
       path: '/workflows',
       label: 'Workflows',
@@ -208,11 +207,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       dropdown: [
         { path: '/processes/work', label: 'Pending Work' },
         { path: '/processes/recommendations', label: 'Recommendations' },
-        { path: '/processes/logs', label: 'Logs' },
-        { path: '/processes/published', label: 'Published' },
+        // { path: '/processes/published', label: 'Published' },
         { path: '/processes/initiate', label: 'Initiate Process' },
       ],
       active: pathname.includes('process'),
+    },
+    {
+      path: '/logs',
+      label: 'Logs',
+      icon: <IconHistory size={26} />,
+      active: pathname.includes('logs'),
     },
     {
       path: '/recommendations',

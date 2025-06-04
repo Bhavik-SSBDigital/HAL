@@ -10,7 +10,6 @@ import BranchList from './pages/Branches/List';
 import UserList from './pages/Users/List';
 import RolesList from './pages/Roles/List';
 import WorkList from './pages/Processes/List';
-import LogsList from './pages/Logs/List';
 import PublishedList from './pages/Published/List';
 import DepartmentList from './pages/Department/List';
 import NewBranch from './pages/Branches/NewBranch';
@@ -22,7 +21,6 @@ import FileSystem from './pages/FileSystem';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
-import ViewLog from './pages/Logs/ViewLog';
 import MonitorView from './pages/Monitor/View';
 import ProcessInitForm from './pages/Processes/InitiateProcess';
 import Monitor from './pages/Monitor/Monitor';
@@ -49,6 +47,8 @@ import Workflows from './pages/workflows';
 import RecycleBin from './pages/RecycleBin';
 import Recommendations from './pages/Recommendations';
 import ViewRecommendation from './pages/Recommendations/ViewRecommendation';
+import Logs from './pages/Logs/List';
+import ViewLog from './pages/Logs/ViewLog';
 
 function App() {
   const dispatch = useDispatch();
@@ -277,6 +277,27 @@ function App() {
             </DefaultLayout>
           }
         />
+
+        {/* logs */}
+        <Route
+          path="/logs"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Logs" />
+              <Logs />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/logs/:id"
+          element={
+            <DefaultLayout>
+              <PageTitle title="View Log" />
+              <ViewLog />
+            </DefaultLayout>
+          }
+        />
+
         <Route
           path="/recommendations"
           element={
@@ -313,24 +334,7 @@ function App() {
             </DefaultLayout>
           }
         />
-        <Route
-          path="/processes/logs"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Logs List" />
-              <LogsList />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/processes/logs/view"
-          element={
-            <DefaultLayout>
-              <PageTitle title="View Process" />
-              <ViewLog />
-            </DefaultLayout>
-          }
-        />
+
         <Route
           path="/processes/published"
           element={
