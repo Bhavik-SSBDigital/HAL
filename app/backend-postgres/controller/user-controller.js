@@ -115,7 +115,7 @@ export const get_user_profile_data = async (req, res) => {
         email: true,
         signaturePicFileName: true,
         dscFileName: true,
-        dscName: true,
+        dscFileName: true,
         branches: true,
         roles: {
           select: {
@@ -139,7 +139,7 @@ export const get_user_profile_data = async (req, res) => {
       email: user.email,
       signaturePicFileName: user.signaturePicFileName,
       profilePicFileName: user.profilePicFileName,
-      dscName: user.dscFileName,
+      dscFileName: user.dscFileName,
     };
 
     res.status(200).json({
@@ -450,17 +450,17 @@ export const get_user_dsc = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userData.id },
-      select: { dscName: true },
+      select: { dscFileName: true },
     });
 
-    if (!user?.dscName) {
+    if (!user?.dscFileName) {
       return res.status(400).json({ message: "Please upload DSC" });
     }
 
     const imagePath = path.join(
       __dirname,
       process.env.DSC_FOLDER_PATH, // Use absolute path in env
-      user.dscName
+      user.dscFileName
     );
 
     if (!fs.existsSync(imagePath)) {

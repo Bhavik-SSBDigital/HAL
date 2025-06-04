@@ -91,7 +91,7 @@ model User {
   signaturePicFileName  String?
   profilePicFileName    String?
   dscFileName           String?
-  dscName               String?
+  dscFileName               String?
   createdBy             User?     @relation("CreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
   createdUsers          User[]    @relation("CreatedByRelation")
   tokens                Token[]

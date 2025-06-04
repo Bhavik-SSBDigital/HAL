@@ -219,7 +219,7 @@ const Profile = () => {
             </h2>
 
             <div className="flex flex-col items-start gap-2 text-base text-gray-700 dark:text-gray-300">
-              {userDetails?.dscName ? (
+              {userDetails?.dscFileName ? (
                 <div className="flex items-center gap-2 text-green-700">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -236,7 +236,7 @@ const Profile = () => {
                     />
                   </svg>
                   <span className="font-medium">Current DSC:</span>
-                  <span>{userDetails.dscName}</span>
+                  <span>{userDetails.dscFileName}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-red-600 bg-red-100 p-2 rounded-md border border-red-400">

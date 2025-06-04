@@ -248,7 +248,7 @@ export const sign_document = async (req, res, next) => {
               envVariables.DSC_FOLDER_PATH,
               user.dscFileName
             ),
-            "123"
+            p12Password
           )
         : await print_signature_after_content_on_the_last_page(
             pdfDoc,
