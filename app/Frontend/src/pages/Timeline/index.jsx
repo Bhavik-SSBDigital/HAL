@@ -337,21 +337,68 @@ const Timeline = ({ activities }) => {
                 <strong>Initiator:</strong> {details.initiatorName || 'N/A'}
               </p>
 
-              {details.documentChanges &&
-                details.documentChanges.length > 0 && (
-                  <div className="ml-4 border-l-2 border-yellow-400 pl-4 space-y-3 mt-3 bg-yellow-100 p-3 rounded">
-                    <strong className="block mb-2 text-yellow-800">
-                      Document Changes:
-                    </strong>
-                    {details.documentChanges.map((doc, i) => (
-                      <div key={i} className="space-y-1">
+              {/* Document Changes */}
+              {details.documentChanges?.length > 0 && (
+                <div className="ml-4 border-l-2 border-yellow-400 pl-4 space-y-3 mt-3 bg-yellow-100 p-3 rounded">
+                  <strong className="block mb-2 text-yellow-800">
+                    Document Changes:
+                  </strong>
+                  {details.documentChanges.map((doc, i) => (
+                    <div key={i} className="space-y-1">
+                      <p>
+                        <strong>Document:</strong> {doc.document?.name || 'N/A'}
+                        {doc.document?.name && doc.document?.path && (
+                          <button
+                            onClick={() =>
+                              handleView(doc.document.name, doc.document.path)
+                            }
+                            className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+                            type="button"
+                          >
+                            View
+                          </button>
+                        )}
+                      </p>
+                      {doc.replacedDocument && (
                         <p>
-                          <strong>Document:</strong>{' '}
-                          {doc.document?.name || 'N/A'}{' '}
-                          {doc.document?.name && doc.document?.path && (
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
+                          → {doc.document?.name}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Requires Approval:</strong>{' '}
+                        {doc.requiresApproval ? 'Yes' : 'No'}
+                      </p>
+                      {doc.actionDetails?.length > 0 && (
+                        <p>
+                          <strong>Actions:</strong>{' '}
+                          {doc.actionDetails.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Document Summaries */}
+              {details.documentSummaries?.length > 0 && (
+                <div className="ml-4 border-l-2 border-yellow-400 pl-4 space-y-3 mt-3 bg-yellow-100 p-3 rounded">
+                  <strong className="block mb-2 text-yellow-800">
+                    Document Feedback:
+                  </strong>
+                  {details.documentSummaries.map((summary, i) => (
+                    <div key={i} className="space-y-1">
+                      <p>
+                        <strong>Document:</strong>{' '}
+                        {summary.documentDetails?.name || 'N/A'}
+                        {summary.documentDetails?.name &&
+                          summary.documentDetails?.path && (
                             <button
                               onClick={() =>
-                                handleView(doc.document.name, doc.document.path)
+                                handleView(
+                                  summary.documentDetails.name,
+                                  summary.documentDetails.path,
+                                )
                               }
                               className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
                               type="button"
@@ -359,28 +406,26 @@ const Timeline = ({ activities }) => {
                               View
                             </button>
                           )}
-                        </p>
-                        {doc.replacedDocument && (
-                          <p>
-                            <strong>Replaced:</strong>{' '}
-                            {doc.replacedDocument.name} → {doc.document?.name}
-                          </p>
-                        )}
-                        <p>
-                          <strong>Requires Approval:</strong>{' '}
-                          {doc.requiresApproval ? 'Yes' : 'No'}
-                        </p>
-                        {doc.actionDetails && doc.actionDetails.length > 0 && (
-                          <p>
-                            <strong>Actions:</strong>{' '}
-                            {doc.actionDetails.join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      </p>
+                      <p>
+                        <strong>Feedback:</strong>{' '}
+                        {summary.feedbackText || 'N/A'}
+                      </p>
+                      <p>
+                        <strong>User:</strong> {summary.user || 'N/A'}
+                      </p>
+                      <p>
+                        <strong>Given At:</strong>{' '}
+                        {summary.createdAt
+                          ? new Date(summary.createdAt).toLocaleString()
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <p className="mt-2 text-gray-600 italic">{details?.description}</p>
           </div>
         );
@@ -391,6 +436,7 @@ const Timeline = ({ activities }) => {
             <div className="text-sm text-gray-600 mb-2">
               {new Date(details?.createdAt).toLocaleString()}
             </div>
+
             <div className="text-green-700 space-y-2">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -407,7 +453,96 @@ const Timeline = ({ activities }) => {
                   ? new Date(details.answeredAt).toLocaleString()
                   : 'N/A'}
               </p>
+
+              {/* Document Changes */}
+              {details.documentChanges?.length > 0 && (
+                <div className="ml-4 border-l-2 border-green-400 pl-4 space-y-3 mt-3 bg-green-100 p-3 rounded">
+                  <strong className="block mb-2 text-green-800">
+                    Document Changes:
+                  </strong>
+                  {details.documentChanges.map((doc, i) => (
+                    <div key={i} className="space-y-1">
+                      <p>
+                        <strong>Document:</strong> {doc.document?.name || 'N/A'}
+                        {doc.document?.name && doc.document?.path && (
+                          <button
+                            onClick={() =>
+                              handleView(doc.document.name, doc.document.path)
+                            }
+                            className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                            type="button"
+                          >
+                            View
+                          </button>
+                        )}
+                      </p>
+                      {doc.replacedDocument && (
+                        <p>
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
+                          → {doc.document?.name}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Requires Approval:</strong>{' '}
+                        {doc.requiresApproval ? 'Yes' : 'No'}
+                      </p>
+                      {doc.actionDetails?.length > 0 && (
+                        <p>
+                          <strong>Actions:</strong>{' '}
+                          {doc.actionDetails.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Document Summaries */}
+              {details.documentSummaries?.length > 0 && (
+                <div className="ml-4 border-l-2 border-green-400 pl-4 space-y-3 mt-3 bg-green-100 p-3 rounded">
+                  <strong className="block mb-2 text-green-800">
+                    Document Feedback:
+                  </strong>
+                  {details.documentSummaries.map((summary, i) => (
+                    <div key={i} className="space-y-1">
+                      <p>
+                        <strong>Document:</strong>{' '}
+                        {summary.documentDetails?.name || 'N/A'}
+                        {summary.documentDetails?.name &&
+                          summary.documentDetails?.path && (
+                            <button
+                              onClick={() =>
+                                handleView(
+                                  summary.documentDetails.name,
+                                  summary.documentDetails.path,
+                                )
+                              }
+                              className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                              type="button"
+                            >
+                              View
+                            </button>
+                          )}
+                      </p>
+                      <p>
+                        <strong>Feedback:</strong>{' '}
+                        {summary.feedbackText || 'N/A'}
+                      </p>
+                      <p>
+                        <strong>User:</strong> {summary.user || 'N/A'}
+                      </p>
+                      <p>
+                        <strong>Given At:</strong>{' '}
+                        {summary.createdAt
+                          ? new Date(summary.createdAt).toLocaleString()
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <p className="mt-2 text-gray-600 italic">{details?.description}</p>
           </div>
         );
@@ -456,6 +591,48 @@ const Timeline = ({ activities }) => {
                     ))}
                   </div>
                 )}
+              {/* Document Changes */}
+              {details.documentChanges?.length > 0 && (
+                <div className="ml-4 border-l-2 border-green-400 pl-4 space-y-3 mt-3 bg-green-100 p-3 rounded">
+                  <strong className="block mb-2 text-green-800">
+                    Document Changes:
+                  </strong>
+                  {details.documentChanges.map((doc, i) => (
+                    <div key={i} className="space-y-1">
+                      <p>
+                        <strong>Document:</strong> {doc.document?.name || 'N/A'}
+                        {doc.document?.name && doc.document?.path && (
+                          <button
+                            onClick={() =>
+                              handleView(doc.document.name, doc.document.path)
+                            }
+                            className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                            type="button"
+                          >
+                            View
+                          </button>
+                        )}
+                      </p>
+                      {doc.replacedDocument && (
+                        <p>
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
+                          → {doc.document?.name}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Requires Approval:</strong>{' '}
+                        {doc.requiresApproval ? 'Yes' : 'No'}
+                      </p>
+                      {doc.actionDetails?.length > 0 && (
+                        <p>
+                          <strong>Actions:</strong>{' '}
+                          {doc.actionDetails.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <p className="mt-2 text-gray-600 italic">{details?.description}</p>
           </div>
@@ -467,6 +644,7 @@ const Timeline = ({ activities }) => {
             <div className="text-sm text-gray-600 mb-2">
               {new Date(details?.createdAt).toLocaleString()}
             </div>
+
             <div className="text-purple-900 space-y-1">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -480,35 +658,54 @@ const Timeline = ({ activities }) => {
               </p>
               <p>
                 <strong>Responded At:</strong>{' '}
-                {details.respondedAt &&
-                  new Date(details.respondedAt).toLocaleString()}
+                {details.respondedAt
+                  ? new Date(details.respondedAt).toLocaleString()
+                  : 'N/A'}
               </p>
 
-              {details.documentDetails &&
-                details.documentDetails.length > 0 && (
-                  <div className="ml-4 border-l-2 border-purple-600 pl-4 mt-2 space-y-1 bg-purple-200 p-3 rounded">
-                    <strong className="block text-purple-900 mb-1">
-                      Related Documents:
-                    </strong>
-                    {details.documentDetails.map((doc, i) => (
-                      <p key={i} className="flex items-center justify-between">
-                        <span>{doc.documentName}</span>
-                        {doc.documentPath && (
-                          <button
-                            onClick={() =>
-                              handleView(doc.documentName, doc.documentPath)
-                            }
-                            className="ml-2 px-2 py-1 bg-purple-700 text-white rounded hover:bg-purple-900 transition"
-                            type="button"
-                          >
-                            View
-                          </button>
-                        )}
-                      </p>
-                    ))}
-                  </div>
-                )}
+              {/* Related Documents */}
+              {details.documentDetails?.length > 0 && (
+                <div className="ml-4 border-l-2 border-purple-600 pl-4 mt-2 space-y-1 bg-purple-200 p-3 rounded">
+                  <strong className="block text-purple-900 mb-1">
+                    Related Documents:
+                  </strong>
+                  {details.documentDetails.map((doc, i) => (
+                    <p key={i} className="flex items-center justify-between">
+                      <span>{doc.documentName}</span>
+                      {doc.documentPath && (
+                        <button
+                          onClick={() =>
+                            handleView(doc.documentName, doc.documentPath)
+                          }
+                          className="ml-2 px-2 py-1 bg-purple-700 text-white rounded hover:bg-purple-900 transition"
+                          type="button"
+                        >
+                          View
+                        </button>
+                      )}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Document Responses */}
+              {details.documentResponses?.length > 0 && (
+                <div className="ml-4 border-l-2 border-purple-600 pl-4 mt-3 space-y-1 bg-purple-200 p-3 rounded">
+                  <strong className="block text-purple-900 mb-1">
+                    Document Responses:
+                  </strong>
+                  {details.documentResponses.map((response, i) => (
+                    <p key={i}>
+                      <strong>Document ID:</strong>{' '}
+                      {response.documentId || 'N/A'}
+                      <br />
+                      <strong>Answer:</strong> {response.answerText || 'N/A'}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
+
             <p className="mt-2 text-gray-600 italic">{details?.description}</p>
           </div>
         );
