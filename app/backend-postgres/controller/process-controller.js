@@ -776,11 +776,18 @@ export const view_process = async (req, res) => {
         isRecirculationTrigger: history.isRecirculationTrigger,
       }));
 
+      const parts = doc.document.path.split("/"); // Split the path by "/"
+
+      // Remove the last part (whether it’s a file name or folder name)
+      parts.pop();
+
+      const updatedPath = parts.join("/"); // Join the remaining parts back
+
       return {
         id: doc.document.id,
         name: doc.document.name,
         type: doc.document.type,
-        path: doc.document.path,
+        path: updatedPath,
         tags: doc.document.tags,
         signedBy,
         rejectionDetails,

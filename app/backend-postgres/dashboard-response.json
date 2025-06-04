@@ -1,0 +1,275 @@
+{
+  "/getNumbers": {
+    "request": {
+      "url": "http://api.example.com/getNumbers?startDate=2025-01-01&endDate=2025-06-01",
+      "headers": { "Authorization": "Bearer <token>" }
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "totalWorkflows": 50,
+        "activeWorkflows": 20,
+        "completedProcesses": 100,
+        "pendingProcesses": 30,
+        "queries": {
+          "total": 150,
+          "solved": 120
+        },
+        "signedDocuments": 200,
+        "rejectedDocuments": 10,
+        "replacedDocuments": 15,
+        "averageStepCompletionTimeHours": 12.45
+      }
+    }
+  },
+  "/getDetails": {
+    "request": {
+      "url": "http://api.example.com/getDetails?startDate=2025-01-01&endDate=2025-06-01",
+      "headers": { "Authorization": "Bearer <token>" }
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "workflows": [
+          {
+            "workflowId": "wf1",
+            "name": "Approval Workflow",
+            "version": "1.0",
+            "description": "Standard approval process",
+            "createdAt": "2025-01-01T10:00:00.000Z",
+            "updatedAt": "2025-01-02T12:00:00.000Z"
+          }
+        ],
+        "activeWorkflows": [
+          {
+            "workflowId": "wf1",
+            "name": "Approval Workflow",
+            "version": "1.0",
+            "description": "Standard approval process",
+            "createdAt": "2025-01-01T10:00:00.000Z",
+            "updatedAt": "2025-01-02T12:00:00.000Z"
+          }
+        ],
+        "completedProcesses": [
+          {
+            "processId": "p1",
+            "processName": "Contract Approval",
+            "createdAt": "2025-01-05T09:00:00.000Z",
+            "initiatorUsername": "user1"
+          }
+        ],
+        "pendingProcesses": [
+          {
+            "processId": "p2",
+            "processName": "Invoice Review",
+            "createdAt": "2025-02-01T11:00:00.000Z",
+            "initiatorUsername": "user2"
+          }
+        ],
+        "queries": {
+          "total": 2,
+          "solved": 1,
+          "details": [
+            {
+              "stepInstanceId": "si1",
+              "queryText": "Clarify section 3",
+              "answerText": "Section 3 updated",
+              "initiatorName": "user1",
+              "createdAt": "2025-03-01T10:00:00.000Z",
+              "answeredAt": "2025-03-02T12:00:00.000Z",
+              "processId": "p1",
+              "processName": "Contract Approval",
+              "status": "RESOLVED"
+            },
+            {
+              "stepInstanceId": "si2",
+              "queryText": "Missing details",
+              "answerText": null,
+              "initiatorName": "user2",
+              "createdAt": "2025-03-03T14:00:00.000Z",
+              "answeredAt": null,
+              "processId": "p2",
+              "processName": "Invoice Review",
+              "status": "OPEN"
+            }
+          ]
+        },
+        "signedDocuments": [
+          {
+            "documentId": "d1",
+            "documentName": "contract.pdf",
+            "documentPath": "/documents/contracts",
+            "processId": "p1",
+            "processName": "Contract Approval",
+            "signedAt": "2025-03-10T15:00:00.000Z"
+          }
+        ],
+        "rejectedDocuments": [
+          {
+            "documentId": "d2",
+            "documentName": "invoice.pdf",
+            "documentPath": "/documents/invoices",
+            "processId": "p2",
+            "processName": "Invoice Review",
+            "rejectedAt": "2025-03-12T09:00:00.000Z"
+          }
+        ],
+        "replacedDocuments": [
+          {
+            "replacedDocumentId": "d3",
+            "replacedDocName": "new_contract.pdf",
+            "replacedDocumentPath": "/documents/contracts",
+            "replacesDocumentId": "d1",
+            "replacesDocumentName": "old_contract.pdf",
+            "replacesDocumentPath": "/documents/contracts",
+            "replacedBy": "user3"
+          }
+        ]
+      }
+    }
+  },
+  "/getWorkflowAnalysis/:workflowId": {
+    "request": {
+      "url": "http://api.example.com/workflowAnalysis/wf1?startDate=2025-01-01&endDate=2025-06-01",
+      "headers": { "Authorization": "Bearer <token>" }
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "workflow": {
+          "workflowId": "wf1",
+          "name": "Approval Workflow",
+          "version": "1.0",
+          "description": "Standard approval process",
+          "createdAt": "2025-01-01T10:00:00.000Z",
+          "updatedAt": "2025-01-02T12:00:00.000Z"
+        },
+        "stepCompletionTimes": [
+          {
+            "stepId": "s1",
+            "stepName": "Initial Review",
+            "stepNumber": 1,
+            "stepType": "REVIEW",
+            "averageCompletionTimeHours": "8.25"
+          },
+          {
+            "stepId": "s2",
+            "stepName": "Final Approval",
+            "stepNumber": 2,
+            "stepType": "APPROVAL",
+            "averageCompletionTimeHours": "12.50"
+          }
+        ],
+        "pendingProcessesByStep": [
+          {
+            "stepId": "s1",
+            "stepName": "Initial Review",
+            "stepNumber": 1,
+            "pendingCount": 2,
+            "processes": [
+              {
+                "processId": "p2",
+                "processName": "Invoice Review",
+                "createdAt": "2025-02-01T11:00:00.000Z",
+                "createdBy": "user2"
+              }
+            ]
+          },
+          {
+            "stepId": "s2",
+            "stepName": "Final Approval",
+            "stepNumber": 2,
+            "pendingCount": 0,
+            "processes": []
+          }
+        ],
+        "assigneeCompletionTimes": [
+          {
+            "assigneeId": "u1",
+            "assigneeUsername": "user1",
+            "averageCompletionTimeHours": 6.5,
+            "totalTasks": 10
+          },
+          {
+            "assigneeId": "u2",
+            "assigneeUsername": "user2",
+            "averageCompletionTimeHours": 8.0,
+            "totalTasks": 5
+          }
+        ],
+        "pendingProcesses": {
+          "total": 1,
+          "details": [
+            {
+              "processId": "p2",
+              "processName": "Invoice Review",
+              "createdAt": "2025-02-01T11:00:00.000Z",
+              "initiatorUsername": "user2"
+            }
+          ]
+        },
+        "queries": {
+          "total": 2,
+          "solved": 1,
+          "details": [
+            {
+              "id": "q1",
+              "stepInstanceId": "si1",
+              "queryText": "Clarify contract terms",
+              "answerText": "Terms updated",
+              "initiatorName": "user1",
+              "createdAt": "2025-03-01T10:00:00.000Z",
+              "answeredAt": "2025-03-02T12:00:00.000Z",
+              "processId": "p1",
+              "processName": "Contract Approval",
+              "status": "RESOLVED"
+            },
+            {
+              "id": "q2",
+              "stepInstanceId": "si2",
+              "queryText": "Missing details",
+              "answerText": null,
+              "initiatorName": "user2",
+              "createdAt": "2025-03-03T12:00:00.000Z",
+              "answeredAt": null,
+              "processId": "p2",
+              "processName": "Invoice Review",
+              "status": "OPEN"
+            }
+          ]
+        },
+        "signedDocuments": [
+          {
+            "documentId": "d1",
+            "documentName": "contract.pdf",
+            "documentPath": "/documents/contracts",
+            "processId": "p1",
+            "processName": "Contract Approval",
+            "signedAt": "2025-03-10T15:00:00.000Z"
+          }
+        ],
+        "rejectedDocuments": [
+          {
+            "documentId": "d2",
+            "documentName": "invoice.pdf",
+            "documentPath": "/documents/invoices",
+            "processId": "p2",
+            "processName": "Invoice Review",
+            "rejectedAt": "2025-03-12T09:00:00.000Z"
+          }
+        ],
+        "replacedDocuments": [
+          {
+            "replacedDocumentId": "d3",
+            "replacedDocName": "new_contract.pdf",
+            "replacedDocumentPath": "/documents/contracts",
+            "replacesDocumentId": "d1",
+            "replacesDocumentName": "old_contract.pdf",
+            "replacesDocumentPath": "/documents/contracts",
+            "replacedBy": "user3"
+          }
+        ]
+      }
+    }
+  }
+}

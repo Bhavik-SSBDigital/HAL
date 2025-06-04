@@ -1063,7 +1063,7 @@ export const get_file_data = async (req, res) => {
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
 
-    const filePath = join(__dirname, relativePath);
+    const filePath = join(__dirname, relativePath, fileName);
     console.log("file path", filePath);
 
     // Fetch document metadata from PostgreSQL using Prisma

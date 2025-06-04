@@ -120,6 +120,12 @@ import {
   get_user_activity_log,
 } from "../controller/log-controller.js";
 
+import {
+  getNumbers,
+  getDetails,
+  getWorkflowAnalysis,
+} from "../controller/dashboard-controller.js";
+
 const router = express.Router();
 
 router.post("/signup", sign_up);
@@ -256,4 +262,8 @@ router.get("/recommendations/:recommendationId", get_recommendation);
 
 router.get("/logs/getUserLogs", get_user_activity_logs);
 router.get("/logs/:processId/:stepInstanceId?", get_user_activity_log);
+
+router.get("/getNumbers", getNumbers);
+router.get("/getDetails", getDetails);
+router.get("/workflowAnalysis/:workflowId", getWorkflowAnalysis);
 export default router;
