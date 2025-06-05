@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   IconCheck,
   IconX,
@@ -14,6 +14,9 @@ import {
   IconSignature,
 } from '@tabler/icons-react';
 import TimelineLegend from './TimelineLegend';
+import CustomButton from '../../CustomComponents/CustomButton';
+import { ViewDocument } from '../../common/Apis';
+import ViewFile from '../view/View';
 
 const iconMap = {
   PROCESS_INITIATED: <IconInfoCircle size={20} className="text-blue-600" />,
@@ -30,7 +33,7 @@ const iconMap = {
   STEP_COMPLETED: <IconCheck size={20} className="text-green-700" />,
 };
 
-const Timeline = ({ activities }) => {
+const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
   //   const activities = [
   //     {
   //       actionType: 'PROCESS_INITIATED',
@@ -270,13 +273,13 @@ const Timeline = ({ activities }) => {
               <p>
                 <strong>Document:</strong> {details.name || 'N/A'}{' '}
                 {details.name && details.path && (
-                  <button
-                    onClick={() => handleView(details.name, details.path)}
-                    className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                  <CustomButton
+                    disabled={actionsLoading}
+                    click={() => handleView(details.name, details.path)}
+                    variant={'success'}
                     type="button"
-                  >
-                    View
-                  </button>
+                    text={'View'}
+                  ></CustomButton>
                 )}
               </p>
             </div>
@@ -306,13 +309,13 @@ const Timeline = ({ activities }) => {
               <p>
                 <strong>Document:</strong> {details.name || 'N/A'}{' '}
                 {details.name && details.path && (
-                  <button
-                    onClick={() => handleView(details.name, details.path)}
-                    className="ml-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                  <CustomButton
+                    disabled={actionsLoading}
+                    click={() => handleView(details.name, details.path)}
+                    variant={'danger'}
                     type="button"
-                  >
-                    View
-                  </button>
+                    text={'View'}
+                  ></CustomButton>
                 )}
               </p>
             </div>
@@ -348,15 +351,15 @@ const Timeline = ({ activities }) => {
                       <p>
                         <strong>Document:</strong> {doc.document?.name || 'N/A'}
                         {doc.document?.name && doc.document?.path && (
-                          <button
-                            onClick={() =>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+                            variant={'warning'}
                             type="button"
-                          >
-                            View
-                          </button>
+                            text={'View'}
+                          ></CustomButton>
                         )}
                       </p>
                       {doc.replacedDocument && (
@@ -393,18 +396,18 @@ const Timeline = ({ activities }) => {
                         {summary.documentDetails?.name || 'N/A'}
                         {summary.documentDetails?.name &&
                           summary.documentDetails?.path && (
-                            <button
-                              onClick={() =>
+                            <CustomButton
+                              disabled={actionsLoading}
+                              click={() =>
                                 handleView(
                                   summary.documentDetails.name,
                                   summary.documentDetails.path,
                                 )
                               }
-                              className="ml-2 px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+                              variant={'warning'}
+                              text={'View'}
                               type="button"
-                            >
-                              View
-                            </button>
+                            ></CustomButton>
                           )}
                       </p>
                       <p>
@@ -465,21 +468,21 @@ const Timeline = ({ activities }) => {
                       <p>
                         <strong>Document:</strong> {doc.document?.name || 'N/A'}
                         {doc.document?.name && doc.document?.path && (
-                          <button
-                            onClick={() =>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                            text={'View'}
+                            variant={'success'}
                             type="button"
-                          >
-                            View
-                          </button>
+                          ></CustomButton>
                         )}
                       </p>
                       {doc.replacedDocument && (
                         <p>
-                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
-                          → {doc.document?.name}
+                          <strong>Replaced:</strong>{' '}
+                          {doc.repFlacedDocument.name} → {doc.document?.name}
                         </p>
                       )}
                       <p>
@@ -510,18 +513,18 @@ const Timeline = ({ activities }) => {
                         {summary.documentDetails?.name || 'N/A'}
                         {summary.documentDetails?.name &&
                           summary.documentDetails?.path && (
-                            <button
-                              onClick={() =>
+                            <CustomButton
+                              disabled={actionsLoading}
+                              click={() =>
                                 handleView(
                                   summary.documentDetails.name,
                                   summary.documentDetails.path,
                                 )
                               }
-                              className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                              variant={'success'}
                               type="button"
-                            >
-                              View
-                            </button>
+                              text={'View'}
+                            ></CustomButton>
                           )}
                       </p>
                       <p>
@@ -577,15 +580,15 @@ const Timeline = ({ activities }) => {
                       <p key={i} className="flex items-center justify-between">
                         <span>{doc.documentName}</span>
                         {doc.documentPath && (
-                          <button
-                            onClick={() =>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
                               handleView(doc.documentName, doc.documentPath)
                             }
-                            className="ml-2 px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+                            variant={'info'}
                             type="button"
-                          >
-                            View
-                          </button>
+                            text={'View'}
+                          ></CustomButton>
                         )}
                       </p>
                     ))}
@@ -602,15 +605,15 @@ const Timeline = ({ activities }) => {
                       <p>
                         <strong>Document:</strong> {doc.document?.name || 'N/A'}
                         {doc.document?.name && doc.document?.path && (
-                          <button
-                            onClick={() =>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                            variant={'success'}
                             type="button"
-                          >
-                            View
-                          </button>
+                            text={'View'}
+                          ></CustomButton>
                         )}
                       </p>
                       {doc.replacedDocument && (
@@ -673,15 +676,15 @@ const Timeline = ({ activities }) => {
                     <p key={i} className="flex items-center justify-between">
                       <span>{doc.documentName}</span>
                       {doc.documentPath && (
-                        <button
-                          onClick={() =>
+                        <CustomButton
+                          disabled={actionsLoading}
+                          click={() =>
                             handleView(doc.documentName, doc.documentPath)
                           }
-                          className="ml-2 px-2 py-1 bg-purple-700 text-white rounded hover:bg-purple-900 transition"
+                          variant={'info'}
                           type="button"
-                        >
-                          View
-                        </button>
+                          text={'View'}
+                        ></CustomButton>
                       )}
                     </p>
                   ))}
@@ -728,6 +731,23 @@ const Timeline = ({ activities }) => {
     }
   };
 
+  //   states
+  const [fileView, setFileView] = useState(null);
+  // handlers
+  const handleView = async (name, path) => {
+    setActionsLoading(true);
+    try {
+      const fileData = await ViewDocument(name, path);
+      if (fileData) {
+        setFileView({ url: fileData.data, type: fileData.fileType });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   return (
     <div className="mt-8 space-y-8">
       <TimelineLegend />
@@ -766,6 +786,15 @@ const Timeline = ({ activities }) => {
           </div>
         );
       })}
+
+      {/* View File Modal */}
+      {fileView && (
+        <ViewFile
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={() => setFileView(null)}
+        />
+      )}
     </div>
   );
 };

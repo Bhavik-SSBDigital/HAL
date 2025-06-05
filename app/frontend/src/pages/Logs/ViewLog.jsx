@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
-import ViewFile from '../view/View';
 import TopLoader from '../../common/Loader/TopLoader';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { viewLog } from '../../common/Apis';
@@ -18,51 +17,8 @@ const ViewLog = () => {
   const [error, setError] = useState(null);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [data, setData] = useState();
-  const [fileView, setFileView] = useState(null);
-  const [selectedDocs, setSelectedDocs] = useState([]);
 
   // handlers
-  const handleViewFile = async (name, path) => {
-    setActionsLoading(true);
-    try {
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType });
-      }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-
-  const handleViewAllSelectedFiles = async () => {
-    setActionsLoading(true);
-    try {
-      const selected = data.documentSummaries.filter((doc) =>
-        selectedDocs.includes(doc.documentId),
-      );
-      console.log(selected);
-      const formattedDocs = await Promise.all(
-        selected.map(async (doc) => {
-          const res = await ViewDocument(doc.documentName, doc.documentPath);
-          return {
-            url: res.data,
-            type: res.fileType,
-            name: doc.name,
-            fileId: doc.id,
-            signed: doc.signed,
-          };
-        }),
-      );
-      setFileView({ multi: true, docs: formattedDocs });
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-
   const handleBack = () => {
     navigate(-1);
   };
@@ -144,7 +100,11 @@ const ViewLog = () => {
         </div>
       </CustomCard>
       <div>
-        <Timeline activities={data?.activities}/>
+        <Timeline
+          activities={data?.activities}
+          actionsLoading={actionsLoading}
+          setActionsLoading={setActionsLoading}
+        />
       </div>
     </div>
   );
