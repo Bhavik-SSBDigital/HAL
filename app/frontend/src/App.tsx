@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Loader from './common/Loader';
 import PageTitle from './components/PageTitle';
-import ECommerce from './pages/Dashboard/Overall';
 import Profile from './pages/Profile';
-import PerticularBranch from './pages/Dashboard/PerticularBranch';
-import Timeline from './pages/Dashboard/Timeline/index';
 import BranchList from './pages/Branches/List';
 import UserList from './pages/Users/List';
 import RolesList from './pages/Roles/List';
@@ -49,6 +46,7 @@ import Recommendations from './pages/Recommendations';
 import ViewRecommendation from './pages/Recommendations/ViewRecommendation';
 import Logs from './pages/Logs/List';
 import ViewLog from './pages/Logs/ViewLog';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   const dispatch = useDispatch();
@@ -84,28 +82,11 @@ function App() {
           element={
             <DefaultLayout>
               <PageTitle title="Dashboard | Overall" />
-              <ECommerce />
+              <Dashboard />
             </DefaultLayout>
           }
         />
-        <Route
-          path="/dashboard/perticularBranch"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Dashboard | Perticular Branch" />
-              <PerticularBranch />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/dashboard/timeline"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Timeline" />
-              <Timeline />
-            </DefaultLayout>
-          }
-        />
+
         <Route
           path="/monitor"
           element={

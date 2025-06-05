@@ -94,11 +94,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       path: '/',
       label: 'Dashboard',
       icon: <IconBrandSpeedtest size={26} />,
-      dropdown: [
-        { path: '/', label: 'Overall' },
-        { path: '/dashboard/perticularBranch', label: 'Branch Wise' },
-      ],
-      active: pathname == '/' || pathname == '/dashboard/perticularBranch',
+      active: pathname == '/',
     },
     {
       path: '/files',
