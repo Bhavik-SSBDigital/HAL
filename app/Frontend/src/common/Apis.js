@@ -141,7 +141,7 @@ export const SignDocument = async (
     processId,
     processStepInstanceId,
     documentId,
-    remarks,
+    ...remarks,
   });
 };
 export const SignRevoke = async (processId, documentId) => {
@@ -283,4 +283,9 @@ export const GetUserLogs = async () => {
 };
 export const viewLog = async (id) => {
   return apiClient.get(`/logs/${id}`);
+};
+
+// dashboard
+export const getDashboardNumbers = async (startDate, endDate) => {
+  return apiClient.get(`/getNumbers?startDate=${startDate}&endDate=${endDate}`);
 };

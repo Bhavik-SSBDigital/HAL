@@ -927,6 +927,7 @@ const ViewProcess = () => {
         onClose={() => setRemarksModalOpen({ id: null, open: false })}
         loading={actionsLoading}
         onSubmit={(remarks) => handleSignDocument(remarks)}
+        showPassField={true}
       />
 
       {/* reject remarks modal */}
