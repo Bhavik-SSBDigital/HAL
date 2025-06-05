@@ -292,3 +292,8 @@ export const getDashboardNumbers = async (startDate, endDate) => {
 export const getDashboardTables = async (startDate, endDate) => {
   return apiClient.get(`/getDetails?startDate=${startDate}&endDate=${endDate}`);
 };
+export const getWorkflowAnalysisDetails = async (id, startDate, endDate) => {
+  return apiClient.get(
+    `/workflowAnalysis/${id}?startDate=${startDate}&endDate=${endDate}`,
+  );
+};

@@ -1,10 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
+import CustomButton from '../../../CustomComponents/CustomButton';
+import { toast } from 'react-toastify';
+import { getWorkflowAnalysisDetails } from '../../../common/Apis';
+import CustomModal from '../../../CustomComponents/CustomModal';
+import WorkflowAnalysisDetails from '../WorkflowAnalysisDetails';
 
-const WorkflowsTable = ({ data }) => {
+const WorkflowsTable = ({
+  data,
+  setActionsLoading,
+  actionsLoading,
+  startDate,
+  endDate,
+}) => {
   if (!data || data?.length === 0) {
     return <p className="text-gray-500">No workflows available.</p>;
   }
 
+  // states
+  const [openModal, setOpenModal] = useState(false);
+  const [workflowAnalysisData, setWorkflowAnalysisData] = useState();
+
+  // handlers
+  const handleViewWorkflowDetails = async (id) => {
+    try {
+      const response = await getWorkflowAnalysisDetails(id, startDate, endDate);
+      setOpenModal(true);
+      setWorkflowAnalysisData(response?.data?.data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
   return (
     <div className="overflow-x-auto rounded shadow border border-gray-200">
       <table className="min-w-full text-sm text-left bg-white">
@@ -16,6 +41,7 @@ const WorkflowsTable = ({ data }) => {
             <th className="px-4 py-2">Description</th>
             <th className="px-4 py-2">Created At</th>
             <th className="px-4 py-2">Updated At</th>
+            <th className="px-4 py-2">View Workflow Details</th>
           </tr>
         </thead>
         <tbody>
@@ -31,10 +57,20 @@ const WorkflowsTable = ({ data }) => {
               <td className="px-4 py-2">
                 {new Date(wf.updatedAt).toLocaleString()}
               </td>
+              <td className="px-4 py-2">
+                <CustomButton
+                  disabled={actionsLoading}
+                  text={'View Details'}
+                  click={() => handleViewWorkflowDetails(wf.workflowId)}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <CustomModal isOpen={openModal} onClose={() => setOpenModal(false)}>
+        <WorkflowAnalysisDetails data={workflowAnalysisData} />
+      </CustomModal>
     </div>
   );
 };

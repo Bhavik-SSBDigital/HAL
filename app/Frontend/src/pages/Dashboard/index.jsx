@@ -190,6 +190,7 @@ export default function Dashboard() {
             />
           </div>
           <CustomButton
+            disabled={actionsLoading}
             click={getDashboardData}
             className="mt-5"
             text={'Search'}
@@ -198,7 +199,7 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Total Workflows"
             onClick={() => setOpenModal('workflows')}
           >
@@ -206,7 +207,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Active Workflows"
             onClick={() => setOpenModal('activeWorkflows')}
           >
@@ -214,7 +215,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Completed Processes"
             onClick={() => setOpenModal('completedProcesses')}
           >
@@ -222,7 +223,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Pending Processes"
             onClick={() => setOpenModal('pendingProcesses')}
           >
@@ -230,7 +231,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Signed Documents"
             onClick={() => setOpenModal('signedDocuments')}
           >
@@ -238,7 +239,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Rejected Documents"
             onClick={() => setOpenModal('rejectedDocuments')}
           >
@@ -246,7 +247,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Replaced Documents"
             onClick={() => setOpenModal('replacedDocuments')}
           >
@@ -254,7 +255,7 @@ export default function Dashboard() {
           </CustomCard>
 
           <CustomCard
-            className="cursor-pointer"
+            className="cursor-pointer hover:shadow-md"
             title="Avg Step Time (hrs)"
             // onClick={() => setOpenModal('averageStepCompletionTimeHours')}
           >
@@ -289,13 +290,23 @@ export default function Dashboard() {
         isOpen={openModal == 'workflows'}
         onClose={() => setOpenModal('')}
       >
-        <WorkflowsTable data={lists['workflows']} />
+        <WorkflowsTable
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+          data={lists['workflows']}
+          startDate={dates.startDate}
+          endDate={dates.endDate}
+        />
       </CustomModal>
       <CustomModal
         isOpen={openModal == 'activeWorkflows'}
         onClose={() => setOpenModal('')}
       >
-        <WorkflowsTable data={lists['activeWorkflows']} />
+        <WorkflowsTable
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+          data={lists['activeWorkflows']}
+        />
       </CustomModal>
       <CustomModal
         isOpen={openModal == 'completedProcesses'}
