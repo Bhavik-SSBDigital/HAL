@@ -118,6 +118,7 @@ import { upload_signature } from "../controller/image-controller.js";
 import {
   get_user_activity_logs,
   get_user_activity_log,
+  get_process_activity_logs,
 } from "../controller/log-controller.js";
 
 import {
@@ -262,6 +263,7 @@ router.get("/recommendations/:recommendationId", get_recommendation);
 
 router.get("/logs/getUserLogs", get_user_activity_logs);
 router.get("/logs/:processId/:stepInstanceId?", get_user_activity_log);
+router.get("/getProcessActivityLogs/:processId", get_process_activity_logs);
 
 router.get("/getNumbers", getNumbers);
 router.get("/getDetails", getDetails);

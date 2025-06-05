@@ -825,3 +825,190 @@ export const get_user_activity_logs = async (req, res) => {
     });
   }
 };
+export const get_process_activity_logs = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const { processId } = req.params;
+
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized" || !userData?.id) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: "Unauthorized request",
+          details: "Invalid or missing authorization token.",
+          code: "UNAUTHORIZED",
+        },
+      });
+    }
+
+    // Verify process exists
+    const process = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        initiator: { select: { username: true } },
+      },
+    });
+
+    if (!process) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: "Process not found",
+          details: `No process found with ID ${processId}`,
+          code: "PROCESS_NOT_FOUND",
+        },
+      });
+    }
+
+    // Fetch all activities for the process
+    const [
+      stepInstances,
+      recommenderProcesses,
+      queryProcesses,
+      initiatedProcess,
+    ] = await Promise.all([
+      prisma.processStepInstance.findMany({
+        where: {
+          processId,
+          OR: [{ status: "IN_PROGRESS" }, { status: "APPROVED" }],
+        },
+        include: {
+          workflowStep: { select: { stepName: true, stepNumber: true } },
+          assignedToUser: { select: { username: true } },
+        },
+      }),
+      prisma.recommendation.findMany({
+        where: { processId },
+        include: {
+          initiator: { select: { username: true } },
+          recommender: { select: { username: true } },
+          process: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.processQA.findMany({
+        where: { processId },
+        include: {
+          initiator: { select: { username: true } },
+          entity: { select: { username: true } },
+          process: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.processInstance.findFirst({
+        where: { id: processId },
+        select: { id: true, initiator: { select: { username: true } } },
+      }),
+    ]);
+
+    // Count actions for the process
+    const [
+      documentHistoryCount,
+      signatureCount,
+      rejectionCount,
+      queryCount,
+      recommendationCount,
+    ] = await Promise.all([
+      prisma.documentHistory.count({
+        where: { processId },
+      }),
+      prisma.documentSignature.count({
+        where: {
+          processDocument: { processId },
+        },
+      }),
+      prisma.documentRejection.count({
+        where: {
+          processDocument: { processId },
+        },
+      }),
+      prisma.processQA.count({
+        where: { processId },
+      }),
+      prisma.recommendation.count({
+        where: { processId },
+      }),
+    ]);
+
+    // Check if the process has any meaningful activity
+    const hasActivity =
+      documentHistoryCount > 0 ||
+      signatureCount > 0 ||
+      rejectionCount > 0 ||
+      queryCount > 0 ||
+      recommendationCount > 0 ||
+      initiatedProcess;
+
+    if (!hasActivity) {
+      return res.status(200).json({
+        success: true,
+        logs: [],
+      });
+    }
+
+    // Map steps with user information
+    const steps = stepInstances.length
+      ? stepInstances.map((s) => ({
+          stepInstanceId: s.id,
+          stepName: s.workflowStep?.stepName || "Unknown Step",
+          stepNumber: s.workflowStep?.stepNumber || null,
+          recirculationCycle: s.recirculationCycle || 0,
+          assignedTo: s.assignedToUser?.username || "Unassigned",
+        }))
+      : null;
+
+    // Find last activity timestamp
+    const lastActivity = await prisma.$queryRaw`
+      SELECT MAX("createdAt") as "lastActivityAt"
+      FROM (
+        SELECT "createdAt" FROM "DocumentHistory" WHERE "processId" = ${processId}
+        UNION
+        SELECT "signedAt" as "createdAt" FROM "DocumentSignature" WHERE "processDocumentId" IN (SELECT id FROM "ProcessDocument" WHERE "processId" = ${processId})
+        UNION
+        SELECT "rejectedAt" as "createdAt" FROM "DocumentRejection" WHERE "processDocumentId" IN (SELECT id FROM "ProcessDocument" WHERE "processId" = ${processId})
+        UNION
+        SELECT "createdAt" FROM "ProcessQA" WHERE "processId" = ${processId}
+        UNION
+        SELECT "createdAt" FROM "Recommendation" WHERE "processId" = ${processId}
+        UNION
+        SELECT "createdAt" FROM "ProcessInstance" WHERE id = ${processId}
+      ) as activities
+    `;
+
+    const log = {
+      processId: process.id,
+      processName: process.name,
+      initiatorName: process.initiator.username,
+      createdAt: process.createdAt.toISOString(),
+      steps,
+      actionSummary: {
+        documents: documentHistoryCount,
+        signatures: signatureCount,
+        rejections: rejectionCount,
+        queries: queryCount,
+        recommendations: recommendationCount,
+        initiated: initiatedProcess ? 1 : 0,
+      },
+      lastActivityAt:
+        lastActivity[0]?.lastActivityAt?.toISOString() ||
+        process.createdAt.toISOString(),
+    };
+
+    return res.status(200).json({
+      success: true,
+      logs: [log],
+    });
+  } catch (error) {
+    console.error("Error fetching process activity logs:", error);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: "Failed to fetch process activity logs",
+        details: error.message,
+        code: "PROCESS_ACTIVITY_LOGS_ERROR",
+      },
+    });
+  }
+};
