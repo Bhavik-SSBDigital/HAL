@@ -10,7 +10,7 @@ import {
   IconListCheck,
 } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { getDashboardNumbers } from '../../common/Apis';
+import { getDashboardNumbers, getDashboardTables } from '../../common/Apis';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import TopLoader from '../../common/Loader/TopLoader';
 import CustomCard from '../../CustomComponents/CustomCard';
@@ -25,6 +25,12 @@ import {
 } from 'recharts';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CardSkeleton from '../../common/Skeletons/CardSkeleton';
+import CustomModal from '../../CustomComponents/CustomModal';
+import WorkflowsTable from './Tables/WorkflowsTable';
+import ProcessesTable from './Tables/ProcessesTable';
+import SignedDocumentsTable from './Tables/SignedDocumentsTable';
+import RejectedDocumentsTable from './Tables/RejectedDocumentsTable';
+import ReplacedDocumentsTable from './Tables/ReplacedDocumentsTable';
 
 export default function Dashboard() {
   // Calculate default date range: from one year ago to today
@@ -41,8 +47,18 @@ export default function Dashboard() {
     endDate: formatDate(today),
   });
   const [data, setData] = useState(null);
+  const [lists, setLists] = useState({
+    workflows: [],
+    activeWorkflows: [],
+    completedProcesses: [],
+    pendingProcesses: [],
+    signedDocuments: [],
+    rejectedDocuments: [],
+    replacedDocuments: [],
+  });
   const [actionsLoading, setActionsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [openModal, setOpenModal] = useState('');
 
   const iconMap = {
     'Total Workflows': <IconListDetails size={28} className="text-blue-500" />,
@@ -99,8 +115,7 @@ export default function Dashboard() {
   };
 
   // network
-  const getData = async () => {
-    setActionsLoading(true);
+  const getNumbers = async () => {
     try {
       const response = await getDashboardNumbers(
         dates.startDate,
@@ -109,14 +124,26 @@ export default function Dashboard() {
       setData(response?.data?.data);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-      setLoading(false);
     }
+  };
+  const getLists = async () => {
+    try {
+      const response = await getDashboardTables(dates.startDate, dates.endDate);
+      setLists(response?.data?.data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+  const getDashboardData = async () => {
+    setActionsLoading(true);
+    await getNumbers();
+    await getLists();
+    setLoading(false);
+    setActionsLoading(false);
   };
 
   useEffect(() => {
-    getData();
+    getDashboardData();
   }, []);
 
   return (
@@ -163,42 +190,74 @@ export default function Dashboard() {
             />
           </div>
           <CustomButton
-            click={getData}
+            click={getDashboardData}
             className="mt-5"
             text={'Search'}
           ></CustomButton>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CustomCard title="Total Workflows">
+          <CustomCard
+            className="cursor-pointer"
+            title="Total Workflows"
+            onClick={() => setOpenModal('workflows')}
+          >
             {renderCardContent('Total Workflows', data?.totalWorkflows)}
           </CustomCard>
 
-          <CustomCard title="Active Workflows">
+          <CustomCard
+            className="cursor-pointer"
+            title="Active Workflows"
+            onClick={() => setOpenModal('activeWorkflows')}
+          >
             {renderCardContent('Active Workflows', data?.activeWorkflows)}
           </CustomCard>
 
-          <CustomCard title="Completed Processes">
+          <CustomCard
+            className="cursor-pointer"
+            title="Completed Processes"
+            onClick={() => setOpenModal('completedProcesses')}
+          >
             {renderCardContent('Completed Processes', data?.completedProcesses)}
           </CustomCard>
 
-          <CustomCard title="Pending Processes">
+          <CustomCard
+            className="cursor-pointer"
+            title="Pending Processes"
+            onClick={() => setOpenModal('pendingProcesses')}
+          >
             {renderCardContent('Pending Processes', data?.pendingProcesses)}
           </CustomCard>
 
-          <CustomCard title="Signed Documents">
+          <CustomCard
+            className="cursor-pointer"
+            title="Signed Documents"
+            onClick={() => setOpenModal('signedDocuments')}
+          >
             {renderCardContent('Signed Documents', data?.signedDocuments)}
           </CustomCard>
 
-          <CustomCard title="Rejected Documents">
+          <CustomCard
+            className="cursor-pointer"
+            title="Rejected Documents"
+            onClick={() => setOpenModal('rejectedDocuments')}
+          >
             {renderCardContent('Rejected Documents', data?.rejectedDocuments)}
           </CustomCard>
 
-          <CustomCard title="Replaced Documents">
+          <CustomCard
+            className="cursor-pointer"
+            title="Replaced Documents"
+            onClick={() => setOpenModal('replacedDocuments')}
+          >
             {renderCardContent('Replaced Documents', data?.replacedDocuments)}
           </CustomCard>
 
-          <CustomCard title="Avg Step Time (hrs)">
+          <CustomCard
+            className="cursor-pointer"
+            title="Avg Step Time (hrs)"
+            // onClick={() => setOpenModal('averageStepCompletionTimeHours')}
+          >
             {renderCardContent(
               'Avg Step Time (hrs)',
               data?.averageStepCompletionTimeHours,
@@ -226,6 +285,48 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </CustomCard>
       </div>
+      <CustomModal
+        isOpen={openModal == 'workflows'}
+        onClose={() => setOpenModal('')}
+      >
+        <WorkflowsTable data={lists['workflows']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'activeWorkflows'}
+        onClose={() => setOpenModal('')}
+      >
+        <WorkflowsTable data={lists['activeWorkflows']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'completedProcesses'}
+        onClose={() => setOpenModal('')}
+      >
+        <ProcessesTable data={lists['completedProcesses']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'pendingProcesses'}
+        onClose={() => setOpenModal('')}
+      >
+        <ProcessesTable data={lists['pendingProcesses']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'signedDocuments'}
+        onClose={() => setOpenModal('')}
+      >
+        <SignedDocumentsTable data={lists['signedDocuments']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'rejectedDocuments'}
+        onClose={() => setOpenModal('')}
+      >
+        <RejectedDocumentsTable data={lists['rejectedDocuments']} />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 'replacedDocuments'}
+        onClose={() => setOpenModal('')}
+      >
+        <ReplacedDocumentsTable data={lists['replacedDocuments']} />
+      </CustomModal>
     </>
   );
 }

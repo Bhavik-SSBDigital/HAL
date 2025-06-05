@@ -289,3 +289,6 @@ export const viewLog = async (id) => {
 export const getDashboardNumbers = async (startDate, endDate) => {
   return apiClient.get(`/getNumbers?startDate=${startDate}&endDate=${endDate}`);
 };
+export const getDashboardTables = async (startDate, endDate) => {
+  return apiClient.get(`/getDetails?startDate=${startDate}&endDate=${endDate}`);
+};
