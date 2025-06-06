@@ -357,7 +357,7 @@ export const getDetails = async (req, res) => {
             documentPath: formatDocumentPath(r.processDocument.document.path),
             processId: r.processDocument.process.id,
             processName: r.processDocument.process.name,
-            rejectedAt: r.createdAt.toISOString(),
+            rejectedAt: r.rejectedAt.toISOString(),
           }))
         ),
       // Replaced documents
