@@ -719,44 +719,45 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
   };
 
   return (
-    <div className="mt-8 space-y-8">
-      <TimelineLegend />
-      <h2 className="text-2xl text-center font-bold underline text-gray-900">
-        Timeline
-      </h2>
+    <>
+      <div className="mt-8 space-y-8">
+        <TimelineLegend />
+        <h2 className="text-2xl text-center font-bold underline text-gray-900">
+          Timeline
+        </h2>
 
-      {activities.map((activity, idx) => {
-        const Icon = iconMap[activity.actionType] || (
-          <IconClock size={20} className="text-gray-400" />
-        );
-        return (
-          <div key={idx} className="flex items-start space-x-4">
-            {/* Timeline Icon */}
-            <div className="relative flex flex-col items-center">
-              <div className="z-10 bg-white border-2 border-gray-300 rounded-full p-2">
-                {Icon}
+        {activities.map((activity, idx) => {
+          const Icon = iconMap[activity.actionType] || (
+            <IconClock size={20} className="text-gray-400" />
+          );
+          return (
+            <div key={idx} className="flex items-start space-x-4">
+              {/* Timeline Icon */}
+              <div className="relative flex flex-col items-center">
+                <div className="z-10 bg-white border-2 border-gray-300 rounded-full p-2">
+                  {Icon}
+                </div>
+                {idx !== activities.length - 1 && (
+                  <div className="w-px bg-gray-300 flex-1 mt-1" />
+                )}
               </div>
-              {idx !== activities.length - 1 && (
-                <div className="w-px bg-gray-300 flex-1 mt-1" />
-              )}
+
+              {/* Content */}
+              <CustomCard className="flex-1">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-xs text-gray-400 font-mono">
+                    {new Date(activity.createdAt).toLocaleString()}
+                  </p>
+                  <span className="text-sm font-semibold text-gray-700">
+                    {activity.description}
+                  </span>
+                </div>
+                <div>{renderDetails(activity)}</div>
+              </CustomCard>
             </div>
-
-            {/* Content */}
-            <CustomCard className="flex-1">
-              <div className="flex justify-between items-center mb-1">
-                <p className="text-xs text-gray-400 font-mono">
-                  {new Date(activity.createdAt).toLocaleString()}
-                </p>
-                <span className="text-sm font-semibold text-gray-700">
-                  {activity.description}
-                </span>
-              </div>
-              <div>{renderDetails(activity)}</div>
-            </CustomCard>
-          </div>
-        );
-      })}
-
+          );
+        })}
+      </div>
       {/* View File Modal */}
       {fileView && (
         <ViewFile
@@ -765,7 +766,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
           handleViewClose={() => setFileView(null)}
         />
       )}
-    </div>
+    </>
   );
 };
 
