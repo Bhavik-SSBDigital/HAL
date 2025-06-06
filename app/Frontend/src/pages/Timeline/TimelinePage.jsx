@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getTimelineData } from '../../common/Apis';
 import Timeline from './index';
 import TopLoader from '../../common/Loader/TopLoader';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import { IconArrowLeft } from '@tabler/icons-react';
 import CustomButton from '../../CustomComponents/CustomButton';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 export default function TimelinePage() {
   // states
@@ -13,6 +14,8 @@ export default function TimelinePage() {
   const [loading, setLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [data, setData] = useState();
+  const [error, setError] = useState();
+  const navigate = useNavigate();
 
   // handlers
   const handleBack = () => {
@@ -23,9 +26,10 @@ export default function TimelinePage() {
   const getData = async () => {
     try {
       const response = await getTimelineData(id);
-      setData(response?.data?.data);
+      setData(response?.data);
     } catch (error) {
       console.error(error?.response?.data?.message || error?.message);
+      setError(error?.response?.data?.error?.message || error?.message);
     } finally {
       setLoading(false);
     }
@@ -36,6 +40,15 @@ export default function TimelinePage() {
   }, [id]);
 
   if (loading) return <ComponentLoader />;
+  if (error)
+    return (
+      <CustomCard>
+        <p className="text-lg font-semibold">Info: {error}</p>
+        <div className="mt-4 flex space-x-4">
+          <CustomButton click={handleBack} text={'Go Back'} />
+        </div>
+      </CustomCard>
+    );
 
   return (
     <div>
@@ -54,7 +67,7 @@ export default function TimelinePage() {
       </div>
       <Timeline
         actionsLoading={actionsLoading}
-        activities={data}
+        activities={data?.process?.activities}
         setActionsLoading={setActionsLoading}
       />
     </div>
