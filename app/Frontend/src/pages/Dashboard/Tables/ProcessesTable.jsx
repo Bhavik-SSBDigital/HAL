@@ -1,9 +1,17 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const ProcessesTable = ({ data }) => {
   if (!data || data.length === 0) {
     return <p className="text-gray-500">No processes available.</p>;
   }
+  // states
+  const navigate = useNavigate();
+
+  // handler
+  const handleNavigate = (id) => {
+    navigate(`/timeline/${id}`);
+  };
 
   return (
     <div className="overflow-x-auto rounded shadow border border-gray-200">
@@ -19,7 +27,13 @@ const ProcessesTable = ({ data }) => {
         <tbody>
           {data.map((proc) => (
             <tr key={proc.processId} className="border-b hover:bg-gray-50">
-              <td className="px-4 py-2">{proc.processId}</td>
+              <td
+                onClick={() => handleNavigate(proc.processId)}
+                className="px-4 py-2 text-blue-600 cursor-pointer hover:underline"
+              >
+                {proc.processId}
+              </td>
+
               <td className="px-4 py-2">{proc.processName}</td>
               <td className="px-4 py-2">{proc.initiatorUsername}</td>
               <td className="px-4 py-2">

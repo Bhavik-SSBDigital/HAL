@@ -297,3 +297,8 @@ export const getWorkflowAnalysisDetails = async (id, startDate, endDate) => {
     `/workflowAnalysis/${id}?startDate=${startDate}&endDate=${endDate}`,
   );
 };
+
+// timeline
+export const getTimelineData = async (id) => {
+  return apiClient.get(`/getProcessActivityLogs/${id}`);
+};

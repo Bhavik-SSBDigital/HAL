@@ -47,6 +47,7 @@ import ViewRecommendation from './pages/Recommendations/ViewRecommendation';
 import Logs from './pages/Logs/List';
 import ViewLog from './pages/Logs/ViewLog';
 import Dashboard from './pages/Dashboard';
+import TimelinePage from './pages/Timeline/TimelinePage';
 
 function App() {
   const dispatch = useDispatch();
@@ -86,7 +87,15 @@ function App() {
             </DefaultLayout>
           }
         />
-
+        <Route
+          path="/timeline/:id"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Timeline" />
+              <TimelinePage />
+            </DefaultLayout>
+          }
+        />
         <Route
           path="/monitor"
           element={
