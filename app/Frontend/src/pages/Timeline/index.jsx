@@ -34,202 +34,30 @@ const iconMap = {
 };
 
 const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
-  //   const activities = [
-  //     {
-  //       actionType: 'PROCESS_INITIATED',
-  //       description: "Initiated process 'Contract Approval Process'",
-  //       createdAt: '2025-06-01T10:00:00.000Z',
-  //       details: {
-  //         processId: '123',
-  //         processName: 'Contract Approval Process',
-  //         initiatorName: 'john.doe',
-  //       },
-  //     },
-  //     {
-  //       actionType: 'DOCUMENT_SIGNED',
-  //       description: "Signed 'Contract_V1.pdf'",
-  //       createdAt: '2025-06-02T14:30:00.000Z',
-  //       details: {
-  //         signedBy: 'john.doe',
-  //         signedAt: '2025-06-02T14:30:00.000Z',
-  //         remarks: 'Approved after review',
-  //         byRecommender: false,
-  //         isAttachedWithRecommendation: false,
-  //         documentId: '789',
-  //         name: 'Contract_V1.pdf',
-  //         path: '/documents/contract_v1.pdf',
-  //       },
-  //     },
-  //     {
-  //       actionType: 'DOCUMENT_REJECTED',
-  //       description: "Rejected 'Contract_V1_Draft.pdf'",
-  //       createdAt: '2025-06-02T15:00:00.000Z',
-  //       details: {
-  //         rejectedBy: 'john.doe',
-  //         rejectionReason: 'Non-compliant terms',
-  //         rejectedAt: '2025-06-02T15:00:00.000Z',
-  //         byRecommender: false,
-  //         isAttachedWithRecommendation: false,
-  //         documentId: '790',
-  //         name: 'Contract_V1_Draft.pdf',
-  //         path: '/documents/contract_v1_draft.pdf',
-  //       },
-  //     },
-  //     {
-  //       actionType: 'QUERY_RAISED',
-  //       description: "Raised query: 'Please clarify payment terms'",
-  //       createdAt: '2025-06-02T15:30:00.000Z',
-  //       details: {
-  //         stepInstanceId: '456',
-  //         stepName: 'Manager Review',
-  //         stepNumber: 2,
-  //         status: 'IN_PROGRESS',
-  //         queryText: 'Please clarify payment terms',
-  //         initiatorName: 'John Doe',
-  //         createdAt: '2025-06-02T15:30:00.000Z',
-  //         documentChanges: [
-  //           {
-  //             documentId: '789',
-  //             requiresApproval: true,
-  //             isReplacement: false,
-  //             documentHistoryId: '101',
-  //             document: {
-  //               id: '789',
-  //               name: 'Contract_V1.pdf',
-  //               type: 'PDF',
-  //               path: '/documents/contract_v1.pdf',
-  //               tags: ['contract', 'legal'],
-  //             },
-  //             actionDetails: ['Updated payment clause'],
-  //             user: 'John Doe',
-  //             createdAt: '2025-06-02T15:30:00.000Z',
-  //             replacedDocument: null,
-  //           },
-  //         ],
-  //         documentSummaries: [
-  //           {
-  //             documentId: '789',
-  //             feedbackText: 'Payment terms need clarification',
-  //             documentHistoryId: '102',
-  //             documentDetails: {
-  //               id: '789',
-  //               name: 'Contract_V1.pdf',
-  //               path: '/documents/contract_v1.pdf',
-  //             },
-  //             user: 'john.doe',
-  //             createdAt: '2025-06-02T15:30:00.000Z',
-  //           },
-  //         ],
-  //         assigneeDetails: {
-  //           assignedStepName: 'Manager Review',
-  //           assignedAssigneeId: '2',
-  //           assignedAssigneeName: 'jane.smith',
-  //         },
-  //         taskType: 'QUERY_UPLOAD',
-  //       },
-  //     },
-  //     {
-  //       actionType: 'QUERY_RESOLVED',
-  //       description: "Resolved query: 'Please clarify payment terms'",
-  //       createdAt: '2025-06-02T16:00:00.000Z',
-  //       details: {
-  //         stepInstanceId: '456',
-  //         stepName: 'Manager Review',
-  //         stepNumber: 2,
-  //         status: 'IN_PROGRESS',
-  //         queryText: 'Please clarify payment terms',
-  //         initiatorName: 'John Doe',
-  //         createdAt: '2025-06-02T15:30:00.000Z',
-  //         documentChanges: [],
-  //         documentSummaries: [],
-  //         assigneeDetails: {
-  //           assignedStepName: 'Manager Review',
-  //           assignedAssigneeId: '2',
-  //           assignedAssigneeName: 'jane.smith',
-  //         },
-  //         taskType: 'RESOLVED',
-  //         answerText: 'Payment terms updated to 30 days net',
-  //         answeredAt: '2025-06-02T16:00:00.000Z',
-  //       },
-  //     },
-  //     {
-  //       actionType: 'RECOMMENDATION_REQUESTED',
-  //       description: "Requested recommendation: 'Review contract terms'",
-  //       createdAt: '2025-06-02T16:30:00.000Z',
-  //       details: {
-  //         recommendationId: '202',
-  //         processId: '123',
-  //         processName: 'Contract Approval Process',
-  //         stepInstanceId: '456',
-  //         stepName: 'Manager Review',
-  //         stepNumber: 2,
-  //         status: 'PENDING',
-  //         recommendationText: 'Review contract terms',
-  //         initiatorName: 'john.doe',
-  //         recommenderName: 'jane.smith',
-  //         createdAt: '2025-06-02T16:30:00.000Z',
-  //         responseText: null,
-  //         respondedAt: null,
-  //         documentDetails: [
-  //           {
-  //             documentId: '789',
-  //             documentName: 'Contract_V1.pdf',
-  //             documentPath: '/documents',
-  //             queryText: 'Are terms compliant?',
-  //             answerText: null,
-  //             requiresApproval: true,
-  //           },
-  //         ],
-  //         documentResponses: [],
-  //       },
-  //     },
-  //     {
-  //       actionType: 'RECOMMENDATION_PROVIDED',
-  //       description: "Provided recommendation: 'Terms are compliant'",
-  //       createdAt: '2025-06-02T17:00:00.000Z',
-  //       details: {
-  //         recommendationId: '202',
-  //         processId: '123',
-  //         processName: 'Contract Approval Process',
-  //         stepInstanceId: '456',
-  //         stepName: 'Manager Review',
-  //         stepNumber: 2,
-  //         status: 'RESOLVED',
-  //         recommendationText: 'Review contract terms',
-  //         initiatorName: 'john.doe',
-  //         recommenderName: 'jane.smith',
-  //         createdAt: '2025-06-02T16:30:00.000Z',
-  //         responseText: 'Terms are compliant',
-  //         respondedAt: '2025-06-02T17:00:00.000Z',
-  //         documentDetails: [
-  //           {
-  //             documentId: '789',
-  //             documentName: 'Contract_V1.pdf',
-  //             documentPath: '/documents',
-  //             queryText: 'Are terms compliant?',
-  //             answerText: 'Yes, compliant with regulations',
-  //             requiresApproval: true,
-  //           },
-  //         ],
-  //         documentResponses: [
-  //           {
-  //             documentId: '789',
-  //             answerText: 'Yes, compliant with regulations',
-  //           },
-  //         ],
-  //       },
-  //     },
-  //     {
-  //       actionType: 'STEP_COMPLETED',
-  //       description: "Completed step 'Manager Review'",
-  //       createdAt: '2025-06-03T09:00:00.000Z',
-  //       details: {
-  //         stepInstanceId: '456',
-  //         stepName: 'Manager Review',
-  //         stepNumber: 2,
-  //       },
-  //     },
-  //   ];
+  // handlers
+  const handleViewAllSelectedFiles = async (documents) => {
+    setActionsLoading(true);
+    try {
+      const formattedDocs = await Promise.all(
+        documents.map(async (doc) => {
+          const res = await ViewDocument(doc.name, doc.path);
+          return {
+            url: res.data,
+            type: res.fileType,
+            name: doc.name,
+            fileId: doc.id,
+            signed: doc.signed,
+          };
+        }),
+      );
+      setFileView({ multi: true, docs: formattedDocs });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   const renderDetails = (activity) => {
     const { actionType, details = {} } = activity;
 
@@ -279,6 +107,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                     variant={'success'}
                     type="button"
                     text={'View'}
+                    className={'ml-2'}
                   ></CustomButton>
                 )}
               </p>
@@ -315,6 +144,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                     variant={'danger'}
                     type="button"
                     text={'View'}
+                    className={'ml-2'}
                   ></CustomButton>
                 )}
               </p>
@@ -356,18 +186,63 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                             click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            variant={'warning'}
+                            variant="warning"
                             type="button"
-                            text={'View'}
-                          ></CustomButton>
+                            text="View"
+                            className="ml-2"
+                          />
                         )}
                       </p>
+
                       {doc.replacedDocument && (
                         <p>
-                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
-                          → {doc.document?.name}
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}
+                          {doc.replacedDocument.path && (
+                            <CustomButton
+                              disabled={actionsLoading}
+                              click={() =>
+                                handleView(
+                                  doc.replacedDocument.name,
+                                  doc.replacedDocument.path,
+                                )
+                              }
+                              variant="warning"
+                              type="button"
+                              text="View"
+                              className="ml-2"
+                            />
+                          )}
                         </p>
                       )}
+
+                      {doc.document && doc.replacedDocument && (
+                        <div>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
+                              handleViewAllSelectedFiles([
+                                {
+                                  id: doc.document.id,
+                                  name: doc.document.name,
+                                  path: doc.document.path,
+                                  signed: doc.document.signed,
+                                },
+                                {
+                                  id: doc.replacedDocument.id,
+                                  name: doc.replacedDocument.name,
+                                  path: doc.replacedDocument.path,
+                                  signed: doc.replacedDocument.signed,
+                                },
+                              ])
+                            }
+                            variant="warning"
+                            type="button"
+                            text="View Both"
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+
                       <p>
                         <strong>Requires Approval:</strong>{' '}
                         {doc.requiresApproval ? 'Yes' : 'No'}
@@ -404,6 +279,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                   summary.documentDetails.path,
                                 )
                               }
+                              className={'ml-2'}
                               variant={'warning'}
                               text={'View'}
                               type="button"
@@ -473,18 +349,63 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                             click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            text={'View'}
-                            variant={'success'}
+                            variant="success"
                             type="button"
-                          ></CustomButton>
+                            text="View"
+                            className="ml-2"
+                          />
                         )}
                       </p>
+
                       {doc.replacedDocument && (
                         <p>
-                          <strong>Replaced:</strong>{' '}
-                          {doc.repFlacedDocument.name} → {doc.document?.name}
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}
+                          {doc.replacedDocument.path && (
+                            <CustomButton
+                              disabled={actionsLoading}
+                              click={() =>
+                                handleView(
+                                  doc.replacedDocument.name,
+                                  doc.replacedDocument.path,
+                                )
+                              }
+                              variant="success"
+                              type="button"
+                              text="View"
+                              className="ml-2"
+                            />
+                          )}
                         </p>
                       )}
+
+                      {doc.document && doc.replacedDocument && (
+                        <div>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
+                              handleViewAllSelectedFiles([
+                                {
+                                  id: doc.document.id,
+                                  name: doc.document.name,
+                                  path: doc.document.path,
+                                  signed: doc.document.signed,
+                                },
+                                {
+                                  id: doc.replacedDocument.id,
+                                  name: doc.replacedDocument.name,
+                                  path: doc.replacedDocument.path,
+                                  signed: doc.replacedDocument.signed,
+                                },
+                              ])
+                            }
+                            variant="success"
+                            type="button"
+                            text="View Both"
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+
                       <p>
                         <strong>Requires Approval:</strong>{' '}
                         {doc.requiresApproval ? 'Yes' : 'No'}
@@ -521,6 +442,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                   summary.documentDetails.path,
                                 )
                               }
+                              className={'ml-2'}
                               variant={'success'}
                               type="button"
                               text={'View'}
@@ -585,6 +507,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                             click={() =>
                               handleView(doc.documentName, doc.documentPath)
                             }
+                            className={'ml-2'}
                             variant={'info'}
                             type="button"
                             text={'View'}
@@ -596,8 +519,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                 )}
               {/* Document Changes */}
               {details.documentChanges?.length > 0 && (
-                <div className="ml-4 border-l-2 border-green-400 pl-4 space-y-3 mt-3 bg-green-100 p-3 rounded">
-                  <strong className="block mb-2 text-green-800">
+                <div className="ml-4 border-l-2 border-purple-400 pl-4 space-y-3 mt-3 bg-purple-100 p-3 rounded">
+                  <strong className="block mb-2 text-purple-800">
                     Document Changes:
                   </strong>
                   {details.documentChanges.map((doc, i) => (
@@ -610,18 +533,63 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                             click={() =>
                               handleView(doc.document.name, doc.document.path)
                             }
-                            variant={'success'}
+                            variant="info"
                             type="button"
-                            text={'View'}
-                          ></CustomButton>
+                            text="View"
+                            className="ml-2"
+                          />
                         )}
                       </p>
+
                       {doc.replacedDocument && (
                         <p>
-                          <strong>Replaced:</strong> {doc.replacedDocument.name}{' '}
-                          → {doc.document?.name}
+                          <strong>Replaced:</strong> {doc.replacedDocument.name}
+                          {doc.replacedDocument.path && (
+                            <CustomButton
+                              disabled={actionsLoading}
+                              click={() =>
+                                handleView(
+                                  doc.replacedDocument.name,
+                                  doc.replacedDocument.path,
+                                )
+                              }
+                              variant="info"
+                              type="button"
+                              text="View"
+                              className="ml-2"
+                            />
+                          )}
                         </p>
                       )}
+
+                      {doc.document && doc.replacedDocument && (
+                        <div>
+                          <CustomButton
+                            disabled={actionsLoading}
+                            click={() =>
+                              handleViewAllSelectedFiles([
+                                {
+                                  id: doc.document.id,
+                                  name: doc.document.name,
+                                  path: doc.document.path,
+                                  signed: doc.document.signed,
+                                },
+                                {
+                                  id: doc.replacedDocument.id,
+                                  name: doc.replacedDocument.name,
+                                  path: doc.replacedDocument.path,
+                                  signed: doc.replacedDocument.signed,
+                                },
+                              ])
+                            }
+                            variant="info"
+                            type="button"
+                            text="View Both"
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
+
                       <p>
                         <strong>Requires Approval:</strong>{' '}
                         {doc.requiresApproval ? 'Yes' : 'No'}
@@ -681,6 +649,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                           click={() =>
                             handleView(doc.documentName, doc.documentPath)
                           }
+                          className={'ml-2'}
                           variant={'info'}
                           type="button"
                           text={'View'}

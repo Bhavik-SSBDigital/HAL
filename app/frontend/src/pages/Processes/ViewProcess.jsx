@@ -174,7 +174,7 @@ const ViewProcess = () => {
       );
       const formattedDocs = await Promise.all(
         selected.map(async (doc) => {
-          const res = await ViewDocument(doc.name, '../check');
+          const res = await ViewDocument(doc.name, doc.path);
           return {
             url: res.data,
             type: res.fileType,
