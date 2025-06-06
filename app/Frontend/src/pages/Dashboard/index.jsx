@@ -306,6 +306,8 @@ export default function Dashboard() {
           setActionsLoading={setActionsLoading}
           actionsLoading={actionsLoading}
           data={lists['activeWorkflows']}
+          startDate={dates.startDate}
+          endDate={dates.endDate}
         />
       </CustomModal>
       <CustomModal
@@ -324,19 +326,31 @@ export default function Dashboard() {
         isOpen={openModal == 'signedDocuments'}
         onClose={() => setOpenModal('')}
       >
-        <SignedDocumentsTable data={lists['signedDocuments']} />
+        <SignedDocumentsTable
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+          data={lists['signedDocuments']}
+        />
       </CustomModal>
       <CustomModal
         isOpen={openModal == 'rejectedDocuments'}
         onClose={() => setOpenModal('')}
       >
-        <RejectedDocumentsTable data={lists['rejectedDocuments']} />
+        <RejectedDocumentsTable
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+          data={lists['rejectedDocuments']}
+        />
       </CustomModal>
       <CustomModal
         isOpen={openModal == 'replacedDocuments'}
         onClose={() => setOpenModal('')}
       >
-        <ReplacedDocumentsTable data={lists['replacedDocuments']} />
+        <ReplacedDocumentsTable
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+          data={lists['replacedDocuments']}
+        />
       </CustomModal>
     </>
   );

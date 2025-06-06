@@ -108,12 +108,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       icon: <IconRecycle size={26} />,
       active: pathname == '/bin',
     },
-    {
-      path: '/Search',
-      label: 'Search Document',
-      icon: <IconFolderSearch size={26} />,
-      active: pathname == '/Search',
-    },
+    // {
+    //   path: '/Search',
+    //   label: 'Search Document',
+    //   icon: <IconFolderSearch size={26} />,
+    //   active: pathname == '/Search',
+    // },
     // {
     //   path: '/meeting-manager',
     //   label: 'Meeting Manager',
