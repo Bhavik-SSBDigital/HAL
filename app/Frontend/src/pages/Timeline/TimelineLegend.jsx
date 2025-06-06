@@ -9,6 +9,7 @@ import {
   IconThumbUp,
   IconCheck,
 } from '@tabler/icons-react';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const iconMap = {
   PROCESS_INITIATED: <IconInfoCircle size={20} className="text-blue-600" />,
@@ -78,8 +79,10 @@ const TimelineLegend = () => {
   ];
 
   return (
-    <div className="bg-white border rounded p-4 max-w-full shadow-sm overflow-x-auto">
-      <h3 className="text-lg text-center underline font-semibold mb-4">Timeline Legend</h3>
+    <CustomCard>
+      <h3 className="text-lg text-center underline font-semibold mb-4">
+        Timeline Legend
+      </h3>
       <table className="min-w-full table-auto border-collapse">
         <thead>
           <tr className="bg-gray-100">
@@ -98,7 +101,7 @@ const TimelineLegend = () => {
           ))}
         </tbody>
       </table>
-    </div>
+    </CustomCard>
   );
 };
 

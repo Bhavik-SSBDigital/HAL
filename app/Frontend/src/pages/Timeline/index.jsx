@@ -17,6 +17,7 @@ import TimelineLegend from './TimelineLegend';
 import CustomButton from '../../CustomComponents/CustomButton';
 import { ViewDocument } from '../../common/Apis';
 import ViewFile from '../view/View';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const iconMap = {
   PROCESS_INITIATED: <IconInfoCircle size={20} className="text-blue-600" />,
@@ -741,7 +742,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 bg-white p-4 rounded-md shadow-md border border-gray-200">
+            <CustomCard className="flex-1">
               <div className="flex justify-between items-center mb-1">
                 <p className="text-xs text-gray-400 font-mono">
                   {new Date(activity.createdAt).toLocaleString()}
@@ -751,7 +752,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                 </span>
               </div>
               <div>{renderDetails(activity)}</div>
-            </div>
+            </CustomCard>
           </div>
         );
       })}
