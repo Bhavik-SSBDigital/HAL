@@ -6,6 +6,7 @@ import {
   IconSquareLetterX,
   IconDotsVertical,
   IconSettings,
+  IconArchiveOff,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomCard from '../../CustomComponents/CustomCard';
@@ -53,7 +54,7 @@ const Archive = () => {
   const unArchiveFile = async (item) => {
     setActionsLoading(true);
     try {
-      const response = await UnArchiveFile(item.path);
+      const response = await UnArchiveFile(item.id);
       setArchiveFiles(archiveFiles.filter((file) => file.id !== item.id));
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -159,21 +160,15 @@ const Archive = () => {
               variant="none"
               text={
                 <>
-                  <IconRestore size={18} /> Restore
+                  <IconArchiveOff size={18} /> Un-Archive
                 </>
               }
               className="w-full flex items-center gap-2"
-              click={() => restoreFile(selectedItem)}
-            />
-            <CustomButton
-              variant="none"
-              text={
-                <>
-                  <IconTrash size={18} /> Delete Permanently
-                </>
-              }
-              className="w-full flex items-center gap-2"
-              click={() => deletePermanently(selectedItem)}
+              click={() => {
+                setIsMenuOpen(false);
+                unArchiveFile(selectedItem);
+              }}
+              disabled={actionsLoading}
             />
             <CustomButton
               variant="none"
