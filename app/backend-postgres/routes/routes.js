@@ -275,7 +275,7 @@ router.get("/getNumbers", getNumbers);
 router.get("/getDetails", getDetails);
 router.get("/workflowAnalysis/:workflowId", getWorkflowAnalysis);
 
-router.post("/deleteFile", file_delete);
+router.post("/deleteFile", delete_file);
 router.post("/recoverDeletedFile", recover_from_recycle_bin);
 router.post("/archiveFile", archive_file);
 router.post("/unarchiveFile", unarchive_file);
