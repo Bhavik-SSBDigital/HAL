@@ -4,9 +4,11 @@ import folderIcon from '../../assets/images/folder.png';
 import { Await, useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
 import {
+  ArchiveFile,
   CopyPaste,
   CreateFolder,
   CutPaste,
+  DeleteFile,
   DownloadFile,
   DownloadFolder,
   GetFolderData,
@@ -26,6 +28,8 @@ import {
   IconClipboardCheck,
   IconScissors,
   IconSettings,
+  IconArchive,
+  IconTrash,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
@@ -254,6 +258,27 @@ export default function FileSysten() {
     }
   };
 
+  // handler for archive file
+  const handleArchive = async (item) => {
+    try {
+      const response = await ArchiveFile(item.path);
+      toast.success(response?.data?.message);
+      setData((prev) => prev.filter((file) => file.id !== item.id));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+  // handler to delete file
+  const handleDelete = async (item) => {
+    try {
+      const response = await DeleteFile(item.path);
+      toast.success(response?.data?.message);
+      setData((prev) => prev.filter((file) => file.id !== item.id));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+
   // create folder
   const {
     register,
@@ -265,7 +290,11 @@ export default function FileSysten() {
   const handleCreateFolder = async (data) => {
     setActionsLoading(true);
     try {
-      const response = await CreateFolder(currentPath, data.folderName);
+      const response = await CreateFolder(currentPath, {
+        path: `${currentPath}/${data.folderName}`,
+        ...(currentPath === '..' ? { isProject: true } : {}),
+      });
+      toast.success(response?.data?.message);
 
       const currentDate = new Date();
       const currentDateTimeString = currentDate.toString();
@@ -633,6 +662,28 @@ export default function FileSysten() {
                   }
                   className="w-full flex items-center gap-2"
                   click={() => handleCut(selectedItem.name, selectedItem.path)}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconArchive size={18} /> Archive
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => handleArchive(selectedItem)}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconTrash size={18} /> Delete
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => handleDelete(selectedItem)}
                   disabled={actionsLoading}
                 />
                 <CustomButton

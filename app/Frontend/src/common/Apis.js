@@ -179,8 +179,18 @@ export const CutPaste = async (body) => {
 export const CopyPaste = async (body) => {
   return apiClient.post('/copyFile', body);
 };
-export const CreateFolder = async (path, folder) => {
-  return apiClient.post('/createFolder', { path: `${path}/${folder}` });
+export const CreateFolder = async (path, isProject) => {
+  return apiClient.post('/createFolder', {
+    path,
+    ...isProject,
+  });
+};
+
+export const ArchiveFile = async (path) => {
+  return apiClient.post(`/archiveFile`, { path });
+};
+export const DeleteFile = async (path) => {
+  return apiClient.post(`/deleteFile`, { path });
 };
 
 // processes endpoints
@@ -208,10 +218,32 @@ export const removeProcessNotification = async (id) => {
 
 // file and folders
 export const GetFolderData = async (path) => {
-  return apiClient.post('/accessFolder', { path });
+  return apiClient.post('/accessFolder', { path, sectionType: null });
 };
 export const GetRootFolders = async () => {
   return apiClient.post('/getProjects');
+};
+
+// recycle bin
+export const GetBinFolderData = async (path) => {
+  return apiClient.post('/accessFolder', { path, sectionType: 'inBin' });
+};
+export const GetBinRootFolders = async () => {
+  return apiClient.post('/getProjects', { sectionType: 'inBin' });
+};
+export const RecoverDeletedFile = async (path) => {
+  return apiClient.post(`/recoverDeletedFile`, { path });
+};
+
+// recycle bin
+export const GetArchiveFolderData = async (path) => {
+  return apiClient.post('/accessFolder', { path, sectionType: 'isArchived' });
+};
+export const GetArchiveRootFolders = async () => {
+  return apiClient.post('/getProjects', { sectionTyp: 'isArchived' });
+};
+export const UnArchiveFile = async (path) => {
+  return apiClient.post(`/unarchiveFile`, { path });
 };
 
 // profile
