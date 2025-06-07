@@ -48,6 +48,7 @@ import Logs from './pages/Logs/List';
 import ViewLog from './pages/Logs/ViewLog';
 import Dashboard from './pages/Dashboard';
 import TimelinePage from './pages/Timeline/TimelinePage';
+import Archive from './pages/Archive'
 
 function App() {
   const dispatch = useDispatch();
@@ -129,6 +130,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Recycle Bin" />
               <RecycleBin />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/archive"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Archive Files" />
+              <Archive />
             </DefaultLayout>
           }
         />

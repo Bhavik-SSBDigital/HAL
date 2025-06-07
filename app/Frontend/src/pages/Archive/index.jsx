@@ -17,22 +17,24 @@ import folderIcon from '../../assets/images/folder.png';
 
 import moment from 'moment';
 import {
+  GetArchiveFolderData,
+  GetArchiveRootFolders,
   GetBinFolderData,
   GetBinRootFolders,
-  RecoverDeletedFile,
+  UnArchiveFile,
   ViewDocument,
 } from '../../common/Apis';
 import { toast } from 'react-toastify';
 
-const RecycleBin = () => {
+const Archive = () => {
   const [loading, setLoading] = useState(false);
-  const [deletedFiles, setDeletedFiles] = useState([]);
+  const [archiveFiles, setArchiveFiles] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
   const [currentPath, setCurrentPath] = useState(
-    sessionStorage.getItem('recyclePath') || '..',
+    sessionStorage.getItem('archivePath') || '..',
   );
   const [fileView, setFileView] = useState();
 
@@ -45,7 +47,18 @@ const RecycleBin = () => {
         newPath = '..' + newPath;
       }
       setCurrentPath(`${newPath}/${item.name}`);
-      sessionStorage.setItem('recyclePath', `${newPath}/${item.name}`);
+      sessionStorage.setItem('archivePath', `${newPath}/${item.name}`);
+    }
+  };
+  const unArchiveFile = async (item) => {
+    setActionsLoading(true);
+    try {
+      const response = await UnArchiveFile(item.path);
+      setArchiveFiles(archiveFiles.filter((file) => file.id !== item.id));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
     }
   };
   // Handler view file
@@ -64,28 +77,14 @@ const RecycleBin = () => {
   };
 
   // network
-  const restoreFile = async (item) => {
-    setActionsLoading(true);
-    try {
-      const response = await RecoverDeletedFile(item.path);
-      toast.success(response?.data?.message);
-      setDeletedFiles(deletedFiles.filter((file) => file.id !== item.id));
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-      setIsMenuOpen(false);
-    }
-  };
-  // Fetch data
   const getData = async (updatedPath) => {
     setLoading(true);
     try {
       const response =
         updatedPath === '..'
-          ? await GetBinRootFolders()
-          : await GetBinFolderData(updatedPath);
-      setDeletedFiles(response?.data?.children || []);
+          ? await GetArchiveRootFolders()
+          : await GetArchiveFolderData(updatedPath);
+      setArchiveFiles(response?.data?.children || []);
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
     } finally {
@@ -103,8 +102,8 @@ const RecycleBin = () => {
       {/* file and folders */}
       <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-          {deletedFiles.length > 0 ? (
-            deletedFiles.map((item) => (
+          {archiveFiles.length > 0 ? (
+            archiveFiles.map((item) => (
               <div key={item.id} className="relative">
                 <CustomCard
                   // title={item.name}
@@ -262,4 +261,4 @@ const RecycleBin = () => {
   );
 };
 
-export default RecycleBin;
+export default Archive;

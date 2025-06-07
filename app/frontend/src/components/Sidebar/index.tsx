@@ -8,7 +8,6 @@ import {
   IconCaretDown,
   IconCornerDownRight,
   IconFolderOpen,
-  IconFolderSearch,
   IconBuildingEstate,
   IconUser,
   IconUserSquareRounded,
@@ -18,6 +17,7 @@ import {
   IconRecycle,
   IconDeviceIpadHorizontalQuestion,
   IconHistory,
+  IconArchive,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -107,6 +107,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       label: 'Recycle Bin',
       icon: <IconRecycle size={26} />,
       active: pathname == '/bin',
+    },
+    {
+      path: '/archive',
+      label: 'Archive Files',
+      icon: <IconArchive size={26} />,
+      active: pathname == '/archive',
     },
     // {
     //   path: '/Search',

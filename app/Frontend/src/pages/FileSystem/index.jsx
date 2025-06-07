@@ -261,9 +261,10 @@ export default function FileSysten() {
   // handler for archive file
   const handleArchive = async (item) => {
     try {
-      const response = await ArchiveFile(item.path);
+      const response = await ArchiveFile(item.id);
       toast.success(response?.data?.message);
       setData((prev) => prev.filter((file) => file.id !== item.id));
+      setIsMenuOpen(false);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
@@ -271,7 +272,7 @@ export default function FileSysten() {
   // handler to delete file
   const handleDelete = async (item) => {
     try {
-      const response = await DeleteFile(item.path);
+      const response = await DeleteFile(item.id);
       toast.success(response?.data?.message);
       setData((prev) => prev.filter((file) => file.id !== item.id));
     } catch (error) {
@@ -304,6 +305,7 @@ export default function FileSysten() {
           createdOn: currentDateTimeString,
           name: data.folderName,
           type: 'folder',
+          path: currentPath,
         },
       ]);
       setShowFolderModal(false);
