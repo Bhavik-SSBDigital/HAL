@@ -275,6 +275,7 @@ export default function FileSysten() {
       const response = await DeleteFile(item.id);
       toast.success(response?.data?.message);
       setData((prev) => prev.filter((file) => file.id !== item.id));
+      setIsMenuOpen(false)
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
