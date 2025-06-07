@@ -2,20 +2,34 @@ import React, { useState, useEffect } from 'react';
 import CustomModal from './CustomModal';
 import CustomButton from './CustomButton';
 
-const RemarksModal = ({ open, title, onSubmit, onClose, loading }) => {
+const RemarksModal = ({
+  open,
+  title,
+  onSubmit,
+  onClose,
+  loading,
+  showPassField,
+}) => {
   const [remark, setRemark] = useState('');
+  const [dscPass, setDscPass] = useState('');
 
   useEffect(() => {
     if (!open) {
       setRemark('');
+      setDscPass('');
     }
   }, [open]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (remark.trim()) {
-      onSubmit(remark);
-    }
+
+    if (!remark.trim()) return;
+    if (showPassField && !dscPass.trim()) return;
+
+    const payload = showPassField
+      ? { p12password: remark.trim(), dscPass: dscPass.trim() }
+      : remark.trim();
+    onSubmit(payload);
   };
 
   return (
@@ -30,10 +44,22 @@ const RemarksModal = ({ open, title, onSubmit, onClose, loading }) => {
           placeholder="Enter your remarks here..."
           required
         />
+
+        {showPassField && (
+          <input
+            type="password"
+            className="w-full p-2 mt-4 border rounded-lg focus:outline-none"
+            placeholder="Enter DSC Password"
+            value={dscPass}
+            onChange={(e) => setDscPass(e.target.value)}
+            required
+          />
+        )}
+
         <div className="flex justify-end mt-4 space-x-2">
           <CustomButton
             disabled={loading}
-            type={'button'}
+            type="button"
             text="Cancel"
             variant="danger"
             click={onClose}
