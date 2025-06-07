@@ -292,7 +292,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     let result = await Promise.all(children);
     result = result.filter((item) => item !== null);
 
-    if (item.sectionType) {
+    if (req.body.sectionType) {
       result = result.filter((item) => item.sectionType);
     }
     // Check if user can upload to this directory

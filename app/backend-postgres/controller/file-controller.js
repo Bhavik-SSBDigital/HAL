@@ -211,6 +211,7 @@ export const createFolder = async (isProject, path_, userData) => {
 
     const absolutePath = path.join(__dirname, storagePath, path_.substring(2));
 
+    console.log("absolute path", absolutePath);
     try {
       await fs.access(absolutePath);
       return 409; // Folder already exists
@@ -232,7 +233,9 @@ export const createFolder = async (isProject, path_, userData) => {
             // Create the folder in the filesystem
             await fs.mkdir(absolutePathToBeChecked);
 
+            console.log("path", path_);
             // Store document details in the database
+            console.log("is project", isProject);
             const newDocument = await prisma.document.create({
               data: {
                 name: element,
@@ -243,6 +246,8 @@ export const createFolder = async (isProject, path_, userData) => {
                 isProject: isProject || false,
               },
             });
+
+            console.log("updated document", newDocument);
 
             await createUserPermissions(
               newDocument.id,
@@ -340,6 +345,8 @@ export const createUserPermissions = async (documentId, username, writable) => {
         grantedBy: { connect: { id: user.id } }, // Assuming the system admin is granting this
       },
     });
+
+    console.log("doc access", documentAccess);
 
     return documentAccess;
   } catch (error) {
@@ -768,9 +775,6 @@ export const storeChildIdInParentDocument = async (parentPath, childId) => {
 
       // Now update the child document to set its `parentId`
       await storeParentIdInChildDocument(childId, parentDocument.id);
-    } else {
-      // Handle the case where the parent document isn't found
-      console.error("Parent document not found.");
     }
   } catch (error) {
     console.error("Error updating document:", error);
@@ -1064,7 +1068,6 @@ export const get_file_data = async (req, res) => {
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
 
     const filePath = join(__dirname, relativePath, fileName);
-    console.log("file path", filePath);
 
     // Fetch document metadata from PostgreSQL using Prisma
     const document = await prisma.document.findUnique({
@@ -1135,10 +1138,20 @@ export const archive_file = async (req, res) => {
       });
     }
 
-    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + req.body.path
+      process.env.STORAGE_PATH + document.path
     );
 
     // Check if file exists in the filesystem
@@ -1152,18 +1165,9 @@ export const archive_file = async (req, res) => {
     }
 
     // Find the document in the database by its path
-    const document = await prisma.document.findUnique({
-      where: { path: documentPath }, // Include related data if needed
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
-    }
 
     const updatedDocument = await prisma.document.update({
-      where: { path: documentPath },
+      where: { id: documentId },
       data: { isArchived: true },
     });
 
@@ -1190,10 +1194,20 @@ export const delete_file = async (req, res) => {
       });
     }
 
-    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + req.body.path
+      process.env.STORAGE_PATH + document.path
     );
 
     // Check if file exists in the filesystem
@@ -1207,28 +1221,19 @@ export const delete_file = async (req, res) => {
     }
 
     // Find the document in the database by its path
-    const document = await prisma.document.findUnique({
-      where: { path: documentPath }, // Include related data if needed
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
-    }
 
     const updatedDocument = await prisma.document.update({
-      where: { path: documentPath },
+      where: { id: documentId },
       data: { inBin: true },
     });
 
     res.status(200).json({
-      message: "File archived successfully",
+      message: "File moved to recycle bin successfully",
     });
   } catch (error) {
-    console.error("Error archiving file:", error);
+    console.error("Error moving file to recycle bin:", error);
     res.status(500).json({
-      message: "Error archiving file",
+      message: "Error moving file to recycle bin",
     });
   } finally {
     await prisma.$disconnect(); // Disconnect Prisma client
@@ -1245,10 +1250,20 @@ export const unarchive_file = async (req, res) => {
       });
     }
 
-    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + req.body.path
+      process.env.STORAGE_PATH + document.path
     );
 
     // Check if file exists in the filesystem
@@ -1262,18 +1277,9 @@ export const unarchive_file = async (req, res) => {
     }
 
     // Find the document in the database by its path
-    const document = await prisma.document.findUnique({
-      where: { path: documentPath }, // Include related data if needed
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
-    }
 
     const updatedDocument = await prisma.document.update({
-      where: { path: documentPath },
+      where: { id: documentId },
       data: { isArchived: false },
     });
 
@@ -1300,10 +1306,20 @@ export const recover_from_recycle_bin = async (req, res) => {
       });
     }
 
-    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + req.body.path
+      process.env.STORAGE_PATH + document.path
     );
 
     // Check if file exists in the filesystem
@@ -1317,18 +1333,9 @@ export const recover_from_recycle_bin = async (req, res) => {
     }
 
     // Find the document in the database by its path
-    const document = await prisma.document.findUnique({
-      where: { path: documentPath }, // Include related data if needed
-    });
-
-    if (!document) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
-    }
 
     const updatedDocument = await prisma.document.update({
-      where: { path: documentPath },
+      where: { id: documentId },
       data: { inBin: false },
     });
 
