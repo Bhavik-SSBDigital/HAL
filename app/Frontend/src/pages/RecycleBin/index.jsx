@@ -24,6 +24,7 @@ import {
 } from '../../common/Apis';
 import { toast } from 'react-toastify';
 import PathBar from '../../components/path/PathBar';
+import ComponentLoader from '../../common/Loader/ComponentLoader';
 
 const RecycleBin = () => {
   const [loading, setLoading] = useState(false);
@@ -96,6 +97,8 @@ const RecycleBin = () => {
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
+
+  if (loading) return <ComponentLoader />;
 
   return (
     <>
