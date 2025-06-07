@@ -39,6 +39,8 @@ model Document {
   createdById           Int
   createdOn             DateTime  @default(now())
   lastUpdatedOn         DateTime  @updatedAt
+  isArchived            Boolean   @default(false)
+  inBin                 Boolean   @default(false)
   parentId              Int?
   departmentId           Int?
   isProject             Boolean?
