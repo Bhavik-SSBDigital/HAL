@@ -75,6 +75,10 @@ import {
   file_delete,
   file_though_url,
   get_file_data,
+  delete_file,
+  recover_from_recycle_bin,
+  archive_file,
+  unarchive_file,
 } from "../controller/file-controller.js";
 
 import {
@@ -131,6 +135,8 @@ const router = express.Router();
 
 router.post("/signup", sign_up);
 router.post("/login", login);
+
+// backend/routes/auth.js
 
 router.post("/createAdmin", create_admin);
 
@@ -268,4 +274,9 @@ router.get("/getProcessActivityLogs/:processId", get_process_activity_logs);
 router.get("/getNumbers", getNumbers);
 router.get("/getDetails", getDetails);
 router.get("/workflowAnalysis/:workflowId", getWorkflowAnalysis);
+
+router.post("/deleteFile", file_delete);
+router.post("/recoverDeletedFile", recover_from_recycle_bin);
+router.post("/archiveFile", archive_file);
+router.post("/unarchiveFile", unarchive_file);
 export default router;

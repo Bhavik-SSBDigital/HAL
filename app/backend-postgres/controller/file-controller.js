@@ -1124,3 +1124,223 @@ export const get_file_data = async (req, res) => {
     });
   }
 };
+
+export const archive_file = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    let absolutePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH + req.body.path
+    );
+
+    // Check if file exists in the filesystem
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      console.error("File not found:", error);
+      return res.status(404).json({
+        message: "File not found",
+      });
+    }
+
+    // Find the document in the database by its path
+    const document = await prisma.document.findUnique({
+      where: { path: documentPath }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const updatedDocument = await prisma.document.update({
+      where: { path: documentPath },
+      data: { isArchived: true },
+    });
+
+    res.status(200).json({
+      message: "File archived successfully",
+    });
+  } catch (error) {
+    console.error("Error archiving file:", error);
+    res.status(500).json({
+      message: "Error archiving file",
+    });
+  } finally {
+    await prisma.$disconnect(); // Disconnect Prisma client
+  }
+};
+
+export const delete_file = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    let absolutePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH + req.body.path
+    );
+
+    // Check if file exists in the filesystem
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      console.error("File not found:", error);
+      return res.status(404).json({
+        message: "File not found",
+      });
+    }
+
+    // Find the document in the database by its path
+    const document = await prisma.document.findUnique({
+      where: { path: documentPath }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const updatedDocument = await prisma.document.update({
+      where: { path: documentPath },
+      data: { inBin: true },
+    });
+
+    res.status(200).json({
+      message: "File archived successfully",
+    });
+  } catch (error) {
+    console.error("Error archiving file:", error);
+    res.status(500).json({
+      message: "Error archiving file",
+    });
+  } finally {
+    await prisma.$disconnect(); // Disconnect Prisma client
+  }
+};
+
+export const unarchive_file = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    let absolutePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH + req.body.path
+    );
+
+    // Check if file exists in the filesystem
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      console.error("File not found:", error);
+      return res.status(404).json({
+        message: "File not found",
+      });
+    }
+
+    // Find the document in the database by its path
+    const document = await prisma.document.findUnique({
+      where: { path: documentPath }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const updatedDocument = await prisma.document.update({
+      where: { path: documentPath },
+      data: { isArchived: false },
+    });
+
+    res.status(200).json({
+      message: "File unarchived successfully",
+    });
+  } catch (error) {
+    console.error("Error unarchiving file:", error);
+    res.status(500).json({
+      message: "Error unarchiving file",
+    });
+  } finally {
+    await prisma.$disconnect(); // Disconnect Prisma client
+  }
+};
+
+export const recover_from_recycle_bin = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    let documentPath = process.env.STORAGE_PATH + req.body.path;
+    let absolutePath = path.join(
+      __dirname,
+      process.env.STORAGE_PATH + req.body.path
+    );
+
+    // Check if file exists in the filesystem
+    try {
+      await fs.access(absolutePath);
+    } catch (error) {
+      console.error("File not found:", error);
+      return res.status(404).json({
+        message: "File not found",
+      });
+    }
+
+    // Find the document in the database by its path
+    const document = await prisma.document.findUnique({
+      where: { path: documentPath }, // Include related data if needed
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const updatedDocument = await prisma.document.update({
+      where: { path: documentPath },
+      data: { inBin: false },
+    });
+
+    res.status(200).json({
+      message: "File recovered successfully",
+    });
+  } catch (error) {
+    console.error("Error recovering file:", error);
+    res.status(500).json({
+      message: "Error recovering file",
+    });
+  } finally {
+    await prisma.$disconnect(); // Disconnect Prisma client
+  }
+};
