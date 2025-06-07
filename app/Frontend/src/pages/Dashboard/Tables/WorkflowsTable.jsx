@@ -69,7 +69,11 @@ const WorkflowsTable = ({
         </tbody>
       </table>
       <CustomModal isOpen={openModal} onClose={() => setOpenModal(false)}>
-        <WorkflowAnalysisDetails data={workflowAnalysisData} />
+        <WorkflowAnalysisDetails
+          data={workflowAnalysisData}
+          setActionsLoading={setActionsLoading}
+          actionsLoading={actionsLoading}
+        />
       </CustomModal>
     </div>
   );

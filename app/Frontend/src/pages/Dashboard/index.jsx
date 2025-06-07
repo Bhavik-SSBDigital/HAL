@@ -31,6 +31,7 @@ import ProcessesTable from './Tables/ProcessesTable';
 import SignedDocumentsTable from './Tables/SignedDocumentsTable';
 import RejectedDocumentsTable from './Tables/RejectedDocumentsTable';
 import ReplacedDocumentsTable from './Tables/ReplacedDocumentsTable';
+import moment from 'moment';
 
 export default function Dashboard() {
   // Calculate default date range: from one year ago to today
@@ -115,12 +116,10 @@ export default function Dashboard() {
   };
 
   // network
+  const nextDay = moment(dates.endDate).add(1, 'days').format('YYYY-MM-DD');
   const getNumbers = async () => {
     try {
-      const response = await getDashboardNumbers(
-        dates.startDate,
-        dates.endDate,
-      );
+      const response = await getDashboardNumbers(dates.startDate, nextDay);
       setData(response?.data?.data);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -128,7 +127,7 @@ export default function Dashboard() {
   };
   const getLists = async () => {
     try {
-      const response = await getDashboardTables(dates.startDate, dates.endDate);
+      const response = await getDashboardTables(dates.startDate, nextDay);
       setLists(response?.data?.data);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -295,7 +294,7 @@ export default function Dashboard() {
           actionsLoading={actionsLoading}
           data={lists['workflows']}
           startDate={dates.startDate}
-          endDate={dates.endDate}
+          endDate={nextDay}
         />
       </CustomModal>
       <CustomModal
@@ -307,7 +306,7 @@ export default function Dashboard() {
           actionsLoading={actionsLoading}
           data={lists['activeWorkflows']}
           startDate={dates.startDate}
-          endDate={dates.endDate}
+          endDate={nextDay}
         />
       </CustomModal>
       <CustomModal

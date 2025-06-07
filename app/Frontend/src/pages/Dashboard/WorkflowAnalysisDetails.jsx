@@ -10,9 +10,18 @@ import {
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import CustomTabs from '../../CustomComponents/CustomTabs';
+import CustomButton from '../../CustomComponents/CustomButton';
+import ViewFile from '../view/View';
+import { ViewDocument } from '../../common/Apis';
 
-const WorkflowAnalysisDetails = ({ data }) => {
+const WorkflowAnalysisDetails = ({
+  data,
+  actionsLoading,
+  setActionsLoading,
+}) => {
+  // states
   const [activeTab, setActiveTab] = useState('summary');
+  const [fileView, setFileView] = useState(null);
 
   const {
     workflow,
@@ -36,6 +45,43 @@ const WorkflowAnalysisDetails = ({ data }) => {
     { key: 'rejectedDocs', label: 'Rejected Docs' },
     { key: 'replacedDocs', label: 'Replaced Docs' },
   ];
+
+  // handlers
+  const handleView = async (name, path) => {
+    setActionsLoading(true);
+    try {
+      const fileData = await ViewDocument(name, path);
+      if (fileData) {
+        setFileView({ url: fileData.data, type: fileData.fileType });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+  const handleViewAllSelectedFiles = async (documents) => {
+    setActionsLoading(true);
+    try {
+      const formattedDocs = await Promise.all(
+        documents.map(async (doc) => {
+          const res = await ViewDocument(doc.name, doc.path);
+          return {
+            url: res.data,
+            type: res.fileType,
+            name: doc.name,
+            fileId: doc.id,
+            signed: doc.signed,
+          };
+        }),
+      );
+      setFileView({ multi: true, docs: formattedDocs });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -197,10 +243,17 @@ const WorkflowAnalysisDetails = ({ data }) => {
                     <p className="text-sm text-gray-600">
                       Process: {doc.processName}
                     </p>
+                    <p className="text-sm text-green-600">
+                      {new Date(doc.signedAt).toLocaleString()}
+                    </p>
                   </div>
-                  <span className="text-sm text-green-600">
-                    {new Date(doc.signedAt).toLocaleString()}
-                  </span>
+                  <CustomButton
+                    disabled={actionsLoading}
+                    click={() => handleView(doc.documentId, doc.documentName)}
+                    type="button"
+                    text="View"
+                    className="ml-2"
+                  />
                 </div>
               </CustomCard>
             ))}
@@ -217,10 +270,17 @@ const WorkflowAnalysisDetails = ({ data }) => {
                     <p className="text-sm text-gray-600">
                       Process: {doc.processName}
                     </p>
+                    <p className="text-sm text-red-600">
+                      {new Date(doc.rejectedAt).toLocaleString()}
+                    </p>
                   </div>
-                  <span className="text-sm text-red-600">
-                    {new Date(doc.rejectedAt).toLocaleString()}
-                  </span>
+                  <CustomButton
+                    disabled={actionsLoading}
+                    click={() => handleView(doc.documentId, doc.documentName)}
+                    type="button"
+                    text="View"
+                    className="ml-2"
+                  />
                 </div>
               </CustomCard>
             ))}
@@ -231,21 +291,82 @@ const WorkflowAnalysisDetails = ({ data }) => {
           <div className="space-y-2">
             {replacedDocuments.map((doc) => (
               <CustomCard key={doc.replacedDocumentId}>
-                <div className="text-sm">
-                  <p>
-                    <span className="font-medium">{doc.replacedDocName}</span>{' '}
-                    replaced{' '}
-                    <span className="text-gray-700">
-                      {doc.replacesDocumentName}
-                    </span>
-                  </p>
-                  <p className="text-gray-500">By: {doc.replacedBy}</p>
+                <div className="flex justify-between items-start">
+                  <div className="text-sm">
+                    <p>
+                      <span className="font-medium">{doc.replacedDocName}</span>{' '}
+                      replaced
+                      <span className="text-gray-700">
+                        {doc.replacesDocumentName}
+                      </span>
+                    </p>
+                    <p className="text-gray-500">By: {doc.replacedBy}</p>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <CustomButton
+                      disabled={actionsLoading}
+                      click={() =>
+                        handleView(
+                          doc.replacedDocName,
+                          doc.replacedDocumentPath,
+                        )
+                      }
+                      type="button"
+                      text="View New"
+                      className="ml-2"
+                    />
+                    <CustomButton
+                      disabled={actionsLoading}
+                      click={() =>
+                        handleView(
+                          doc.replacesDocumentName,
+                          doc.replacesDocumentPath,
+                        )
+                      }
+                      type="button"
+                      text="View Old"
+                      variant="secondary"
+                      className="ml-2"
+                    />
+                    <CustomButton
+                      disabled={actionsLoading}
+                      click={() =>
+                        handleViewAllSelectedFiles([
+                          {
+                            id: doc.replacedDocumentId,
+                            name: doc.replacedDocName,
+                            path: doc.replacedDocumentPath,
+                            signed: doc.replacedDocument?.signed,
+                          },
+                          {
+                            id: doc.replacesDocumentId,
+                            name: doc.replacesDocumentName,
+                            path: doc.replacesDocumentPath,
+                            signed: doc.replacesDocument?.signed,
+                          },
+                        ])
+                      }
+                      variant="info"
+                      type="button"
+                      text="View Both"
+                      className="ml-2 mt-1"
+                    />
+                  </div>
                 </div>
               </CustomCard>
             ))}
           </div>
         )}
       </div>
+
+      {/* View File Modal */}
+      {fileView && (
+        <ViewFile
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={() => setFileView(null)}
+        />
+      )}
     </div>
   );
 };
