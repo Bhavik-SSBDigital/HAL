@@ -23,6 +23,7 @@ import {
   ViewDocument,
 } from '../../common/Apis';
 import { toast } from 'react-toastify';
+import PathBar from '../../components/path/PathBar';
 
 const RecycleBin = () => {
   const [loading, setLoading] = useState(false);
@@ -99,9 +100,10 @@ const RecycleBin = () => {
   return (
     <>
       {actionsLoading && <TopLoader />}
+      <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} />
 
       {/* file and folders */}
-      <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto">
+      <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto mt-2">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
           {deletedFiles.length > 0 ? (
             deletedFiles.map((item) => (
