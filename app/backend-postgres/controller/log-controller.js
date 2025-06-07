@@ -282,7 +282,7 @@ export const get_user_activity_log = async (req, res) => {
           isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
           documentId: sig.processDocument.documentId,
           name: sig.processDocument.document.name,
-          path: sig.processDocument.document.path,
+          path: make_path(sig.processDocument.document.path),
         },
       });
     });
@@ -301,7 +301,7 @@ export const get_user_activity_log = async (req, res) => {
           isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
           documentId: dr.processDocument.documentId,
           name: dr.processDocument.document.name,
-          path: dr.processDocument.document.path,
+          path: make_path(dr.processDocument.document.path),
         },
       });
     });
@@ -360,7 +360,7 @@ export const get_user_activity_log = async (req, res) => {
                       id: history.document.id,
                       name: history.document.name,
                       type: history.document.type,
-                      path: history.document.path,
+                      path: make_path(history.document.path),
                       tags: history.document.tags,
                     }
                   : null,
@@ -371,7 +371,7 @@ export const get_user_activity_log = async (req, res) => {
                   ? {
                       id: history.replacedDocument.id,
                       name: history.replacedDocument.name,
-                      path: history.replacedDocument.path,
+                      path: make_path(history.replacedDocument.path),
                     }
                   : null,
               };
@@ -389,7 +389,7 @@ export const get_user_activity_log = async (req, res) => {
                   ? {
                       id: history.document.id,
                       name: history.document.name,
-                      path: history.document.path,
+                      path: make_path(history.document.path),
                     }
                   : null,
                 user: history?.user?.username || null,
@@ -461,7 +461,7 @@ export const get_user_activity_log = async (req, res) => {
           : [];
 
         const documentMap = documents.reduce((map, doc) => {
-          map[doc.id] = { name: doc.name, path: doc.path };
+          map[doc.id] = { name: doc.name, path: make_path(doc.path) };
           return map;
         }, {});
 
