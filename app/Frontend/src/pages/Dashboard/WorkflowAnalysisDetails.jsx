@@ -249,7 +249,7 @@ const WorkflowAnalysisDetails = ({
                   </div>
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(doc.documentId, doc.documentName)}
+                    click={() => handleView(doc.documentName, doc.documentPath)}
                     type="button"
                     text="View"
                     className="ml-2"
@@ -276,7 +276,7 @@ const WorkflowAnalysisDetails = ({
                   </div>
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(doc.documentId, doc.documentName)}
+                    click={() => handleView(doc.documentName, doc.documentPath)}
                     type="button"
                     text="View"
                     className="ml-2"
