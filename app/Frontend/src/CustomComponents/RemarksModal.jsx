@@ -27,7 +27,7 @@ const RemarksModal = ({
     if (showPassField && !dscPass.trim()) return;
 
     const payload = showPassField
-      ? { p12password: dscPass.trim(), dscPass: remark.trim() }
+      ? { p12password: dscPass.trim(), remarks: remark.trim() }
       : remark.trim();
     onSubmit(payload);
   };
