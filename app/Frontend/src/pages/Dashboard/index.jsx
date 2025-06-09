@@ -148,9 +148,9 @@ export default function Dashboard() {
   return (
     <>
       {(loading || actionsLoading) && <TopLoader />}
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-4">
         {/* Date range selectors */}
-        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:space-x-4">
           <div>
             <label
               htmlFor="startDate"
@@ -166,7 +166,7 @@ export default function Dashboard() {
               onChange={(e) =>
                 setDates((prev) => ({ ...prev, startDate: e.target.value }))
               }
-              className="border p-2.5 w-full rounded-md"
+              className="border border-zinc-300 p-2.5 w-full rounded-md"
             />
           </div>
           <div>
@@ -185,7 +185,7 @@ export default function Dashboard() {
               onChange={(e) =>
                 setDates((prev) => ({ ...prev, endDate: e.target.value }))
               }
-              className="border p-2.5 w-full rounded-md"
+              className="border border-zinc-300 p-2.5 w-full rounded-md"
             />
           </div>
           <CustomButton

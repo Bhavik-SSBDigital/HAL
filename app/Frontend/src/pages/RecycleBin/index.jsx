@@ -161,26 +161,30 @@ const RecycleBin = () => {
         <CustomModal isOpen={isMenuOpen}>
           <h3 className="font-semibold mb-3">{selectedItem.name}</h3>
           <div className="flex flex-col gap-2">
-            <CustomButton
-              variant="none"
-              text={
-                <>
-                  <IconRestore size={18} /> Restore
-                </>
-              }
-              className="w-full flex items-center gap-2"
-              click={() => restoreFile(selectedItem)}
-            />
-            <CustomButton
-              variant="none"
-              text={
-                <>
-                  <IconTrash size={18} /> Delete Permanently
-                </>
-              }
-              className="w-full flex items-center gap-2"
-              click={() => deletePermanently(selectedItem)}
-            />
+            {selectedItem.type !== 'folder' && (
+              <>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconRestore size={18} /> Restore
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => restoreFile(selectedItem)}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconTrash size={18} /> Delete Permanently
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => deletePermanently(selectedItem)}
+                />
+              </>
+            )}
             <CustomButton
               variant="none"
               text={

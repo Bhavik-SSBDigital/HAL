@@ -161,20 +161,24 @@ const Archive = () => {
         <CustomModal isOpen={isMenuOpen}>
           <h3 className="font-semibold mb-3">{selectedItem.name}</h3>
           <div className="flex flex-col gap-2">
-            <CustomButton
-              variant="none"
-              text={
-                <>
-                  <IconArchiveOff size={18} /> Un-Archive
-                </>
-              }
-              className="w-full flex items-center gap-2"
-              click={() => {
-                setIsMenuOpen(false);
-                unArchiveFile(selectedItem);
-              }}
-              disabled={actionsLoading}
-            />
+            {selectedItem.type !== 'folder' && (
+              <>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconArchiveOff size={18} /> Un-Archive
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => {
+                    setIsMenuOpen(false);
+                    unArchiveFile(selectedItem);
+                  }}
+                  disabled={actionsLoading}
+                />
+              </>
+            )}
             <CustomButton
               variant="none"
               text={
