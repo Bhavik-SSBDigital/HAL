@@ -15,6 +15,7 @@ import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import moment from 'moment';
 import CustomCard from '../../CustomComponents/CustomCard';
 import CustomButton from '../../CustomComponents/CustomButton';
+import CustomModal from '../../CustomComponents/CustomModal';
 
 export default function List() {
   const [isLoading, setIsLoading] = useState(true);
@@ -201,23 +202,18 @@ export default function List() {
           )}
         </CustomCard>
       )}
-
       {/* Modal */}
-      {isHierarchyModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
-          <div className="bg-white w-11/12 max-w-4xl rounded-lg p-4 overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-end mb-2">
-              <button
-                onClick={() => setHierarchyModalOpen(false)}
-                className="text-gray-600 hover:text-black font-bold text-lg"
-              >
-                ✕
-              </button>
-            </div>
-            <TreeGraph data={selectedDepartmentData} loading={isLoading} />
-          </div>
+      <CustomModal className={'w-11/12 overflow-y-auto'} isOpen={isHierarchyModalOpen}>
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setHierarchyModalOpen(false)}
+            className="text-gray-600 hover:text-black font-bold text-lg"
+          >
+            ✕
+          </button>
         </div>
-      )}
+        <TreeGraph data={selectedDepartmentData} loading={isLoading} />
+      </CustomModal>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
