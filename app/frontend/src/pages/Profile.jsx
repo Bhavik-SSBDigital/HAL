@@ -85,8 +85,18 @@ const Profile = () => {
       });
 
       if (res.status === 200) {
-        purpose === 'signature' ? fetchSignature() : fetchProfilePic();
-        toast.success(`Image uploaded successfully for ${purpose}`);
+        if (purpose === 'signature') {
+          fetchSignature();
+        } else if (purpose === 'profile') {
+          fetchProfilePic();
+        } else if (purpose === 'dsc') {
+          setUserDetails((prev) => ({
+            ...prev,
+            dscFileName: file.name,
+          }));
+        }
+
+        toast.success(`File uploaded successfully for ${purpose}`);
       }
     } catch (error) {
       toast.error(`Error uploading image for ${purpose}`);
