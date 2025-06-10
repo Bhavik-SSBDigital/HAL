@@ -275,7 +275,7 @@ export default function FileSysten() {
       const response = await DeleteFile(item.id);
       toast.success(response?.data?.message);
       setData((prev) => prev.filter((file) => file.id !== item.id));
-      setIsMenuOpen(false)
+      setIsMenuOpen(false);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
@@ -406,7 +406,11 @@ export default function FileSysten() {
   return (
     <>
       {actionsLoading && <TopLoader />}
-      <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} />
+      <PathBar
+        pathValue={currentPath}
+        setCurrentPath={setCurrentPath}
+        state={'path'}
+      />
       {/* Sidebar and Filter Button */}
       <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-1 mt-1">
         {/* Mobile Filter Button - Floating */}

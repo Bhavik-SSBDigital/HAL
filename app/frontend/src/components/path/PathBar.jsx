@@ -5,7 +5,7 @@ import { backButtonPath, onReload } from '../../Slices/PathSlice';
 import folderIcon from '../../assets/images/folder.png';
 import { useNavigate } from 'react-router-dom';
 
-export default function PathBar({ pathValue, setCurrentPath }) {
+export default function PathBar({ pathValue, setCurrentPath, state }) {
   const navigate = useNavigate();
   if (!pathValue) {
     return;
@@ -15,7 +15,7 @@ export default function PathBar({ pathValue, setCurrentPath }) {
     if (index >= 0 && index < pathSegments.length) {
       const newPathSegments = pathSegments.slice(0, index + 1);
       const newPath = newPathSegments.join('/');
-      sessionStorage.setItem('path', newPath);
+      sessionStorage.setItem(state, newPath);
       setCurrentPath(newPath);
     } else {
       console.error('Invalid index:', index);

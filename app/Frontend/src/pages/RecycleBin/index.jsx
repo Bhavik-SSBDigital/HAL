@@ -97,13 +97,18 @@ const RecycleBin = () => {
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
+  console.log(currentPath);
 
   if (loading) return <ComponentLoader />;
 
   return (
     <>
       {actionsLoading && <TopLoader />}
-      <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} />
+      <PathBar
+        pathValue={currentPath}
+        setCurrentPath={setCurrentPath}
+        state={'recyclePath'}
+      />
 
       {/* file and folders */}
       <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto mt-2">
