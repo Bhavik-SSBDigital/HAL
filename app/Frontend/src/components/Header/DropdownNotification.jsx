@@ -29,7 +29,7 @@ const DropdownNotification = () => {
   }, []);
 
   return (
-    <li className="relative z-10">
+    <li className="relative">
       <div
         className="flex justify-center items-center h-[35px] w-[35px] bg-[#EFF4FB] border border-gray-300 rounded-full cursor-pointer"
         onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -54,14 +54,14 @@ const DropdownNotification = () => {
 
       {dropdownOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-0 z-1"
+          className="fixed top-0 z-1 left-0 bg-black opacity-0"
           onClick={() => setDropdownOpen(false)}
           style={{ height: '100vh', width: '100vw' }}
         />
       )}
 
       <div
-        className={`absolute right-0 mt-2.5 z-20 w-80 rounded-sm border border-stroke bg-white shadow-default ${
+        className={`absolute right-0 z-9 mt-2.5 w-80 rounded-sm border border-stroke bg-white shadow-default ${
           dropdownOpen ? 'block' : 'hidden'
         }`}
       >
