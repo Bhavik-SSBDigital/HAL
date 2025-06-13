@@ -47,6 +47,7 @@ const DropdownMessage = () => {
   return (
     <li className="relative">
       <div
+        className="border border-gray-300"
         style={{
           display: 'flex',
           position: 'relative',
@@ -56,7 +57,6 @@ const DropdownMessage = () => {
           width: '35px',
           background: '#EFF4FB',
           borderRadius: '50%',
-          border: '1px solid lightgray',
         }}
         onClick={() => setDropdownOpen(!dropdownOpen)}
       >

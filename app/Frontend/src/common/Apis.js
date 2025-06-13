@@ -333,3 +333,8 @@ export const getWorkflowAnalysisDetails = async (id, startDate, endDate) => {
 export const getTimelineData = async (id) => {
   return apiClient.get(`/getProcessActivityLogs/${id}`);
 };
+
+// notifications
+export const GetNotifications = async () => {
+  return apiClient.get(`/getUserProcesses`);
+};
