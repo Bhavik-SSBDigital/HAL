@@ -82,7 +82,16 @@ export default function Query({
   };
   const onSubmit = async (data) => {
     try {
-      const response = await CreateQuery(data);
+      const filteredSummaries = data.documentSummaries.filter(
+        (summary) => summary.feedbackText?.trim() !== '',
+      );
+
+      const finalData = {
+        ...data,
+        documentSummaries: filteredSummaries,
+      };
+
+      const response = await CreateQuery(finalData);
       toast.success(response?.data?.message);
       navigate('/processes/work');
     } catch (error) {
