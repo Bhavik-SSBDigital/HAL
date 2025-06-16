@@ -720,7 +720,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
 
   return (
     <>
-      <div className="mt-8 space-y-8">
+      <div className="mt-2 space-y-8">
         <TimelineLegend />
         <h2 className="text-2xl text-center font-bold underline text-gray-900">
           Timeline
