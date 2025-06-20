@@ -23,6 +23,7 @@ import {
   IconFileText,
   IconDownload,
   IconMenu2,
+  IconPencil
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -36,9 +37,9 @@ import CustomModal from '../../CustomComponents/CustomModal';
 import Query from './Actions/Query';
 import QuerySolve from './Actions/QuerySolve';
 import AskRecommend from './Actions/AskRecommend';
+import axios from 'axios';
 
 const ViewProcess = () => {
-  // states and data
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef();
@@ -53,7 +54,9 @@ const ViewProcess = () => {
   const [existingQuery, setExistingQuery] = useState(null);
   const [openModal, setOpenModal] = useState('');
   const [recommendations, setRecommendations] = useState([]);
+  const [canEdit, setCanEdit] = useState({});
 
+  
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -101,6 +104,22 @@ const ViewProcess = () => {
     try {
       const response = await GetProcessData(id);
       setProcess(response?.data?.process);
+
+      // Check edit permissions for each document
+      const editChecks = {};
+      await Promise.all(
+        response?.data?.process?.documents.map(async (doc) => {
+          try {
+            await axios.get(`http://localhost:${process.env.REACT_APP_API_PORT || 8000}/wopi/token/${doc.id}`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            editChecks[doc.id] = true;
+          } catch (err) {
+            editChecks[doc.id] = false;
+          }
+        })
+      );
+      setCanEdit(editChecks);
     } catch (err) {
       setError(err?.response?.data?.message || err.message);
     } finally {
@@ -108,7 +127,6 @@ const ViewProcess = () => {
     }
   };
 
-  // custom UIS
   const DetailItem = ({ label, value }) => (
     <div>
       <span className="block text-md text-black font-medium">{label}</span>
@@ -116,7 +134,6 @@ const ViewProcess = () => {
     </div>
   );
 
-  // handlers
   const handleCompleteProcess = async (stepId) => {
     setActionsLoading(true);
     try {
@@ -146,15 +163,40 @@ const ViewProcess = () => {
     }
   };
 
-  const handleViewFile = async (name, path) => {
+const handleViewFile = async (name, path, fileId, type, isEditing) => {
+  setActionsLoading(true);
+
+
+  const fileExtension = name.split('.').pop().toLowerCase()
+
+  const extensions = ['docx', 'doc', 'odt', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'odg'];
+  if(extensions.includes(fileExtension)) {
+
+    handleEditFile(fileId, name, path, fileExtension, isEditing);
+    return;
+  }
+  try {
+
+    const fileData = await ViewDocument(name, path);
+    if (fileData) {
+      setFileView({ url: fileData.data, type: fileData.fileType || type, fileId: fileData.fileId || fileId, name });
+    }
+  } catch (error) {
+    console.error('ViewProcess.jsx: View error:', error);
+    toast.error(error?.response?.data?.message || error?.message);
+  } finally {
+    setActionsLoading(false);
+  }
+};
+
+
+  const handleEditFile = async (docId, name, path, type, isEditing) => {
     setActionsLoading(true);
     try {
-      const fileData = await ViewDocument(name, '../check');
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType });
-      }
+
+      setFileView({ fileId: docId, type, name, isEditing, name, path });
     } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
+      toast.error(error?.message || 'Failed to initiate edit');
     } finally {
       setActionsLoading(false);
     }
@@ -260,7 +302,6 @@ const ViewProcess = () => {
     });
   };
 
-  // Optional: Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -273,7 +314,6 @@ const ViewProcess = () => {
     };
   }, []);
 
-  // network
   const GetRecommendations = async () => {
     try {
       const response = await getRecommendations();
@@ -358,7 +398,6 @@ const ViewProcess = () => {
         </div>
       </CustomCard>
 
-      {/* documnets section */}
       {process?.documents?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
@@ -398,7 +437,6 @@ const ViewProcess = () => {
                         checked={isSelected}
                         onChange={toggleSelect}
                       />
-
                       <div className="min-w-fit">
                         <p className="text-gray-900 font-semibold">
                           {doc.name}
@@ -410,23 +448,27 @@ const ViewProcess = () => {
                     </div>
 
                     <div className="w-full">
-                      {/* Desktop Buttons */}
                       <div className="hidden sm:flex flex-wrap gap-2">
                         <CustomButton
                           className="px-2"
-                          click={() => handleViewFile(doc?.name, doc?.path)}
+                          click={() => handleViewFile(doc?.name, doc?.path, doc?.id, doc?.type, false)}
                           disabled={actionsLoading}
                           title="View Document"
                           text={<IconEye size={18} className="text-white" />}
                         />
                         <CustomButton
                           className="px-2"
+                          click={() => handleEditFile(doc.id, doc.name, doc.path, doc.type, true)}
+                          disabled={actionsLoading || !!canEdit[doc.id]}
+                          title="Edit Document"
+                          text={<IconPencil size={18} className="text-white" />}
+                        />
+                        <CustomButton
+                          className="px-2"
                           click={() => handleDownloadFile(doc?.name, doc?.path)}
                           disabled={actionsLoading}
                           title="Download Document"
-                          text={
-                            <IconDownload size={18} className="text-white" />
-                          }
+                          text={<IconDownload size={18} className="text-white" />}
                         />
                         <CustomButton
                           variant="success"
@@ -454,9 +496,7 @@ const ViewProcess = () => {
                           click={() => handleRevokeSign(doc.id)}
                           disabled={actionsLoading || !doc.signedBy.length}
                           title="Revoke Sign"
-                          text={
-                            <IconArrowBackUp size={18} className="text-white" />
-                          }
+                          text={<IconArrowBackUp size={18} className="text-white" />}
                         />
                         <CustomButton
                           variant="info"
@@ -464,12 +504,7 @@ const ViewProcess = () => {
                           click={() => handleRevokeRejection(doc.id)}
                           disabled={actionsLoading || !doc.rejectionDetails}
                           title="Revoke Rejection"
-                          text={
-                            <IconArrowForwardUp
-                              size={18}
-                              className="text-white"
-                            />
-                          }
+                          text={<IconArrowForwardUp size={18} className="text-white" />}
                         />
                         <CustomButton
                           variant="info"
@@ -477,16 +512,10 @@ const ViewProcess = () => {
                           click={() => setDocumentModalOpen(doc)}
                           disabled={actionsLoading}
                           title="Details"
-                          text={
-                            <IconAlignBoxCenterMiddle
-                              size={18}
-                              className="text-white"
-                            />
-                          }
+                          text={<IconAlignBoxCenterMiddle size={18} className="text-white" />}
                         />
                       </div>
 
-                      {/* Mobile: Actions Dropdown */}
                       <div className="sm:hidden relative inline-block">
                         <CustomButton
                           variant="info"
@@ -499,8 +528,6 @@ const ViewProcess = () => {
                             </div>
                           }
                         />
-
-                        {/* Floating Dropdown Menu */}
                         {showActions && (
                           <div
                             ref={menuRef}
@@ -510,11 +537,20 @@ const ViewProcess = () => {
                               <CustomButton
                                 className="w-full justify-start"
                                 click={() => {
-                                  handleViewFile(doc?.name, doc?.path);
+                                  handleViewFile(doc?.name, doc?.path, doc?.id);
                                   setShowActions(false);
                                 }}
                                 disabled={actionsLoading}
                                 text="View"
+                              />
+                              <CustomButton
+                                className="w-full justify-start"
+                                click={() => {
+                                  handleEditFile(doc.id, doc.name, doc.path, doc.type, true);
+                                  setShowActions(false);
+                                }}
+                                disabled={actionsLoading || !!canEdit[doc.id]}
+                                text="Edit"
                               />
                               <CustomButton
                                 className="w-full justify-start"
@@ -602,7 +638,6 @@ const ViewProcess = () => {
         </>
       )}
 
-      {/* queries section*/}
       {process?.queryDetails?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
@@ -616,7 +651,6 @@ const ViewProcess = () => {
             <div className="space-y-4">
               {process?.queryDetails?.map((query, index) => (
                 <CustomCard key={index}>
-                  {/* Query Summary */}
                   <div className="space-y-1">
                     {query.stepName && (
                       <p className="text-sm text-gray-700">
@@ -655,8 +689,6 @@ const ViewProcess = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Solve Query Button */}
                   <div className="mt-4 flex justify-end">
                     <CustomButton
                       text="Solve Query"
@@ -671,7 +703,6 @@ const ViewProcess = () => {
         </>
       )}
 
-      {/* recommendations section */}
       {process?.recommendationDetails?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
@@ -681,7 +712,6 @@ const ViewProcess = () => {
             </span>
             <div className="flex-grow border-t border-slate-400"></div>
           </div>
-
           <div className="mt-2 space-y-4">
             {process?.recommendationDetails?.map((rec, index) => (
               <CustomCard key={rec.recommendationId || index}>
@@ -721,7 +751,6 @@ const ViewProcess = () => {
                       {new Date(rec.respondedAt).toLocaleString()}
                     </p>
                   )}
-
                   {rec.documentDetails?.length > 0 && (
                     <div className="mt-4">
                       <p className="font-semibold mb-2">Attached Documents:</p>
@@ -766,7 +795,6 @@ const ViewProcess = () => {
         </>
       )}
 
-      {/* view file modal */}
       {fileView && (
         <ViewFile
           docu={fileView}
@@ -775,7 +803,6 @@ const ViewProcess = () => {
         />
       )}
 
-      {/* Documents Details Modal */}
       <CustomModal
         isOpen={!!documentModalOpen}
         onClose={() => setDocumentModalOpen(false)}
@@ -786,8 +813,6 @@ const ViewProcess = () => {
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">
               Document Details
             </h2>
-
-            {/* Basic Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
               <DetailItem label="Name" value={documentModalOpen.name} />
               <DetailItem
@@ -803,8 +828,6 @@ const ViewProcess = () => {
                 value={documentModalOpen.approvalCount}
               />
             </div>
-
-            {/* Signed By */}
             <div className="space-y-2">
               <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
                 Signed By
@@ -831,8 +854,6 @@ const ViewProcess = () => {
                 <span className="text-gray-500">—</span>
               )}
             </div>
-
-            {/* Rejection Details */}
             <div className="space-y-2">
               <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
                 Rejection Details
@@ -862,7 +883,6 @@ const ViewProcess = () => {
         ) : null}
       </CustomModal>
 
-      {/* Query Modal */}
       <CustomModal
         isOpen={openModal == 'query'}
         onClose={() => {
@@ -883,7 +903,6 @@ const ViewProcess = () => {
         />
       </CustomModal>
 
-      {/* Query Solve Modal */}
       <CustomModal
         isOpen={existingQuery}
         onClose={() => {
@@ -902,7 +921,6 @@ const ViewProcess = () => {
         />
       </CustomModal>
 
-      {/* recommendation modal */}
       <CustomModal
         isOpen={openModal == 'recommend'}
         onClose={() => {
@@ -920,7 +938,6 @@ const ViewProcess = () => {
         />
       </CustomModal>
 
-      {/*sign remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"
@@ -930,7 +947,6 @@ const ViewProcess = () => {
         showPassField={true}
       />
 
-      {/* reject remarks modal */}
       <RemarksModal
         open={remarksModalOpen.open === 'reject'}
         title="Reject Remarks"

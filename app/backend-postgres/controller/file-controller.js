@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname, join, normalize, extname } from "path";
 import fsCB from "fs";
 import path from "path";
+import axios from "axios";
 import { Transform } from "stream";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
@@ -211,7 +212,6 @@ export const createFolder = async (isProject, path_, userData) => {
 
     const absolutePath = path.join(__dirname, storagePath, path_.substring(2));
 
-    console.log("absolute path", absolutePath);
     try {
       await fs.access(absolutePath);
       return 409; // Folder already exists
@@ -233,9 +233,8 @@ export const createFolder = async (isProject, path_, userData) => {
             // Create the folder in the filesystem
             await fs.mkdir(absolutePathToBeChecked);
 
-            console.log("path", path_);
             // Store document details in the database
-            console.log("is project", isProject);
+
             const newDocument = await prisma.document.create({
               data: {
                 name: element,
@@ -246,8 +245,6 @@ export const createFolder = async (isProject, path_, userData) => {
                 isProject: isProject || false,
               },
             });
-
-            console.log("updated document", newDocument);
 
             await createUserPermissions(
               newDocument.id,
@@ -345,8 +342,6 @@ export const createUserPermissions = async (documentId, username, writable) => {
         grantedBy: { connect: { id: user.id } }, // Assuming the system admin is granting this
       },
     });
-
-    console.log("doc access", documentAccess);
 
     return documentAccess;
   } catch (error) {
@@ -993,7 +988,7 @@ export const file_download = async (req, res) => {
       fileType: fileExt,
     });
   } catch (error) {
-    console.log("error", error);
+    // console.log("error", error);
     res.status(500).json({
       message: "error downloading file",
     });
@@ -1121,7 +1116,7 @@ export const get_file_data = async (req, res) => {
       fsCB.createReadStream(filePath).pipe(res);
     }
   } catch (error) {
-    console.log("Error while processing file data:", error);
+    // console.log("Error while processing file data:", error);
     res.status(500).json({
       message: "Error downloading file",
     });
@@ -1350,4 +1345,332 @@ export const recover_from_recycle_bin = async (req, res) => {
   } finally {
     await prisma.$disconnect(); // Disconnect Prisma client
   }
+};
+
+const discoveryXml = `<wopi-discovery>
+  <net-zone name="external-http">
+    <app name="Word">
+      <action name="view" ext="docx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="edit" ext="docx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+    </app>
+    <app name="Excel">
+      <action name="view" ext="xlsx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="edit" ext="xlsx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+    </app>
+  </net-zone>
+</wopi-discovery>`;
+
+const setWopiHeaders = (res) => {
+  res.set({
+    "X-WOPI-AllowedHosts": "*",
+    "X-WOPI-MachineName": "localhost",
+    "Access-Control-Allow-Origin": "*",
+    "Content-Type": "application/json",
+  });
+};
+
+const generateWopiToken = (userId, fileId, readOnly) => {
+  return jwt.sign({ userId, fileId, readOnly }, process.env.SECRET_ACCESS_KEY, {
+    expiresIn: "1h",
+  });
+};
+
+const validateWopiToken = (token) => {
+  try {
+    return jwt.verify(token, process.env.SECRET_ACCESS_KEY);
+  } catch (err) {
+    throw new Error("Invalid WOPI token");
+  }
+};
+
+export const wopiDiscovery = async (req, res) => {
+  res.set("Content-Type", "application/xml");
+  res.send(discoveryXml);
+};
+
+export const checkCollaboraCapabilities = async (req, res) => {
+  try {
+    const response = await axios.get(
+      "http://localhost:9980/hosting/capabilities"
+    );
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error fetching Collabora capabilities:", err.message);
+    res.status(500).json({ message: "Collabora server is not reachable" });
+  }
+};
+
+export const checkHostingDiscovery = async (req, res) => {
+  try {
+    const response = await axios.get("http://localhost:9980/hosting/discovery");
+    res.set("Content-Type", "application/xml");
+    res.send(response.data);
+  } catch (err) {
+    console.error("Error fetching Collabora discovery:", err.message);
+    res.status(500).json({ message: "Collabora server is not reachable" });
+  }
+};
+
+export const getWopiToken = async (req, res) => {
+  try {
+    const accessToken = req.headers["x-authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const { fileId } = req.params;
+    const { readOnly } = req.body;
+
+    const token = generateWopiToken(userData.id, fileId, readOnly);
+
+    // Generate or retrieve lock value
+    let lock = locks.get(fileId);
+    if (!lock) {
+      lock = `lock-${fileId}-${Date.now()}`; // Generate a unique lock value
+      locks.set(fileId, lock);
+    }
+
+    res.json({ access_token: token, lock });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getFileDataByDocumentId = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(documentId) },
+      include: { department: true },
+    });
+
+    if (!document) {
+      return res
+        .status(404)
+        .json({ message: "File not found in the database." });
+    }
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const filePath = join(
+      __dirname,
+      process.env.STORAGE_PATH || "",
+      document.path
+    );
+
+    const stat = await fs.stat(filePath);
+    const fileSize = stat.size;
+    const fileExtension = document.path.split(".").pop();
+    const fileName = document.path.split("/").pop();
+
+    const range = req.headers.range;
+
+    if (range === "bytes=0-0") {
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      res.setHeader("access-control-expose-headers", "Content-Range");
+      return res.status(206).json({
+        fileSize,
+        message: "Partial file details fetched successfully.",
+      });
+    }
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      res.setHeader("access-control-expose-headers", "Content-Range");
+      res.setHeader("content-range", `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader("content-length", end - start + 1);
+      res.status(206);
+
+      const fileStream = fsCB.createReadStream(filePath, { start, end });
+      fileStream.pipe(res);
+    } else {
+      res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
+      fsCB.createReadStream(filePath).pipe(res);
+    }
+  } catch (error) {
+    console.error("Error while processing file data:", error);
+    res.status(500).json({ message: "Error downloading file" });
+  }
+};
+
+export const wopiFileContents = async (req, res) => {
+  try {
+    const { fileId } = validateWopiToken(req.query.access_token);
+    req.params.documentId = fileId;
+    await getFileDataByDocumentId(req, res);
+  } catch (err) {
+    console.error("Error in getting file content:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const wopiFiles = async (req, res) => {
+  try {
+    setWopiHeaders(res);
+    const wopiToken = req.query.access_token;
+
+    const { userId, fileId, readOnly } = validateWopiToken(wopiToken);
+
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(fileId) },
+      include: { department: true },
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
+
+    if (!document) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const filePath = join(
+      __dirname,
+      process.env.STORAGE_PATH || "",
+      document.path
+    );
+
+    const stat = await fs.stat(filePath);
+    const fileName = document.path.split("/").pop();
+
+    console.log("read only", readOnly);
+    res.json({
+      BaseFileName: fileName,
+      Size: stat.size,
+      OwnerId: document.ownerId || "owner-id",
+      UserId: userId,
+      Version: stat.mtime.toISOString(),
+      SupportsUpdate: true,
+      UserCanWrite: !readOnly, // Set based on IsReadOnly
+      SupportsLocks: true,
+      UserFriendlyName: user.username,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const wopiFileGet = async (req, res) => {
+  try {
+    const wopiToken = req.query.access_token;
+    const { fileId } = validateWopiToken(wopiToken);
+    req.params.documentId = fileId;
+    await getFileDataByDocumentId(req, res);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const wopiFilePost = async (req, res) => {
+  try {
+    const wopiToken = req.query.access_token;
+    const { userId, fileId } = validateWopiToken(wopiToken);
+
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(fileId) },
+      include: { department: true },
+    });
+
+    console.log("reached at post contents");
+
+    if (!document) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const filePath = join(
+      __dirname,
+      process.env.STORAGE_PATH || "",
+      document.path
+    );
+
+    console.log("file path", filePath);
+
+    const dir = dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+
+    // Buffer incoming body manually
+    const chunks = [];
+
+    req.on("data", (chunk) => {
+      console.log("chunk", chunk);
+      chunks.push(chunk);
+    });
+
+    req.on("end", async () => {
+      const buffer = Buffer.concat(chunks);
+
+      try {
+        await fs.writeFile(filePath, buffer);
+
+        console.log("end");
+
+        await prisma.document.update({
+          where: { id: parseInt(fileId) },
+          data: { lastUpdatedOn: new Date() },
+        });
+
+        return res.status(200).json({});
+      } catch (err) {
+        return res.status(500).json({ message: "Error saving file" });
+      }
+    });
+
+    req.on("error", (err) => {
+      return res.status(500).json({ message: "Stream error" });
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+let locks = new Map(); // Simple in-memory lock storage
+
+export const wopiLock = (req, res) => {
+  const { fileId } = req.params;
+  const accessToken = req.query.access_token;
+  const lock = req.headers["x-wopi-lock"];
+
+  const currentLock = locks.get(fileId);
+
+  // if (currentLock) {
+  //   return res.status(409).set("X-WOPI-Lock", currentLock).send();
+  // }
+
+  locks.set(fileId, lock);
+  return res.status(200).send();
+};
+
+export const wopiUnlock = (req, res) => {
+  const { fileId } = req.params;
+  const lock = req.headers["x-wopi-lock"];
+  const currentLock = locks.get(fileId);
+
+  // if (currentLock !== lock) {
+  //   return res.status(409).set("X-WOPI-Lock", currentLock).send();
+  // }
+
+  locks.delete(fileId);
+  return res.status(200).send();
+};
+
+export const wopiRefreshLock = (req, res) => {
+  const { fileId } = req.params;
+  const lock = req.headers["x-wopi-lock"];
+  const currentLock = locks.get(fileId);
+
+  if (currentLock !== lock) {
+    return res.status(409).set("X-WOPI-Lock", currentLock).send();
+  }
+
+  // Refresh means re-saving the same lock, so we do nothing but 200
+  return res.status(200).send();
 };

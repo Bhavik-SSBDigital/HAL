@@ -1,18 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { ViewDocument } from '../../common/Apis';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import '@cyntler/react-doc-viewer/dist/index.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import * as XLSX from 'xlsx';
 import PdfContainer from './pdfViewer';
+import Editor from './Editor';
 import './View.css';
 import {
   IconSquareRoundedX,
   IconArrowLeft,
   IconArrowRight,
+  IconPencil,
 } from '@tabler/icons-react';
 import CustomModal from '../../CustomComponents/CustomModal';
+
+// Supported file types for the viewer
+const SUPPORTED_TYPES = [
+  'bmp',
+  'csv',
+  'odt',
+  'doc',
+  'docx',
+  'gif',
+  'htm',
+  'html',
+  'jpg',
+  'jpeg',
+  'pdf',
+  'png',
+  'ppt',
+  'pptx',
+  'tiff',
+  'txt',
+  'xls',
+  'xlsx',
+  'mp4',
+  'webp',
+  'dwg',
+];
+
+// File types that support editing
+const EDITABLE_TYPES = ['docx', 'xlsx',  'pptx', 'odt', 'ods', 'odp', 'odg'];
 
 const PdfViewer = ({
   docu,
@@ -22,84 +53,49 @@ const PdfViewer = ({
   processId,
   currentStep,
   controls,
+  setFileView,
+  signedDocument, // Added missing prop
 }) => {
   const [excelData, setExcelData] = useState([]);
   const [activeDocument, setActiveDocument] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-
+  const [isEditing, setIsEditing] = useState(docu?.isEditing);
+  const accessToken = sessionStorage.getItem('accessToken') || '';
+  
+  console.log("is editing", docu?.isEditing)
   const documents = docu?.multi ? docu.docs : [docu];
   const currentDoc = documents[currentIndex];
 
-  useEffect(() => {
-    const supportedTypes = [
-      'bmp',
-      'csv',
-      'odt',
-      'doc',
-      'docx',
-      'gif',
-      'htm',
-      'html',
-      'jpg',
-      'jpeg',
-      'pdf',
-      'png',
-      'ppt',
-      'pptx',
-      'tiff',
-      'txt',
-      'xls',
-      'xlsx',
-      'mp4',
-      'webp',
-      'dwg',
-    ];
 
-    if (!currentDoc || !supportedTypes.includes(currentDoc.type)) {
+
+  useEffect(() => {
+    if (!currentDoc) {
+      toast.warn('No document provided');
+      handleViewClose();
+      return;
+    }
+
+    if (!SUPPORTED_TYPES.includes(currentDoc?.type)) {
+
       toast.warn('Unsupported file type');
       handleViewClose();
       return;
     }
 
-    setActiveDocument({ uri: currentDoc.url });
 
-    if (currentDoc.type === 'xlsx' || currentDoc.type === 'xls') {
-      fetch(currentDoc.url)
-        .then((res) => res.blob())
-        .then((blob) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const bstr = e.target.result;
-            const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-            const sheetName = wb.SheetNames[0];
-            const sheet = wb.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-            const maxLength = jsonData.reduce(
-              (max, row) => Math.max(max, row.length),
-              0,
-            );
-            const normalizedData = jsonData.map((row) =>
-              Array.from({ length: maxLength }, (_, i) => row[i] || ''),
-            );
-
-            setExcelData(normalizedData);
-          };
-          reader.readAsBinaryString(blob);
-        })
-        .catch((err) => console.error('Error reading Excel file:', err));
-    }
-  }, [currentDoc]);
+  }, [currentDoc, handleViewClose, isEditing]);
 
   const handleNext = () => {
     if (currentIndex < documents.length - 1) {
       setCurrentIndex((prev) => prev + 1);
+      setIsEditing(false);
     }
   };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1);
+      setIsEditing(false);
     }
   };
 
@@ -107,14 +103,56 @@ const PdfViewer = ({
     setActiveDocument(document);
   };
 
+  const toggleEditMode = () => {
+    if (EDITABLE_TYPES.includes(currentDoc.type)) {
+      setIsEditing((prev) => !prev);
+      setFileView((prev) => ({ ...prev, isEditing: !prev.isEditing }));
+    } else {
+      toast.warn('Editing not supported for this file type');
+    }
+  };
+
+  const handleEditorError = (err) => {
+    console.error('Editor error:', err);
+    setIsEditing(false);
+    setFileView((prev) => ({ ...prev, isEditing: false }));
+    toast.error(`Editor failed: ${err.message}`);
+  };
+
+  const renderExcelTable = () => {
+    if (!excelData.length) {
+      return <div>Loading Excel data...</div>;
+    }
+
+    return (
+      <div className="overflow-x-auto max-h-[60vh]">
+        <table className="min-w-full border-collapse border border-gray-300">
+          <tbody>
+            {excelData.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={cellIndex}
+                    className="border border-gray-300 px-2 py-1 text-sm"
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <CustomModal
       isOpen={!!docu}
       onClose={handleViewClose}
-      className={'max-h-[90vh] overflow-auto'}
+      className="max-h-[90vh] overflow-auto"
     >
-      {/* Top Navigation/Header */}
-      <div className="sticky top-0 border left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
+      <div className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
         <div className="flex items-center gap-2">
           {documents.length > 1 && (
             <>
@@ -154,8 +192,18 @@ const PdfViewer = ({
               ({currentIndex + 1} of {documents.length})
             </span>
           )}
+          {EDITABLE_TYPES.includes(currentDoc?.type) && (
+            <button
+              onClick={toggleEditMode}
+              className={`p-1 rounded-full transition ${
+                isEditing ? 'bg-blue-100' : 'hover:bg-gray-200'
+              }`}
+              title={isEditing ? 'Switch to View' : 'Edit Document'}
+            >
+              <IconPencil size={22} />
+            </button>
+          )}
         </div>
-
         <button
           onClick={handleViewClose}
           className="hover:bg-gray-200 p-1 rounded-full transition"
@@ -164,36 +212,30 @@ const PdfViewer = ({
           <IconSquareRoundedX size={22} />
         </button>
       </div>
-
-      {/* Viewer Area */}
       <div className="pt-7 w-fit">
         {currentDoc ? (
-          currentDoc.type === 'pdf' ? (
+          EDITABLE_TYPES.includes(currentDoc.type) ? (
+            <Editor
+              documentId={currentDoc.fileId}
+              fileType={currentDoc.type}
+              name={currentDoc.name}
+              path={currentDoc.department?.path || currentDoc.path}
+              accessToken={accessToken}
+              onError={handleEditorError}
+              readOnly={!isEditing}
+            />
+          ) : currentDoc.type === 'pdf' ? (
             <PdfContainer
               url={currentDoc.url}
               documentId={currentDoc.fileId}
               workflow={workflow}
               maxReceiverStepNumber={maxReceiverStepNumber}
               processId={processId}
-              currentStep={currentStep}
+              currentStep={currentDoc.step}
               controls={controls}
-              signed={currentDoc.signed}
+              signed={signedDocument}
             />
-          ) : (
-            <DocViewer
-              documents={[{ uri: currentDoc.url }]}
-              activeDocument={activeDocument}
-              className="my-doc-viewer-style"
-              pluginRenderers={DocViewerRenderers}
-              onDocumentChange={handleDocumentChange}
-              style={{
-                display: 'flex',
-                height: '100%',
-                width: '100%',
-                padding: '1rem',
-              }}
-            />
-          )
+          ) : <></>
         ) : (
           <div className="text-center text-gray-500">Loading document...</div>
         )}

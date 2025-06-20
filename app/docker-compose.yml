@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  collabora:
+    image: collabora/code
+    container_name: collabora
+    environment:
+      - domain=localhost|your.domain.com
+      - username=admin
+      - password=secret
+    ports:
+      - "9980:9980"
+    volumes:
+      - ./systemplate:/opt/cool/systemplate:rw  # make sure writable if needed
+    restart: unless-stopped
+
+ 

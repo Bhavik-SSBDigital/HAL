@@ -129,7 +129,7 @@ export const sign_document = async (req, res, next) => {
       processId,
       passphrase,
       processStepInstanceId,
-      p12Password,
+      p12password,
     } = req.body;
 
     const document = await prisma.document.findUnique({
@@ -199,7 +199,7 @@ export const sign_document = async (req, res, next) => {
           documentId,
           userData,
           path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName),
-          p12Password
+          p12password
         );
       } else {
         console.log("dir name", __dirname);
@@ -215,7 +215,7 @@ export const sign_document = async (req, res, next) => {
           documentId,
           userData
           // path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName),
-          // p12Password
+          // p12password
         );
       }
     } else {
@@ -248,7 +248,7 @@ export const sign_document = async (req, res, next) => {
               envVariables.DSC_FOLDER_PATH,
               user.dscFileName
             ),
-            p12Password
+            p12password
           )
         : await print_signature_after_content_on_the_last_page(
             pdfDoc,
@@ -660,7 +660,7 @@ async function print_signature_after_content_on_the_last_page(
   pythonEnvPath,
   pythonScriptPath,
   p12Path,
-  p12Password
+  p12password
 ) {
   const user = await prisma.user.findUnique({
     where: { username: username },
@@ -804,7 +804,7 @@ async function print_signature_after_content_on_the_last_page(
     });
 
     const p12Buffer = readFileSync(p12Path);
-    const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
+    const signer = new P12Signer(p12Buffer, { passphrase: p12password });
     const signPdf = new SignPdf();
     const signedPdf = await signPdf.sign(pdfWithPlaceholder, signer);
     await fs.writeFile(absDocumentPath, signedPdf);
@@ -825,7 +825,7 @@ async function print_signature_at_coordinates(
   documentId,
   userData,
   p12Path,
-  p12Password
+  p12password
 ) {
   const user = await prisma.user.findUnique({
     where: { username: username },
@@ -896,7 +896,7 @@ async function print_signature_at_coordinates(
     });
 
     const p12Buffer = readFileSync(p12Path);
-    const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
+    const signer = new P12Signer(p12Buffer, { passphrase: p12password });
     const signPdf = new SignPdf();
     const signedPdf = await signPdf.sign(pdfWithPlaceholder, signer);
     await fs.writeFile(absDocumentPath, signedPdf);

@@ -1,12 +1,13 @@
 import { verifyUser } from "../utility/verifyUser.js";
 
-import {
+import pkg from "@prisma/client";
+const {
   PrismaClient,
   AccessType,
   NotificationType,
   ProcessStatus,
   StepStatus,
-} from "@prisma/client";
+} = pkg;
 
 const prisma = new PrismaClient();
 
@@ -937,6 +938,7 @@ export const view_process = async (req, res) => {
       process.stepInstances.flatMap((step) =>
         step.recommendations.map(async (rec) => {
           const documentSummaries = rec.documentSummaries || [];
+          console.log("rec", rec.details);
           const documentResponses = rec.details?.documentResponses || [];
           const documentIds = documentSummaries.map((ds) =>
             parseInt(ds.documentId)
@@ -953,10 +955,12 @@ export const view_process = async (req, res) => {
             return map;
           }, {});
 
+          console.log("doc summaries", documentSummaries);
           const documentDetails = documentSummaries.map((ds) => {
-            const response = documentResponses.find(
-              (dr) => dr.documentId === parseInt(ds.documentId)
+            const response = rec.details.documentResponses.find(
+              (dr) => parseInt(dr.documentId) === parseInt(ds.documentId)
             );
+            console.log("response", response);
             return {
               documentId: ds.documentId,
               documentName: documentMap[ds.documentId] || "Unknown Document",

@@ -200,6 +200,8 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               path: `${child.path.slice(0, -child.name.length - 1)}`,
               name: child.name,
               type: child.type,
+              isArchived: child.isArchived ?? false,
+              inBin: child.inBin ?? false,
               createdOn: child.createdOn,
               isInvolvedInProcess: child.isInvolvedInProcess ?? false,
               createdBy: createdBy?.username,
@@ -267,6 +269,8 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 id: child.id,
                 path: `${child.path.slice(0, -child.name.length - 1)}`,
                 name: child.name,
+                isArchived: child.isArchived ?? false,
+                inBin: child.inBin ?? false,
                 type: child.type,
                 createdOn: child.createdOn,
                 isInvolvedInProcess: child.isInvolvedInProcess ?? false,
@@ -292,8 +296,18 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     let result = await Promise.all(children);
     result = result.filter((item) => item !== null);
 
+    ///1. isArchived, 2. inBin 3. isArchived & inBin
+    console.log("section type", req.body.sectionType);
     if (req.body.sectionType) {
-      result = result.filter((item) => item.sectionType);
+      result = result.filter(
+        (item) => item[`${req.body.sectionType}`] === true
+      );
+    } else {
+      result = result.filter(
+        (item) =>
+          (item.inBin === false && item.isArchived === false) ||
+          (!item.inBin && !item.isArchived)
+      );
     }
     // Check if user can upload to this directory
     const canUpload = isAdmin
@@ -610,6 +624,8 @@ export const getDocumentDetailsForAdmin = async (req, res) => {
         highlights: true,
         children: true,
         parent: true,
+        isArchived: true,
+        isInBin: true,
         documentAccesses: {
           include: {
             user: true,

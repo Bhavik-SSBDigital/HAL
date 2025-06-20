@@ -79,6 +79,17 @@ import {
   recover_from_recycle_bin,
   archive_file,
   unarchive_file,
+  wopiDiscovery,
+  checkCollaboraCapabilities,
+  wopiFiles,
+  getWopiToken,
+  wopiFileGet,
+  wopiFileContents,
+  wopiFilePost,
+  checkHostingDiscovery,
+  wopiLock,
+  wopiUnlock,
+  wopiRefreshLock,
 } from "../controller/file-controller.js";
 
 import {
@@ -279,4 +290,23 @@ router.post("/deleteFile", delete_file);
 router.post("/recoverDeletedFile", recover_from_recycle_bin);
 router.post("/archiveFile", archive_file);
 router.post("/unarchiveFile", unarchive_file);
+
+router.get("/wopi/discovery", wopiDiscovery);
+
+router.get("/collabora/capabilities", checkCollaboraCapabilities);
+router.post("/wopi/token/:fileId", getWopiToken);
+router.get("/wopi/files/:fileId", wopiFiles);
+router.post("/wopi/files/:fileId", (req, res) => {
+  // Optional: log if needed
+  console.log(`POST /wopi/files/${req.params.fileId} received`);
+  res.status(200).send(); // Just return success
+});
+// router.get("/wopi/files/:fileId/contents", wopiFileGet);
+router.get("/wopi/files/:id/contents", wopiFileContents);
+router.post("/wopi/files/:fileId/contents", wopiFilePost);
+router.get("/hosting/discovery", checkHostingDiscovery);
+router.post("/wopi/files/:fileId/lock", wopiLock);
+router.post("/wopi/files/:fileId/unlock", wopiUnlock);
+router.post("/wopi/files/:fileId/refreshlock", wopiRefreshLock);
+
 export default router;

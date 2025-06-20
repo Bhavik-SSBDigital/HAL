@@ -1,135 +1,197 @@
-import React, { useState } from 'react';
-import { Document, Page } from 'react-pdf';
-import './Editor.css';
-import {
-  MultiRootEditor,
-  Bold,
-  Essentials,
-  Italic,
-  Paragraph,
-  Underline,
-  Heading,
-  List,
-  Link,
-  Alignment,
-  FontSize,
-  Indent,
-} from 'ckeditor5';
-import { useMultiRootEditor } from '@ckeditor/ckeditor5-react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
-import 'ckeditor5/ckeditor5.css';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+const Editor = ({ documentId, fileType, name, path, accessToken, onError, readOnly }) => {
+  const [editorUrl, setEditorUrl] = useState('');
+  const [lock, setLock] = useState(null);
+  const [error, setError] = useState(null);
 
-const Editor = () => {
-  const editorProps = {
-    editor: MultiRootEditor,
-    data: {
-      content: '<p>ASdasdasd</p>',
-    },
-    config: {
-      licenseKey: 'GPL',
-      plugins: [
-        Essentials,
-        Bold,
-        Italic,
-        Paragraph,
-        Underline,
-        Heading,
-        List,
-        Link,
-        Alignment,
-        FontSize,
-        Indent,
-      ],
-      toolbar: [
-        'undo',
-        'redo',
-        '|',
-        'bold',
-        'italic',
-        'underline',
-        'heading',
-        'fontSize',
-        'alignment',
-        'link',
-        '|',
-        'bulletedList',
-        'numberedList',
-        'outdent',
-        'indent',
-        '|',
-        'blockQuote',
-      ],
-    },
+
+  useEffect(() => {
+    const fetchEditorUrl = async () => {
+      try {
+        console.log('Editor.jsx: Starting fetchEditorUrl', { documentId, fileType, name, path, accessToken: accessToken ? 'present' : 'missing', readOnly });
+
+        if (!documentId || !fileType || !accessToken) {
+          throw new Error(`Missing required props: ${!documentId ? 'documentId' : ''} ${!fileType ? 'fileType' : ''} ${!accessToken ? 'accessToken' : ''}`);
+        }
+
+        // Fetch WOPI token and acquire lock if not readOnly
+        console.log('Editor.jsx: Fetching WOPI token for documentId:', documentId);
+        const tokenResponse = await axios.post(
+          `http://localhost:9000/wopi/token/${documentId}`,
+          { readOnly }, // Send readOnly in the request body
+          {
+            headers: { 'x-authorization': `Bearer ${accessToken}` }
+          }
+        );
+        const { lock: lockValue } = tokenResponse.data;
+        setLock(lockValue);
+
+        const wopiToken = tokenResponse.data.access_token;
+
+
+        // Acquire lock for editable documents
+        if (!readOnly) {
+
+          await axios.post(`http://localhost:9000/wopi/files/${documentId}/lock`, {}, {
+            headers: {
+              'x-authorization': `Bearer ${accessToken}`,
+              'X-WOPI-Lock': lockValue || 'lock-value'
+            }
+          });
+
+        }
+
+        // Fetch Collabora discovery XML
+
+        const discoveryResponse = await axios.get(`http://localhost:9000/hosting/discovery`, {
+          headers: {
+            'Origin': 'http://localhost:3000',
+            'Access-Control-Request-Method': 'GET',
+            'Access-Control-Request-Headers': 'content-type'
+          },
+          withCredentials: false
+        });
+        
+
+        // Parse the XML string
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(discoveryResponse.data, 'application/xml');
+        const discoveryNode = xmlDoc.querySelector('wopi-discovery');
+        if (!discoveryNode) {
+          throw new Error('Invalid Collabora discovery response: Missing wopi-discovery element');
+        }
+
+        // Map file extensions to Collabora app names
+        const appMap = {
+          docx: 'writer',
+          doc: 'writer',
+          odt: 'writer',
+          xlsx: 'calc',
+          xls: 'calc',
+          ods: 'calc',
+          pptx: 'impress',
+          ppt: 'impress',
+          odp: 'impress',
+          odg: 'draw',
+          pdf: 'draw',
+        };
+
+        const appName = appMap[fileType.toLowerCase()];
+        if (!appName) {
+          throw new Error(`Unsupported file type: ${fileType}. Supported types: ${Object.keys(appMap).join(', ')}`);
+        }
+
+        // Find the specific action based on readOnly and fileType
+        let action;
+        if (readOnly) {
+          action = Array.from(xmlDoc.querySelectorAll(`app[name="${appName}"] action`)).find(
+            action => action.getAttribute('name') === 'view' && action.getAttribute('ext') === fileType.toLowerCase()
+          );
+          if (!action) {
+            console.warn(`Editor.jsx: No view action found for ${fileType}, falling back to edit with IsReadOnly=1`);
+            action = Array.from(xmlDoc.querySelectorAll(`app[name="${appName}"] action`)).find(
+              action => action.getAttribute('name') === 'edit' && action.getAttribute('ext') === fileType.toLowerCase()
+            );
+          }
+        } else {
+          action = Array.from(xmlDoc.querySelectorAll(`app[name="${appName}"] action`)).find(
+            action => action.getAttribute('name') === 'edit' && action.getAttribute('ext') === fileType.toLowerCase()
+          );
+        }
+
+        if (!action) {
+          const availableActions = Array.from(xmlDoc.querySelectorAll(`app[name="${appName}"] action`))
+            .map(a => `${a.getAttribute('name')}:${a.getAttribute('ext') || 'any'}`)
+            .join(', ');
+          throw new Error(`No suitable action found for file type: ${fileType} in app: ${appName}. Available actions: ${availableActions}`);
+        }
+
+       
+
+        // Verify Collabora server is reachable
+        try {
+          await axios.get('http://localhost:9000/collabora/capabilities');
+
+        } catch (err) {
+          throw new Error('Collabora server is not reachable');
+        }
+
+        // Construct WOPISrc and query string
+        const wopiSrc = `http://host.docker.internal:9000/wopi/files/${documentId}`;
+    
+        const params = new URLSearchParams({
+          access_token: wopiToken,
+          lang: 'en-US',
+          closebutton: '1',
+          revisionhistory: '1',
+          ...(readOnly && { IsReadOnly: '1' })
+        });
+        const url = `${action.getAttribute('urlsrc')}WOPISrc=${encodeURIComponent(wopiSrc)}&${params.toString()}`;
+
+
+        setEditorUrl(url);
+      } catch (err) {
+        console.error('Editor.jsx: Error fetching editor URL:', err);
+        const errorMessage = err.response
+          ? `Server error: ${err.response.status} - ${err.response.data?.message || err.message}`
+          : `Network error: ${err.message}`;
+        setError(errorMessage);
+        toast.error(`Failed to load Collabora Online editor: ${errorMessage}`);
+        if (onError) onError(err);
+      }
+    };
+
+    fetchEditorUrl();
+
+    // Cleanup function to unlock the file
+    return () => {
+
+      if (!readOnly && documentId && accessToken && lock) {
+        axios
+          .post(`http://localhost:9000/wopi/files/${documentId}/unlock`, {}, {
+            headers: {
+              'x-authorization': `Bearer ${accessToken}`,
+              'X-WOPI-Lock': lock
+            }
+          })
+          .then(() => {
+            console.log('Editor.jsx: File unlocked successfully');
+          })
+          .catch((err) => {
+            console.error('Editor.jsx: Error unlocking file:', err);
+            toast.error('Failed to unlock file on session end');
+          });
+      }
+    };
+  }, [documentId, fileType, name, path, accessToken, onError, readOnly, lock]);
+
+  const handleIframeError = (event) => {
+    console.error('Editor.jsx: Iframe load error:', event, event.target.src);
+    setError('Failed to load Collabora Online editor. Please check server logs.');
+    toast.error('Failed to load Collabora Online editor');
   };
 
-  const {
-    editor,
-    toolbarElement,
-    editableElements,
-    data,
-    setData,
-    attributes,
-    setAttributes,
-  } = useMultiRootEditor(editorProps);
+  if (error) {
+    return <div className="text-center text-red-500">Error: {error}</div>;
+  }
 
-  const [pdfFile, setPdfFile] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-
-  // PDF load success handler
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-  };
-
-  // Submit handler to generate PDF file (fake for this example)
-  const handleSubmit = () => {
-    console.log('Document data:', data);
-    setPdfFile('./branch 1_compliance dept_2024_cb1_24.pdf');
-  };
+  if (!editorUrl) {
+    return <div className="text-center text-gray-500">Loading Collabora Online editor...</div>;
+  }
 
   return (
-    <div className="Editor">
-      {toolbarElement}
-      {editableElements}
-
-      <button
-        style={{
-          backgroundColor: '#4caf50',
-          marginTop: '10px',
-          color: 'white',
-          borderRadius: '5px',
-          marginLeft: 'auto',
-          display: 'block',
-          padding: '10px 15px',
-          cursor: 'pointer',
-          fontSize: '16px',
-        }}
-        onClick={handleSubmit}
-      >
-        Submit Document
-      </button>
-
-      {pdfFile && (
-        <div style={{ marginTop: '20px' }}>
-          <h3>PDF Preview:</h3>
-          <Document
-            file={pdfFile}
-            onLoadSuccess={onDocumentLoadSuccess}
-            style={{
-              border: '1px solid #ccc',
-              padding: '10px',
-              borderRadius: '5px',
-              maxWidth: '600px',
-              margin: '0 auto',
-            }}
-          >
-            {Array.from(new Array(numPages), (el, index) => (
-              <Page key={`page_${index + 1}`} pageNumber={index + 1} />
-            ))}
-          </Document>
-        </div>
-      )}
-    </div>
+    <iframe
+      src={editorUrl}
+      title="Collabora Online Editor"
+      width="1200px"
+      height="600px"
+      style={{ border: 'none', minHeight: '600px' }}
+      allowFullScreen
+      onError={handleIframeError}
+    />
   );
 };
 

@@ -465,7 +465,7 @@ export const get_user_activity_log = async (req, res) => {
           return map;
         }, {});
 
-        const documentDetails = documentSummariess.map((ds) => {
+        const documentDetails = documentSummaries.map((ds) => {
           const response = documentResponses.find(
             (dr) => dr.documentId === parseInt(ds.documentId)
           );
@@ -1289,7 +1289,7 @@ export const get_process_activity_logs = async (req, res) => {
           return map;
         }, {});
 
-        const documentDetails = documentSummariess.map((ds) => {
+        const documentDetails = documentSummaries.map((ds) => {
           const response = documentResponses.find(
             (dr) => dr.documentId === parseInt(ds.documentId)
           );

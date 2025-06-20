@@ -1,0 +1,19 @@
+services:
+  collabora:
+    image: collabora/code
+    container_name: collabora
+    ports:
+      - "9980:9980"
+    environment:
+      - domain=192.168.1.100:9000 # Replace with your host IP
+      - server_name=localhost:9980
+      - extra_params=--o:ssl.enable=false --o:wopi.host=192.168.1.100:9000
+    volumes:
+      - ./systemplate:/opt/cool/systemplate
+      # - ./child-roots:/opt/cool/child-roots
+    networks:
+      - app-network
+    restart: unless-stopped
+networks:
+  app-network:
+    driver: bridge
