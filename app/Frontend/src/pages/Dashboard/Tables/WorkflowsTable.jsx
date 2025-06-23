@@ -40,7 +40,7 @@ const WorkflowsTable = ({
             <th className="px-4 py-2">Version</th>
             <th className="px-4 py-2">Description</th>
             <th className="px-4 py-2">Created At</th>
-            <th className="px-4 py-2">Updated At</th>
+            {/* <th className="px-4 py-2">Updated At</th> */}
             <th className="px-4 py-2">View Workflow Details</th>
           </tr>
         </thead>
@@ -54,9 +54,9 @@ const WorkflowsTable = ({
               <td className="px-4 py-2">
                 {new Date(wf.createdAt).toLocaleString()}
               </td>
-              <td className="px-4 py-2">
+              {/* <td className="px-4 py-2">
                 {new Date(wf.updatedAt).toLocaleString()}
-              </td>
+              </td> */}
               <td className="px-4 py-2">
                 <CustomButton
                   disabled={actionsLoading}

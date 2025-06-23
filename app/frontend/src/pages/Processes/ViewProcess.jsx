@@ -490,7 +490,7 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                           title="Reject Document"
                           text={<IconX size={18} className="text-white" />}
                         />
-                        <CustomButton
+                        {/* <CustomButton
                           variant="secondary"
                           className="px-2"
                           click={() => handleRevokeSign(doc.id)}
@@ -505,7 +505,7 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                           disabled={actionsLoading || !doc.rejectionDetails}
                           title="Revoke Rejection"
                           text={<IconArrowForwardUp size={18} className="text-white" />}
-                        />
+                        /> */}
                         <CustomButton
                           variant="info"
                           className="px-2"
