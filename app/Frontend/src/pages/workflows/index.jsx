@@ -14,6 +14,7 @@ import CustomButton from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import { toast } from 'react-toastify';
+import CustomModal from '../../CustomComponents/CustomModal';
 
 export default function WorkflowVisualizer() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -101,39 +102,23 @@ export default function WorkflowVisualizer() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white p-6 rounded-xl shadow-xl w-full max-w-2xl relative"
-            >
-              <button
-                className="absolute top-3 right-3 text-gray-600 hover:text-gray-800"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditData(null);
-                }}
-              >
-                <IconX size={24} />
-              </button>
-              <WorkflowForm
-                handleCloseForm={() => {
-                  setShowForm(false);
-                  setEditData(null);
-                }}
-                updateList={getList}
-                editData={editData}
-                setEditData={setEditData}
-              />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
+      <CustomModal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditData(null);
+        }}
+      >
+        <WorkflowForm
+          handleCloseForm={() => {
+            setShowForm(false);
+            setEditData(null);
+          }}
+          updateList={getList}
+          editData={editData}
+          setEditData={setEditData}
+        />
+      </CustomModal>
       {filteredWorkflows.length > 0 ? (
         filteredWorkflows.map((workflow) => {
           const selectedVersion =

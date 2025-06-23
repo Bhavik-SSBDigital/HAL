@@ -92,7 +92,7 @@ export default function WorkflowForm({
     console.log(editData);
   }, [editData]);
   return (
-    <div className="mx-auto bg-white max-h-[90vh] overflow-auto p-2">
+    <div className="mx-auto bg-white overflow-auto p-2">
       <h2 className="text-xl font-bold mb-4 text-center">Add Workflow</h2>
 
       <form onSubmit={handleSubmit(createWorkflow)}>
