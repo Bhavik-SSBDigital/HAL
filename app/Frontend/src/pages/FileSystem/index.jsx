@@ -155,37 +155,52 @@ export default function FileSysten() {
     resetFilters();
   };
   // Handler view file
-const handleViewFile = async (name, path, fileId, type, isEditing) => {
-  setActionsLoading(true);
+  const handleViewFile = async (name, path, fileId, type, isEditing) => {
+    setActionsLoading(true);
 
+    const fileExtension = name.split('.').pop().toLowerCase();
 
-  const fileExtension = name.split('.').pop().toLowerCase()
-
-  const extensions = ['docx', 'doc', 'odt', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'odg'];
-  if(extensions.includes(fileExtension)) {
-
-    handleEditFile(fileId, name, path, fileExtension, isEditing);
-    return;
-  }
-  try {
-
-    const fileData = await ViewDocument(name, path);
-    if (fileData) {
-      setFileView({ url: fileData.data, type: fileData.fileType || type, fileId: fileData.fileId || fileId, name });
+    const extensions = [
+      'docx',
+      'doc',
+      'odt',
+      'xlsx',
+      'xls',
+      'ods',
+      'pptx',
+      'ppt',
+      'odp',
+      'odg',
+    ];
+    if (extensions.includes(fileExtension)) {
+      handleEditFile(fileId, name, path, fileExtension, isEditing);
+      return;
     }
-  } catch (error) {
-    console.error('ViewProcess.jsx: View error:', error);
-    toast.error(error?.response?.data?.message || error?.message);
-  } finally {
-    setActionsLoading(false);
-  }
-};
+    try {
+      const fileData = await ViewDocument(name, path);
+      if (fileData) {
+        // setFileView({ fileId: docId, type, name, isEditing, path });
+        setFileView({
+          isEditing: false,
+          path,
+          url: fileData.data,
+          type: type,
+          fileId: fileId,
+          name,
+        });
+      }
+    } catch (error) {
+      console.error('ViewProcess.jsx: View error:', error);
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
 
- const handleEditFile = async (docId, name, path, type, isEditing) => {
+  const handleEditFile = async (docId, name, path, type, isEditing) => {
     setActionsLoading(true);
     try {
-
-      setFileView({ fileId: docId, type, name, isEditing, name, path });
+      setFileView({ fileId: docId, type, name, isEditing, path });
     } catch (error) {
       toast.error(error?.message || 'Failed to initiate edit');
     } finally {
@@ -248,7 +263,6 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
           ? await GetRootFolders()
           : await GetFolderData(updatedPath);
       setData(response?.data?.children || []);
-      console.log(data);
     } catch (error) {
       console.log(error?.response?.data?.message || error?.message);
     } finally {
@@ -266,7 +280,6 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
       const body = { sourcePath, name: fileName, destinationPath: currentPath };
-      console.log(method == 'copy');
       const response = await (method == 'copy'
         ? CopyPaste(body)
         : CutPaste(body));
@@ -372,7 +385,6 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
   };
 
   const handleFileUpload = async (data) => {
-    console.log(currentPath);
     setActionsLoading(true);
     try {
       const selectedFile = data.file[0]; // Assuming this is from react-hook-form or similar
@@ -598,7 +610,13 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                     onDoubleClick={() =>
                       item.type == 'folder'
                         ? null
-                        : handleViewFile(item.name, item.path, item.id, item.type, false)
+                        : handleViewFile(
+                            item.name,
+                            item.path,
+                            item.id,
+                            item.type,
+                            false,
+                          )
                     }
                   >
                     <button
@@ -653,7 +671,13 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                   }
                   className="w-full flex items-center gap-2"
                   click={() =>
-                    handleViewFile(selectedItem.name, selectedItem.path, selectedItem.id, selectedItem.type, false)
+                    handleViewFile(
+                      selectedItem.name,
+                      selectedItem.path,
+                      selectedItem.id,
+                      selectedItem.type,
+                      false,
+                    )
                   }
                   disabled={actionsLoading}
                 />

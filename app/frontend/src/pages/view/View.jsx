@@ -43,7 +43,18 @@ const SUPPORTED_TYPES = [
 ];
 
 // File types that support editing
-const EDITABLE_TYPES = ['docx', 'xlsx',  'pptx', 'odt', 'ods', 'odp', 'odg'];
+const EDITABLE_TYPES = [
+  'docx',
+  'doc',
+  'odt',
+  'xlsx',
+  'xls',
+  'ods',
+  'pptx',
+  'ppt',
+  'odp',
+  'odg',
+];
 
 const PdfViewer = ({
   docu,
@@ -61,12 +72,9 @@ const PdfViewer = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(docu?.isEditing);
   const accessToken = sessionStorage.getItem('accessToken') || '';
-  
-  console.log("is editing", docu?.isEditing)
+
   const documents = docu?.multi ? docu.docs : [docu];
   const currentDoc = documents[currentIndex];
-
-
 
   useEffect(() => {
     if (!currentDoc) {
@@ -76,13 +84,10 @@ const PdfViewer = ({
     }
 
     if (!SUPPORTED_TYPES.includes(currentDoc?.type)) {
-
       toast.warn('Unsupported file type');
       handleViewClose();
       return;
     }
-
-
   }, [currentDoc, handleViewClose, isEditing]);
 
   const handleNext = () => {
@@ -235,7 +240,22 @@ const PdfViewer = ({
               controls={controls}
               signed={signedDocument}
             />
-          ) : <></>
+          ) : (
+            <DocViewer
+              documents={[{ uri: currentDoc.url }]}
+              activeDocument={activeDocument}
+              className="my-doc-viewer-style"
+              pluginRenderers={DocViewerRenderers}
+              onDocumentChange={handleDocumentChange}
+              style={{
+                display: 'flex',
+                height: '100%',
+                width: '100%',
+                padding: '1rem',
+              }}
+              signed={signedDocument}
+            />
+          )
         ) : (
           <div className="text-center text-gray-500">Loading document...</div>
         )}
