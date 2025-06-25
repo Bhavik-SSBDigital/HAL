@@ -13,14 +13,13 @@ const SignedDocumentsTable = ({ data, actionsLoading, setActionsLoading }) => {
   const [fileView, setFileView] = useState(null);
 
   // handlers
-  const handleViewFile = async (name, path) => {
+  const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType });
-      }
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
+      console.error('Error:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
@@ -52,7 +51,12 @@ const SignedDocumentsTable = ({ data, actionsLoading, setActionsLoading }) => {
                 <CustomButton
                   disabled={actionsLoading}
                   click={() =>
-                    handleViewFile(doc.documentName, doc.documentPath)
+                    handleViewFile(
+                      doc.documentName,
+                      doc.documentPath,
+                      doc.documentId,
+                      doc.documentType,
+                    )
                   }
                   text={'View File'}
                 />

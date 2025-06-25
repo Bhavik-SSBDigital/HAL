@@ -23,7 +23,7 @@ import {
   IconFileText,
   IconDownload,
   IconMenu2,
-  IconPencil
+  IconPencil,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -56,7 +56,6 @@ const ViewProcess = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [canEdit, setCanEdit] = useState({});
 
-  
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -110,14 +109,19 @@ const ViewProcess = () => {
       await Promise.all(
         response?.data?.process?.documents.map(async (doc) => {
           try {
-            await axios.get(`http://localhost:${process.env.REACT_APP_API_PORT || 8000}/wopi/token/${doc.id}`, {
-              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
+            await axios.get(
+              `http://localhost:${process.env.REACT_APP_API_PORT || 8000}/wopi/token/${doc.id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem('token')}`,
+                },
+              },
+            );
             editChecks[doc.id] = true;
           } catch (err) {
             editChecks[doc.id] = false;
           }
-        })
+        }),
       );
       setCanEdit(editChecks);
     } catch (err) {
@@ -163,40 +167,14 @@ const ViewProcess = () => {
     }
   };
 
-const handleViewFile = async (name, path, fileId, type, isEditing) => {
-  setActionsLoading(true);
-
-
-  const fileExtension = name.split('.').pop().toLowerCase()
-
-  const extensions = ['docx', 'doc', 'odt', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'odg'];
-  if(extensions.includes(fileExtension)) {
-
-    handleEditFile(fileId, name, path, fileExtension, isEditing);
-    return;
-  }
-  try {
-
-    const fileData = await ViewDocument(name, path);
-    if (fileData) {
-      setFileView({ url: fileData.data, type: fileData.fileType || type, fileId: fileData.fileId || fileId, name });
-    }
-  } catch (error) {
-    console.error('ViewProcess.jsx: View error:', error);
-    toast.error(error?.response?.data?.message || error?.message);
-  } finally {
-    setActionsLoading(false);
-  }
-};
-
-
-  const handleEditFile = async (docId, name, path, type, isEditing) => {
+  const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
-
-      setFileView({ fileId: docId, type, isEditing, name, path });
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
-      toast.error(error?.message || 'Failed to initiate edit');
+      console.error('Error:', error);
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
     }
@@ -451,33 +429,54 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                       <div className="hidden sm:flex flex-wrap gap-2">
                         <CustomButton
                           className="px-2"
-                          click={() => handleViewFile(doc?.name, doc?.path, doc?.id, doc?.type, false)}
+                          click={() =>
+                            handleViewFile(
+                              doc?.name,
+                              doc?.path,
+                              doc?.id,
+                              doc?.type,
+                              false,
+                            )
+                          }
                           disabled={actionsLoading}
                           title="View Document"
                           text={<IconEye size={18} className="text-white" />}
                         />
-                        <CustomButton
+                        {/* <CustomButton
                           className="px-2"
-                          click={() => handleEditFile(doc.id, doc.name, doc.path, doc.type, true)}
+                          click={() =>
+                            handleViewFile(
+                              doc.name,
+                              doc.path,
+                              doc.id,
+                              doc.type,
+                              true,
+                            )
+                          }
                           disabled={actionsLoading || !!canEdit[doc.id]}
                           title="Edit Document"
                           text={<IconPencil size={18} className="text-white" />}
-                        />
+                        /> */}
                         <CustomButton
                           className="px-2"
                           click={() => handleDownloadFile(doc?.name, doc?.path)}
                           disabled={actionsLoading}
                           title="Download Document"
-                          text={<IconDownload size={18} className="text-white" />}
+                          text={
+                            <IconDownload size={18} className="text-white" />
+                          }
                         />
                         <CustomButton
                           variant="success"
                           className="px-2"
-                          
                           click={() =>
                             setRemarksModalOpen({ id: doc.id, open: 'sign' })
                           }
-                          disabled={actionsLoading || doc?.signedBy?.length || doc?.type?.toUpperCase() !== 'PDF'}
+                          disabled={
+                            actionsLoading ||
+                            doc?.signedBy?.length ||
+                            doc?.type?.toUpperCase() !== 'PDF'
+                          }
                           title="Sign Document"
                           text={<IconCheck size={18} className="text-white" />}
                         />
@@ -513,7 +512,12 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                           click={() => setDocumentModalOpen(doc)}
                           disabled={actionsLoading}
                           title="Details"
-                          text={<IconAlignBoxCenterMiddle size={18} className="text-white" />}
+                          text={
+                            <IconAlignBoxCenterMiddle
+                              size={18}
+                              className="text-white"
+                            />
+                          }
                         />
                       </div>
 
@@ -544,15 +548,21 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                                 disabled={actionsLoading}
                                 text="View"
                               />
-                              <CustomButton
+                              {/* <CustomButton
                                 className="w-full justify-start"
                                 click={() => {
-                                  handleEditFile(doc.id, doc.name, doc.path, doc.type, true);
+                                  handleEditFile(
+                                    doc.id,
+                                    doc.name,
+                                    doc.path,
+                                    doc.type,
+                                    true,
+                                  );
                                   setShowActions(false);
                                 }}
                                 disabled={actionsLoading || !!canEdit[doc.id]}
                                 text="Edit"
-                              />
+                              /> */}
                               <CustomButton
                                 className="w-full justify-start"
                                 click={() => {

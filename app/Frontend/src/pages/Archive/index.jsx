@@ -65,14 +65,13 @@ const Archive = () => {
     }
   };
   // Handler view file
-  const handleViewFile = async (name, path) => {
+  const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType });
-      }
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
+      console.error('Error:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
@@ -103,7 +102,11 @@ const Archive = () => {
   return (
     <>
       {actionsLoading && <TopLoader />}
-      <PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} state={'archivePath'} />
+      <PathBar
+        pathValue={currentPath}
+        setCurrentPath={setCurrentPath}
+        state={'archivePath'}
+      />
 
       {/* file and folders */}
       <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto mt-2">
@@ -120,7 +123,13 @@ const Archive = () => {
                   onDoubleClick={() =>
                     item.type == 'folder'
                       ? null
-                      : handleViewFile(item.name, item.path)
+                      : handleViewFile(
+                          item?.name,
+                          item?.path,
+                          item?.id,
+                          item?.type,
+                          false,
+                        )
                   }
                 >
                   <button

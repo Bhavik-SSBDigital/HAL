@@ -114,9 +114,32 @@ export const uploadDocumentInProcess = async (fileList, name, tags) => {
   const res = await upload(fileList, '../check', name, true, tags);
   return res;
 };
-export const ViewDocument = async (name, path) => {
-  const res = await download(name, path, true);
-  return res;
+export const ViewDocument = async (name, path, ext, fileId) => {
+  const extensions = [
+    'docx',
+    'doc',
+    'odt',
+    'xlsx',
+    'xls',
+    'ods',
+    'pptx',
+    'ppt',
+    'odp',
+    'odg',
+  ];
+  if (extensions.includes(ext)) {
+    return { fileId, type: ext, name, isEditing: false, path };
+  } else {
+    const res = await download(name, path, true);
+    return {
+      isEditing: false,
+      path,
+      url: res.data,
+      type: ext,
+      fileId,
+      name,
+    };
+  }
 };
 export const RejectDocument = async (
   processId,

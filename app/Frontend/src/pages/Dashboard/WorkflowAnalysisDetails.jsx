@@ -46,34 +46,20 @@ const WorkflowAnalysisDetails = ({
     { key: 'replacedDocs', label: 'Replaced Docs' },
   ];
 
-
   const handleView = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
-  
-  
-    const fileExtension = name.split('.').pop().toLowerCase()
-  
-    const extensions = ['docx', 'doc', 'odt', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'odg'];
-    if(extensions.includes(fileExtension)) {
-  
-      handleEditFile(fileId, name, path, fileExtension, isEditing);
-      return;
-    }
     try {
-  
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType || type, fileId: fileData.fileId || fileId, name });
-      }
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
-      console.error('ViewProcess.jsx: View error:', error);
+      console.error('Error:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
     }
   };
   // handlers
- 
+
   const handleViewAllSelectedFiles = async (documents) => {
     setActionsLoading(true);
     try {
@@ -263,7 +249,15 @@ const WorkflowAnalysisDetails = ({
                   </div>
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(doc.documentId, doc.documentName, doc.id, doc.type, false)}
+                    click={() =>
+                      handleView(
+                        doc.documentName,
+                        doc.documentPath,
+                        doc.id,
+                        doc.type,
+                        false,
+                      )
+                    }
                     type="button"
                     text="View"
                     className="ml-2"
@@ -290,7 +284,15 @@ const WorkflowAnalysisDetails = ({
                   </div>
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(doc.documentId, doc.documentName, doc.id, doc.type, false)}
+                    click={() =>
+                      handleView(
+                        doc.documentName,
+                        doc.documentPath,
+                        doc.id,
+                        doc.type,
+                        false,
+                      )
+                    }
                     type="button"
                     text="View"
                     className="ml-2"
@@ -323,7 +325,9 @@ const WorkflowAnalysisDetails = ({
                         handleView(
                           doc.replacedDocName,
                           doc.replacedDocumentPath,
-                          doc.id, doc.type, false
+                          doc.id,
+                          doc.type,
+                          false,
                         )
                       }
                       type="button"
@@ -336,7 +340,9 @@ const WorkflowAnalysisDetails = ({
                         handleView(
                           doc.replacesDocumentName,
                           doc.replacesDocumentPath,
-                          doc.id, doc.type, false
+                          doc.id,
+                          doc.type,
+                          false,
                         )
                       }
                       type="button"

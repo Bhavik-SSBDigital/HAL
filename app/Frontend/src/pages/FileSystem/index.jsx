@@ -157,52 +157,12 @@ export default function FileSysten() {
   // Handler view file
   const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
-
-    const fileExtension = name.split('.').pop().toLowerCase();
-
-    const extensions = [
-      'docx',
-      'doc',
-      'odt',
-      'xlsx',
-      'xls',
-      'ods',
-      'pptx',
-      'ppt',
-      'odp',
-      'odg',
-    ];
-    if (extensions.includes(fileExtension)) {
-      handleEditFile(fileId, name, path, fileExtension, isEditing);
-      return;
-    }
     try {
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        // setFileView({ fileId: docId, type, name, isEditing, path });
-        setFileView({
-          isEditing: false,
-          path,
-          url: fileData.data,
-          type: type,
-          fileId: fileId,
-          name,
-        });
-      }
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
-      console.error('ViewProcess.jsx: View error:', error);
+      console.error('Error:', error);
       toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-
-  const handleEditFile = async (docId, name, path, type, isEditing) => {
-    setActionsLoading(true);
-    try {
-      setFileView({ fileId: docId, type, name, isEditing, path });
-    } catch (error) {
-      toast.error(error?.message || 'Failed to initiate edit');
     } finally {
       setActionsLoading(false);
     }

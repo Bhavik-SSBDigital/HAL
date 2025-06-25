@@ -104,7 +104,14 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                 {details.name && details.path && (
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(details.name, details.path)}
+                    click={() =>
+                      handleView(
+                        details.name,
+                        details.path,
+                        details.id,
+                        details.type,
+                      )
+                    }
                     variant={'success'}
                     type="button"
                     text={'View'}
@@ -141,7 +148,14 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                 {details.name && details.path && (
                   <CustomButton
                     disabled={actionsLoading}
-                    click={() => handleView(details.name, details.path)}
+                    click={() =>
+                      handleView(
+                        details.name,
+                        details.path,
+                        details.id,
+                        details.type,
+                      )
+                    }
                     variant={'danger'}
                     type="button"
                     text={'View'}
@@ -185,7 +199,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                           <CustomButton
                             disabled={actionsLoading}
                             click={() =>
-                              handleView(doc.document.name, doc.document.path)
+                              handleView(
+                                doc.document.name,
+                                doc.document.path,
+                                doc.document.id,
+                                doc.document.type,
+                              )
                             }
                             variant="warning"
                             type="button"
@@ -205,6 +224,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                 handleView(
                                   doc.replacedDocument.name,
                                   doc.replacedDocument.path,
+                                  doc.replacedDocument.id,
+                                  doc.replacedDocument.type,
                                 )
                               }
                               variant="warning"
@@ -278,6 +299,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                 handleView(
                                   summary.documentDetails.name,
                                   summary.documentDetails.path,
+                                  summary.documentDetails.id,
+                                  summary.documentDetails.type,
                                 )
                               }
                               className={'ml-2'}
@@ -348,7 +371,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                           <CustomButton
                             disabled={actionsLoading}
                             click={() =>
-                              handleView(doc.document.name, doc.document.path)
+                              handleView(
+                                doc.document.name,
+                                doc.document.path,
+                                doc.document.id,
+                                doc.document.type,
+                              )
                             }
                             variant="success"
                             type="button"
@@ -368,6 +396,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                 handleView(
                                   doc.replacedDocument.name,
                                   doc.replacedDocument.path,
+                                  doc.replacedDocument.id,
+                                  doc.replacedDocument.type,
                                 )
                               }
                               variant="success"
@@ -441,6 +471,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                 handleView(
                                   summary.documentDetails.name,
                                   summary.documentDetails.path,
+                                  summary.documentDetails.id,
+                                  summary.documentDetails.type,
                                 )
                               }
                               className={'ml-2'}
@@ -506,7 +538,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                           <CustomButton
                             disabled={actionsLoading}
                             click={() =>
-                              handleView(doc.documentName, doc.documentPath)
+                              handleView(
+                                doc.documentName,
+                                doc.documentPath,
+                                doc.id,
+                                doc.type,
+                              )
                             }
                             className={'ml-2'}
                             variant={'info'}
@@ -532,7 +569,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                           <CustomButton
                             disabled={actionsLoading}
                             click={() =>
-                              handleView(doc.document.name, doc.document.path)
+                              handleView(
+                                doc.document.name,
+                                doc.document.path,
+                                doc.document.id,
+                                doc.document.type,
+                              )
                             }
                             variant="info"
                             type="button"
@@ -552,6 +594,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                                 handleView(
                                   doc.replacedDocument.name,
                                   doc.replacedDocument.path,
+                                  doc.replacedDocument.id,
+                                  doc.replacedDocument.type,
                                 )
                               }
                               variant="info"
@@ -648,7 +692,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                         <CustomButton
                           disabled={actionsLoading}
                           click={() =>
-                            handleView(doc.documentName, doc.documentPath)
+                            handleView(
+                              doc.documentName,
+                              doc.documentPath,
+                              doc.documentId,
+                              doc.documentType,
+                            )
                           }
                           className={'ml-2'}
                           variant={'info'}
@@ -704,14 +753,13 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
   //   states
   const [fileView, setFileView] = useState(null);
   // handlers
-  const handleView = async (name, path) => {
+  const handleView = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
-      const fileData = await ViewDocument(name, path);
-      if (fileData) {
-        setFileView({ url: fileData.data, type: fileData.fileType });
-      }
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
     } catch (error) {
+      console.error('Error:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
