@@ -253,8 +253,8 @@ const WorkflowAnalysisDetails = ({
                       handleView(
                         doc.documentName,
                         doc.documentPath,
-                        doc.id,
-                        doc.type,
+                        doc.documentId,
+                        doc.documentType,
                         false,
                       )
                     }
@@ -288,8 +288,8 @@ const WorkflowAnalysisDetails = ({
                       handleView(
                         doc.documentName,
                         doc.documentPath,
-                        doc.id,
-                        doc.type,
+                        doc.documentId,
+                        doc.documentType,
                         false,
                       )
                     }
@@ -340,8 +340,8 @@ const WorkflowAnalysisDetails = ({
                         handleView(
                           doc.replacesDocumentName,
                           doc.replacesDocumentPath,
-                          doc.id,
-                          doc.type,
+                          doc.replacesDocumentId,
+                          doc.replacesDocumentType,
                           false,
                         )
                       }

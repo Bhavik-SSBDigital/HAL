@@ -542,7 +542,12 @@ const ViewProcess = () => {
                               <CustomButton
                                 className="w-full justify-start"
                                 click={() => {
-                                  handleViewFile(doc?.name, doc?.path, doc?.id);
+                                  handleViewFile(
+                                    doc?.name,
+                                    doc?.path,
+                                    doc?.id,
+                                    doc?.type,
+                                  );
                                   setShowActions(false);
                                 }}
                                 disabled={actionsLoading}

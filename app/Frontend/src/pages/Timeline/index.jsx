@@ -541,8 +541,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
                               handleView(
                                 doc.documentName,
                                 doc.documentPath,
-                                doc.id,
-                                doc.type,
+                                doc.documentId,
+                                doc.documentType,
                               )
                             }
                             className={'ml-2'}
