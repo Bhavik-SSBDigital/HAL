@@ -249,3 +249,13 @@ span.flatpickr-weekday,
 svg{
   touch-action: auto !important;
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #no-print {
+    display: none !important;
+  }
+}

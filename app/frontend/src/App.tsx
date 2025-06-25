@@ -48,7 +48,7 @@ import Logs from './pages/Logs/List';
 import ViewLog from './pages/Logs/ViewLog';
 import Dashboard from './pages/Dashboard';
 import TimelinePage from './pages/Timeline/TimelinePage';
-import Archive from './pages/Archive'
+import Archive from './pages/Archive';
 
 function App() {
   const dispatch = useDispatch();
@@ -72,6 +72,42 @@ function App() {
     if (!token) {
       navigate('/auth/signin');
     }
+
+    // Block right-click context menu
+    const preventContextMenu = (e) => {
+      e.preventDefault();
+    };
+
+    // Block PrintScreen and Ctrl/Cmd + P
+    const handleKeyDown = (e) => {
+      const key = e.key;
+
+      // Block PrintScreen key
+      if (key === 'PrintScreen') {
+        e.preventDefault();
+        alert('Screenshots are not allowed.');
+        document.body.style.filter = 'blur(10px)';
+        setTimeout(() => {
+          document.body.style.filter = 'none';
+        }, 1000);
+      }
+
+      // Block Ctrl/Cmd + P
+      if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'p') {
+        e.preventDefault();
+        alert('Printing is disabled.');
+      }
+    };
+
+    // Register events
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('contextmenu', preventContextMenu);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('contextmenu', preventContextMenu);
+    };
   }, []);
 
   return loading ? (
