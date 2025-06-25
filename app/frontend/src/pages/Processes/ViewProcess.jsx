@@ -473,10 +473,11 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                         <CustomButton
                           variant="success"
                           className="px-2"
+                          
                           click={() =>
                             setRemarksModalOpen({ id: doc.id, open: 'sign' })
                           }
-                          disabled={actionsLoading || doc?.signedBy?.length}
+                          disabled={actionsLoading || doc?.signedBy?.length || doc?.type?.toUpperCase() !== 'PDF'}
                           title="Sign Document"
                           text={<IconCheck size={18} className="text-white" />}
                         />
