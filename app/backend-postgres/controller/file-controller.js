@@ -1548,6 +1548,10 @@ export const wopiFiles = async (req, res) => {
       UserId: userId,
       Version: stat.mtime.toISOString(),
       SupportsUpdate: true,
+      UserCanPrint: false, // 🔒 disables print
+      UserCanDownload: false, // 🔒 disables download
+      DisablePrint: true, // legacy support
+      DisableExport: true,
       UserCanWrite: !readOnly, // Set based on IsReadOnly
       SupportsLocks: true,
       UserFriendlyName: user.username,
