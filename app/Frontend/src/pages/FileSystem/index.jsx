@@ -658,7 +658,7 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                   disabled={actionsLoading}
                 />
 
-                <CustomButton
+                {/* <CustomButton
                   variant="none"
                   text={
                     <>
@@ -670,7 +670,7 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
                     handleDownload(selectedItem.name, selectedItem.path)
                   }
                   disabled={actionsLoading}
-                />
+                /> */}
 
                 <CustomButton
                   variant="none"

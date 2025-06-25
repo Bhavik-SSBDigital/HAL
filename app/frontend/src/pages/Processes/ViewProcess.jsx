@@ -194,7 +194,7 @@ const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
 
-      setFileView({ fileId: docId, type, name, isEditing, name, path });
+      setFileView({ fileId: docId, type, isEditing, name, path });
     } catch (error) {
       toast.error(error?.message || 'Failed to initiate edit');
     } finally {
