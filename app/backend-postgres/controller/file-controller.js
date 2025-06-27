@@ -192,7 +192,7 @@ export const create_folder = async (req, res) => {
   }
 };
 
-function getParentPath(path) {
+export function getParentPath(path) {
   // Remove "../" by splitting on "../" and joining back the parts
   const cleanPath = path.split("../").join("");
 

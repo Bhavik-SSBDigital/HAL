@@ -51,8 +51,6 @@ export const getRootDocumentsWithAccess = async (req, res) => {
       where: { isProject: true },
     });
 
-    console.log("root documents:", rootDocuments);
-
     if (!rootDocuments.length) {
       return res.status(200).json({ children: [] });
     }
@@ -69,8 +67,6 @@ export const getRootDocumentsWithAccess = async (req, res) => {
         accessLevel: true,
       },
     });
-
-    console.log("document accesses:", documentAccesses);
 
     // Organize access by document
     const documentAccessMap = new Map();

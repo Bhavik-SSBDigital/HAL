@@ -57,6 +57,7 @@ model Document {
   documentHistory       DocumentHistory[] @relation("DocumentHistory")
   replacedByProcessDocuments ProcessDocument[] @relation("ReplacedDocument")
   replacedByDocumentHistory DocumentHistory[] @relation("ReplacedDocumentHistory")
+  workflows             Workflow[] @relation("WorkflowTemplates", name: "WorkflowTemplates") 
 }
 
 model Role {
@@ -151,6 +152,7 @@ model Workflow {
   steps            WorkflowStep[]
   processes        ProcessInstance[]
   nextVersions     Workflow[] @relation("WorkflowVersion")
+  templateDocuments Document[] @relation("WorkflowTemplates", name: "WorkflowTemplates") 
 }
 
 model WorkflowStep {

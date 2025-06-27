@@ -8,10 +8,15 @@ export const verifyUser = async (accessToken) => {
   try {
     const decodedData = jwt.verify(accessToken, process.env.SECRET_ACCESS_KEY);
 
+    console.log("decodedData", decodedData);
     // Fetch full user details from the database
-    const user = await prisma.user.findUnique({
-      where: { id: decodedData.id },
-    });
+    const user = decodedData.id
+      ? await prisma.user.findUnique({
+          where: { id: parseInt(decodedData.id) },
+        })
+      : await prisma.user.findUnique({
+          where: { id: parseInt(decodedData.userId) },
+        });
 
     if (!user) {
       throw new Error("User not found");

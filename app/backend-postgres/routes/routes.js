@@ -22,6 +22,9 @@ import {
   view_workflow,
   delete_workflow,
   get_workflows,
+  create_template_document,
+  get_workflow_templates,
+  upload_template_document,
 } from "../controller/workflow-controller.js";
 
 // import {
@@ -308,5 +311,13 @@ router.get("/hosting/discovery", checkHostingDiscovery);
 router.post("/wopi/files/:fileId/lock", wopiLock);
 router.post("/wopi/files/:fileId/unlock", wopiUnlock);
 router.post("/wopi/files/:fileId/refreshlock", wopiRefreshLock);
+
+router.post("/createTemplateDocument", create_template_document);
+router.get("/getWorkflowTemplates/:workflowId", get_workflow_templates);
+router.post(
+  "/upload-template",
+  upload_.single("file"),
+  upload_template_document
+);
 
 export default router;

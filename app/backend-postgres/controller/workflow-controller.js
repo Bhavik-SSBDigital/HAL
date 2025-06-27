@@ -1,6 +1,25 @@
 import { PrismaClient } from "@prisma/client";
 
 import { verifyUser } from "../utility/verifyUser.js";
+import {
+  createFolder,
+  createUserPermissions,
+  getParentPath,
+  storeChildIdInParentDocument,
+} from "./file-controller.js";
+import fs from "fs/promises";
+import { createWriteStream, createReadStream, read } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join, normalize, extname } from "path";
+import fsCB from "fs";
+import path from "path";
+import XLSX from "xlsx";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+import { Document, Packer, Paragraph } from "docx";
+import officegen from "officegen";
+
+const STORAGE_PATH = process.env.STORAGE_PATH;
 
 const prisma = new PrismaClient();
 
@@ -83,7 +102,6 @@ export const add_workflow = async (req, res) => {
         const assignments = steps[i].assignments || [];
 
         if (assignments.length) {
-          console.log("assignments", JSON.stringify(assignments));
           // Insert WorkflowAssignments
 
           const groupedAssignments = {};
@@ -161,6 +179,8 @@ export const add_workflow = async (req, res) => {
         }
       }
 
+      const created = await createFolder(true, `../${name}`, userData);
+      console.log("created", created);
       return newWorkflow;
     });
 
@@ -769,5 +789,441 @@ export const get_workflows = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Failed to retrieve workflows" });
+  }
+};
+
+export const create_template_document = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+    const { extension, workflowId, templateName } = req.body;
+
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { id: true, name: true },
+    });
+
+    const templatePath = path.join(
+      __dirname,
+      STORAGE_PATH,
+      workflow.name,
+      "templates",
+      `${templateName}.${extension}`
+    );
+
+    const dirPath = path.join(
+      __dirname,
+      STORAGE_PATH,
+      workflow.name,
+      "templates"
+    );
+
+    console.log("templatePath", templatePath);
+    try {
+      await fs.access(dirPath);
+      console.log("Templates directory exists");
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        console.log("Templates directory does not exist, creating it...");
+
+        // const templateDirectory = await prisma.document.findUnique({
+        //   where: { name: "templates", path: `/${workflow.name}/templates` },
+        // });
+
+        // if (templateDirectory) {
+        //   await fs.rmdir(dirPath, { recursive: true });
+        // }
+        await fs.mkdir(dirPath, { recursive: true });
+        const templa = await prisma.document.create({
+          data: {
+            name: "templates",
+            path: `/${workflow.name}/templates`,
+            createdById: userData.id,
+            type: "folder",
+          },
+        });
+
+        await createUserPermissions(templa.id, userData.username, true);
+
+        const parentPath = getParentPath(`../${workflow.name}/templates`);
+
+        await storeChildIdInParentDocument(parentPath, templa.id);
+
+        const parentDocument = await prisma.document.findFirst({
+          where: { path: `${STORAGE_PATH}/${workflow.name}` },
+        });
+
+        if (parentDocument) {
+          await prisma.document.update({
+            where: { id: parentDocument.id },
+            data: {
+              children: {
+                connect: { id: templa.id },
+              },
+            },
+          });
+        }
+      } else {
+        throw error; // Re-throw other errors (e.g., permission issues)
+      }
+    }
+
+    // Validate extension
+    if (!extension || typeof extension !== "string") {
+      return res
+        .status(400)
+        .json({ error: "File extension is required and must be a string" });
+    }
+
+    // Sanitize extension (remove leading dot if present and convert to lowercase)
+    const cleanExtension = extension.replace(/^\./, "").toLowerCase();
+
+    // Define supported Office extensions
+    const supportedExtensions = [
+      "docx", // Word Document
+      "xlsx", // Excel Workbook
+      "pptx", // PowerPoint Presentation
+      "docm", // Word Macro-Enabled Document
+      "xlsm", // Excel Macro-Enabled Workbook
+      "pptm", // PowerPoint Macro-Enabled Presentation
+      "dotx", // Word Template
+      "xltx", // Excel Template
+      "potx", // PowerPoint Template
+    ];
+
+    // Check if extension is supported
+    if (!supportedExtensions.includes(cleanExtension)) {
+      return res.status(400).json({ error: "Unsupported file extension" });
+    }
+
+    // Generate a unique filename using timestamp
+    // const filename = `document_${Date.now()}.${cleanExtension}`;
+    // const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+    // Create content based on extension
+    if (["docx", "docm", "dotx"].includes(cleanExtension)) {
+      // Create a blank Word document
+      const doc = new Document({
+        sections: [{ children: [new Paragraph("")] }],
+      });
+
+      // Generate buffer and write to file
+      const buffer = await Packer.toBuffer(doc);
+      await fs.writeFile(templatePath, buffer);
+    } else if (["xlsx", "xlsm", "xltx"].includes(cleanExtension)) {
+      // Create a blank Excel workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.json_to_sheet([]),
+        "Sheet1"
+      );
+
+      // Write the workbook to a file (synchronous)
+      XLSX.writeFile(workbook, templatePath, { bookType: cleanExtension });
+    } else if (["pptx", "pptm", "potx"].includes(cleanExtension)) {
+      // Create a blank PowerPoint presentation using officegen
+      const pptx = officegen("pptx");
+
+      // Create a new slide
+      const slide = pptx.makeNewSlide();
+      slide.addText("", { x: 0, y: 0, font_size: 18 }); // Add empty text to create a blank slide
+
+      // Write the presentation to a file
+      await new Promise((resolve, reject) => {
+        const out = fsCB.createWriteStream(templatePath);
+        pptx.generate(out);
+        out.on("close", resolve);
+        out.on("error", reject);
+      });
+    }
+
+    const newTemplate = await prisma.document.create({
+      data: {
+        name: `${templateName}.${extension}`,
+        path: `/${workflow.name}/templates/${templateName}.${extension}`,
+        createdById: userData.id,
+        type: "file",
+      },
+    });
+
+    await createUserPermissions(newTemplate.id, userData.username, true);
+
+    const parentPath = getParentPath(`../${templatePath}`);
+
+    await storeChildIdInParentDocument(parentPath, newTemplate.id);
+
+    const parentDocument = await prisma.document.findFirst({
+      where: { path: `/${workflow.name}/templates` },
+    });
+
+    console.log("parent path", parentPath);
+    if (parentDocument) {
+      await prisma.document.update({
+        where: { id: parentDocument.id },
+        data: {
+          children: {
+            connect: { id: newTemplate.id },
+          },
+        },
+      });
+    }
+
+    await prisma.workflow.update({
+      where: { id: workflowId },
+      data: {
+        templateDocuments: {
+          connect: { id: newTemplate.id },
+        },
+      },
+    });
+    return res.status(201).json({
+      message: "Blank Office document created successfully",
+      templateName,
+      path: `/${workflow.name}/templates/${templateName}.${extension}`,
+      documentId: newTemplate.id,
+    });
+  } catch (error) {
+    console.error("Error creating document:", error);
+    return res.status(500).json({ error: "Failed to create document" });
+  }
+};
+
+export const get_workflow_templates = async (req, res) => {
+  try {
+    // Extract and verify access token
+    const accessToken = req.headers["authorization"]?.substring(7);
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ message: "Authorization token is required" });
+    }
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    // Extract workflowId from request body or query
+    const workflowId = req.params.workflowId;
+    if (!workflowId) {
+      return res.status(400).json({ error: "workflowId is required" });
+    }
+
+    // Fetch workflow with associated template documents
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      include: {
+        templateDocuments: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+          where: {
+            type: "file", // Ensure only file-type documents (templates) are returned
+            isArchived: false, // Exclude archived documents
+            inBin: false, // Exclude documents in bin
+          },
+        },
+      },
+    });
+
+    // Check if workflow exists
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    // Return template details
+    return res.status(200).json({
+      message: "Templates retrieved successfully",
+      templates: workflow.templateDocuments,
+    });
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    return res.status(500).json({ error: "Failed to fetch templates" });
+  }
+};
+
+export const upload_template_document = async (req, res) => {
+  try {
+    // Extract and validate authorization token
+    const accessToken = req.headers["authorization"]?.substring(7);
+    if (!accessToken) {
+      return res.status(401).json({ message: "Authorization token missing" });
+    }
+
+    // Verify user
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    // Extract workflowId and file from request
+    const { workflowId, purpose } = req.body;
+    const file = req.file; // Provided by Multer
+
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    if (!workflowId) {
+      return res.status(400).json({ error: "Workflow ID is required" });
+    }
+
+    if (purpose !== "template") {
+      return res.status(400).json({ error: "Invalid purpose specified" });
+    }
+
+    // Fetch workflow details
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { id: true, name: true },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    // Validate file extension (redundant with Multer fileFilter, but kept for safety)
+    const extension = path
+      .extname(file.originalname)
+      .toLowerCase()
+      .replace(/^\./, "");
+    const supportedExtensions = [
+      "docx",
+      "docm",
+      "dotx",
+      "xlsx",
+      "xlsm",
+      "xltx",
+      "pptx",
+      "pptm",
+      "potx",
+    ];
+
+    if (!supportedExtensions.includes(extension)) {
+      return res.status(400).json({ error: "Unsupported file extension" });
+    }
+
+    // Define paths
+    const templateName = path.basename(file.originalname, `.${extension}`);
+    const templatePath = path.join(
+      __dirname,
+      "../",
+      STORAGE_PATH,
+      workflow.name,
+      "templates",
+      `${templateName}.${extension}`
+    );
+    const dirPath = path.join(
+      __dirname,
+      "../",
+      STORAGE_PATH,
+      workflow.name,
+      "templates"
+    );
+
+    // Ensure templates directory exists and is in database
+    try {
+      await fs.access(dirPath);
+      console.log("Templates directory exists");
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        console.log("Templates directory does not exist, creating it...");
+        await fs.mkdir(dirPath, { recursive: true });
+
+        // Create folder record in database
+        const templateDir = await prisma.document.create({
+          data: {
+            name: "templates",
+            path: `/${workflow.name}/templates`,
+            createdById: userData.id,
+            type: "folder",
+          },
+        });
+
+        // Assign permissions to the folder
+        await createUserPermissions(templateDir.id, userData.username, true);
+
+        // Link folder to parent document
+        const parentPath = getParentPath(`../${workflow.name}/templates`);
+        await storeChildIdInParentDocument(parentPath, templateDir.id);
+
+        const parentDocument = await prisma.document.findFirst({
+          where: { path: `/${workflow.name}` },
+        });
+
+        if (parentDocument) {
+          await prisma.document.update({
+            where: { id: parentDocument.id },
+            data: {
+              children: {
+                connect: { id: templateDir.id },
+              },
+            },
+          });
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    // File is already saved by Multer; create document record in database
+    const newTemplate = await prisma.document.create({
+      data: {
+        name: `${templateName}.${extension}`,
+        path: `/${workflow.name}/templates/${templateName}.${extension}`,
+        createdById: userData.id,
+        type: "file",
+      },
+    });
+
+    // Assign permissions to the document
+    await createUserPermissions(newTemplate.id, userData.username, true);
+
+    // Link document to parent folder
+    const parentPath = getParentPath(
+      `../${workflow.name}/templates/${templateName}.${extension}`
+    );
+    await storeChildIdInParentDocument(parentPath, newTemplate.id);
+
+    const parentDocument = await prisma.document.findFirst({
+      where: { path: `/${workflow.name}/templates` },
+    });
+
+    if (parentDocument) {
+      await prisma.document.update({
+        where: { id: parentDocument.id },
+        data: {
+          children: {
+            connect: { id: newTemplate.id },
+          },
+        },
+      });
+    }
+
+    // Connect document to workflow
+    await prisma.workflow.update({
+      where: { id: workflowId },
+      data: {
+        templateDocuments: {
+          connect: { id: newTemplate.id },
+        },
+      },
+    });
+
+    // Return success response
+    return res.status(201).json({
+      message: "Template document uploaded successfully",
+      templateName: `${templateName}.${extension}`,
+      path: `/${workflow.name}/templates/${templateName}.${extension}`,
+      documentId: newTemplate.id,
+    });
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    return res.status(500).json({ error: "Failed to upload document" });
   }
 };
