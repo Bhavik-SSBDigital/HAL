@@ -32,7 +32,6 @@ import ViewFile from '../view/View';
 import { toast } from 'react-toastify';
 import TopLoader from '../../common/Loader/TopLoader';
 import RemarksModal from '../../CustomComponents/RemarksModal';
-import DocumentViewer from '../Viewer';
 import CustomModal from '../../CustomComponents/CustomModal';
 import Query from './Actions/Query';
 import QuerySolve from './Actions/QuerySolve';

@@ -49,6 +49,7 @@ import ViewLog from './pages/Logs/ViewLog';
 import Dashboard from './pages/Dashboard';
 import TimelinePage from './pages/Timeline/TimelinePage';
 import Archive from './pages/Archive';
+import Templates from './pages/Templates';
 
 function App() {
   const dispatch = useDispatch();
@@ -491,6 +492,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Workflows" />
               <Workflows />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/templates/:id"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Templates" />
+              <Templates />
             </DefaultLayout>
           }
         />

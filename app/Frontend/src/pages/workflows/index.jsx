@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   IconArrowBadgeDown,
   IconEdit,
+  IconFile,
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
@@ -15,6 +16,7 @@ import CustomCard from '../../CustomComponents/CustomCard';
 import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import { toast } from 'react-toastify';
 import CustomModal from '../../CustomComponents/CustomModal';
+import { useNavigate } from 'react-router-dom';
 
 export default function WorkflowVisualizer() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -27,6 +29,7 @@ export default function WorkflowVisualizer() {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
+  const navigate = useNavigate();
   const getList = async () => {
     try {
       const res = await GetWorkflows();
@@ -145,6 +148,12 @@ export default function WorkflowVisualizer() {
                     text={<IconTrash size={20} />}
                     title={'Delete'}
                     variant={'danger'}
+                  />
+                  <CustomButton
+                    click={() => navigate(`/templates/${selectedVersion?.id}`)}
+                    text={<IconFile size={20} />}
+                    title={'Templates'}
+                    variant={'secondary'}
                   />
                 </div>
 

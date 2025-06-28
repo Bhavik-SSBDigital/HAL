@@ -361,3 +361,18 @@ export const getTimelineData = async (id) => {
 export const GetNotifications = async () => {
   return apiClient.get(`/getUserProcesses`);
 };
+
+// templets
+export const getWorkflowTemplates = async (workflowId) => {
+  return apiClient.get(`/getWorkflowTemplates/${workflowId}`);
+};
+
+export const createTemplateDocument = async (payload) => {
+  return apiClient.post('/createTemplateDocument', payload);
+};
+
+export const uploadTemplateFile = async (formData) => {
+  return apiClient.post('/upload-template', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
