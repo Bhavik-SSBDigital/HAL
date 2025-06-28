@@ -1290,11 +1290,16 @@ export const use_template_document = async (req, res) => {
       );
     });
 
-    const generatedDocumentId = response.documentId;
+    const generatedDocument = await prisma.document.findUnique({
+      where: { id: response.documentId },
+      select: { id: true, name: true, path: true },
+    });
 
     return res.status(200).json({
       message: "Template document used successfully",
-      documentId: generatedDocumentId,
+      documentId: generatedDocument.id,
+      documentName: generatedDocument.name,
+      documentPath: generatedDocument.path,
     });
   } catch (error) {
     console.log("Error using template document:", error);
