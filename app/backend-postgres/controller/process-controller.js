@@ -859,51 +859,105 @@ export const view_process = async (req, res) => {
       };
     });
 
-    const transformedDocuments = process.documents.map((doc) => {
-      const signedBy = doc.signatures.map((sig) => ({
-        signedBy: sig.user.username,
-        signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
-        remarks: sig.reason || null,
-        byRecommender: sig.byRecommender,
-        isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
-      }));
+    const processDocuments = await prisma.processDocument.findMany({
+      where: { processId: process.id },
+      include: {
+        document: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+        },
+        replacedDocument: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+        },
+      },
+    });
 
-      // Transform rejections to maintain the same response structure
+    // Find latest documents (not referenced in replacedDocumentId)
+    const replacedDocumentIds = new Set(
+      processDocuments
+        .filter((pd) => pd.replacedDocumentId)
+        .map((pd) => pd.replacedDocumentId)
+    );
+    const latestDocuments = processDocuments.filter(
+      (pd) => !replacedDocumentIds.has(pd.documentId)
+    );
+
+    // Build versioning chains
+    const documentVersioning = [];
+    for (const latestDoc of latestDocuments) {
+      const versionChain = [];
+      let currentDoc = latestDoc;
+
+      // Start with the latest document
+      versionChain.push({
+        id: currentDoc.document.id,
+        name: currentDoc.document.name,
+        path: currentDoc.document.path,
+        active: true,
+      });
+
+      // Trace backwards through replacements
+      while (currentDoc.replacedDocumentId) {
+        const previousDoc = processDocuments.find(
+          (pd) => pd.documentId === currentDoc.replacedDocumentId
+        );
+        if (previousDoc) {
+          versionChain.push({
+            id: previousDoc.document.id,
+            name: previousDoc.document.name,
+            path: previousDoc.document.path,
+            active: false,
+          });
+          currentDoc = previousDoc;
+        } else {
+          break; // No further replacements
+        }
+      }
+
+      documentVersioning.push({
+        latestDocumentId: latestDoc.document.id,
+        versions: versionChain.reverse(), // Reverse to show oldest to newest (x → y → z)
+      });
+    }
+
+    // Transform documents (include only latest documents, exclude documentHistory)
+    const transformedDocuments = latestDocuments.map((doc) => {
+      const processDoc = process.documents.find(
+        (d) => d.documentId === doc.documentId
+      );
+      const signedBy =
+        processDoc?.signatures.map((sig) => ({
+          signedBy: sig.user.username,
+          signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
+          remarks: sig.reason || null,
+          byRecommender: sig.byRecommender,
+          isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
+        })) || [];
+
       const rejectionDetails =
-        doc.rejections.length > 0
+        processDoc?.rejections.length > 0
           ? {
-              rejectedBy: doc.rejections[0].user.username,
-              rejectionReason: doc.rejections[0].reason || null,
-              rejectedAt: doc.rejections[0].rejectedAt
-                ? doc.rejections[0].rejectedAt.toISOString()
+              rejectedBy: processDoc.rejections[0].user.username,
+              rejectionReason: processDoc.rejections[0].reason || null,
+              rejectedAt: processDoc.rejections[0].rejectedAt
+                ? processDoc.rejections[0].rejectedAt.toISOString()
                 : null,
-              byRecommender: doc.rejections[0].byRecommender,
+              byRecommender: processDoc.rejections[0].byRecommender,
               isAttachedWithRecommendation:
-                doc.rejections[0].isAttachedWithRecommendation,
+                processDoc.rejections[0].isAttachedWithRecommendation,
             }
           : null;
 
-      const documentHistory = doc.documentHistory.map((history) => ({
-        actionType: history.actionType,
-        user: history.user.name,
-        createdAt: history.createdAt.toISOString(),
-        details: history.actionDetails,
-        replacedDocument: history.replacedDocument
-          ? {
-              id: history.replacedDocument.id,
-              name: history.replacedDocument.name,
-              path: history.replacedDocument.path,
-            }
-          : null,
-        isRecirculationTrigger: history.isRecirculationTrigger,
-      }));
-
-      const parts = doc.document.path.split("/"); // Split the path by "/"
-
-      // Remove the last part (whether it’s a file name or folder name)
+      const parts = doc.document.path.split("/");
       parts.pop();
-
-      const updatedPath = parts.join("/"); // Join the remaining parts back
+      const updatedPath = parts.join("/");
 
       return {
         id: doc.document.id,
@@ -913,13 +967,10 @@ export const view_process = async (req, res) => {
         tags: doc.document.tags,
         signedBy,
         rejectionDetails,
-        documentHistory,
-        isRecirculationTrigger: doc.documentHistory.some(
-          (history) => history.isRecirculationTrigger
-        ),
-        access: doc.document.tags.includes("confidential")
-          ? ["auditor"]
-          : ["auditor", "manager"],
+        isRecirculationTrigger:
+          processDoc?.documentHistory.some(
+            (history) => history.isRecirculationTrigger
+          ) || false,
         approvalCount: signedBy.length,
       };
     });
@@ -1144,6 +1195,7 @@ export const view_process = async (req, res) => {
         steps,
         queryDetails,
         recommendationDetails,
+        documentVersioning,
         workflow,
       },
     });
