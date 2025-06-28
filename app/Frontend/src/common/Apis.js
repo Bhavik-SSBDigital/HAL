@@ -372,7 +372,12 @@ export const createTemplateDocument = async (payload) => {
 };
 
 export const uploadTemplateFile = async (formData) => {
+  const token = getAccessToken();
   return apiClient.post('/upload-template', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: {
+      // Important: Don't manually set 'Content-Type'
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${token}`, // if your backend requires it
+    },
   });
 };

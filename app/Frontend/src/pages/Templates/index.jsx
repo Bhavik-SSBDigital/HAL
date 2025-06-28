@@ -83,9 +83,9 @@ const Templates = () => {
     setActionsLoading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
       formData.append('workflowId', workflowId);
       formData.append('purpose', 'template');
+      formData.append('file', file);
 
       const res = await uploadTemplateFile(formData);
       toast.success(res?.data?.message);

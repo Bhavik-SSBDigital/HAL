@@ -11,6 +11,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// uploadSignature.js
 export const upload_signature = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -27,22 +28,25 @@ export const upload_signature = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded." });
     }
 
-    const fileExtension = req.file.originalname.split(".").pop();
+    const fileExtension = path.extname(req.file.originalname);
     let fileName;
     let updateData;
 
+    console.log("purpose", req.body.purpose);
     switch (req.body.purpose) {
       case "signature":
-        fileName = `${userData.username.toLowerCase()}.${fileExtension}`;
+        fileName = `${userData.username.toLowerCase()}${fileExtension}`;
         updateData = { signaturePicFileName: fileName };
         break;
       case "profile":
-        fileName = `${userData.username.toLowerCase()}_profile_pic.${fileExtension}`;
+        fileName = `${userData.username.toLowerCase()}_profile_pic${fileExtension}`;
         updateData = { profilePicFileName: fileName };
         break;
       case "dsc":
-        fileName = `${userData.username.toLowerCase()}_dsc.${fileExtension}`;
+        fileName = `${userData.username.toLowerCase()}_dsc${fileExtension}`;
         updateData = { dscFileName: fileName };
+        break;
+      case "template":
         break;
       default:
         return res.status(400).json({ message: "Invalid purpose specified" });
@@ -53,9 +57,15 @@ export const upload_signature = async (req, res) => {
       data: updateData,
     });
 
-    res.status(200).json({ message: "File uploaded successfully." });
+    res.status(200).json({
+      message: "File uploaded successfully",
+      filePath: req.file.path,
+      fileName: req.file.filename,
+    });
   } catch (error) {
-    console.log("Error uploading file", error);
-    return res.status(500).json({ message: "Error uploading file" });
+    console.error("Error uploading file:", error);
+    return res
+      .status(500)
+      .json({ message: "Error uploading file", error: error.message });
   }
 };

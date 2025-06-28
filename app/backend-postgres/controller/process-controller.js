@@ -1,6 +1,8 @@
 import { verifyUser } from "../utility/verifyUser.js";
 
 import pkg from "@prisma/client";
+import { file_copy, delete_file } from "./file-controller.js";
+import { createFolder } from "./file-controller.js";
 const {
   PrismaClient,
   AccessType,
@@ -49,9 +51,65 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { processName, description, workflowId } = req.body;
+
+    const workflowDetails = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { name: true },
+    });
+
+    const workflowName = workflowDetails.name;
+
+    await createFolder(false, `../${workflowName}/${processName}`, userData);
+
     const documentIds =
       req.body.documents?.map((item) => item.documentId) || [];
 
+    for (const documentId of documentIds) {
+      const document = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: { path: true },
+      });
+
+      if (document) {
+        const sourcePath = `./${document.path}`;
+        const destinationPath = `../${workflowName}/${processName}`;
+        const name = sourcePath.split("/").pop();
+
+        await new Promise((resolve, reject) => {
+          file_copy(
+            {
+              headers: { authorization: `Bearer ${accessToken}` },
+              body: { sourcePath, destinationPath, name },
+            },
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
+                },
+              }),
+            }
+          );
+        });
+
+        await new Promise((resolve, reject) => {
+          delete_file(
+            {
+              headers: { authorization: `Bearer ${accessToken}` },
+              body: { documentId },
+            },
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
+                },
+              }),
+            }
+          );
+        });
+      }
+    }
     if (documentIds.length === 0) {
       return res.status(400).json({
         message: "Documents are required to initiate a process",

@@ -1126,6 +1126,7 @@ export const upload_template_document = async (req, res) => {
       "templates"
     );
 
+    console.log("first");
     // Ensure templates directory exists and is in database
     try {
       await fs.access(dirPath);

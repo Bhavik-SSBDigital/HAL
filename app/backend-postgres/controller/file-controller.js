@@ -235,6 +235,7 @@ export const createFolder = async (isProject, path_, userData) => {
 
             // Store document details in the database
 
+            console.log("path", path_);
             const newDocument = await prisma.document.create({
               data: {
                 name: element,

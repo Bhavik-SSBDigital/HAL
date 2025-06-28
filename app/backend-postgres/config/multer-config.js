@@ -1,31 +1,49 @@
+import express from "express";
 import multer from "multer";
 import path from "path";
 import { verifyUser } from "../utility/verifyUser.js";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs/promises";
+import { PrismaClient } from "@prisma/client";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const STORAGE_PATH = process.env.STORAGE_PATH;
+const router = express.Router();
+const prisma = new PrismaClient();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-
+// Configure Multer storage
+// Modify your storage configuration to not rely on req.body directly
 const storage = multer.diskStorage({
   destination: async function (req, file, cb) {
+    // Get purpose from file.fieldname (since we're using fields)
+
+    console.log("fil", file.fieldname);
+    console.log("req.body", req.body);
+    const purpose =
+      file.fieldname === "file" ? req.body.purpose : file.fieldname;
+
+    console.log("purpose", purpose);
+
     let destinationDirectory;
-    switch (req.body.purpose) {
+    switch (purpose) {
       case "signature":
-        destinationDirectory = process.env.SIGNATURE_FOLDER_PATH;
+        destinationDirectory =
+          process.env.SIGNATURE_FOLDER_PATH || "uploads/signatures";
         break;
       case "profile":
-        destinationDirectory = process.env.PROFILE_PIC_FOLDER_PATH;
+        destinationDirectory =
+          process.env.PROFILE_PIC_FOLDER_PATH || "uploads/profiles";
         break;
       case "dsc":
-        destinationDirectory = process.env.DSC_FOLDER_PATH;
+        destinationDirectory = process.env.DSC_FOLDER_PATH || "uploads/dsc";
         break;
       case "template":
-        // Fetch workflow to determine destination
         const { workflowId } = req.body;
         if (!workflowId) {
           return cb(new Error("Workflow ID is required for template uploads"));
@@ -38,7 +56,7 @@ const storage = multer.diskStorage({
           return cb(new Error("Workflow not found"));
         }
         destinationDirectory = path.join(
-          process.env.STORAGE_PATH || "storage",
+          process.env.STORAGE_PATH,
           workflow.name,
           "templates"
         );
@@ -47,18 +65,21 @@ const storage = multer.diskStorage({
         return cb(new Error("Invalid purpose specified"));
     }
 
-    destinationDirectory = path.join(__dirname, "../", destinationDirectory); // Adjust path relative to __dirname
+    destinationDirectory = path.join(__dirname, destinationDirectory);
 
     try {
-      await fs.access(destinationDirectory);
-      cb(null, destinationDirectory);
-    } catch (error) {
-      console.log("Error accessing destination:", error);
       await fs.mkdir(destinationDirectory, { recursive: true });
       cb(null, destinationDirectory);
+    } catch (error) {
+      console.error("Error creating destination directory:", error);
+      cb(error);
     }
   },
   filename: async function (req, file, cb) {
+    // Similar approach for filename
+    const purpose =
+      file.fieldname === "file" ? req.body.purpose : file.fieldname;
+
     const accessToken = req.headers["authorization"]?.substring(7);
     if (!accessToken) {
       return cb(new Error("Authorization token missing"));
@@ -69,7 +90,7 @@ const storage = multer.diskStorage({
     }
 
     let fileName;
-    switch (req.body.purpose) {
+    switch (purpose) {
       case "signature":
         fileName = `${userData.username.toLowerCase()}${path.extname(
           file.originalname
@@ -86,7 +107,7 @@ const storage = multer.diskStorage({
         )}`;
         break;
       case "template":
-        fileName = file.originalname; // Use original filename for templates
+        fileName = file.originalname;
         break;
       default:
         return cb(new Error("Invalid purpose specified"));
@@ -96,9 +117,10 @@ const storage = multer.diskStorage({
   },
 });
 
+// Initialize Multer with field parsing
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const supportedExtensions = [
       ".docx",
@@ -110,8 +132,12 @@ const upload = multer({
       ".pptx",
       ".pptm",
       ".potx",
+      ".png",
+      ".jpeg",
+      ".jpg",
     ];
     const ext = path.extname(file.originalname).toLowerCase();
+    console.log("ext", ext);
     if (supportedExtensions.includes(ext)) {
       cb(null, true);
     } else {
@@ -119,5 +145,7 @@ const upload = multer({
     }
   },
 });
+
+// Middleware to parse form fields before file upload
 
 export default upload;

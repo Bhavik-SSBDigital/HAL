@@ -1,6 +1,7 @@
 import express from "express";
 
 import upload_ from "../config/multer-config.js";
+import multer from "multer";
 
 import {
   sign_up,
@@ -241,14 +242,6 @@ router.get("/getUserSignature", get_user_signature);
 router.get("/getUserProfilePic", get_user_profile_pic);
 router.get("/getUserDSC", get_user_dsc);
 
-router.post(
-  "/uploadSignature",
-  // uploadDummy.any(),
-  // set_purpose,
-  upload_.single("file"),
-  upload_signature
-);
-
 router.post("/queries/createQuery", createQuery);
 
 router.post("/recommendations/createRecommendation", createRecommendation);
@@ -314,6 +307,15 @@ router.post("/wopi/files/:fileId/refreshlock", wopiRefreshLock);
 
 router.post("/createTemplateDocument", create_template_document);
 router.get("/getWorkflowTemplates/:workflowId", get_workflow_templates);
+
+router.post("/uploadSignature", upload_.single("file"), upload_signature);
+// Middleware to parse form fields
+
+// Route for file upload
+// Route for file upload
+// Then your route should work as is:
+
+// First parse the form fields
 router.post(
   "/upload-template",
   upload_.single("file"),
