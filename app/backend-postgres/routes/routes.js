@@ -26,6 +26,7 @@ import {
   create_template_document,
   get_workflow_templates,
   upload_template_document,
+  use_template_document,
 } from "../controller/workflow-controller.js";
 
 // import {
@@ -321,5 +322,7 @@ router.post(
   upload_.single("file"),
   upload_template_document
 );
+
+router.post("/useTemplateDocument", use_template_document);
 
 export default router;

@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 import { verifyUser } from "../utility/verifyUser.js";
+import { file_copy } from "./file-controller.js";
 import {
   createFolder,
   createUserPermissions,
@@ -1226,5 +1227,77 @@ export const upload_template_document = async (req, res) => {
   } catch (error) {
     console.error("Error uploading document:", error);
     return res.status(500).json({ error: "Failed to upload document" });
+  }
+};
+
+export const use_template_document = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    if (!accessToken) {
+      return res.status(401).json({ message: "Authorization token missing" });
+    }
+
+    // Verify user
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    let { templateId, workflowId } = req.body;
+
+    templateId = parseInt(templateId, 10);
+
+    const document = await prisma.document.findUnique({
+      where: { id: templateId },
+      select: { path: true },
+    });
+
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { name: true },
+    });
+
+    try {
+      await fs.access(
+        path.join(__dirname, STORAGE_PATH, workflow.name, "temp")
+      );
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        await createFolder(false, `../${workflow.name}/temp`, userData);
+      } else {
+        throw error; // Re-throw other errors (e.g., permission issues)
+      }
+    }
+
+    const sourcePath = `./${document.path}`;
+    const destinationPath = `../${workflow.name}/temp`;
+    const name = sourcePath.split("/").pop();
+
+    const response = await new Promise((resolve, reject) => {
+      file_copy(
+        {
+          headers: { authorization: `Bearer ${accessToken}` },
+          body: { sourcePath, destinationPath, name },
+        },
+        {
+          status: (code) => ({
+            json: (data) => {
+              if (code === 200) resolve(data);
+              else reject(data);
+            },
+          }),
+        }
+      );
+    });
+
+    const generatedDocumentId = response.documentId;
+
+    return res.status(200).json({
+      message: "Template document used successfully",
+      documentId: generatedDocumentId,
+    });
+  } catch (error) {
+    console.log("Error using template document:", error);
+    return res.status(500).json({ error: "Failed to use template document" });
   }
 };

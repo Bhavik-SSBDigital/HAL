@@ -41,6 +41,67 @@ async function checkDocumentAccess(userId, documentId, requiredAccess) {
   });
 }
 
+const generate_unique_process_name = async (workflowId) => {
+  try {
+    // Fetch workflow name and version
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { name: true, version: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow with ID ${workflowId} not found`);
+    }
+
+    const { name: workflowName, version: workflowVersion } = workflow;
+
+    // Format date as YYYYMMDD
+    const today = new Date();
+    const processCreationDate = today
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, "");
+
+    // Base process name
+    const baseProcessName = `${workflowName}_w${workflowVersion}_${processCreationDate}`;
+
+    // Find existing processes with same base name
+    const existingProcesses = await prisma.processInstance.findMany({
+      where: {
+        name: {
+          startsWith: baseProcessName,
+        },
+      },
+      select: { name: true },
+    });
+
+    // Extract serial numbers
+    const serialNumbers = existingProcesses
+      .map((process) => {
+        const parts = process.name.split("_");
+        const serial = parts[parts.length - 1];
+        return parseInt(serial, 10) || 0;
+      })
+      .filter((num) => !isNaN(num));
+
+    // Determine next serial number
+    const nextSerialNumber =
+      serialNumbers.length > 0 ? Math.max(...serialNumbers) + 1 : 1;
+
+    // Construct unique process name with 3-digit serial number
+    const uniqueProcessName = `${baseProcessName}_${nextSerialNumber
+      .toString()
+      .padStart(3, "0")}`;
+
+    return uniqueProcessName;
+  } catch (error) {
+    console.error("Error generating unique process name:", error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+};
+
 export const initiate_process = async (req, res, next) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -50,7 +111,9 @@ export const initiate_process = async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { processName, description, workflowId } = req.body;
+    const { description, workflowId } = req.body;
+
+    const processName = await generate_unique_process_name(workflowId);
 
     const workflowDetails = await prisma.workflow.findUnique({
       where: { id: workflowId },
@@ -175,7 +238,7 @@ export const initiate_process = async (req, res, next) => {
     });
 
     return res.status(200).json({
-      message: "Process initiated successfully",
+      message: `Process with the name ${processName} initiated successfully`,
       processId: process.id,
     });
   } catch (error) {
