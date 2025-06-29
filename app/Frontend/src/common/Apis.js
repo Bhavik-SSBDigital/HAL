@@ -114,7 +114,7 @@ export const uploadDocumentInProcess = async (fileList, name, tags) => {
   const res = await upload(fileList, '../check', name, true, tags);
   return res;
 };
-export const ViewDocument = async (name, path, ext, fileId) => {
+export const ViewDocument = async (name, path, ext, fileId, editing) => {
   const extensions = [
     'docx',
     'doc',
@@ -128,11 +128,11 @@ export const ViewDocument = async (name, path, ext, fileId) => {
     'odg',
   ];
   if (extensions.includes(ext)) {
-    return { fileId, type: ext, name, isEditing: false, path };
+    return { fileId, type: ext, name, isEditing: editing, path };
   } else {
     const res = await download(name, path, true);
     return {
-      isEditing: false,
+      isEditing: editing,
       path,
       url: res.data,
       type: ext,
@@ -372,12 +372,13 @@ export const createTemplateDocument = async (payload) => {
 };
 
 export const uploadTemplateFile = async (formData) => {
-  const token = getAccessToken();
   return apiClient.post('/upload-template', formData, {
     headers: {
-      // Important: Don't manually set 'Content-Type'
       'Content-Type': 'multipart/form-data',
-      Authorization: `Bearer ${token}`, // if your backend requires it
     },
   });
+};
+
+export const useTemplateDocument = async (formData) => {
+  return apiClient.post('/useTemplateDocument', formData);
 };
