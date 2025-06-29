@@ -37,6 +37,7 @@ import Query from './Actions/Query';
 import QuerySolve from './Actions/QuerySolve';
 import AskRecommend from './Actions/AskRecommend';
 import axios from 'axios';
+import { ImageConfig } from '../../config/ImageConfig';
 
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -375,282 +376,220 @@ const ViewProcess = () => {
         </div>
       </CustomCard>
 
+      {/* active document section */}
       {process?.documents?.length > 0 && (
         <>
+          {/* Section Header */}
           <div className="flex items-center mt-12 mb-2">
-            <div className="flex-grow border-t border-slate-400"></div>
-            <span className="mx-4 text-sm text-gray-500 uppercase tracking-wide font-medium">
-              Documents
+            <div className="flex-grow border-t border-green-600"></div>
+            <span className="flex items-center gap-2 mx-4 text-sm text-green-700 uppercase tracking-wide font-semibold">
+              <IconFileText size={16} className="text-green-700" />
+              Active Documents
             </span>
-            <div className="flex-grow border-t border-slate-400"></div>
+            <div className="flex-grow border-t border-green-600"></div>
           </div>
-          <div>
-            <CustomButton
-              disabled={selectedDocs.length == 0}
-              className={'ml-auto block'}
-              text={`View All Selected (${selectedDocs.length})`}
-              click={handleViewAllSelectedFiles}
-            />
-            <div className="mt-2 space-y-2">
-              {process.documents.map((doc) => {
-                const isSelected = selectedDocs.includes(doc.id);
-                const toggleSelect = () => {
-                  setSelectedDocs((prev) =>
-                    isSelected
-                      ? prev.filter((id) => id !== doc.id)
-                      : [...prev, doc.id],
-                  );
-                };
 
-                return (
-                  <CustomCard
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 gap-5 flex-wrap"
-                  >
-                    <div className="flex gap-4 flex-wrap">
+          {/* View All Selected Button */}
+          <CustomButton
+            disabled={selectedDocs.length == 0}
+            className="ml-auto mb-4 block"
+            text={`View All Selected (${selectedDocs.length})`}
+            click={handleViewAllSelectedFiles}
+          />
+
+          {/* Document Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border border-green-300 bg-white p-4 rounded-md shadow-sm">
+            {process.documents.map((doc) => {
+              const isSelected = selectedDocs.includes(doc.id);
+              const toggleSelect = () => {
+                setSelectedDocs((prev) =>
+                  isSelected
+                    ? prev.filter((id) => id !== doc.id)
+                    : [...prev, doc.id],
+                );
+              };
+
+              return (
+                <div
+                  key={doc.id}
+                  className="border border-slate-300 bg-zinc-50 rounded-md p-4 shadow-sm flex flex-col justify-between"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-3">
                       <input
                         type="checkbox"
-                        className="h-10 w-4"
+                        className="mt-1"
                         checked={isSelected}
                         onChange={toggleSelect}
                       />
-                      <div className="min-w-fit">
-                        <p className="text-gray-900 font-semibold">
+                      <div>
+                        <p className="font-semibold text-gray-900 flex items-center gap-2">
                           {doc.name}
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                            Active
+                          </span>
                         </p>
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-sm text-gray-500">
                           Type: {doc?.type?.toUpperCase()}
                         </p>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="w-full">
-                      <div className="hidden sm:flex flex-wrap gap-2">
-                        <CustomButton
-                          className="px-2"
-                          click={() =>
-                            handleViewFile(
-                              doc?.name,
-                              doc?.path,
-                              doc?.id,
-                              doc?.type,
-                              false,
-                            )
-                          }
-                          disabled={actionsLoading}
-                          title="View Document"
-                          text={<IconEye size={18} className="text-white" />}
+                  {/* Actions */}
+                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <CustomButton
+                      className="px-2"
+                      click={() =>
+                        handleViewFile(
+                          doc.name,
+                          doc.path,
+                          doc.id,
+                          doc.type,
+                          false,
+                        )
+                      }
+                      disabled={actionsLoading}
+                      title="View Document"
+                      text={<IconEye size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      className="px-2"
+                      click={() => handleDownloadFile(doc.name, doc.path)}
+                      disabled={actionsLoading}
+                      title="Download Document"
+                      text={<IconDownload size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant="success"
+                      className="px-2"
+                      click={() =>
+                        setRemarksModalOpen({ id: doc.id, open: 'sign' })
+                      }
+                      disabled={
+                        actionsLoading ||
+                        doc?.signedBy?.length ||
+                        doc?.type?.toUpperCase() !== 'PDF'
+                      }
+                      title="Sign Document"
+                      text={<IconCheck size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant="danger"
+                      className="px-2"
+                      click={() =>
+                        setRemarksModalOpen({ id: doc.id, open: 'reject' })
+                      }
+                      disabled={actionsLoading || doc.rejectionDetails}
+                      title="Reject Document"
+                      text={<IconX size={18} className="text-white" />}
+                    />
+                    <CustomButton
+                      variant="info"
+                      className="px-2"
+                      click={() => setDocumentModalOpen(doc)}
+                      disabled={actionsLoading}
+                      title="Details"
+                      text={
+                        <IconAlignBoxCenterMiddle
+                          size={18}
+                          className="text-white"
                         />
-                        {/* <CustomButton
-                          className="px-2"
-                          click={() =>
-                            handleViewFile(
-                              doc.name,
-                              doc.path,
-                              doc.id,
-                              doc.type,
-                              true,
-                            )
-                          }
-                          disabled={actionsLoading || !!canEdit[doc.id]}
-                          title="Edit Document"
-                          text={<IconPencil size={18} className="text-white" />}
-                        /> */}
-                        <CustomButton
-                          className="px-2"
-                          click={() => handleDownloadFile(doc?.name, doc?.path)}
-                          disabled={actionsLoading}
-                          title="Download Document"
-                          text={
-                            <IconDownload size={18} className="text-white" />
-                          }
-                        />
-                        <CustomButton
-                          variant="success"
-                          className="px-2"
-                          click={() =>
-                            setRemarksModalOpen({ id: doc.id, open: 'sign' })
-                          }
-                          disabled={
-                            actionsLoading ||
-                            doc?.signedBy?.length ||
-                            doc?.type?.toUpperCase() !== 'PDF'
-                          }
-                          title="Sign Document"
-                          text={<IconCheck size={18} className="text-white" />}
-                        />
-                        <CustomButton
-                          variant="danger"
-                          className="px-2"
-                          click={() =>
-                            setRemarksModalOpen({ id: doc.id, open: 'reject' })
-                          }
-                          disabled={actionsLoading || doc.rejectionDetails}
-                          title="Reject Document"
-                          text={<IconX size={18} className="text-white" />}
-                        />
-                        {/* <CustomButton
-                          variant="secondary"
-                          className="px-2"
-                          click={() => handleRevokeSign(doc.id)}
-                          disabled={actionsLoading || !doc.signedBy.length}
-                          title="Revoke Sign"
-                          text={<IconArrowBackUp size={18} className="text-white" />}
-                        />
-                        <CustomButton
-                          variant="info"
-                          className="px-2"
-                          click={() => handleRevokeRejection(doc.id)}
-                          disabled={actionsLoading || !doc.rejectionDetails}
-                          title="Revoke Rejection"
-                          text={<IconArrowForwardUp size={18} className="text-white" />}
-                        /> */}
-                        <CustomButton
-                          variant="info"
-                          className="px-2"
-                          click={() => setDocumentModalOpen(doc)}
-                          disabled={actionsLoading}
-                          title="Details"
-                          text={
-                            <IconAlignBoxCenterMiddle
-                              size={18}
-                              className="text-white"
-                            />
-                          }
-                        />
-                      </div>
-
-                      <div className="sm:hidden relative inline-block">
-                        <CustomButton
-                          variant="info"
-                          className="w-full justify-center"
-                          click={() => setShowActions((prev) => !prev)}
-                          text={
-                            <div className="flex items-center gap-2">
-                              <IconMenu2 size={18} />
-                              <span>Actions</span>
-                            </div>
-                          }
-                        />
-                        {showActions && (
-                          <div
-                            ref={menuRef}
-                            className="absolute right-[-20] mt-2 w-48 bg-white border rounded-lg shadow-lg z-50"
-                          >
-                            <div className="p-1 flex flex-col gap-1">
-                              <CustomButton
-                                className="w-full justify-start"
-                                click={() => {
-                                  handleViewFile(
-                                    doc?.name,
-                                    doc?.path,
-                                    doc?.id,
-                                    doc?.type,
-                                  );
-                                  setShowActions(false);
-                                }}
-                                disabled={actionsLoading}
-                                text="View"
-                              />
-                              {/* <CustomButton
-                                className="w-full justify-start"
-                                click={() => {
-                                  handleEditFile(
-                                    doc.id,
-                                    doc.name,
-                                    doc.path,
-                                    doc.type,
-                                    true,
-                                  );
-                                  setShowActions(false);
-                                }}
-                                disabled={actionsLoading || !!canEdit[doc.id]}
-                                text="Edit"
-                              /> */}
-                              <CustomButton
-                                className="w-full justify-start"
-                                click={() => {
-                                  handleDownloadFile(doc?.name, doc?.path);
-                                  setShowActions(false);
-                                }}
-                                disabled={actionsLoading}
-                                text="Download"
-                              />
-                              <CustomButton
-                                variant="success"
-                                className="w-full justify-start"
-                                click={() => {
-                                  setRemarksModalOpen({
-                                    id: doc.id,
-                                    open: 'sign',
-                                  });
-                                  setShowActions(false);
-                                }}
-                                disabled={
-                                  actionsLoading || doc?.signedBy?.length
-                                }
-                                text="Sign"
-                              />
-                              <CustomButton
-                                variant="danger"
-                                className="w-full justify-start"
-                                click={() => {
-                                  setRemarksModalOpen({
-                                    id: doc.id,
-                                    open: 'reject',
-                                  });
-                                  setShowActions(false);
-                                }}
-                                disabled={
-                                  actionsLoading || doc.rejectionDetails
-                                }
-                                text="Reject"
-                              />
-                              <CustomButton
-                                variant="secondary"
-                                className="w-full justify-start"
-                                click={() => {
-                                  handleRevokeSign(doc.id);
-                                  setShowActions(false);
-                                }}
-                                disabled={
-                                  actionsLoading || !doc.signedBy.length
-                                }
-                                text="Revoke Sign"
-                              />
-                              <CustomButton
-                                variant="info"
-                                className="w-full justify-start"
-                                click={() => {
-                                  handleRevokeRejection(doc.id);
-                                  setShowActions(false);
-                                }}
-                                disabled={
-                                  actionsLoading || !doc.rejectionDetails
-                                }
-                                text="Revoke Rejection"
-                              />
-                              <CustomButton
-                                variant="info"
-                                className="w-full justify-start"
-                                click={() => {
-                                  setDocumentModalOpen(doc);
-                                  setShowActions(false);
-                                }}
-                                disabled={actionsLoading}
-                                text="Details"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CustomCard>
-                );
-              })}
-            </div>
+                      }
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
+      )}
+
+      {/* documents versioning section */}
+      {process?.documentVersioning?.length > 0 && (
+        <div className="mt-12">
+          {/* Section Title */}
+          <div className="flex items-center mb-4">
+            <div className="flex-grow border-t border-slate-400"></div>
+            <span className="mx-4 text-sm text-indigo-600 uppercase tracking-wide font-semibold">
+              Document Versioning
+            </span>
+            <div className="flex-grow border-t border-slate-400"></div>
+          </div>
+
+          <div className="space-y-4">
+            {process.documentVersioning.map((docGroup, index) => (
+              <div
+                key={index}
+                className="border border-slate-200 rounded-lg shadow-sm bg-white p-4"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {docGroup.versions.map((ver) => {
+                    const isActive = process.documents.some(
+                      (d) => d.id === ver.id,
+                    );
+
+                    return (
+                      <div
+                        key={ver.id}
+                        className="border border-slate-300 bg-zinc-50 rounded-md p-3 flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-indigo-700 text-xl">
+                              <img
+                                width={30}
+                                src={
+                                  ImageConfig[
+                                    ver?.name?.split('.').pop()?.toLowerCase()
+                                  ] || ImageConfig['default']
+                                }
+                                alt="icon"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800">
+                                {ver.name}
+                              </p>
+                              <p className="text-sm text-gray-500 truncate">
+                                {ver.path}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isActive && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex gap-2 justify-end">
+                          <CustomButton
+                            text="View"
+                            click={() =>
+                              handleViewFile(
+                                ver.name,
+                                ver.path,
+                                ver.id,
+                                ver.name?.split('.').pop(),
+                              )
+                            }
+                          />
+                          <CustomButton
+                            variant="secondary"
+                            text="Download"
+                            click={() => handleDownloadFile(ver.name, ver.path)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {process?.queryDetails?.length > 0 && (
