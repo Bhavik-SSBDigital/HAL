@@ -55,7 +55,6 @@ const ViewProcess = () => {
   const [openModal, setOpenModal] = useState('');
   const [recommendations, setRecommendations] = useState([]);
   const [canEdit, setCanEdit] = useState({});
-
   const [remarksModalOpen, setRemarksModalOpen] = useState({
     id: null,
     open: false,
@@ -430,7 +429,7 @@ const ViewProcess = () => {
                           </span>
                         </p>
                         <p className="text-sm text-gray-500">
-                          Type: {doc?.type?.toUpperCase()}
+                          Type: {doc?.name?.split('.')?.pop()}
                         </p>
                       </div>
                     </div>
@@ -445,7 +444,7 @@ const ViewProcess = () => {
                           doc.name,
                           doc.path,
                           doc.id,
-                          doc.type,
+                          doc?.name?.split('.')?.pop(),
                           false,
                         )
                       }
@@ -505,89 +504,146 @@ const ViewProcess = () => {
         </>
       )}
 
-      {/* documents versioning section */}
       {process?.documentVersioning?.length > 0 && (
         <div className="mt-12">
           {/* Section Title */}
           <div className="flex items-center mb-4">
-            <div className="flex-grow border-t border-slate-400"></div>
-            <span className="mx-4 text-sm text-indigo-600 uppercase tracking-wide font-semibold">
-              Document Versioning
+            <div className="flex-grow border-t border-green-600"></div>
+            <span className="mx-4 text-sm text-green-700 uppercase tracking-wide font-semibold">
+              Active Documents with Version History
             </span>
-            <div className="flex-grow border-t border-slate-400"></div>
+            <div className="flex-grow border-t border-green-600"></div>
           </div>
 
-          <div className="space-y-4">
-            {process.documentVersioning.map((docGroup, index) => (
-              <div
-                key={index}
-                className="border border-slate-200 rounded-lg shadow-sm bg-white p-4"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {docGroup.versions.map((ver) => {
-                    const isActive = process.documents.some(
-                      (d) => d.id === ver.id,
-                    );
+          <div className="space-y-6">
+            {process?.documentVersioning.map((docGroup, index) => {
+              const activeDoc = docGroup.versions.find(
+                (v) => v.id === docGroup.latestDocumentId,
+              );
+              const olderVersions = docGroup.versions.filter(
+                (v) => v.id !== docGroup.latestDocumentId,
+              );
 
-                    return (
-                      <div
-                        key={ver.id}
-                        className="border border-slate-300 bg-zinc-50 rounded-md p-3 flex flex-col justify-between"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-indigo-700 text-xl">
-                              <img
-                                width={30}
-                                src={
-                                  ImageConfig[
-                                    ver?.name?.split('.').pop()?.toLowerCase()
-                                  ] || ImageConfig['default']
+              return (
+                <div
+                  key={index}
+                  className="border border-green-200 bg-green-50 rounded-md shadow-sm p-4"
+                >
+                  {/* Active Document */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-green-700 text-xl">
+                        <img
+                          width={30}
+                          src={
+                            ImageConfig[
+                              activeDoc?.name?.split('.').pop()?.toLowerCase()
+                            ] || ImageConfig['default']
+                          }
+                          alt="icon"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 flex items-center gap-2">
+                          {activeDoc?.name}
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            Active
+                          </span>
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {activeDoc?.path}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <CustomButton
+                        text="View"
+                        click={() =>
+                          handleViewFile(
+                            activeDoc?.name,
+                            activeDoc?.path,
+                            activeDoc?.id,
+                            activeDoc?.name?.split('.').pop(),
+                          )
+                        }
+                      />
+                      <CustomButton
+                        variant="secondary"
+                        text="Download"
+                        click={() =>
+                          handleDownloadFile(activeDoc?.name, activeDoc?.path)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Older Versions */}
+                  {olderVersions.length > 0 && (
+                    <div className="mt-4 pl-5 border-l-2 border-dashed border-green-300">
+                      <p className="text-sm font-medium text-gray-600 mb-2">
+                        Previous Versions:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {olderVersions.map((ver) => (
+                          <div
+                            key={ver.id}
+                            className="flex flex-col justify-between h-full border border-slate-200 bg-white rounded-md p-4 shadow-sm"
+                          >
+                            {/* File Info */}
+                            <div className="flex gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                                <img
+                                  width={24}
+                                  src={
+                                    ImageConfig[
+                                      ver?.name?.split('.').pop()?.toLowerCase()
+                                    ] || ImageConfig['default']
+                                  }
+                                  alt="icon"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-800 break-words">
+                                  {ver.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate max-w-full">
+                                  {ver.path}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 justify-end mt-auto">
+                              <CustomButton
+                                text="View"
+                                variant="info"
+                                size="xs"
+                                click={() =>
+                                  handleViewFile(
+                                    ver.name,
+                                    ver.path,
+                                    ver.id,
+                                    ver.name?.split('.').pop(),
+                                  )
                                 }
-                                alt="icon"
+                              />
+                              <CustomButton
+                                text="Download"
+                                variant="secondary"
+                                size="xs"
+                                click={() =>
+                                  handleDownloadFile(ver.name, ver.path)
+                                }
                               />
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-800">
-                                {ver.name}
-                              </p>
-                              <p className="text-sm text-gray-500 truncate">
-                                {ver.path}
-                              </p>
-                            </div>
                           </div>
-
-                          {isActive && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                              Active
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex gap-2 justify-end">
-                          <CustomButton
-                            text="View"
-                            click={() =>
-                              handleViewFile(
-                                ver.name,
-                                ver.path,
-                                ver.id,
-                                ver.name?.split('.').pop(),
-                              )
-                            }
-                          />
-                          <CustomButton
-                            variant="secondary"
-                            text="Download"
-                            click={() => handleDownloadFile(ver.name, ver.path)}
-                          />
-                        </div>
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -128,7 +128,7 @@ export default function InitiateProcess() {
         tags: [],
         documentPath: res?.data?.documentPath,
         description:
-          'This document is a template document, edit this document if you want',
+          'This document is prepared from template document, please edit if you want to add the latest data in the document',
       });
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
