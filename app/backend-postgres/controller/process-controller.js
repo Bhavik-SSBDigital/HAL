@@ -817,22 +817,26 @@ export const view_process = async (req, res) => {
       return map;
     }, {});
 
-    const steps = process.stepInstances.map((step) => {
-      const assigneeIds = step.workflowAssignment?.assigneeIds?.length
-        ? step.workflowAssignment.assigneeIds
-        : [step.assignedTo];
-
-      return {
-        stepName: step.workflowAssignment?.step?.stepName ?? "Unknown Step",
-        stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
-        stepId: step.workflowAssignment?.step?.id ?? null,
-        stepType: step.workflowAssignment?.step?.stepType ?? "UNKNOWN",
-        assignees: assigneeIds.map((id) => ({
-          assigneeId: id,
-          assigneeName: assigneeMap[id]?.username ?? "Unknown User",
-        })),
-      };
-    });
+    // Deduplicate steps
+    const steps = [
+      ...new Set(
+        process.stepInstances.map((step) =>
+          JSON.stringify({
+            stepName: step.workflowAssignment?.step?.stepName ?? "Unknown Step",
+            stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
+            stepId: step.workflowAssignment?.step?.id ?? null,
+            stepType: step.workflowAssignment?.step?.stepType ?? "UNKNOWN",
+            assignees: (step.workflowAssignment?.assigneeIds?.length
+              ? step.workflowAssignment.assigneeIds
+              : [step.assignedTo]
+            ).map((id) => ({
+              assigneeId: id,
+              assigneeName: assigneeMap[id]?.username ?? "Unknown User",
+            })),
+          })
+        )
+      ),
+    ].map((str) => JSON.parse(str));
 
     const processDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
@@ -841,7 +845,9 @@ export const view_process = async (req, res) => {
           select: {
             id: true,
             name: true,
+            type: true,
             path: true,
+            tags: true,
           },
         },
         replacedDocument: {
@@ -854,166 +860,218 @@ export const view_process = async (req, res) => {
       },
     });
 
-    // Build document versioning (excluding superseded documents)
-    const documentVersioning = [];
+    // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
       processDocuments
-        .filter((pd) => pd.replacedDocumentId && !pd.superseding)
-        .map((pd) => pd.replacedDocumentId)
-    );
-    const latestDocuments = processDocuments.filter(
-      (pd) => !pd.superseding && !replacedDocumentIds.has(pd.documentId)
-    );
-
-    for (const latestDoc of latestDocuments) {
-      const versionChain = [];
-      let currentDoc = latestDoc;
-
-      versionChain.push({
-        id: currentDoc.document.id,
-        name: currentDoc.document.name,
-        path: currentDoc.document.path,
-        active: true,
-        isReplacement: currentDoc.isReplacement,
-        superseding: currentDoc.superseding,
-        reopenCycle: currentDoc.reopenCycle,
-      });
-
-      while (currentDoc.replacedDocumentId) {
-        const previousDoc = processDocuments.find(
-          (pd) =>
-            pd.documentId === currentDoc.replacedDocumentId && !pd.superseding
-        );
-        if (previousDoc) {
-          versionChain.push({
-            id: previousDoc.document.id,
-            name: previousDoc.document.name,
-            path: previousDoc.document.path,
-            active: false,
-            isReplacement: previousDoc.isReplacement,
-            superseding: previousDoc.superseding,
-            reopenCycle: previousDoc.reopenCycle,
-          });
-          currentDoc = previousDoc;
-        } else {
-          break;
-        }
-      }
-
-      documentVersioning.push({
-        latestDocumentId: latestDoc.document.id,
-        versions: versionChain.reverse(),
-      });
-    }
-
-    // Build sededDocuments for superseding documents with replacement chains
-    const sededDocuments = [];
-    const supersedingDocuments = processDocuments.filter(
-      (pd) => pd.superseding
-    );
-    const supersededReplacedIds = new Set(
-      supersedingDocuments
         .filter((pd) => pd.replacedDocumentId)
         .map((pd) => pd.replacedDocumentId)
     );
-    const latestSupersedingDocuments = supersedingDocuments.filter(
-      (pd) => !supersededReplacedIds.has(pd.documentId)
+    const supersededDocumentIds = new Set(
+      processDocuments
+        .filter((pd) => pd.superseding)
+        .map((pd) => pd.replacedDocumentId)
     );
 
-    for (const latestDoc of latestSupersedingDocuments) {
+    // Find the latest document (neither replaced nor superseded)
+    let latestDocument = processDocuments.find(
+      (pd) =>
+        !replacedDocumentIds.has(pd.documentId) &&
+        !supersededDocumentIds.has(pd.documentId)
+    );
+
+    // If no such document exists, take the latest non-replaced document
+    if (!latestDocument) {
+      latestDocument = processDocuments
+        .filter((pd) => !replacedDocumentIds.has(pd.documentId))
+        .sort((a, b) => b.document.id - a.document.id)[0];
+    }
+
+    // Build documentVersioning
+    const documentVersioning = [];
+    if (latestDocument) {
       const versionChain = [];
-      let currentDoc = latestDoc;
+      let currentDoc = latestDocument;
 
-      versionChain.push({
-        id: currentDoc.document.id,
-        name: currentDoc.document.name,
-        path: currentDoc.document.path,
-        active: true,
-        isReplacement: currentDoc.isReplacement,
-        superseding: currentDoc.superseding,
-        reopenCycle: currentDoc.reopenCycle,
-      });
+      // Trace replacement chain
+      while (currentDoc) {
+        versionChain.push({
+          id: currentDoc.document.id,
+          name: currentDoc.document.name,
+          path: currentDoc.document.path,
+          type: currentDoc.document.type,
+          tags: currentDoc.document.tags,
+          active: currentDoc.document.id === latestDocument.document.id,
+          isReplacement: currentDoc.isReplacement,
+          superseding: currentDoc.superseding,
+          reopenCycle: currentDoc.reopenCycle,
+        });
 
-      while (currentDoc.replacedDocumentId) {
         const previousDoc = processDocuments.find(
           (pd) => pd.documentId === currentDoc.replacedDocumentId
         );
-        if (previousDoc) {
-          versionChain.push({
-            id: previousDoc.document.id,
-            name: previousDoc.document.name,
-            path: previousDoc.document.path,
-            active: false,
-            isReplacement: previousDoc.isReplacement,
-            superseding: previousDoc.superseding,
-            reopenCycle: previousDoc.reopenCycle,
-          });
-          currentDoc = previousDoc;
-        } else {
-          break;
-        }
+        currentDoc = previousDoc || null;
       }
 
-      sededDocuments.push({
-        documentWhichSuperseded: {
-          id: latestDoc.replacedDocument?.id,
-          name: latestDoc.replacedDocument?.name,
-          path: latestDoc.replacedDocument?.path,
-        },
-        latestDocumentId: latestDoc.document.id,
-        versions: versionChain.reverse(),
+      documentVersioning.push({
+        latestDocumentId: latestDocument.document.id,
+        versions: versionChain.reverse(), // Reverse to get chronological order
       });
     }
 
-    const transformedDocuments = latestDocuments.map((doc) => {
-      const processDoc = process.documents.find(
-        (d) => d.documentId === doc.documentId
+    // Build sededDocuments
+    // Build sededDocuments
+    // Build sededDocuments
+    // Build sededDocuments
+    // Build sededDocuments
+    const sededDocuments = [];
+    if (processDocuments.length > 0) {
+      // Sort all documents by ID to get chronological order
+      const allDocsSorted = [...processDocuments].sort(
+        (a, b) => a.document.id - b.document.id
       );
-      const signedBy =
-        processDoc?.signatures.map((sig) => ({
-          signedBy: sig.user.username,
-          signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
-          remarks: sig.reason || null,
-          byRecommender: sig.byRecommender,
-          isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
-        })) || [];
 
-      const rejectionDetails =
-        processDoc?.rejections.length > 0
-          ? {
-              rejectedBy: processDoc.rejections[0].user.username,
-              rejectionReason: processDoc.rejections[0].reason || null,
-              rejectedAt: processDoc.rejections[0].rejectedAt
-                ? processDoc.rejections[0].rejectedAt.toISOString()
-                : null,
-              byRecommender: processDoc.rejections[0].byRecommender,
-              isAttachedWithRecommendation:
-                processDoc.rejections[0].isAttachedWithRecommendation,
+      // Find the first document with reopenCycle = 1
+      const firstReopenCycle1Doc = allDocsSorted.find(
+        (doc) => doc.reopenCycle === 1
+      );
+
+      let documentWhichSuperseded = null;
+      const versions = [];
+
+      if (firstReopenCycle1Doc) {
+        // Find the document that was replaced by the first reopenCycle=1 document
+        documentWhichSuperseded = allDocsSorted.find(
+          (doc) => doc.documentId === firstReopenCycle1Doc.replacedDocumentId
+        );
+
+        // Now build versions by finding documents just before reopenCycle increments
+        let currentDoc = firstReopenCycle1Doc;
+        let currentReopenCycle = 1;
+        let lastDocBeforeCycleChange = null;
+
+        while (currentDoc) {
+          if (currentDoc.reopenCycle > currentReopenCycle) {
+            // Found a cycle change - add the last doc from previous cycle
+            if (lastDocBeforeCycleChange) {
+              versions.push({
+                id: lastDocBeforeCycleChange.document.id,
+                name: lastDocBeforeCycleChange.document.name,
+                path: lastDocBeforeCycleChange.document.path,
+                type: lastDocBeforeCycleChange.document.type,
+                tags: lastDocBeforeCycleChange.document.tags,
+                active:
+                  lastDocBeforeCycleChange.document.id ===
+                  (latestDocument?.document.id || null),
+                isReplacement: lastDocBeforeCycleChange.isReplacement,
+                superseding: lastDocBeforeCycleChange.superseding,
+                reopenCycle: lastDocBeforeCycleChange.reopenCycle,
+              });
             }
-          : null;
+            currentReopenCycle = currentDoc.reopenCycle;
+          }
 
-      const parts = doc.document.path.split("/");
-      parts.pop();
-      const updatedPath = parts.join("/");
+          // Track the last document we see for each reopenCycle
+          lastDocBeforeCycleChange = currentDoc;
 
-      return {
-        id: doc.document.id,
-        name: doc.document.name,
-        type: doc.document.type,
-        path: updatedPath,
-        tags: doc.document.tags,
-        signedBy,
-        rejectionDetails,
-        isRecirculationTrigger:
-          processDoc?.documentHistory.some(
-            (history) => history.isRecirculationTrigger
-          ) || false,
-        approvalCount: signedBy.length,
-        isReplacement: doc.isReplacement,
-        superseding: doc.superseding,
-        reopenCycle: doc.reopenCycle,
-      };
-    });
+          // Move to next document in the chain
+          currentDoc = allDocsSorted.find(
+            (d) => d.replacedDocumentId === currentDoc.documentId
+          );
+        }
+
+        // Add the last document if it wasn't added yet
+        if (
+          lastDocBeforeCycleChange &&
+          !versions.some((v) => v.id === lastDocBeforeCycleChange.document.id)
+        ) {
+          versions.push({
+            id: lastDocBeforeCycleChange.document.id,
+            name: lastDocBeforeCycleChange.document.name,
+            path: lastDocBeforeCycleChange.document.path,
+            type: lastDocBeforeCycleChange.document.type,
+            tags: lastDocBeforeCycleChange.document.tags,
+            active:
+              lastDocBeforeCycleChange.document.id ===
+              (latestDocument?.document.id || null),
+            isReplacement: lastDocBeforeCycleChange.isReplacement,
+            superseding: lastDocBeforeCycleChange.superseding,
+            reopenCycle: lastDocBeforeCycleChange.reopenCycle,
+          });
+        }
+      }
+
+      if (documentWhichSuperseded) {
+        sededDocuments.push({
+          documentWhichSuperseded: {
+            id: documentWhichSuperseded.document.id,
+            name: documentWhichSuperseded.document.name,
+            path: documentWhichSuperseded.document.path,
+            type: documentWhichSuperseded.document.type,
+            tags: documentWhichSuperseded.document.tags,
+          },
+          latestDocumentId: latestDocument ? latestDocument.document.id : null,
+          versions: versions,
+        });
+      }
+    }
+
+    // Transform documents for response
+    const transformedDocuments = processDocuments
+      .filter(
+        (doc) =>
+          !replacedDocumentIds.has(doc.documentId) &&
+          !supersededDocumentIds.has(doc.documentId)
+      )
+      .map((doc) => {
+        const processDoc = process.documents.find(
+          (d) => d.documentId === doc.documentId
+        );
+        const signedBy =
+          processDoc?.signatures.map((sig) => ({
+            signedBy: sig.user.username,
+            signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
+            remarks: sig.reason || null,
+            byRecommender: sig.byRecommender,
+            isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
+          })) || [];
+
+        const rejectionDetails =
+          processDoc?.rejections.length > 0
+            ? {
+                rejectedBy: processDoc.rejections[0].user.username,
+                rejectionReason: processDoc.rejections[0].reason || null,
+                rejectedAt: processDoc.rejections[0].rejectedAt
+                  ? processDoc.rejections[0].rejectedAt.toISOString()
+                  : null,
+                byRecommender: processDoc.rejections[0].byRecommender,
+                isAttachedWithRecommendation:
+                  processDoc.rejections[0].isAttachedWithRecommendation,
+              }
+            : null;
+
+        const parts = doc.document.path.split("/");
+        parts.pop();
+        const updatedPath = parts.join("/");
+
+        return {
+          id: doc.document.id,
+          name: doc.document.name,
+          type: doc.document.type,
+          path: updatedPath,
+          tags: doc.document.tags,
+          signedBy,
+          rejectionDetails,
+          isRecirculationTrigger:
+            processDoc?.documentHistory.some(
+              (history) => history.isRecirculationTrigger
+            ) || false,
+          approvalCount: signedBy.length,
+          isReplacement: doc.isReplacement,
+          superseding: doc.superseding,
+          reopenCycle: doc.reopenCycle,
+          active: true,
+        };
+      });
 
     const queryDetails = await Promise.all(
       process.stepInstances.flatMap((step) =>
@@ -1170,7 +1228,7 @@ export const view_process = async (req, res) => {
           }, {});
 
           const documentDetails = documentSummaries.map((ds) => {
-            const response = rec.details?.documentResponses?.find(
+            const response = documentResponses?.find(
               (dr) => parseInt(dr.documentId) === parseInt(ds.documentId)
             );
             return {
@@ -2188,7 +2246,7 @@ export const createQuery = async (req, res) => {
 
           await tx.processNotification.create({
             data: {
-              stepInstanceId: instanceUpdated.id,
+              stepId: instanceUpdated.id, // Fixed: Changed from stepInstanceId to stepId
               userId: instance.assignedTo,
               type: "DOCUMENT_QUERY",
               status: "ACTIVE",
@@ -2250,7 +2308,7 @@ export const createQuery = async (req, res) => {
 
         await tx.processNotification.create({
           data: {
-            stepInstanceId: newStepInstance.id,
+            stepId: newStepInstance.id, // Fixed: Changed from stepInstanceId to stepId
             userId: parseInt(assignedAssigneeId),
             type: "DOCUMENT_QUERY",
             status: "ACTIVE",
@@ -3049,21 +3107,16 @@ export const reopen_process = async (req, res) => {
       // 3. Handle superseded documents
       const documentHistoryEntries = [];
       for (let { oldDocumentId, newDocumentId } of supersededDocuments) {
-        oldDocument = parseInt(oldDocumentId);
-        newDocumentId = parseInt(newDocumentId);
-        // Validate documents
-        const oldDocument = await tx.document.findUnique({
+        const oldDoc = await tx.document.findUnique({
           where: { id: parseInt(oldDocumentId) },
         });
-        const newDocument = await tx.document.findUnique({
+        const newDoc = await tx.document.findUnique({
           where: { id: parseInt(newDocumentId) },
         });
 
-        if (!oldDocument || !newDocument) {
+        if (!oldDoc || !newDoc) {
           throw new Error(
-            `Document not found: ${
-              !oldDocument ? oldDocumentId : newDocumentId
-            }`
+            `Document not found: ${!oldDoc ? oldDocumentId : newDocumentId}`
           );
         }
 
@@ -3111,7 +3164,7 @@ export const reopen_process = async (req, res) => {
           departmentId: null,
         });
 
-        if (oldDocument) {
+        if (oldDoc) {
           await ensureDocumentAccessWithParents(tx, {
             documentId: oldDocumentId,
             userId: userData.id,
@@ -3124,7 +3177,8 @@ export const reopen_process = async (req, res) => {
       }
 
       // 4. Reset first step instances for previously engaged assignees
-      const firstStep = process.workflow.steps[0];
+      const firstStep = process.workflow.steps[1];
+      console.log("first step", firstStep);
       const engagedStepInstances = await tx.processStepInstance.findMany({
         where: {
           processId,
@@ -3152,7 +3206,7 @@ export const reopen_process = async (req, res) => {
 
         await tx.processNotification.create({
           data: {
-            stepInstanceId: updatedInstance.id,
+            stepId: updatedInstance.id, // Changed from stepInstanceId to stepId
             userId: instance.assignedTo,
             type: "STEP_ASSIGNMENT",
             status: "ACTIVE",
