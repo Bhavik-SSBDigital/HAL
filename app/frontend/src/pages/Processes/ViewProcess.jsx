@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ClaimProcess,
   CompleteProcess,
@@ -38,9 +38,13 @@ import QuerySolve from './Actions/QuerySolve';
 import AskRecommend from './Actions/AskRecommend';
 import axios from 'axios';
 import { ImageConfig } from '../../config/ImageConfig';
+import ReOpenProcessModal from './Actions/ReOpenProcessModal';
 
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
+  const [searchParams] = useSearchParams();
+  const isCompleted = searchParams.get('completed') === 'true';
+
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef();
   const { id } = useParams();
@@ -334,31 +338,40 @@ const ViewProcess = () => {
         <div className="flex justify-end flex-row gap-2 flex-wrap">
           <CustomButton
             variant={'primary'}
+            text={'Re-Open'}
+            className={'min-w-[150px]'}
+            click={() => setOpenModal('re-open')}
+            disabled={actionsLoading}
+          />
+          <CustomButton
+            variant={'primary'}
             text={'Claim'}
             className={'min-w-[150px]'}
             click={handleClaim}
-            disabled={actionsLoading || process?.toBePicked === false}
+            disabled={
+              actionsLoading || isCompleted || process?.toBePicked === false
+            }
           />
           <CustomButton
             variant={'secondary'}
             text={'Query'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('query')}
-            disabled={actionsLoading}
+            disabled={actionsLoading || isCompleted}
           />
           <CustomButton
             variant={'secondary'}
             text={'Ask Recommendation'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('recommend')}
-            disabled={actionsLoading}
+            disabled={actionsLoading || isCompleted}
           />
           <CustomButton
             variant={'danger'}
             text={'Complete'}
             click={() => handleCompleteProcess(process?.processStepInstanceId)}
             className={'min-w-[150px]'}
-            disabled={actionsLoading}
+            disabled={actionsLoading || isCompleted}
           />
         </div>
         <hr className="text-slate-200 my-2" />
@@ -479,7 +492,9 @@ const ViewProcess = () => {
                       click={() =>
                         setRemarksModalOpen({ id: doc.id, open: 'reject' })
                       }
-                      disabled={actionsLoading || doc.rejectionDetails}
+                      disabled={
+                        actionsLoading || isCompleted || doc.rejectionDetails
+                      }
                       title="Reject Document"
                       text={<IconX size={18} className="text-white" />}
                     />
@@ -487,7 +502,7 @@ const ViewProcess = () => {
                       variant="info"
                       className="px-2"
                       click={() => setDocumentModalOpen(doc)}
-                      disabled={actionsLoading}
+                      disabled={actionsLoading || isCompleted || isCompleted}
                       title="Details"
                       text={
                         <IconAlignBoxCenterMiddle
@@ -648,6 +663,180 @@ const ViewProcess = () => {
         </div>
       )}
 
+      {process?.sededDocuments?.length > 0 && (
+        <div className="mt-12">
+          {/* Section Title */}
+          <div className="flex items-center mb-4">
+            <div className="flex-grow border-t border-rose-400"></div>
+            <span className="mx-4 text-sm text-rose-600 uppercase tracking-wide font-semibold">
+              Superseded Documents
+            </span>
+            <div className="flex-grow border-t border-rose-400"></div>
+          </div>
+
+          <div className="space-y-6">
+            {process?.sededDocuments.map((docGroup, index) => {
+              const latest = docGroup.versions.find(
+                (v) => v.id === docGroup.latestDocumentId,
+              );
+              const previous = docGroup.versions.filter(
+                (v) => v.id !== docGroup.latestDocumentId,
+              );
+
+              return (
+                <div
+                  key={index}
+                  className="border border-rose-200 bg-rose-50 rounded-md shadow-sm p-4"
+                >
+                  {/* Superseded Document */}
+                  <div className="mb-3">
+                    <p className="text-sm font-medium text-gray-600">
+                      Document Superseded:
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
+                        <img
+                          width={30}
+                          src={
+                            ImageConfig[
+                              docGroup?.documentWhichSuperseded?.name
+                                ?.split('.')
+                                .pop()
+                                ?.toLowerCase()
+                            ] || ImageConfig['default']
+                          }
+                          alt="icon"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {docGroup.documentWhichSuperseded.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {docGroup.documentWhichSuperseded.path}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Latest Replacement */}
+                  {latest && (
+                    <div className="flex items-center justify-between bg-white border border-rose-300 rounded-md p-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                          <img
+                            width={24}
+                            src={
+                              ImageConfig[
+                                latest.name?.split('.').pop()?.toLowerCase()
+                              ] || ImageConfig['default']
+                            }
+                            alt="icon"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                            {latest.name}
+                            <span className="text-xs bg-rose-100 text-rose-800 px-2 py-1 rounded-full">
+                              Replaced
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-500">{latest.path}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <CustomButton
+                          text="View"
+                          click={() =>
+                            handleViewFile(
+                              latest.name,
+                              latest.path,
+                              latest.id,
+                              latest.name?.split('.').pop(),
+                            )
+                          }
+                        />
+                        <CustomButton
+                          variant="secondary"
+                          text="Download"
+                          click={() =>
+                            handleDownloadFile(latest.name, latest.path)
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* All Versions */}
+                  {previous.length > 0 && (
+                    <div className="mt-4 pl-5 border-l-2 border-dashed border-rose-300">
+                      <p className="text-sm font-medium text-gray-600 mb-2">
+                        Version History:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {previous.map((ver) => (
+                          <div
+                            key={ver.id}
+                            className="flex flex-col justify-between h-full border border-slate-200 bg-white rounded-md p-4 shadow-sm"
+                          >
+                            <div className="flex gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                                <img
+                                  width={24}
+                                  src={
+                                    ImageConfig[
+                                      ver?.name?.split('.').pop()?.toLowerCase()
+                                    ] || ImageConfig['default']
+                                  }
+                                  alt="icon"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-800 break-words">
+                                  {ver.name}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate max-w-full">
+                                  {ver.path}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 justify-end mt-auto">
+                              <CustomButton
+                                text="View"
+                                variant="info"
+                                size="xs"
+                                click={() =>
+                                  handleViewFile(
+                                    ver.name,
+                                    ver.path,
+                                    ver.id,
+                                    ver.name?.split('.').pop(),
+                                  )
+                                }
+                              />
+                              <CustomButton
+                                text="Download"
+                                variant="secondary"
+                                size="xs"
+                                click={() =>
+                                  handleDownloadFile(ver.name, ver.path)
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {process?.queryDetails?.length > 0 && (
         <>
           <div className="flex items-center mt-12 mb-2">
@@ -701,6 +890,7 @@ const ViewProcess = () => {
                   </div>
                   <div className="mt-4 flex justify-end">
                     <CustomButton
+                      disabled={actionsLoading || isCompleted}
                       text="Solve Query"
                       variant="primary"
                       click={() => handleSolveQuery(query)}
@@ -944,6 +1134,21 @@ const ViewProcess = () => {
             setOpenModal('');
           }}
           stepInstanceId={process.processStepInstanceId}
+          documents={process.documents}
+        />
+      </CustomModal>
+      <CustomModal
+        isOpen={openModal == 're-open'}
+        onClose={() => {
+          setOpenModal('');
+        }}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+      >
+        <ReOpenProcessModal
+          processId={process.processId}
+          close={() => {
+            setOpenModal('');
+          }}
           documents={process.documents}
         />
       </CustomModal>

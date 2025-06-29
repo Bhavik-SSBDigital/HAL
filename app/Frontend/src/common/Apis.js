@@ -237,7 +237,12 @@ export const CreateQuery = async (data) => {
 export const removeProcessNotification = async (id) => {
   return apiClient.post(`/removeProcessNotification/${id}`);
 };
-
+export const GetCompletedProcessList = async () => {
+  return apiClient.get(`/getCompletedProcesses`);
+};
+export const ReOpenProcess = async (data) => {
+  return apiClient.post('/reopenProcess', data);
+};
 // file and folders
 export const GetFolderData = async (path) => {
   return apiClient.post('/accessFolder', { path, sectionType: null });
