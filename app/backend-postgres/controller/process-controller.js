@@ -3,6 +3,17 @@ import { verifyUser } from "../utility/verifyUser.js";
 import pkg from "@prisma/client";
 import { file_copy, delete_file } from "./file-controller.js";
 import { createFolder } from "./file-controller.js";
+import { fileURLToPath } from "url";
+import { dirname, join, normalize, extname } from "path";
+import { watermarkDocument } from "./watermark.js";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const {
   PrismaClient,
   AccessType,
@@ -12,6 +23,8 @@ const {
 } = pkg;
 
 const prisma = new PrismaClient();
+
+const STORAGE_PATH = process.env.STORAGE_PATH;
 
 async function checkDocumentAccess(userId, documentId, requiredAccess) {
   const userRoles = await prisma.userRole.findMany({
@@ -897,7 +910,7 @@ export const view_process = async (req, res) => {
         versionChain.push({
           id: currentDoc.document.id,
           name: currentDoc.document.name,
-          path: currentDoc.document.path,
+          path: currentDoc.document.path.split("/").slice(0, -1).join("/"),
           type: currentDoc.document.type,
           tags: currentDoc.document.tags,
           active: currentDoc.document.id === latestDocument.document.id,
@@ -956,7 +969,10 @@ export const view_process = async (req, res) => {
               versions.push({
                 id: lastDocBeforeCycleChange.document.id,
                 name: lastDocBeforeCycleChange.document.name,
-                path: lastDocBeforeCycleChange.document.path,
+                path: lastDocBeforeCycleChange.document.path
+                  .split("/")
+                  .slice(0, -1)
+                  .join("/"),
                 type: lastDocBeforeCycleChange.document.type,
                 tags: lastDocBeforeCycleChange.document.tags,
                 active:
@@ -987,7 +1003,10 @@ export const view_process = async (req, res) => {
           versions.push({
             id: lastDocBeforeCycleChange.document.id,
             name: lastDocBeforeCycleChange.document.name,
-            path: lastDocBeforeCycleChange.document.path,
+            path: lastDocBeforeCycleChange.document.path
+              .split("/")
+              .slice(0, -1)
+              .join("/"),
             type: lastDocBeforeCycleChange.document.type,
             tags: lastDocBeforeCycleChange.document.tags,
             active:
@@ -1005,7 +1024,10 @@ export const view_process = async (req, res) => {
           documentWhichSuperseded: {
             id: documentWhichSuperseded.document.id,
             name: documentWhichSuperseded.document.name,
-            path: documentWhichSuperseded.document.path,
+            path: documentWhichSuperseded.document.path
+              .split("/")
+              .slice(0, -1)
+              .join("/"),
             type: documentWhichSuperseded.document.type,
             tags: documentWhichSuperseded.document.tags,
           },
@@ -3173,6 +3195,10 @@ export const reopen_process = async (req, res) => {
             roleId: null,
             departmentId: null,
           });
+
+          const oldDocPath = path.join(__dirname, STORAGE_PATH, oldDoc.path);
+          console.log("old path", oldDocPath);
+          await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
         }
       }
 
