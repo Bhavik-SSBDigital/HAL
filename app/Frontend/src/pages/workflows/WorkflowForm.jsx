@@ -26,14 +26,21 @@ export default function WorkflowForm({
   updateList,
 }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
-  const { register, handleSubmit, control, setValue, getValues, reset } =
-    useForm({
-      defaultValues: {
-        name: '',
-        description: '',
-        steps: [],
-      },
-    });
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    getValues,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      name: '',
+      description: '',
+      steps: [],
+    },
+  });
 
   const {
     fields: stepFields,
@@ -62,10 +69,11 @@ export default function WorkflowForm({
   };
 
   const createWorkflow = async (data) => {
-    if (data?.steps?.length == 0) {
-      toast.info('Please add steps to continue');
+    if (!data?.steps || data.steps.length < 2) {
+      toast.info('Please add at least two steps to proceed.');
       return;
     }
+
     if (data?.steps?.find((item) => item.assignments.length == 0)) {
       toast.info('Please add assignments');
       return;
@@ -102,11 +110,19 @@ export default function WorkflowForm({
             Workflow Name :
           </label>
           <input
-            {...register('name')}
-            required
+            {...register('name', {
+              required: 'Workflow name is required',
+              pattern: {
+                value: /^[a-zA-Z0-9\s_-]+$/, // letters, numbers, space, _ and -
+                message: 'Special characters are not allowed',
+              },
+            })}
             className="border p-2 sm:p-3 w-full rounded-md"
             placeholder="Enter workflow name"
           />
+          {errors.name && (
+            <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+          )}
         </div>
 
         {/* Workflow Description */}
