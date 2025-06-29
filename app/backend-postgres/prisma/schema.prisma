@@ -225,6 +225,7 @@ model DocumentAccess {
   accessLevel      AccessLevel  @default(STANDARD)
   docAccessThrough DocAccessThrough @default(SELF)
   grantedAt        DateTime     @default(now())
+  reopenCycle      Int          @default(0)
   document         Document     @relation("DocumentAccesses", fields: [documentId], references: [id], onDelete: Cascade)
   stepInstance     ProcessStepInstance? @relation("StepInstanceDocumentAccess", fields: [stepInstanceId], references: [id], onDelete: Cascade)
   processInstance  ProcessInstance? @relation(fields: [processId], references: [id], onDelete: Cascade)
@@ -278,6 +279,7 @@ model ProcessInstance {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime? @updatedAt
   isRecirculated   Boolean   @default(false)
+  reopenCycle      Int       @default(0)
   workflow         Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   initiator        User      @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
   currentStep      WorkflowStep? @relation("CurrentStepRelation", fields: [currentStepId], references: [id], onDelete: Cascade)
@@ -368,8 +370,10 @@ model ProcessDocument {
   processId        String
   documentId       Int
   isReplacement    Boolean   @default(false)
+  superseding      Boolean   @default(false)
   replacedDocumentId Int?
   rejectedById     Int?
+  reopenCycle      Int       @default(0)
   process          ProcessInstance @relation("ProcessDocumentRelation", fields: [processId], references: [id], onDelete: Cascade)
   document         Document  @relation("ProcessDocumentRelation", fields: [documentId], references: [id], onDelete: Cascade)
   replacedDocument Document? @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id], onDelete: Cascade)

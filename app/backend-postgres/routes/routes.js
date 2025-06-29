@@ -131,6 +131,8 @@ import {
   get_recommendation,
   get_recommendations,
   signAsRecommender,
+  get_completed_initiator_processes,
+  reopen_process,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
 
@@ -324,5 +326,9 @@ router.post(
 );
 
 router.post("/useTemplateDocument", use_template_document);
+
+router.get("/getCompletedProcesses", get_completed_initiator_processes);
+
+router.post("/reopenProcess", reopen_process);
 
 export default router;
