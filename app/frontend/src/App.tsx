@@ -50,6 +50,7 @@ import Dashboard from './pages/Dashboard';
 import TimelinePage from './pages/Timeline/TimelinePage';
 import Archive from './pages/Archive';
 import Templates from './pages/Templates';
+import CompletedProcesses from './pages/Processes/CompletedProcesses';
 
 function App() {
   const dispatch = useDispatch();
@@ -311,6 +312,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Work List" />
               <WorkList />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/processes/completed"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Completed Processes" />
+              <CompletedProcesses />
             </DefaultLayout>
           }
         />
