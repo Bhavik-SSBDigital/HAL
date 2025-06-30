@@ -44,6 +44,7 @@ const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [searchParams] = useSearchParams();
   const isCompleted = searchParams.get('completed') === 'true';
+  const username = sessionStorage.getItem('username');
 
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef();
@@ -243,6 +244,24 @@ const ViewProcess = () => {
         process?.processStepInstanceId,
         remarks,
       );
+      setProcess((prev) => ({
+        ...prev,
+        documents: prev.documents.map((doc) =>
+          doc.id === remarksModalOpen.id
+            ? {
+                ...doc,
+                rejectionDetails: {
+                  rejectedBy: username,
+                  rejectionReason: remarks,
+                  rejectedAt: new Date().toISOString(),
+                  byRecommender: false,
+                  isAttachedWithRecommendation: false,
+                },
+              }
+            : doc,
+        ),
+      }));
+
       setRemarksModalOpen({ id: null, open: false });
       toast.success(response?.data?.message);
     } catch (error) {
@@ -404,14 +423,14 @@ const ViewProcess = () => {
 
           {/* View All Selected Button */}
           <CustomButton
-            disabled={selectedDocs.length == 0}
+            disabled={selectedDocs.length === 0}
             className="ml-auto mb-4 block"
             text={`View All Selected (${selectedDocs.length})`}
             click={handleViewAllSelectedFiles}
           />
 
           {/* Document Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border border-green-300 bg-white p-4 rounded-md shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {process.documents.map((doc) => {
               const isSelected = selectedDocs.includes(doc.id);
               const toggleSelect = () => {
@@ -422,34 +441,59 @@ const ViewProcess = () => {
                 );
               };
 
+              const extension = doc.name?.split('.').pop()?.toLowerCase();
+
               return (
-                <div
+                <CustomCard
                   key={doc.id}
-                  className="border border-slate-300 bg-zinc-50 rounded-md p-4 shadow-sm flex flex-col justify-between"
+                  className="relative flex flex-col justify-between"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex gap-3">
+                  {/* Top-Right Status Badge */}
+                  <div className="absolute top-2 right-2">
+                    {doc.rejectionDetails ? (
+                      <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full shadow-sm">
+                        Rejected
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full shadow-sm">
+                        Active
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Document Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    {/* Left: Checkbox + Icon + Info */}
+                    <div className="flex items-start gap-3 w-full">
                       <input
                         type="checkbox"
-                        className="mt-1"
+                        className="mt-1 shrink-0"
                         checked={isSelected}
                         onChange={toggleSelect}
                       />
-                      <div>
-                        <p className="font-semibold text-gray-900 flex items-center gap-2">
+
+                      {/* File Icon */}
+                      <div className="w-10 h-10 shrink-0 rounded-full bg-gray-100 border flex items-center justify-center">
+                        <img
+                          width={28}
+                          src={ImageConfig[extension] || ImageConfig['default']}
+                          alt="icon"
+                        />
+                      </div>
+
+                      {/* File Info */}
+                      <div className="flex flex-col">
+                        <p className="font-semibold text-gray-900 break-words">
                           {doc.name}
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
                         </p>
                         <p className="text-sm text-gray-500">
-                          Type: {doc?.name?.split('.')?.pop()}
+                          Type: {extension}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Action Buttons */}
                   <div className="mt-4 flex flex-wrap justify-end gap-2">
                     <CustomButton
                       className="px-2"
@@ -458,7 +502,7 @@ const ViewProcess = () => {
                           doc.name,
                           doc.path,
                           doc.id,
-                          doc?.name?.split('.')?.pop(),
+                          extension,
                           false,
                         )
                       }
@@ -482,7 +526,8 @@ const ViewProcess = () => {
                       disabled={
                         actionsLoading ||
                         doc?.signedBy?.length ||
-                        doc?.type?.toUpperCase() !== 'PDF'
+                        doc?.type?.toUpperCase() !== 'PDF' ||
+                        doc?.rejectionDetails
                       }
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
@@ -503,7 +548,7 @@ const ViewProcess = () => {
                       variant="info"
                       className="px-2"
                       click={() => setDocumentModalOpen(doc)}
-                      disabled={actionsLoading || isCompleted || isCompleted}
+                      disabled={actionsLoading || isCompleted}
                       title="Details"
                       text={
                         <IconAlignBoxCenterMiddle
@@ -513,7 +558,7 @@ const ViewProcess = () => {
                       }
                     />
                   </div>
-                </div>
+                </CustomCard>
               );
             })}
           </div>
@@ -541,9 +586,9 @@ const ViewProcess = () => {
               );
 
               return (
-                <div
+                <CustomCard
                   key={index}
-                  className="border border-green-200 bg-green-50 rounded-md shadow-sm p-4"
+                  className="border border-green-200 !bg-green-50 rounded-md shadow-sm p-4"
                 >
                   {/* Active Document */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
@@ -660,7 +705,7 @@ const ViewProcess = () => {
                       </div>
                     </div>
                   )}
-                </div>
+                </CustomCard>
               );
             })}
           </div>
