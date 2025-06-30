@@ -216,13 +216,11 @@ export const DeleteFile = async (documentId) => {
 };
 export const GenerateDocumentName = async (
   workflowId,
-  processId,
-  replacedDocName,
+  replacedDocId,
 ) => {
   return apiClient.post('/generateDocumentName', {
     workflowId,
-    processId,
-    replacedDocName,
+    replacedDocId,
   });
 };
 

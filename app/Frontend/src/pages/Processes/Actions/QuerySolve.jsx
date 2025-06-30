@@ -55,7 +55,10 @@ export default function QuerySolve({
 
     try {
       // 🔹 Step 1: Generate document name from backend
-      const generatedName = await GenerateDocumentName(workflowId, processId);
+      const generatedName = await GenerateDocumentName(
+        workflowId,
+        replacedDocId,
+      );
 
       // 🔹 Step 2: Upload document with generated name
       const response = await uploadDocumentInProcess(
@@ -215,7 +218,13 @@ export default function QuerySolve({
                     type="file"
                     className="block w-full border p-2 rounded"
                     onChange={(e) =>
-                      handleDocumentUpload(e.target.files[0], index)
+                      handleDocumentUpload(
+                        e.target.files[0],
+                        index,
+                        getValues(
+                          `documentChanges.${index}.replacesDocumentId`,
+                        ),
+                      )
                     }
                   />
                   {uploadedFileName && (

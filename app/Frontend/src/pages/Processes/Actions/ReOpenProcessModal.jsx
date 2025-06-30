@@ -1,6 +1,10 @@
 import React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { uploadDocumentInProcess, ReOpenProcess, GenerateDocumentName } from '../../../common/Apis';
+import {
+  uploadDocumentInProcess,
+  ReOpenProcess,
+  GenerateDocumentName,
+} from '../../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquarePlus, IconSquareX } from '@tabler/icons-react';
@@ -40,12 +44,15 @@ export default function ReOpenProcessModal({
   });
   const navigate = useNavigate();
 
-  const handleUpload = async (file, index) => {
+  const handleUpload = async (file, index, replacedDocId) => {
     if (!file) return;
 
     try {
       // Optional: generate custom name
-      const generatedName = await GenerateDocumentName(workflowId, processId);
+      const generatedName = await GenerateDocumentName(
+        workflowId,
+        replacedDocId,
+      );
 
       // Upload the document (with or without name)
       const response = await uploadDocumentInProcess(
@@ -155,7 +162,9 @@ export default function ReOpenProcessModal({
               <input
                 type="file"
                 className="w-full border p-2 rounded text-sm"
-                onChange={(e) => handleUpload(e.target.files[0], index)}
+                onChange={(e) =>
+                  handleUpload(e.target.files[0], index, selectedId)
+                }
               />
               {uploadedFileName && (
                 <p className="text-sm text-green-600 mt-1">

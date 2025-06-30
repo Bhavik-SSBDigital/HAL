@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import {
+  GenerateDocumentName,
   GetWorkflows,
   getWorkflowTemplates,
   ProcessInitiate,
@@ -74,24 +75,42 @@ export default function InitiateProcess() {
 
   const inputRef = useRef(null);
   const handleUpload = async () => {
+    if (!workflowId) {
+      toast.info('Please select workflow.');
+      return;
+    }
+
     if (!selectedFile || !tags.length) return;
+
     setActionsLoading(true);
+
     try {
+      // Generate file name from backend
+      const generatedName = await GenerateDocumentName(workflowId);
+
+      // Upload file using generated name and tags
       const res = await uploadDocumentInProcess(
         [selectedFile],
-        selectedFile?.name,
+        generatedName?.data?.documentName,
         tags,
       );
-      toast.success('File Uploaded');
-      addDocument({ documentId: res[0], name: selectedFile?.name, tags: tags });
+
+      // Success logic
+      toast.success('File uploaded successfully');
+      addDocument({
+        documentId: res[0],
+        name: generatedName?.data?.documentName,
+        tags: tags,
+      });
+
+      // Reset form
       setNewTag('');
       setTags([]);
       setSelectedFile(null);
-      if (inputRef.current) {
-        inputRef.current.value = null;
-      }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
+      if (inputRef.current) inputRef.current.value = null;
+    } catch (err) {
+      // Show relevant error
+      toast.error(err?.response?.data?.message || err.message);
     } finally {
       setActionsLoading(false);
     }

@@ -38,6 +38,8 @@ export default function Query({
       assignedAssigneeId: '',
     },
   });
+  const formValues = watch();
+  console.log(formValues);
   const [selectedStep, setSelectedStep] = useState(null);
   const navigate = useNavigate();
   const {
@@ -53,12 +55,15 @@ export default function Query({
   } = useFieldArray({ control, name: 'documentChanges' });
 
   //   handlers
-  const handleDocumentUpload = async (file, index) => {
+  const handleDocumentUpload = async (file, index, replacedDocId) => {
     if (!file) return;
 
     try {
       // Step 1: Generate Document Name
-      const generatedName = await GenerateDocumentName(workflowId, processId);
+      const generatedName = await GenerateDocumentName(
+        workflowId,
+        replacedDocId,
+      );
       if (!generatedName) {
         toast.error('Failed to generate document name');
         return;
@@ -261,7 +266,13 @@ export default function Query({
                     type="file"
                     className="block w-full border p-2 rounded"
                     onChange={(e) =>
-                      handleDocumentUpload(e.target.files[0], index)
+                      handleDocumentUpload(
+                        e.target.files[0],
+                        index,
+                        getValues(
+                          `documentChanges.${index}.replacesDocumentId`,
+                        ),
+                      )
                     }
                   />
                   {uploadedFileName && (
