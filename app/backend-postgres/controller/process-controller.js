@@ -3263,7 +3263,7 @@ export const reopen_process = async (req, res) => {
 
           const oldDocPath = path.join(__dirname, STORAGE_PATH, oldDoc.path);
 
-          const ext = path.extname(inputPath).toLowerCase();
+          const ext = path.extname(oldDocPath).toLowerCase();
           if (ext === ".pdf") {
             await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
           }
