@@ -228,6 +228,20 @@ const ViewProcess = () => {
       );
       toast.success(res?.data?.message);
       setRemarksModalOpen({ id: null, open: false });
+      setProcess((prev) => ({
+        ...prev,
+        documents: prev.documents.map((doc) =>
+          doc.id === remarksModalOpen.id
+            ? {
+                ...doc,
+                signedBy: {
+                  signedBy: username,
+                  remarks,
+                },
+              }
+            : doc,
+        ),
+      }));
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
@@ -525,7 +539,9 @@ const ViewProcess = () => {
                       }
                       disabled={
                         actionsLoading ||
-                        doc?.signedBy?.length ||
+                        doc?.signedBy?.filter(
+                          (entry) => entry.signedBy == username,
+                        ) ||
                         doc?.type?.toUpperCase() !== 'PDF' ||
                         doc?.rejectionDetails
                       }
