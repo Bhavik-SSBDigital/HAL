@@ -900,12 +900,48 @@ export const view_process = async (req, res) => {
     }
 
     // Build documentVersioning
+    // Build documentVersioning
     const documentVersioning = [];
-    if (latestDocument) {
-      const versionChain = [];
-      let currentDoc = latestDocument;
+    const allProcessDocuments = await prisma.processDocument.findMany({
+      where: { processId: process.id },
+      include: {
+        document: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            path: true,
+            tags: true,
+          },
+        },
+        replacedDocument: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+        },
+      },
+    });
 
-      // Trace replacement chain
+    // Find all documents that were replaced (to identify root documents)
+    const replacedDocumentIds_ = new Set(
+      allProcessDocuments
+        .filter((doc) => doc.replacedDocumentId)
+        .map((doc) => doc.replacedDocumentId)
+    );
+
+    // Find all root documents (those that were never replaced)
+    const rootDocuments = allProcessDocuments.filter(
+      (doc) => !replacedDocumentIds_.has(doc.documentId)
+    );
+
+    // For each root document, build its version chain
+    for (const rootDoc of rootDocuments) {
+      const versionChain = [];
+      let currentDoc = rootDoc;
+
+      // Build the chain by following replacements
       while (currentDoc) {
         versionChain.push({
           id: currentDoc.document.id,
@@ -913,22 +949,70 @@ export const view_process = async (req, res) => {
           path: currentDoc.document.path.split("/").slice(0, -1).join("/"),
           type: currentDoc.document.type,
           tags: currentDoc.document.tags,
-          active: currentDoc.document.id === latestDocument.document.id,
+          active: currentDoc.document.id === latestDocument?.document?.id,
           isReplacement: currentDoc.isReplacement,
           superseding: currentDoc.superseding,
           reopenCycle: currentDoc.reopenCycle,
         });
 
-        const previousDoc = processDocuments.find(
-          (pd) => pd.documentId === currentDoc.replacedDocumentId
+        // Find the document that replaced this one (if any)
+        currentDoc = allProcessDocuments.find(
+          (doc) => doc.replacedDocumentId === currentDoc.documentId
         );
-        currentDoc = previousDoc || null;
       }
 
-      documentVersioning.push({
-        latestDocumentId: latestDocument.document.id,
-        versions: versionChain.reverse(), // Reverse to get chronological order
-      });
+      if (versionChain.length > 0) {
+        documentVersioning.push({
+          rootDocumentId: rootDoc.documentId,
+          versions: versionChain,
+        });
+      }
+    }
+
+    // Also include any documents that were replaced but we don't have their root
+    // (this handles cases where we only have part of the chain)
+    const orphanedDocuments = allProcessDocuments.filter(
+      (doc) =>
+        replacedDocumentIds_.has(doc.documentId) &&
+        !allProcessDocuments.some(
+          (d) => d.documentId === doc.replacedDocumentId
+        )
+    );
+
+    for (const doc of orphanedDocuments) {
+      // Try to find as much of the chain as we can
+      let currentDoc = doc;
+      const partialChain = [];
+
+      // Walk backward to find the earliest document we have
+      while (
+        currentDoc &&
+        !partialChain.some((v) => v.id === currentDoc.documentId)
+      ) {
+        partialChain.unshift({
+          id: currentDoc.document.id,
+          name: currentDoc.document.name,
+          path: currentDoc.document.path.split("/").slice(0, -1).join("/"),
+          type: currentDoc.document.type,
+          tags: currentDoc.document.tags,
+          active: currentDoc.document.id === latestDocument?.document?.id,
+          isReplacement: currentDoc.isReplacement,
+          superseding: currentDoc.superseding,
+          reopenCycle: currentDoc.reopenCycle,
+        });
+
+        // Find what this document replaced
+        currentDoc = allProcessDocuments.find(
+          (d) => d.documentId === currentDoc.replacedDocumentId
+        );
+      }
+
+      if (partialChain.length > 0) {
+        documentVersioning.push({
+          rootDocumentId: partialChain[0].id, // Use first doc as root
+          versions: partialChain,
+        });
+      }
     }
 
     // Build sededDocuments
