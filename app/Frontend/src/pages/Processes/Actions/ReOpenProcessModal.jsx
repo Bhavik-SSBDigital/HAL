@@ -1,12 +1,13 @@
 import React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { uploadDocumentInProcess, ReOpenProcess } from '../../../common/Apis';
+import { uploadDocumentInProcess, ReOpenProcess, GenerateDocumentName } from '../../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquarePlus, IconSquareX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function ReOpenProcessModal({
+  workflowId,
   processId,
   documents = [],
   close,
@@ -41,12 +42,28 @@ export default function ReOpenProcessModal({
 
   const handleUpload = async (file, index) => {
     if (!file) return;
+
     try {
-      const res = await uploadDocumentInProcess([file]);
-      const newId = res[0];
+      // Optional: generate custom name
+      const generatedName = await GenerateDocumentName(workflowId, processId);
+
+      // Upload the document (with or without name)
+      const response = await uploadDocumentInProcess(
+        [file],
+        generatedName?.data?.documentName,
+      );
+
+      if (!response || !response.length || !response[0]) {
+        throw new Error('Document upload failed or returned no ID');
+      }
+
+      const uploadedId = response[0];
+
+      // Update local form state
       const updated = [...getValues('supersededDocuments')];
-      updated[index].newDocumentId = newId;
-      updated[index].uploadedFileName = file.name;
+      updated[index].newDocumentId = uploadedId;
+      updated[index].uploadedFileName = generatedName?.data?.documentName;
+      // updated[index].generatedName = generatedName; // Optional: store generated name if needed
 
       reset((prev) => ({
         ...prev,
@@ -55,7 +72,9 @@ export default function ReOpenProcessModal({
 
       toast.success('Document uploaded successfully');
     } catch (err) {
-      toast.error(err?.response?.data?.message || err.message);
+      toast.error(
+        err?.response?.data?.message || err.message || 'Upload failed',
+      );
     }
   };
 

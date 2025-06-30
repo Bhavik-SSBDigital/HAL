@@ -3,10 +3,15 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquareX } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { CreateQuery, uploadDocumentInProcess } from '../../../common/Apis';
+import {
+  CreateQuery,
+  GenerateDocumentName,
+  uploadDocumentInProcess,
+} from '../../../common/Apis';
 import { useNavigate } from 'react-router-dom';
 
 export default function QuerySolve({
+  workflowId,
   processId,
   close,
   stepInstanceId,
@@ -49,12 +54,26 @@ export default function QuerySolve({
     if (!file) return;
 
     try {
-      const response = await uploadDocumentInProcess([file]);
+      // 🔹 Step 1: Generate document name from backend
+      const generatedName = await GenerateDocumentName(workflowId, processId);
+
+      // 🔹 Step 2: Upload document with generated name
+      const response = await uploadDocumentInProcess(
+        [file],
+        generatedName?.data?.documentName,
+      );
+
+      if (!response || !response.length || !response[0]) {
+        throw new Error('Upload failed or returned no document ID');
+      }
+
       const uploadedDocumentId = response[0];
 
+      // 🔹 Step 3: Update form data
       const updatedChanges = [...getValues('documentChanges')];
       updatedChanges[index].documentId = uploadedDocumentId;
-      updatedChanges[index].uploadedFileName = file.name; // <-- Store file name
+      updatedChanges[index].uploadedFileName =
+        generatedName?.data?.documentName;
 
       reset((prev) => ({
         ...prev,
@@ -63,11 +82,14 @@ export default function QuerySolve({
 
       toast.success('Document uploaded successfully');
     } catch (err) {
-      toast.error(
-        'Upload failed: ' + (err.response?.data?.message || err.message),
-      );
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Unexpected error occurred';
+      toast.error(errorMsg);
     }
   };
+
   const handleStepChange = (e) => {
     const selectedStepName = e.target.value;
     const fullStepObj = steps.find(

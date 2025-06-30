@@ -496,7 +496,7 @@ const ViewProcess = () => {
                       </div>
 
                       {/* File Info */}
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0 mr-9">
                         <p className="font-semibold text-gray-900 break-words">
                           {doc.name}
                         </p>
@@ -609,8 +609,8 @@ const ViewProcess = () => {
                   {/* Active Document */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
                     {/* Left: Info */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-green-700 text-xl">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-green-700 text-xl shrink-0">
                         <img
                           width={30}
                           src={
@@ -621,43 +621,17 @@ const ViewProcess = () => {
                           alt="icon"
                         />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 flex items-center gap-2 break-words break-all">
                           {activeDoc?.name}
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full shrink-0">
                             Active
                           </span>
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 truncate">
                           {activeDoc?.path}
                         </p>
                       </div>
-                    </div>
-
-                    {/* Right: Buttons */}
-                    <div className="flex flex-wrap gap-2 justify-end">
-                      <CustomButton
-                        className="px-2"
-                        click={() =>
-                          handleViewFile(
-                            activeDoc?.name,
-                            activeDoc?.path,
-                            activeDoc?.id,
-                            activeDoc?.name?.split('.').pop(),
-                          )
-                        }
-                        title="View Document"
-                        text={<IconEye size={18} className="text-white" />}
-                      />
-                      <CustomButton
-                        className="px-2"
-                        variant="secondary"
-                        click={() =>
-                          handleDownloadFile(activeDoc?.name, activeDoc?.path)
-                        }
-                        title="Download Document"
-                        text={<IconDownload size={18} className="text-white" />}
-                      />
                     </div>
                   </div>
 
@@ -784,8 +758,8 @@ const ViewProcess = () => {
                           alt="icon"
                         />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 break-words">
                           {docGroup.documentWhichSuperseded.name}
                         </p>
                         <p className="text-sm text-gray-500">
@@ -1163,6 +1137,7 @@ const ViewProcess = () => {
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <Query
+          workflowId={process?.workflow?.id}
           processId={process.processId}
           steps={process?.steps}
           close={() => {
@@ -1182,6 +1157,7 @@ const ViewProcess = () => {
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <QuerySolve
+          workflowId={process?.workflow?.id}
           processId={process.processId}
           close={() => {
             setExistingQuery(null);
@@ -1217,6 +1193,7 @@ const ViewProcess = () => {
         className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
       >
         <ReOpenProcessModal
+          workflowId={process?.workflow?.id}
           processId={process.processId}
           close={() => {
             setOpenModal('');
