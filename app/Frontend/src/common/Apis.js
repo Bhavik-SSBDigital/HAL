@@ -214,6 +214,17 @@ export const ArchiveFile = async (documentId) => {
 export const DeleteFile = async (documentId) => {
   return apiClient.post(`/deleteFile`, { documentId });
 };
+export const GenerateDocumentName = async (
+  workflowId,
+  processId,
+  replacedDocName,
+) => {
+  return apiClient.post('/generateDocumentName', {
+    workflowId,
+    processId,
+    replacedDocName,
+  });
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {
