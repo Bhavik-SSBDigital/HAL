@@ -900,7 +900,7 @@ export const view_process = async (req, res) => {
     }
 
     // Build documentVersioning
-    // Build documentVersioning
+
     const documentVersioning = [];
     const allProcessDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
@@ -924,101 +924,82 @@ export const view_process = async (req, res) => {
       },
     });
 
-    // Find all documents that were replaced (to identify root documents)
-    const replacedDocumentIds_ = new Set(
+    // Create maps for quick lookups
+    const docIdToProcessDoc = new Map(
+      allProcessDocuments.map((d) => [d.documentId, d])
+    );
+    const replacedToReplacer = new Map(
       allProcessDocuments
-        .filter((doc) => doc.replacedDocumentId)
-        .map((doc) => doc.replacedDocumentId)
+        .filter((d) => d.replacedDocumentId)
+        .map((d) => [d.replacedDocumentId, d.documentId])
     );
 
-    // Find all root documents (those that were never replaced)
-    const rootDocuments = allProcessDocuments.filter(
-      (doc) => !replacedDocumentIds_.has(doc.documentId)
-    );
+    // Find all terminal documents (not replaced by any other)
+    const terminalDocumentIds = allProcessDocuments
+      .filter((d) => !replacedToReplacer.has(d.documentId))
+      .map((d) => d.documentId);
 
-    // For each root document, build its version chain
-    for (const rootDoc of rootDocuments) {
-      const versionChain = [];
-      let currentDoc = rootDoc;
+    // For each terminal document, build its complete chain
+    for (const terminalDocId of terminalDocumentIds) {
+      const versions = [];
+      let currentDocId = terminalDocId;
 
-      // Build the chain by following replacements
-      while (currentDoc) {
-        versionChain.push({
-          id: currentDoc.document.id,
-          name: currentDoc.document.name,
-          path: currentDoc.document.path.split("/").slice(0, -1).join("/"),
-          type: currentDoc.document.type,
-          tags: currentDoc.document.tags,
-          active: currentDoc.document.id === latestDocument?.document?.id,
-          isReplacement: currentDoc.isReplacement,
-          superseding: currentDoc.superseding,
-          reopenCycle: currentDoc.reopenCycle,
+      // Walk backwards through the chain
+      while (currentDocId) {
+        const processDoc = docIdToProcessDoc.get(currentDocId);
+        if (!processDoc) break;
+
+        versions.unshift({
+          id: processDoc.document.id,
+          name: processDoc.document.name,
+          path: processDoc.document.path.split("/").slice(0, -1).join("/"),
+          type: processDoc.document.type,
+          tags: processDoc.document.tags,
+          active: processDoc.document.id === latestDocument?.document?.id,
+          isReplacement: processDoc.isReplacement,
+          superseding: processDoc.superseding,
+          reopenCycle: processDoc.reopenCycle,
         });
 
-        // Find the document that replaced this one (if any)
-        currentDoc = allProcessDocuments.find(
-          (doc) => doc.replacedDocumentId === currentDoc.documentId
-        );
+        // Move to the document this one replaced
+        currentDocId = processDoc.replacedDocumentId;
       }
 
-      if (versionChain.length > 0) {
+      if (versions.length > 0) {
         documentVersioning.push({
-          rootDocumentId: rootDoc.documentId,
-          versions: versionChain,
+          latestDocumentId: terminalDocId,
+          versions: versions,
         });
       }
     }
 
-    // Also include any documents that were replaced but we don't have their root
-    // (this handles cases where we only have part of the chain)
-    const orphanedDocuments = allProcessDocuments.filter(
-      (doc) =>
-        replacedDocumentIds_.has(doc.documentId) &&
-        !allProcessDocuments.some(
-          (d) => d.documentId === doc.replacedDocumentId
-        )
+    // Handle any documents not included in chains (shouldn't happen with proper data)
+    const includedDocIds = new Set(
+      documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
+    );
+    const missingDocs = allProcessDocuments.filter(
+      (d) => !includedDocIds.has(d.documentId)
     );
 
-    for (const doc of orphanedDocuments) {
-      // Try to find as much of the chain as we can
-      let currentDoc = doc;
-      const partialChain = [];
-
-      // Walk backward to find the earliest document we have
-      while (
-        currentDoc &&
-        !partialChain.some((v) => v.id === currentDoc.documentId)
-      ) {
-        partialChain.unshift({
-          id: currentDoc.document.id,
-          name: currentDoc.document.name,
-          path: currentDoc.document.path.split("/").slice(0, -1).join("/"),
-          type: currentDoc.document.type,
-          tags: currentDoc.document.tags,
-          active: currentDoc.document.id === latestDocument?.document?.id,
-          isReplacement: currentDoc.isReplacement,
-          superseding: currentDoc.superseding,
-          reopenCycle: currentDoc.reopenCycle,
-        });
-
-        // Find what this document replaced
-        currentDoc = allProcessDocuments.find(
-          (d) => d.documentId === currentDoc.replacedDocumentId
-        );
-      }
-
-      if (partialChain.length > 0) {
-        documentVersioning.push({
-          rootDocumentId: partialChain[0].id, // Use first doc as root
-          versions: partialChain,
-        });
-      }
+    for (const doc of missingDocs) {
+      documentVersioning.push({
+        latestDocumentId: doc.documentId,
+        versions: [
+          {
+            id: doc.document.id,
+            name: doc.document.name,
+            path: doc.document.path.split("/").slice(0, -1).join("/"),
+            type: doc.document.type,
+            tags: doc.document.tags,
+            active: doc.document.id === latestDocument?.document?.id,
+            isReplacement: doc.isReplacement,
+            superseding: doc.superseding,
+            reopenCycle: doc.reopenCycle,
+          },
+        ],
+      });
     }
 
-    // Build sededDocuments
-    // Build sededDocuments
-    // Build sededDocuments
-    // Build sededDocuments
     // Build sededDocuments
     const sededDocuments = [];
     if (processDocuments.length > 0) {
