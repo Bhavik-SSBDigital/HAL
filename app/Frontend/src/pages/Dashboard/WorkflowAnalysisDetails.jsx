@@ -13,6 +13,7 @@ import CustomTabs from '../../CustomComponents/CustomTabs';
 import CustomButton from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
 import { ViewDocument } from '../../common/Apis';
+import { toast } from 'react-toastify';
 
 const WorkflowAnalysisDetails = ({
   data,
@@ -62,17 +63,18 @@ const WorkflowAnalysisDetails = ({
 
   const handleViewAllSelectedFiles = async (documents) => {
     setActionsLoading(true);
+    console.log(documents);
     try {
       const formattedDocs = await Promise.all(
         documents.map(async (doc) => {
-          const res = await ViewDocument(doc.name, doc.path);
-          return {
-            url: res.data,
-            type: res.fileType,
-            name: doc.name,
-            fileId: doc.id,
-            signed: doc.signed,
-          };
+          const res = await ViewDocument(
+            doc.name,
+            doc.path,
+            doc.type,
+            doc.id,
+            false,
+          );
+          return res;
         }),
       );
       setFileView({ multi: true, docs: formattedDocs });
@@ -357,12 +359,14 @@ const WorkflowAnalysisDetails = ({
                           {
                             id: doc.replacedDocumentId,
                             name: doc.replacedDocName,
+                            type: doc.replacedDocName.split('.').pop(),
                             path: doc.replacedDocumentPath,
                             signed: doc.replacedDocument?.signed,
                           },
                           {
                             id: doc.replacesDocumentId,
                             name: doc.replacesDocumentName,
+                            type: doc.replacesDocumentName.split('.').pop(),
                             path: doc.replacesDocumentPath,
                             signed: doc.replacesDocument?.signed,
                           },

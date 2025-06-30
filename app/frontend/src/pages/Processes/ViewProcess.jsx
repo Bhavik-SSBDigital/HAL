@@ -197,16 +197,17 @@ const ViewProcess = () => {
       );
       const formattedDocs = await Promise.all(
         selected.map(async (doc) => {
-          const res = await ViewDocument(doc.name, doc.path);
-          return {
-            url: res.data,
-            type: res.fileType,
-            name: doc.name,
-            fileId: doc.id,
-            signed: doc.signed,
-          };
+          const res = await ViewDocument(
+            doc.name,
+            doc.path,
+            doc.type,
+            doc.id,
+            false,
+          );
+          return res;
         }),
       );
+      console.log(formattedDocs);
       setFileView({ multi: true, docs: formattedDocs });
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
