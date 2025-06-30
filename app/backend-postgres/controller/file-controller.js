@@ -409,6 +409,8 @@ export const file_copy = async (req, res) => {
           },
         });
 
+        await createUserPermissions(newDocument.id, userData.username, true);
+
         const accessTypes = ["READ", "EDIT"];
         const documentAccess = await prisma.documentAccess.create({
           data: {
@@ -438,12 +440,10 @@ export const file_copy = async (req, res) => {
           }
         }
 
-        res
-          .status(200)
-          .json({
-            message: `File copied successfully`,
-            documentId: newDocument.id,
-          });
+        res.status(200).json({
+          message: `File copied successfully`,
+          documentId: newDocument.id,
+        });
       } catch (error) {
         console.error("Database Error:", error);
         res.status(500).json({ message: "Error storing document details" });

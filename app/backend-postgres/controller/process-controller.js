@@ -54,6 +54,129 @@ async function checkDocumentAccess(userId, documentId, requiredAccess) {
   });
 }
 
+export async function generateDocumentNameController(req, res) {
+  try {
+    const { workflowId, processId, replacedDocName } = req.body;
+
+    if (!workflowId || !processId) {
+      return res
+        .status(400)
+        .json({ error: "workflowId and processId are required" });
+    }
+
+    const documentName = await generateUniqueDocumentName({
+      workflowId,
+      processId,
+      replacedDocName,
+    });
+
+    return res.json({ documentName });
+  } catch (error) {
+    console.error("Error in document name controller:", error);
+    return res.status(500).json({ error: "Failed to generate document name" });
+  }
+}
+
+export async function generateUniqueDocumentName({
+  workflowId,
+  processId,
+  replacedDocName,
+}) {
+  try {
+    // Fetch workflow details
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { name: true, version: true },
+    });
+
+    if (!workflow) {
+      throw new Error(`Workflow with ID ${workflowId} not found`);
+    }
+
+    const { name: workflowName, version: workflowVersion } = workflow;
+
+    // Format date as YYYYMMDD
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+
+    // Base name for documents
+    const baseDocName = `${workflowName}_w${workflowVersion}_${dateStr}`;
+
+    if (replacedDocName) {
+      // Handle document replacement
+      const existingDoc = await prisma.document.findFirst({
+        where: { name: replacedDocName },
+      });
+
+      if (!existingDoc) {
+        throw new Error(`Document with name ${replacedDocName} not found`);
+      }
+
+      // Extract version
+      const parts = replacedDocName.split("_");
+      const versionPart = parts[parts.length - 1];
+      const version = parseInt(versionPart.replace("v", ""), 10) || 1;
+      const newVersion = version + 1;
+
+      // Construct new name by replacing version
+      const newDocName = `${parts.slice(0, -1).join("_")}_v${newVersion}`;
+
+      // Verify uniqueness
+      const existing = await prisma.document.findFirst({
+        where: { name: newDocName },
+      });
+
+      if (existing) {
+        throw new Error(`Document name ${newDocName} already exists`);
+      }
+
+      return newDocName;
+    } else {
+      // Handle new document
+      const existingDocs = await prisma.document.findMany({
+        where: {
+          name: {
+            startsWith: baseDocName,
+          },
+        },
+        select: { name: true },
+      });
+
+      // Extract serial numbers
+      const serialNumbers = existingDocs
+        .map((doc) => {
+          const parts = doc.name.split("_");
+          const serial = parseInt(parts[parts.length - 2], 10) || 0;
+          return serial;
+        })
+        .filter((num) => !isNaN(num));
+
+      const nextSerialNumber =
+        serialNumbers.length > 0 ? Math.max(...serialNumbers) + 1 : 1;
+
+      const newDocName = `${baseDocName}_${nextSerialNumber
+        .toString()
+        .padStart(3, "0")}_v1`;
+
+      // Verify uniqueness
+      const existing = await prisma.document.findFirst({
+        where: { name: newDocName },
+      });
+
+      if (existing) {
+        throw new Error(`Document name ${newDocName} already exists`);
+      }
+
+      return newDocName;
+    }
+  } catch (error) {
+    console.error("Error generating unique document name:", error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 const generate_unique_process_name = async (workflowId) => {
   try {
     // Fetch workflow name and version
@@ -137,8 +260,9 @@ export const initiate_process = async (req, res, next) => {
 
     await createFolder(false, `../${workflowName}/${processName}`, userData);
 
-    const documentIds =
-      req.body.documents?.map((item) => item.documentId) || [];
+    let documentIds = req.body.documents?.map((item) => item.documentId) || [];
+
+    const copiedDocumentIds = [];
 
     for (const documentId of documentIds) {
       const document = await prisma.document.findUnique({
@@ -151,41 +275,55 @@ export const initiate_process = async (req, res, next) => {
         const destinationPath = `../${workflowName}/${processName}`;
         const name = sourcePath.split("/").pop();
 
-        await new Promise((resolve, reject) => {
-          file_copy(
-            {
-              headers: { authorization: `Bearer ${accessToken}` },
-              body: { sourcePath, destinationPath, name },
-            },
-            {
-              status: (code) => ({
-                json: (data) => {
-                  if (code === 200) resolve(data);
-                  else reject(data);
-                },
-              }),
-            }
-          );
-        });
+        try {
+          const copyResult = await new Promise((resolve, reject) => {
+            file_copy(
+              {
+                headers: { authorization: `Bearer ${accessToken}` },
+                body: { sourcePath, destinationPath, name },
+              },
+              {
+                status: (code) => ({
+                  json: (data) => {
+                    if (code === 200) resolve(data);
+                    else reject(data);
+                  },
+                }),
+              }
+            );
+          });
 
-        await new Promise((resolve, reject) => {
-          delete_file(
-            {
-              headers: { authorization: `Bearer ${accessToken}` },
-              body: { documentId },
-            },
-            {
-              status: (code) => ({
-                json: (data) => {
-                  if (code === 200) resolve(data);
-                  else reject(data);
-                },
-              }),
-            }
-          );
-        });
+          // Store documentId if copy was successful
+          if (copyResult.documentId) {
+            copiedDocumentIds.push(copyResult.documentId);
+          }
+
+          await new Promise((resolve, reject) => {
+            delete_file(
+              {
+                headers: { authorization: `Bearer ${accessToken}` },
+                body: { documentId },
+              },
+              {
+                status: (code) => ({
+                  json: (data) => {
+                    if (code === 200) resolve(data);
+                    else reject(data);
+                  },
+                }),
+              }
+            );
+          });
+        } catch (error) {
+          console.error(`Error processing document ${documentId}:`, error);
+          // Continue with the next document even if one fails
+        }
       }
     }
+
+    console.log("copied", copiedDocumentIds);
+    documentIds = copiedDocumentIds;
+
     if (documentIds.length === 0) {
       return res.status(400).json({
         message: "Documents are required to initiate a process",
@@ -2182,6 +2320,17 @@ export const createQuery = async (req, res) => {
             throw new Error(
               `Replaced document ${replacesDocumentId} not found`
             );
+          }
+
+          const oldDocPath = path.join(
+            __dirname,
+            STORAGE_PATH,
+            replacedDocument.path
+          );
+
+          const ext = path.extname(oldDocPath).toLowerCase();
+          if (ext === ".pdf") {
+            await watermarkDocument(oldDocPath, oldDocPath, "REPLACED");
           }
         }
 
