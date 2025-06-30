@@ -571,7 +571,7 @@ const ViewProcess = () => {
           <div className="flex items-center mb-4">
             <div className="flex-grow border-t border-green-600"></div>
             <span className="mx-4 text-sm text-green-700 uppercase tracking-wide font-semibold">
-              Active Documents with Version History
+              Documents Version History
             </span>
             <div className="flex-grow border-t border-green-600"></div>
           </div>
@@ -619,9 +619,9 @@ const ViewProcess = () => {
                     </div>
 
                     {/* Right: Buttons */}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 justify-end">
                       <CustomButton
-                        text="View"
+                        className="px-2"
                         click={() =>
                           handleViewFile(
                             activeDoc?.name,
@@ -630,13 +630,17 @@ const ViewProcess = () => {
                             activeDoc?.name?.split('.').pop(),
                           )
                         }
+                        title="View Document"
+                        text={<IconEye size={18} className="text-white" />}
                       />
                       <CustomButton
+                        className="px-2"
                         variant="secondary"
-                        text="Download"
                         click={() =>
                           handleDownloadFile(activeDoc?.name, activeDoc?.path)
                         }
+                        title="Download Document"
+                        text={<IconDownload size={18} className="text-white" />}
                       />
                     </div>
                   </div>
@@ -649,9 +653,9 @@ const ViewProcess = () => {
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {olderVersions.map((ver) => (
-                          <div
+                          <CustomCard
                             key={ver.id}
-                            className="flex flex-col justify-between h-full border border-slate-200 bg-white rounded-md p-4 shadow-sm"
+                            className="flex flex-col justify-between"
                           >
                             {/* File Info */}
                             <div className="flex gap-3 mb-3">
@@ -677,9 +681,10 @@ const ViewProcess = () => {
                             </div>
 
                             {/* Actions */}
+                            {/* Actions */}
                             <div className="flex gap-2 justify-end mt-auto">
                               <CustomButton
-                                text="View"
+                                className="px-2"
                                 variant="info"
                                 size="xs"
                                 click={() =>
@@ -690,17 +695,28 @@ const ViewProcess = () => {
                                     ver.name?.split('.').pop(),
                                   )
                                 }
+                                title="View Document"
+                                text={
+                                  <IconEye size={16} className="text-white" />
+                                }
                               />
                               <CustomButton
-                                text="Download"
+                                className="px-2"
                                 variant="secondary"
                                 size="xs"
                                 click={() =>
                                   handleDownloadFile(ver.name, ver.path)
                                 }
+                                title="Download Document"
+                                text={
+                                  <IconDownload
+                                    size={16}
+                                    className="text-white"
+                                  />
+                                }
                               />
                             </div>
-                          </div>
+                          </CustomCard>
                         ))}
                       </div>
                     </div>
@@ -728,134 +744,153 @@ const ViewProcess = () => {
               const previous = docGroup.versions.filter(
                 (v) => v.id !== docGroup.latestDocumentId,
               );
+              const ext = docGroup?.documentWhichSuperseded?.name
+                ?.split('.')
+                .pop()
+                ?.toLowerCase();
 
               return (
-                <div
+                <CustomCard
                   key={index}
-                  className="border border-rose-200 bg-rose-50 rounded-md shadow-sm p-4"
+                  className="relative border !border-rose-300 !bg-rose-50 shadow-sm p-4"
                 >
+                  {/* Top-right label */}
+                  <div className="absolute bottom-2 right-2">
+                    <span className="text-xs border bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">
+                      Superseded
+                    </span>
+                  </div>
+
                   {/* Superseded Document */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
-                    {/* Left: Superseded Document Info */}
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600">
-                        Document Superseded:
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
-                          <img
-                            width={30}
-                            src={
-                              ImageConfig[
-                                docGroup?.documentWhichSuperseded?.name
-                                  ?.split('.')
-                                  .pop()
-                                  ?.toLowerCase()
-                              ] || ImageConfig['default']
-                            }
-                            alt="icon"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            {docGroup.documentWhichSuperseded.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {docGroup.documentWhichSuperseded.path}
-                          </p>
-                        </div>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                    {/* Left: Document Info */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
+                        <img
+                          width={30}
+                          src={ImageConfig[ext] || ImageConfig['default']}
+                          alt="icon"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">
+                          {docGroup.documentWhichSuperseded.name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {docGroup.documentWhichSuperseded.path}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Right: View / Download Buttons */}
+                    {/* Right: Actions */}
                     <div className="flex gap-2">
                       <CustomButton
-                        text="View"
+                        className="px-2"
                         click={() =>
                           handleViewFile(
-                            docGroup?.documentWhichSuperseded?.name,
-                            docGroup?.documentWhichSuperseded?.path,
-                            docGroup?.documentWhichSuperseded?.id,
-                            docGroup?.documentWhichSuperseded?.type,
+                            docGroup.documentWhichSuperseded.name,
+                            docGroup.documentWhichSuperseded.path,
+                            docGroup.documentWhichSuperseded.id,
+                            docGroup.documentWhichSuperseded.type,
                           )
                         }
+                        title="View Document"
+                        text={<IconEye size={18} className="text-white" />}
                       />
                       <CustomButton
+                        className="px-2"
                         variant="secondary"
-                        text="Download"
                         click={() =>
                           handleDownloadFile(
-                            docGroup?.documentWhichSuperseded?.name,
-                            docGroup?.documentWhichSuperseded?.path,
+                            docGroup.documentWhichSuperseded.name,
+                            docGroup.documentWhichSuperseded.path,
                           )
                         }
+                        title="Download Document"
+                        text={<IconDownload size={18} className="text-white" />}
                       />
                     </div>
                   </div>
 
-                  {/* All Versions */}
+                  {/* Previous Versions */}
                   {previous.length > 0 && (
                     <div className="mt-4 pl-5 border-l-2 border-dashed border-rose-300">
                       <p className="text-sm font-medium text-gray-600 mb-2">
                         Version History:
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {previous.map((ver) => (
-                          <div
-                            key={ver.id}
-                            className="flex flex-col justify-between h-full border border-slate-200 bg-white rounded-md p-4 shadow-sm"
-                          >
-                            <div className="flex gap-3 mb-3">
-                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                                <img
-                                  width={24}
-                                  src={
-                                    ImageConfig[
-                                      ver?.name?.split('.').pop()?.toLowerCase()
-                                    ] || ImageConfig['default']
+                        {previous.map((ver) => {
+                          const prevExt = ver.name
+                            ?.split('.')
+                            .pop()
+                            ?.toLowerCase();
+                          return (
+                            <CustomCard
+                              key={ver.id}
+                              className="flex flex-col justify-between"
+                            >
+                              <div className="flex gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                                  <img
+                                    width={24}
+                                    src={
+                                      ImageConfig[prevExt] ||
+                                      ImageConfig['default']
+                                    }
+                                    alt="icon"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-800 break-words">
+                                    {ver.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate max-w-full">
+                                    {ver.path}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2 justify-end mt-auto">
+                                <CustomButton
+                                  className="px-2"
+                                  variant="info"
+                                  size="xs"
+                                  click={() =>
+                                    handleViewFile(
+                                      ver.name,
+                                      ver.path,
+                                      ver.id,
+                                      prevExt,
+                                    )
                                   }
-                                  alt="icon"
+                                  title="View Document"
+                                  text={
+                                    <IconEye size={16} className="text-white" />
+                                  }
+                                />
+                                <CustomButton
+                                  className="px-2"
+                                  variant="secondary"
+                                  size="xs"
+                                  click={() =>
+                                    handleDownloadFile(ver.name, ver.path)
+                                  }
+                                  title="Download Document"
+                                  text={
+                                    <IconDownload
+                                      size={16}
+                                      className="text-white"
+                                    />
+                                  }
                                 />
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-gray-800 break-words">
-                                  {ver.name}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate max-w-full">
-                                  {ver.path}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-2 justify-end mt-auto">
-                              <CustomButton
-                                text="View"
-                                variant="info"
-                                size="xs"
-                                click={() =>
-                                  handleViewFile(
-                                    ver.name,
-                                    ver.path,
-                                    ver.id,
-                                    ver.name?.split('.').pop(),
-                                  )
-                                }
-                              />
-                              <CustomButton
-                                text="Download"
-                                variant="secondary"
-                                size="xs"
-                                click={() =>
-                                  handleDownloadFile(ver.name, ver.path)
-                                }
-                              />
-                            </div>
-                          </div>
-                        ))}
+                            </CustomCard>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-                </div>
+                </CustomCard>
               );
             })}
           </div>
