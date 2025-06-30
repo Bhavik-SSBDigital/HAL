@@ -757,9 +757,6 @@ const ViewProcess = () => {
 
           <div className="space-y-6">
             {process?.sededDocuments.map((docGroup, index) => {
-              const previous = docGroup.versions.filter(
-                (v) => v.id !== docGroup.latestDocumentId,
-              );
               const ext = docGroup?.documentWhichSuperseded?.name
                 ?.split('.')
                 .pop()
@@ -779,7 +776,6 @@ const ViewProcess = () => {
 
                   {/* Superseded Document */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-                    {/* Left: Document Info */}
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
                         <img
@@ -798,7 +794,6 @@ const ViewProcess = () => {
                       </div>
                     </div>
 
-                    {/* Right: Actions */}
                     <div className="flex gap-2">
                       <CustomButton
                         className="px-2"
@@ -828,14 +823,14 @@ const ViewProcess = () => {
                     </div>
                   </div>
 
-                  {/* Previous Versions */}
-                  {previous.length > 0 && (
+                  {/* All Versions (no filtering) */}
+                  {docGroup.versions.length > 0 && (
                     <div className="mt-4 pl-5 border-l-2 border-dashed border-rose-300">
                       <p className="text-sm font-medium text-gray-600 mb-2">
                         Version History:
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {previous.map((ver) => {
+                        {docGroup.versions.map((ver) => {
                           const prevExt = ver.name
                             ?.split('.')
                             .pop()
