@@ -532,7 +532,7 @@ const ViewProcess = () => {
           </div>
 
           <div className="space-y-6">
-            {process?.documentVersioning.map((docGroup, index) => {
+            {process.documentVersioning.map((docGroup, index) => {
               const activeDoc = docGroup.versions.find(
                 (v) => v.id === docGroup.latestDocumentId,
               );
@@ -546,7 +546,8 @@ const ViewProcess = () => {
                   className="border border-green-200 bg-green-50 rounded-md shadow-sm p-4"
                 >
                   {/* Active Document */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
+                    {/* Left: Info */}
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-green-700 text-xl">
                         <img
@@ -571,6 +572,8 @@ const ViewProcess = () => {
                         </p>
                       </div>
                     </div>
+
+                    {/* Right: Buttons */}
                     <div className="flex gap-2">
                       <CustomButton
                         text="View"
@@ -677,9 +680,6 @@ const ViewProcess = () => {
 
           <div className="space-y-6">
             {process?.sededDocuments.map((docGroup, index) => {
-              const latest = docGroup.versions.find(
-                (v) => v.id === docGroup.latestDocumentId,
-              );
               const previous = docGroup.versions.filter(
                 (v) => v.id !== docGroup.latestDocumentId,
               );
@@ -690,84 +690,63 @@ const ViewProcess = () => {
                   className="border border-rose-200 bg-rose-50 rounded-md shadow-sm p-4"
                 >
                   {/* Superseded Document */}
-                  <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-600">
-                      Document Superseded:
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
-                        <img
-                          width={30}
-                          src={
-                            ImageConfig[
-                              docGroup?.documentWhichSuperseded?.name
-                                ?.split('.')
-                                .pop()
-                                ?.toLowerCase()
-                            ] || ImageConfig['default']
-                          }
-                          alt="icon"
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">
-                          {docGroup.documentWhichSuperseded.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {docGroup.documentWhichSuperseded.path}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Latest Replacement */}
-                  {latest && (
-                    <div className="flex items-center justify-between bg-white border border-rose-300 rounded-md p-3 mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
+                    {/* Left: Superseded Document Info */}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-600">
+                        Document Superseded:
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-rose-700 text-xl">
                           <img
-                            width={24}
+                            width={30}
                             src={
                               ImageConfig[
-                                latest.name?.split('.').pop()?.toLowerCase()
+                                docGroup?.documentWhichSuperseded?.name
+                                  ?.split('.')
+                                  .pop()
+                                  ?.toLowerCase()
                               ] || ImageConfig['default']
                             }
                             alt="icon"
                           />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                            {latest.name}
-                            <span className="text-xs bg-rose-100 text-rose-800 px-2 py-1 rounded-full">
-                              Replaced
-                            </span>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {docGroup.documentWhichSuperseded.name}
                           </p>
-                          <p className="text-xs text-gray-500">{latest.path}</p>
+                          <p className="text-xs text-gray-500">
+                            {docGroup.documentWhichSuperseded.path}
+                          </p>
                         </div>
                       </div>
-
-                      <div className="flex gap-2">
-                        <CustomButton
-                          text="View"
-                          click={() =>
-                            handleViewFile(
-                              latest.name,
-                              latest.path,
-                              latest.id,
-                              latest.name?.split('.').pop(),
-                            )
-                          }
-                        />
-                        <CustomButton
-                          variant="secondary"
-                          text="Download"
-                          click={() =>
-                            handleDownloadFile(latest.name, latest.path)
-                          }
-                        />
-                      </div>
                     </div>
-                  )}
+
+                    {/* Right: View / Download Buttons */}
+                    <div className="flex gap-2">
+                      <CustomButton
+                        text="View"
+                        click={() =>
+                          handleViewFile(
+                            docGroup?.documentWhichSuperseded?.name,
+                            docGroup?.documentWhichSuperseded?.path,
+                            docGroup?.documentWhichSuperseded?.id,
+                            docGroup?.documentWhichSuperseded?.type,
+                          )
+                        }
+                      />
+                      <CustomButton
+                        variant="secondary"
+                        text="Download"
+                        click={() =>
+                          handleDownloadFile(
+                            docGroup?.documentWhichSuperseded?.name,
+                            docGroup?.documentWhichSuperseded?.path,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
 
                   {/* All Versions */}
                   {previous.length > 0 && (
