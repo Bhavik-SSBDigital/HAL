@@ -41,6 +41,7 @@ import TopLoader from '../../common/Loader/TopLoader';
 import moment from 'moment';
 import { useForm } from 'react-hook-form';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
+import { Tooltip } from '@mui/material';
 
 export default function FileSysten() {
   // States
@@ -598,9 +599,11 @@ export default function FileSysten() {
                       className="h-12 p-2"
                       alt={item.type}
                     />
-                    <h2 className="cursor-text font-semibold truncate w-full text-center">
-                      {item.name}
-                    </h2>
+                    <Tooltip title={item.name}>
+                      <h2 className="cursor-text font-semibold truncate w-full text-center">
+                        {item.name}
+                      </h2>
+                    </Tooltip>
                   </CustomCard>
                 </div>
               ))
