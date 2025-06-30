@@ -3262,8 +3262,11 @@ export const reopen_process = async (req, res) => {
           });
 
           const oldDocPath = path.join(__dirname, STORAGE_PATH, oldDoc.path);
-          console.log("old path", oldDocPath);
-          await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
+
+          const ext = path.extname(inputPath).toLowerCase();
+          if (ext === ".pdf") {
+            await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
+          }
         }
       }
 
