@@ -341,7 +341,7 @@ const ViewProcess = () => {
             text={'Re-Open'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('re-open')}
-            disabled={actionsLoading}
+            disabled={actionsLoading || !isCompleted}
           />
           <CustomButton
             variant={'primary'}
@@ -1003,38 +1003,38 @@ const ViewProcess = () => {
         />
       )}
 
-      <CustomModal
-        isOpen={!!documentModalOpen}
-        onClose={() => setDocumentModalOpen(false)}
-        className={'max-h-[99vh] overflow-auto'}
-      >
-        {documentModalOpen ? (
+      {documentModalOpen ? (
+        <CustomModal
+          isOpen={!!documentModalOpen}
+          onClose={() => setDocumentModalOpen(false)}
+          className={'max-h-[99vh] overflow-auto'}
+        >
           <div className="space-y-8 text-sm text-gray-800">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">
               Document Details
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-              <DetailItem label="Name" value={documentModalOpen.name} />
+              <DetailItem label="Name" value={documentModalOpen?.name} />
               <DetailItem
                 label="Type"
-                value={documentModalOpen.type.toUpperCase()}
+                value={documentModalOpen?.type?.toUpperCase()}
               />
               <DetailItem
                 label="Access"
-                value={documentModalOpen.access.flat().join(', ')}
+                value={documentModalOpen?.access?.flat()?.join(', ')}
               />
               <DetailItem
                 label="Approval Count"
-                value={documentModalOpen.approvalCount}
+                value={documentModalOpen?.approvalCount}
               />
             </div>
             <div className="space-y-2">
               <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
                 Signed By
               </h3>
-              {documentModalOpen.signedBy.length > 0 ? (
+              {documentModalOpen?.signedBy.length > 0 ? (
                 <ul className="list-disc list-inside space-y-2 pl-2 text-gray-700">
-                  {documentModalOpen.signedBy.map((entry, idx) => (
+                  {documentModalOpen?.signedBy.map((entry, idx) => (
                     <li key={idx}>
                       <div>
                         <span className="font-medium">{entry.signedBy}</span>
@@ -1058,20 +1058,20 @@ const ViewProcess = () => {
               <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
                 Rejection Details
               </h3>
-              {documentModalOpen.rejectionDetails ? (
+              {documentModalOpen?.rejectionDetails ? (
                 <div className="space-y-1 pl-1">
                   <p>
                     <span className="font-semibold">Rejected By:</span>{' '}
-                    {documentModalOpen.rejectionDetails.rejectedBy}
+                    {documentModalOpen?.rejectionDetails.rejectedBy}
                   </p>
                   <p>
                     <span className="font-semibold">Reason:</span>{' '}
-                    {documentModalOpen.rejectionDetails.rejectionReason}
+                    {documentModalOpen?.rejectionDetails.rejectionReason}
                   </p>
                   <p>
                     <span className="font-semibold">Rejected At:</span>{' '}
                     {new Date(
-                      documentModalOpen.rejectionDetails.rejectedAt,
+                      documentModalOpen?.rejectionDetails.rejectedAt,
                     ).toLocaleString()}
                   </p>
                 </div>
@@ -1080,8 +1080,8 @@ const ViewProcess = () => {
               )}
             </div>
           </div>
-        ) : null}
-      </CustomModal>
+        </CustomModal>
+      ) : null}
 
       <CustomModal
         isOpen={openModal == 'query'}
@@ -1137,6 +1137,7 @@ const ViewProcess = () => {
           documents={process.documents}
         />
       </CustomModal>
+
       <CustomModal
         isOpen={openModal == 're-open'}
         onClose={() => {

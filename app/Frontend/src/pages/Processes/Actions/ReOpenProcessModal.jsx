@@ -4,6 +4,7 @@ import { uploadDocumentInProcess, ReOpenProcess } from '../../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomButton from '../../../CustomComponents/CustomButton';
 import { IconSquarePlus, IconSquareX } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function ReOpenProcessModal({
   processId,
@@ -36,6 +37,7 @@ export default function ReOpenProcessModal({
     control,
     name: 'supersededDocuments',
   });
+  const navigate = useNavigate();
 
   const handleUpload = async (file, index) => {
     if (!file) return;
@@ -76,7 +78,8 @@ export default function ReOpenProcessModal({
       });
 
       toast.success(res?.data?.message || 'Process reopened');
-      onClose?.();
+      navigate('/processes/completed');
+      close();
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
     }
