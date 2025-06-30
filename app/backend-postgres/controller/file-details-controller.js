@@ -116,8 +116,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       },
     });
 
-    console.log("user doc accesses", userDocumentAccesses);
-
     // Check if user is admin
     const isAdmin = user.username === "admin" || user.isAdmin;
 
@@ -222,7 +220,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         })
       );
 
-      console.log(foundDocument.children);
+      console.log(foundDocument.children.map((item) => item.id));
     } else {
       // Regular user - filter based on permissions
       children = await Promise.all(

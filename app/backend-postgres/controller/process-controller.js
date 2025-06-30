@@ -56,18 +56,16 @@ async function checkDocumentAccess(userId, documentId, requiredAccess) {
 
 export async function generateDocumentNameController(req, res) {
   try {
-    const { workflowId, processId, replacedDocName } = req.body;
+    const { workflowId, replacedDocId, extension } = req.body;
 
-    if (!workflowId || !processId) {
-      return res
-        .status(400)
-        .json({ error: "workflowId and processId are required" });
+    if (!workflowId) {
+      return res.status(400).json({ error: "workflowId is required" });
     }
 
     const documentName = await generateUniqueDocumentName({
       workflowId,
-      processId,
-      replacedDocName,
+      replacedDocId,
+      extension,
     });
 
     return res.json({ documentName });
@@ -79,10 +77,11 @@ export async function generateDocumentNameController(req, res) {
 
 export async function generateUniqueDocumentName({
   workflowId,
-  processId,
-  replacedDocName,
+  replacedDocId,
+  extension,
 }) {
   try {
+    console.log("workflow id in the desired function", workflowId);
     // Fetch workflow details
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
@@ -102,43 +101,41 @@ export async function generateUniqueDocumentName({
     // Base name for documents
     const baseDocName = `${workflowName}_w${workflowVersion}_${dateStr}`;
 
-    if (replacedDocName) {
+    if (replacedDocId) {
       // Handle document replacement
       const existingDoc = await prisma.document.findFirst({
-        where: { name: replacedDocName },
+        where: { id: parseInt(replacedDocId) },
       });
 
       if (!existingDoc) {
-        throw new Error(`Document with name ${replacedDocName} not found`);
+        throw new Error(`Document with id ${replacedDocId} not found`);
       }
 
       // Extract version
-      const parts = replacedDocName.split("_");
+      const parts = existingDoc.name.split("_");
       const versionPart = parts[parts.length - 1];
       const version = parseInt(versionPart.replace("v", ""), 10) || 1;
       const newVersion = version + 1;
 
       // Construct new name by replacing version
-      const newDocName = `${parts.slice(0, -1).join("_")}_v${newVersion}`;
+      const newDocName = `${parts
+        .slice(0, -1)
+        .join("_")}_v${newVersion}.${extension}`;
 
-      // Verify uniqueness
-      const existing = await prisma.document.findFirst({
-        where: { name: newDocName },
-      });
+      // // Verify uniqueness
+      // const existing = await prisma.document.findFirst({
+      //   where: { name: newDocName },
+      // });
 
-      if (existing) {
-        throw new Error(`Document name ${newDocName} already exists`);
-      }
+      // if (existing) {
+      //   throw new Error(`Document name ${newDocName} already exists`);
+      // }
 
       return newDocName;
     } else {
       // Handle new document
       const existingDocs = await prisma.document.findMany({
-        where: {
-          name: {
-            startsWith: baseDocName,
-          },
-        },
+        where: {},
         select: { name: true },
       });
 
@@ -167,7 +164,7 @@ export async function generateUniqueDocumentName({
         throw new Error(`Document name ${newDocName} already exists`);
       }
 
-      return newDocName;
+      return `${newDocName}.${extension}`;
     }
   } catch (error) {
     console.error("Error generating unique document name:", error);
@@ -342,6 +339,7 @@ export const initiate_process = async (req, res, next) => {
           status: "IN_PROGRESS",
           currentStepId: null,
           reopenCycle: 0,
+          storagePath: `../${workflowName}/${processName}`,
         },
       });
 
@@ -1494,6 +1492,7 @@ export const view_process = async (req, res) => {
 
     return res.status(200).json({
       process: {
+        processStoragePath: process.storagePath,
         processName: process.name,
         initiatorName: process.initiator.username,
         status: process.status,

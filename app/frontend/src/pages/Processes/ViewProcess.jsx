@@ -1139,6 +1139,7 @@ const ViewProcess = () => {
         <Query
           workflowId={process?.workflow?.id}
           processId={process.processId}
+          storagePath={process.processStoragePath}
           steps={process?.steps}
           close={() => {
             setOpenModal('');
@@ -1159,6 +1160,7 @@ const ViewProcess = () => {
         <QuerySolve
           workflowId={process?.workflow?.id}
           processId={process.processId}
+          storagePath={process.processStoragePath}
           close={() => {
             setExistingQuery(null);
           }}
@@ -1195,6 +1197,7 @@ const ViewProcess = () => {
         <ReOpenProcessModal
           workflowId={process?.workflow?.id}
           processId={process.processId}
+          storagePath={process.processStoragePath}
           close={() => {
             setOpenModal('');
           }}

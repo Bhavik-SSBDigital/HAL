@@ -813,7 +813,6 @@ const storeDocumentDetailsToDatabase = async (
 
 export const createUserPermissions = async (documentId, username, writable) => {
   try {
-    console.log("reached create_user permission funciton");
     const updatedUser = writable
       ? await User.findOneAndUpdate(
           { username: username },
@@ -958,7 +957,6 @@ export const file_delete = async (req, res) => {
 
 export const file_though_url = async (req, res) => {
   try {
-    console.log("file through url called");
     const filePath = req.params.filePath;
     if (!filePath) {
       return res.status(400).json({ message: "File path is missing" });
@@ -973,8 +971,6 @@ export const file_though_url = async (req, res) => {
       process.env.STORAGE_PATH,
       filePath
     );
-    console.log("Resolved absolute file path:", absoluteFilePath);
-    console.log("is file path absolute", path.isAbsolute(absoluteFilePath));
 
     // Check if the file exists
     try {

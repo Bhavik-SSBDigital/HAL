@@ -17,6 +17,7 @@ export default function Query({
   close,
   stepInstanceId,
   documents,
+  storagePath
 }) {
   const {
     register,
@@ -60,9 +61,11 @@ export default function Query({
 
     try {
       // Step 1: Generate Document Name
+      
       const generatedName = await GenerateDocumentName(
         workflowId,
         replacedDocId,
+        file.name.split('.').pop()
       );
       if (!generatedName) {
         toast.error('Failed to generate document name');
@@ -73,6 +76,8 @@ export default function Query({
       const response = await uploadDocumentInProcess(
         [file],
         generatedName?.data?.documentName,
+        [],
+        storagePath
       );
       if (!response || !response.length || !response[0]) {
         throw new Error('Document upload failed or returned no ID');

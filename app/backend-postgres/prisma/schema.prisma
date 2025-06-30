@@ -292,6 +292,7 @@ model ProcessInstance {
   recommendations   Recommendation[]
   departmentStepProgresses DepartmentStepProgress[] @relation()
   documentHistory  DocumentHistory[] @relation("ProcessDocumentHistory")
+  storagePath     String    @default("")
 }
 
 model AssignmentProgress {

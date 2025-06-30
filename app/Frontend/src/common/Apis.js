@@ -110,8 +110,15 @@ export const deleteWorkflow = async (id) => {
 };
 
 // documents apis
-export const uploadDocumentInProcess = async (fileList, name, tags) => {
-  const res = await upload(fileList, '../check', name, true, tags);
+export const uploadDocumentInProcess = async (
+  fileList,
+  name,
+  tags,
+  storagePath,
+) => {
+  const res = storagePath
+    ? upload(fileList, storagePath, name, true, tags)
+    : await upload(fileList, '../check', name, true, tags);
   return res;
 };
 export const ViewDocument = async (name, path, ext, fileId, editing) => {
@@ -217,10 +224,12 @@ export const DeleteFile = async (documentId) => {
 export const GenerateDocumentName = async (
   workflowId,
   replacedDocId,
+  extension,
 ) => {
   return apiClient.post('/generateDocumentName', {
     workflowId,
     replacedDocId,
+    extension,
   });
 };
 

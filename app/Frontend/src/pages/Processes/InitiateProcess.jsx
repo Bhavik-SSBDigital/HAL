@@ -86,7 +86,8 @@ export default function InitiateProcess() {
 
     try {
       // Generate file name from backend
-      const generatedName = await GenerateDocumentName(workflowId);
+
+      const generatedName = await GenerateDocumentName(workflowId, null ,selectedFile.name.split('.').pop());
 
       // Upload file using generated name and tags
       const res = await uploadDocumentInProcess(

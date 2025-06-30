@@ -19,6 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { Document, Packer, Paragraph } from "docx";
 import officegen from "officegen";
+import { generateUniqueDocumentName } from "./process-controller.js";
 
 const STORAGE_PATH = process.env.STORAGE_PATH;
 
@@ -1249,7 +1250,7 @@ export const use_template_document = async (req, res) => {
 
     const document = await prisma.document.findUnique({
       where: { id: templateId },
-      select: { path: true },
+      select: { path: true, name: true },
     });
 
     const workflow = await prisma.workflow.findUnique({
@@ -1271,7 +1272,13 @@ export const use_template_document = async (req, res) => {
 
     const sourcePath = `./${document.path}`;
     const destinationPath = `../${workflow.name}/temp`;
-    const name = sourcePath.split("/").pop();
+    console.log("workflow id", workflowId);
+    console.log("doc path", document);
+    const name = await generateUniqueDocumentName({
+      workflowId: workflowId,
+      replacedDocId: null,
+      extension: document.name.split(".").pop(),
+    });
 
     const response = await new Promise((resolve, reject) => {
       file_copy(

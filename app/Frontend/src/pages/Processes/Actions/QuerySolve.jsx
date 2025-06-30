@@ -17,6 +17,7 @@ export default function QuerySolve({
   stepInstanceId,
   queryRaiserStepInstanceId,
   existingQuery,
+  storagePath
 }) {
   console.log('querySolve');
   const {
@@ -50,20 +51,25 @@ export default function QuerySolve({
   } = useFieldArray({ control, name: 'documentChanges' });
 
   //   handlers
-  const handleDocumentUpload = async (file, index) => {
+  const handleDocumentUpload = async (file, index, replacedDocId) => {
     if (!file) return;
 
+    console.log("extension", file.name.split('.').pop())
+    console.log("storage path from query solve", storagePath)
     try {
       // 🔹 Step 1: Generate document name from backend
       const generatedName = await GenerateDocumentName(
         workflowId,
         replacedDocId,
+        file.name.split('.').pop()
       );
 
       // 🔹 Step 2: Upload document with generated name
       const response = await uploadDocumentInProcess(
         [file],
         generatedName?.data?.documentName,
+        [],
+        storagePath
       );
 
       if (!response || !response.length || !response[0]) {

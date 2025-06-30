@@ -15,6 +15,7 @@ export default function ReOpenProcessModal({
   processId,
   documents = [],
   close,
+  storagePath
 }) {
   const {
     control,
@@ -52,12 +53,15 @@ export default function ReOpenProcessModal({
       const generatedName = await GenerateDocumentName(
         workflowId,
         replacedDocId,
+        file.name.split('.').pop()
       );
 
       // Upload the document (with or without name)
       const response = await uploadDocumentInProcess(
         [file],
         generatedName?.data?.documentName,
+        [],
+        storagePath
       );
 
       if (!response || !response.length || !response[0]) {
