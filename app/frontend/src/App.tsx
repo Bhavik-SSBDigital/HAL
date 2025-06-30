@@ -18,9 +18,7 @@ import FileSystem from './pages/FileSystem';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
 import ViewProcess from './pages/Processes/ViewProcess';
-import MonitorView from './pages/Monitor/View';
 import ProcessInitForm from './pages/Processes/InitiateProcess';
-import Monitor from './pages/Monitor/Monitor';
 import { useDispatch } from 'react-redux';
 import { onReload } from './Slices/PathSlice';
 import NotFoundPage from './pages/404/NotFoundPage';
@@ -135,24 +133,7 @@ function App() {
             </DefaultLayout>
           }
         />
-        <Route
-          path="/monitor"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Monitor Processes" />
-              <Monitor />
-            </DefaultLayout>
-          }
-        />
-        <Route
-          path="/monitor/view"
-          element={
-            <DefaultLayout>
-              <PageTitle title="View Process" />
-              <MonitorView />
-            </DefaultLayout>
-          }
-        />
+
         <Route
           path="/files"
           element={

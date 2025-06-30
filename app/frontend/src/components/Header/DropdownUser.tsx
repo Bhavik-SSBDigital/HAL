@@ -5,19 +5,13 @@ import { backButtonPath, setPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
 import sessionData from '../../Store';
 import axios from 'axios';
-import { useQueryClient } from 'react-query';
 import { Stack } from '@mui/material';
 
 const DropdownUser = () => {
-  const queryClient = useQueryClient();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const {
-    profileImage,
-    setProfileImage,
-    setAlerts,
-    setNotifications,
-  } = sessionData();
+  const { profileImage, setProfileImage, setAlerts, setNotifications } =
+    sessionData();
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
 
@@ -51,7 +45,6 @@ const DropdownUser = () => {
   const dispatch = useDispatch();
   const handleLogout = () => {
     resetStore();
-    queryClient.clear();
     setNotifications([]);
     setAlerts([]);
     setProfileImage('');
