@@ -144,6 +144,7 @@ export default function FileSysten() {
 
   // Handle folder click
   const handleFolderClick = (item) => {
+    setSearchQuery('');
     setSelectedItem(item);
     if (item.type === 'folder') {
       let newPath = item.path;

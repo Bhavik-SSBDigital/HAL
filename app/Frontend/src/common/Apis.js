@@ -232,6 +232,9 @@ export const GenerateDocumentName = async (
     extension,
   });
 };
+export const GetDocumentsVersionWise = async (version, processId) => {
+  return apiClient.get(`/processDocuments/${processId}/${version}`);
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {

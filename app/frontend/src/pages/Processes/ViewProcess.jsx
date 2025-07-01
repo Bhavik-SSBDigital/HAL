@@ -39,6 +39,7 @@ import AskRecommend from './Actions/AskRecommend';
 import axios from 'axios';
 import { ImageConfig } from '../../config/ImageConfig';
 import ReOpenProcessModal from './Actions/ReOpenProcessModal';
+import DocumentsVersionWise from './DocumentsVersionWise';
 
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -591,6 +592,12 @@ const ViewProcess = () => {
             </span>
             <div className="flex-grow border-t border-green-600"></div>
           </div>
+          <CustomButton
+            type={'button'}
+            className={'mb-1 ml-auto block'}
+            text={'Version Wise'}
+            click={() => setOpenModal('version-wise')}
+          />
 
           <div className="space-y-6">
             {process.documentVersioning.map((docGroup, index) => {
@@ -1149,7 +1156,18 @@ const ViewProcess = () => {
           documents={process.documents}
         />
       </CustomModal>
-
+      <CustomModal
+        isOpen={openModal == 'version-wise'}
+        onClose={() => {
+          setOpenModal('');
+        }}
+        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+      >
+        <DocumentsVersionWise
+          processId={process.processId}
+          close={() => setOpenModal('')}
+        />
+      </CustomModal>
       <CustomModal
         isOpen={existingQuery}
         onClose={() => {
@@ -1169,7 +1187,6 @@ const ViewProcess = () => {
           existingQuery={existingQuery}
         />
       </CustomModal>
-
       <CustomModal
         isOpen={openModal == 'recommend'}
         onClose={() => {
@@ -1186,7 +1203,6 @@ const ViewProcess = () => {
           documents={process.documents}
         />
       </CustomModal>
-
       <CustomModal
         isOpen={openModal == 're-open'}
         onClose={() => {
@@ -1204,7 +1220,6 @@ const ViewProcess = () => {
           documents={process.documents}
         />
       </CustomModal>
-
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"
@@ -1213,7 +1228,6 @@ const ViewProcess = () => {
         onSubmit={(remarks) => handleSignDocument(remarks)}
         showPassField={true}
       />
-
       <RemarksModal
         open={remarksModalOpen.open === 'reject'}
         title="Reject Remarks"

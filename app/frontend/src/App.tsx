@@ -7,7 +7,7 @@ import BranchList from './pages/Branches/List';
 import UserList from './pages/Users/List';
 import RolesList from './pages/Roles/List';
 import WorkList from './pages/Processes/List';
-import PublishedList from './pages/Published/List';
+// import PublishedList from './pages/Published/List';
 import DepartmentList from './pages/Department/List';
 import NewBranch from './pages/Branches/NewBranch';
 import NewUser from './pages/Users/NewUser';
@@ -33,11 +33,11 @@ import MetaData from './pages/MetaData';
 
 // editors
 // import DraftEditor from './pages/view/Editor/DraftEditor';
-import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
+// import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
 // import SlateEditor from './pages/view/Editor/SlateEditor';
-import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
+// import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
 // import DraftEditor from './pages/view/Editor/DraftEditor';
-import SlateEditor from './pages/view/Editor/SlateEditor';
+// import SlateEditor from './pages/view/Editor/SlateEditor';
 import Workflows from './pages/workflows';
 import RecycleBin from './pages/RecycleBin';
 import Recommendations from './pages/Recommendations';
@@ -363,7 +363,7 @@ function App() {
           }
         />
 
-        <Route
+        {/* <Route
           path="/processes/published"
           element={
             <DefaultLayout>
@@ -371,7 +371,7 @@ function App() {
               <PublishedList />
             </DefaultLayout>
           }
-        />
+        /> */}
         <Route
           path="/auth/signin"
           element={
@@ -447,7 +447,7 @@ function App() {
         /> */}
 
         {/* Route for React Quill Editor */}
-        <Route
+        {/* <Route
           path="/react-quill"
           element={
             <DefaultLayout>
@@ -455,9 +455,9 @@ function App() {
               <ReactQuillEditor />
             </DefaultLayout>
           }
-        />
+        /> */}
         {/* Route for Slate Editor */}
-        <Route
+        {/* <Route
           path="/slate"
           element={
             <DefaultLayout>
@@ -465,9 +465,9 @@ function App() {
               <SlateEditor />
             </DefaultLayout>
           }
-        />
+        /> */}
         {/* Route for TinyMCE Editor */}
-        <Route
+        {/* <Route
           path="/tinymce"
           element={
             <DefaultLayout>
@@ -475,7 +475,7 @@ function App() {
               <TinyMCEEditor />
             </DefaultLayout>
           }
-        />
+        /> */}
 
         <Route
           path="/workflows"
