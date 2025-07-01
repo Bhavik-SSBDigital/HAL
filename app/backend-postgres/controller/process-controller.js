@@ -4113,9 +4113,9 @@ export const get_process_documents = async (req, res) => {
         doc.document.path.lastIndexOf("/")
       );
       return {
-        documentName: doc.document.name,
-        documentPath: pathWithoutFileName,
-        documentId: doc.documentId,
+        name: doc.document.name,
+        path: pathWithoutFileName,
+        id: doc.documentId,
         isNew: false,
       };
     });
