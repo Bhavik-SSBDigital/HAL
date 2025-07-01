@@ -18,6 +18,7 @@ import {
   IconDeviceIpadHorizontalQuestion,
   IconHistory,
   IconArchive,
+  IconSearch,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -101,6 +102,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       label: 'File System',
       icon: <IconFolderOpen size={26} />,
       active: pathname == '/files',
+    },
+    {
+      path: '/search',
+      label: 'Deep Search',
+      icon: <IconSearch size={26} />,
+      active: pathname == '/search',
     },
     {
       path: '/bin',

@@ -582,9 +582,8 @@ const ViewProcess = () => {
         </>
       )}
 
-      {process?.documentVersioning?.length > 0 && (
+      {/* {process?.documentVersioning?.length > 0 && (
         <div className="mt-12">
-          {/* Section Title */}
           <div className="flex items-center mb-4">
             <div className="flex-grow border-t border-green-600"></div>
             <span className="mx-4 text-sm text-green-700 uppercase tracking-wide font-semibold">
@@ -613,9 +612,7 @@ const ViewProcess = () => {
                   key={index}
                   className="border border-green-200 !bg-green-50 rounded-md shadow-sm p-4"
                 >
-                  {/* Active Document */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
-                    {/* Left: Info */}
                     <div className="flex items-center gap-3 w-full">
                       <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center text-green-700 text-xl shrink-0">
                         <img
@@ -642,7 +639,6 @@ const ViewProcess = () => {
                     </div>
                   </div>
 
-                  {/* Older Versions */}
                   {olderVersions.length > 0 && (
                     <div className="mt-4 pl-5 border-l-2 border-dashed border-green-300">
                       <p className="text-sm font-medium text-gray-600 mb-2">
@@ -654,7 +650,6 @@ const ViewProcess = () => {
                             key={ver.id}
                             className="flex flex-col justify-between"
                           >
-                            {/* File Info */}
                             <div className="flex gap-3 mb-3">
                               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
                                 <img
@@ -677,8 +672,6 @@ const ViewProcess = () => {
                               </div>
                             </div>
 
-                            {/* Actions */}
-                            {/* Actions */}
                             <div className="flex gap-2 justify-end mt-auto">
                               <CustomButton
                                 className="px-2"
@@ -723,7 +716,7 @@ const ViewProcess = () => {
             })}
           </div>
         </div>
-      )}
+      )} */}
 
       {process?.sededDocuments?.length > 0 && (
         <div className="mt-12">
