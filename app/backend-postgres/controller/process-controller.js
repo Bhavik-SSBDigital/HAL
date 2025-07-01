@@ -1490,6 +1490,21 @@ export const view_process = async (req, res) => {
       version: process.workflow.version,
     };
 
+    const processDocs = await prisma.processDocument.findMany({
+      where: {
+        processId,
+      },
+      select: {
+        reopenCycle: true,
+      },
+      distinct: ["reopenCycle"],
+    });
+
+    // Map reopenCycle to version numbers (reopenCycle + 1) and ensure uniqueness
+    const versions = [
+      ...new Set(processDocs.map((doc) => doc.reopenCycle + 1)),
+    ].sort((a, b) => a - b);
+
     return res.status(200).json({
       process: {
         processStoragePath: process.storagePath,
@@ -1499,6 +1514,7 @@ export const view_process = async (req, res) => {
         createdAt: process.createdAt,
         processId: process.id,
         reopenCycle: process.reopenCycle,
+        versions: versions,
         processStepInstanceId:
           process.stepInstances.filter(
             (item) => item.status === "IN_PROGRESS"
@@ -4055,6 +4071,86 @@ export const get_completed_initiator_processes = async (req, res) => {
         code: "PROCESS_RETRIEVAL_ERROR",
       },
     });
+  } finally {
+    await prisma.$disconnect();
+  }
+};
+
+export const get_process_documents = async (req, res) => {
+  try {
+    const { processId, versionNumber } = req.params;
+    const versionNum = parseInt(versionNumber);
+
+    if (!processId || isNaN(versionNum) || versionNum < 1) {
+      return res
+        .status(400)
+        .json({ error: "Invalid processId or versionNumber" });
+    }
+
+    // Fetch ProcessDocuments for the given processId and reopenCycle
+    let processDocs = await prisma.processDocument.findMany({
+      where: {
+        processId,
+        reopenCycle: versionNum - 1,
+      },
+      include: {
+        document: true,
+        replacedDocument: true,
+      },
+    });
+
+    // Filter out replaced documents
+    const filteredDocs = processDocs.filter((doc) => {
+      const isReplaced = processDocs.some(
+        (otherDoc) => otherDoc.replacedDocumentId === doc.documentId
+      );
+      return !isReplaced;
+    });
+
+    let result = filteredDocs.map((doc) => ({
+      documentName: doc.document.name,
+      documentPath: doc.document.path,
+      documentId: doc.documentId,
+      isNew: false,
+    }));
+
+    // If versionNumber > 1, compare with previous version
+    if (versionNum > 1) {
+      const prevVersionDocs = await prisma.processDocument.findMany({
+        where: {
+          processId,
+          reopenCycle: versionNum - 2,
+        },
+        include: {
+          document: true,
+          replacedDocument: true,
+        },
+      });
+
+      // Filter out replaced documents in previous version
+      const filteredPrevDocs = prevVersionDocs.filter((doc) => {
+        const isReplaced = prevVersionDocs.some(
+          (otherDoc) => otherDoc.replacedDocumentId === doc.documentId
+        );
+        return !isReplaced;
+      });
+
+      // Mark documents as new if they don't exist in previous version
+      result = result.map((doc) => {
+        const existsInPrev = filteredPrevDocs.some(
+          (prevDoc) => prevDoc.documentId === doc.documentId
+        );
+        return {
+          ...doc,
+          isNew: !existsInPrev,
+        };
+      });
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching process documents:", error);
+    return res.status(500).json({ error: "Internal server error" });
   } finally {
     await prisma.$disconnect();
   }

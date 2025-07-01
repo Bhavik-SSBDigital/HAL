@@ -134,6 +134,7 @@ import {
   get_completed_initiator_processes,
   reopen_process,
   generateDocumentNameController,
+  get_process_documents,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
 
@@ -331,6 +332,11 @@ router.post("/useTemplateDocument", use_template_document);
 router.get("/getCompletedProcesses", get_completed_initiator_processes);
 
 router.post("/generateDocumentName", generateDocumentNameController);
+
+router.get(
+  "/processDocuments/:processId/:versionNumber",
+  get_process_documents
+);
 
 router.post("/reopenProcess", reopen_process);
 
