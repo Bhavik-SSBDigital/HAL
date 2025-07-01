@@ -4107,12 +4107,18 @@ export const get_process_documents = async (req, res) => {
       return !isReplaced;
     });
 
-    let result = filteredDocs.map((doc) => ({
-      documentName: doc.document.name,
-      documentPath: doc.document.path,
-      documentId: doc.documentId,
-      isNew: false,
-    }));
+    let result = filteredDocs.map((doc) => {
+      const pathWithoutFileName = doc.document.path.substring(
+        0,
+        doc.document.path.lastIndexOf("/")
+      );
+      return {
+        documentName: doc.document.name,
+        documentPath: pathWithoutFileName,
+        documentId: doc.documentId,
+        isNew: false,
+      };
+    });
 
     // If versionNumber > 1, compare with previous version
     if (versionNum > 1) {
