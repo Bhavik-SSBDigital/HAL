@@ -822,7 +822,6 @@ export const view_process = async (req, res) => {
                 name: true,
                 type: true,
                 path: true,
-                tags: true,
               },
             },
             signatures: {
@@ -997,18 +996,15 @@ export const view_process = async (req, res) => {
 
     const processDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
-      select: {
-        documentId: true,
+      include: {
         document: {
           select: {
             id: true,
             name: true,
             type: true,
             path: true,
-            tags: true,
           },
         },
-        replacedDocumentId: true,
         replacedDocument: {
           select: {
             id: true,
@@ -1016,15 +1012,10 @@ export const view_process = async (req, res) => {
             path: true,
           },
         },
-        isReplacement: true,
-        superseding: true,
-        reopenCycle: true,
-        tags: true,
-        partNumber: true,
-        description: true,
-        reasonOfSupersed: true,
       },
     });
+
+    console.log("process documents", processDocuments);
 
     // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
@@ -1053,21 +1044,19 @@ export const view_process = async (req, res) => {
     }
 
     // Build documentVersioning
+
     const documentVersioning = [];
     const allProcessDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
-      select: {
-        documentId: true,
+      include: {
         document: {
           select: {
             id: true,
             name: true,
             type: true,
             path: true,
-            tags: true,
           },
         },
-        replacedDocumentId: true,
         replacedDocument: {
           select: {
             id: true,
@@ -1075,13 +1064,6 @@ export const view_process = async (req, res) => {
             path: true,
           },
         },
-        isReplacement: true,
-        superseding: true,
-        reopenCycle: true,
-        tags: true,
-        partNumber: true,
-        description: true,
-        reasonOfSupersed: true,
       },
     });
 
@@ -1115,15 +1097,14 @@ export const view_process = async (req, res) => {
           name: processDoc.document.name,
           path: processDoc.document.path.split("/").slice(0, -1).join("/"),
           type: processDoc.document.type,
-          tags: processDoc.document.tags,
+          tags: processDoc.tags,
+          reasonOfSupersed: processDoc.reasonOfSupersed,
+          description: processDoc.description,
+          partNumber: processDoc.partNumber,
           active: processDoc.document.id === latestDocument?.document?.id,
           isReplacement: processDoc.isReplacement,
           superseding: processDoc.superseding,
           reopenCycle: processDoc.reopenCycle,
-          processDocumentTags: processDoc.tags,
-          partNumber: processDoc.partNumber,
-          description: processDoc.description,
-          reasonOfSupersed: processDoc.reasonOfSupersed,
         });
 
         // Move to the document this one replaced
@@ -1138,7 +1119,7 @@ export const view_process = async (req, res) => {
       }
     }
 
-    // Handle any documents not included in chains
+    // Handle any documents not included in chains (shouldn't happen with proper data)
     const includedDocIds = new Set(
       documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
     );
@@ -1156,14 +1137,13 @@ export const view_process = async (req, res) => {
             path: doc.document.path.split("/").slice(0, -1).join("/"),
             type: doc.document.type,
             tags: doc.document.tags,
+            reasonOfSupersed: doc.document.reasonOfSupersed,
+            description: doc.document.description,
+            partNumber: doc.document.partNumber,
             active: doc.document.id === latestDocument?.document?.id,
             isReplacement: doc.isReplacement,
             superseding: doc.superseding,
             reopenCycle: doc.reopenCycle,
-            processDocumentTags: doc.tags,
-            partNumber: doc.partNumber,
-            description: doc.description,
-            reasonOfSupersed: doc.reasonOfSupersed,
           },
         ],
       });
@@ -1171,9 +1151,9 @@ export const view_process = async (req, res) => {
 
     // Build sededDocuments
     const sededDocuments = [];
-    if (allProcessDocuments.length > 0) {
+    if (processDocuments.length > 0) {
       // Sort all documents by ID to get chronological order
-      const allDocsSorted = [...allProcessDocuments].sort(
+      const allDocsSorted = [...processDocuments].sort(
         (a, b) => a.document.id - b.document.id
       );
 
@@ -1209,16 +1189,16 @@ export const view_process = async (req, res) => {
                   .join("/"),
                 type: lastDocBeforeCycleChange.document.type,
                 tags: lastDocBeforeCycleChange.document.tags,
+                reasonOfSupersed:
+                  lastDocBeforeCycleChange.document.reasonOfSupersed,
+                description: lastDocBeforeCycleChange.document.description,
+                partNumber: lastDocBeforeCycleChange.document.partNumber,
                 active:
                   lastDocBeforeCycleChange.document.id ===
                   (latestDocument?.document.id || null),
                 isReplacement: lastDocBeforeCycleChange.isReplacement,
                 superseding: lastDocBeforeCycleChange.superseding,
                 reopenCycle: lastDocBeforeCycleChange.reopenCycle,
-                processDocumentTags: lastDocBeforeCycleChange.tags,
-                partNumber: lastDocBeforeCycleChange.partNumber,
-                description: lastDocBeforeCycleChange.description,
-                reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed,
               });
             }
             currentReopenCycle = currentDoc.reopenCycle;
@@ -1253,10 +1233,10 @@ export const view_process = async (req, res) => {
             isReplacement: lastDocBeforeCycleChange.isReplacement,
             superseding: lastDocBeforeCycleChange.superseding,
             reopenCycle: lastDocBeforeCycleChange.reopenCycle,
-            processDocumentTags: lastDocBeforeCycleChange.tags,
-            partNumber: lastDocBeforeCycleChange.partNumber,
-            description: lastDocBeforeCycleChange.description,
-            reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed,
+            reasonOfSupersed:
+              lastDocBeforeCycleChange.document.reasonOfSupersed,
+            description: lastDocBeforeCycleChange.document.description,
+            partNumber: lastDocBeforeCycleChange.document.partNumber,
           });
         }
       }
@@ -1271,11 +1251,10 @@ export const view_process = async (req, res) => {
               .slice(0, -1)
               .join("/"),
             type: documentWhichSuperseded.document.type,
-            tags: documentWhichSuperseded.document.tags,
-            processDocumentTags: documentWhichSuperseded.tags || [],
-            partNumber: documentWhichSuperseded.partNumber,
-            description: documentWhichSuperseded.description,
+            tags: documentWhichSuperseded.tags,
             reasonOfSupersed: documentWhichSuperseded.reasonOfSupersed,
+            description: documentWhichSuperseded.description,
+            partNumber: documentWhichSuperseded.partNumber,
           },
           latestDocumentId: latestDocument ? latestDocument.document.id : null,
           versions: versions,
@@ -1320,20 +1299,16 @@ export const view_process = async (req, res) => {
         const parts = doc.document.path.split("/");
         parts.pop();
         const updatedPath = parts.join("/");
-
+        console.log("doc document tag", doc.document);
         return {
           id: doc.document.id,
           name: doc.document.name,
           type: doc.document.type,
           path: updatedPath,
-          tags: doc.document.tags,
-          processDocumentTags: doc.tags,
-          partNumber: doc.partNumber,
-          description: doc.description,
-          reasonOfSupersed: doc.reasonOfSupersed,
+          tags: doc.tags,
           signedBy,
           rejectionDetails,
-          isRecordTrigger:
+          isRecirculationTrigger:
             processDoc?.documentHistory.some(
               (history) => history.isRecirculationTrigger
             ) || false,
@@ -1341,6 +1316,9 @@ export const view_process = async (req, res) => {
           isReplacement: doc.isReplacement,
           superseding: doc.superseding,
           reopenCycle: doc.reopenCycle,
+          reasonOfSupersed: doc.reasonOfSupersed,
+          description: doc.description,
+          partNumber: doc.partNumber,
           active: true,
         };
       });
@@ -1368,7 +1346,6 @@ export const view_process = async (req, res) => {
                         name: true,
                         type: true,
                         path: true,
-                        tags: true,
                       },
                     },
                     replacedDocument: {
@@ -3606,7 +3583,6 @@ export const get_completed_initiator_processes = async (req, res) => {
                 name: true,
                 type: true,
                 path: true,
-                tags: true,
               },
             },
             signatures: {
@@ -3899,7 +3875,6 @@ export const get_completed_initiator_processes = async (req, res) => {
                             name: true,
                             type: true,
                             path: true,
-                            tags: true,
                           },
                         },
                         replacedDocument: {
