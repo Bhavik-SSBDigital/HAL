@@ -3383,7 +3383,11 @@ export const reopen_process = async (req, res) => {
 
       // 3. Handle superseded documents
       const documentHistoryEntries = [];
-      for (let { oldDocumentId, newDocumentId } of supersededDocuments) {
+      for (let {
+        oldDocumentId,
+        newDocumentId,
+        reasonOfSupersed,
+      } of supersededDocuments) {
         const oldDoc = await tx.document.findUnique({
           where: { id: parseInt(oldDocumentId) },
         });
@@ -3397,12 +3401,21 @@ export const reopen_process = async (req, res) => {
           );
         }
 
+        const oldDocProcessDoc = await tx.processDocument.findUnique({
+          where: { documentId: parseInt(oldDocumentId) },
+        });
+
         // Create ProcessDocument entry for superseded document
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
             documentId: newDocumentId,
             isReplacement: true,
+            preApproved: false,
+            reasonOfSupersed: reasonOfSupersed || "No reason provided",
+            tags: oldDocProcessDoc?.tags || [],
+            description:
+              oldDocProcessDoc?.description || "No description was provided",
             superseding: true,
             replacedDocumentId: oldDocumentId,
             reopenCycle: updatedProcess.reopenCycle,
