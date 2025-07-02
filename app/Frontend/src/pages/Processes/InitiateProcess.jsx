@@ -430,7 +430,7 @@ export default function InitiateProcess() {
                   Part Number
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   value={fileDetails.partNumber}
                   onChange={(e) =>
                     setFileDetails((prev) => ({

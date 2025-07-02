@@ -314,6 +314,7 @@ export async function uploadFileWithChunks(
   customName,
   isInvolvedInProcess,
   tags,
+  documentId,
 ) {
   // console.log('file chunks', path)
   try {
@@ -341,6 +342,7 @@ export async function uploadFileWithChunks(
         'X-Chunk-Size': chunkSize,
         'Content-Type': contentType,
         'X-file-path': path,
+        'X-file-id': documentId,
         'X-Authorization': `Bearer ${sessionStorage.getItem('accessToken')}`,
         Range: `bytes=${start}-${end}`,
       };
@@ -386,6 +388,7 @@ export async function upload(
   customName,
   isInvolvedInProcess,
   tags,
+  documentId,
 ) {
   // console.log('path in upload', path);
   // console.log('function we need is called');
@@ -405,6 +408,7 @@ export async function upload(
               customName,
               isInvolvedInProcess,
               tags,
+              documentId,
             )
           : await uploadFileWithChunks(
               file,
@@ -412,6 +416,7 @@ export async function upload(
               undefined,
               isInvolvedInProcess,
               tags,
+              documentId,
             );
 
       // console.log("res", res)

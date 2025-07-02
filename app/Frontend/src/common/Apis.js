@@ -115,10 +115,11 @@ export const uploadDocumentInProcess = async (
   name,
   tags,
   storagePath,
+  documentId,
 ) => {
   const res = storagePath
-    ? upload(fileList, storagePath, name, true, tags)
-    : await upload(fileList, '../check', name, true, tags);
+    ? upload(fileList, storagePath, name, true, tags, documentId)
+    : await upload(fileList, '../check', name, true, tags, documentId);
   return res;
 };
 export const ViewDocument = async (name, path, ext, fileId, editing) => {
