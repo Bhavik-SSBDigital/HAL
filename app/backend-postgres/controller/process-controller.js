@@ -343,13 +343,21 @@ export const initiate_process = async (req, res, next) => {
         },
       });
 
+      console.log("tags", req.body.documents);
       // 2. Link documents with reopenCycle
-      await tx.processDocument.createMany({
-        data: documentIds.map((docId) => ({
+      const processDocumentData =
+        req.body.documents?.map((item, index) => ({
           processId: process_.id,
-          documentId: docId,
+          documentId: documentIds[index], // Use the updated documentId
           reopenCycle: 0,
-        })),
+          preApproved: item.preApproved || false, // Include preApproved, default to false if not provided
+          tags: item.tags || [], // Include tags, default to empty array if not provided
+          partNumber: item.partNumber || null, // Include partNumber, default to null if not provided
+          description: item.description || null, // Include description, default to null if not provided
+        })) || [];
+
+      await tx.processDocument.createMany({
+        data: processDocumentData,
       });
 
       // 3. Get Workflow Steps

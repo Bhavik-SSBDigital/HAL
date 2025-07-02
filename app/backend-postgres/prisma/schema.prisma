@@ -369,6 +369,11 @@ model ProcessTracking {
 model ProcessDocument {
   id               String    @id @default(uuid())
   processId        String
+  description      String?
+  reasonOfSupersed String?
+  partNumber       Int?
+  preApproved      Boolean   @default(false)
+  tags                  String[]  @default([])
   documentId       Int
   isReplacement    Boolean   @default(false)
   superseding      Boolean   @default(false)
