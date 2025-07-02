@@ -303,15 +303,16 @@ export default function InitiateProcess() {
 
           {/* Templates */}
           {templates?.length > 0 && (
-            <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+            <section className="bg-white border border-gray-200 rounded-xl shadow p-4 sm:p-6">
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
                 Templates
               </h3>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                 {templates.map((template) => (
                   <li
                     key={template.id}
-                    className="flex justify-between items-center border p-4 rounded-md bg-gray-50 hover:bg-gray-100 transition"
+                    className="flex flex-col justify-between gap-3 border p-4 rounded-md bg-gray-50 hover:bg-gray-100 transition duration-200"
                   >
                     <div>
                       <p className="font-medium text-gray-800">
@@ -321,12 +322,15 @@ export default function InitiateProcess() {
                         {template.path}
                       </p>
                     </div>
-                    <CustomButton
-                      type="button"
-                      text={'Use'}
-                      click={() => handleUseTemplate(template)}
-                      title={'Use Template'}
-                    />
+                    <div className="mt-auto">
+                      <CustomButton
+                        type="button"
+                        text="Use"
+                        click={() => handleUseTemplate(template)}
+                        title="Use Template"
+                        className="w-full sm:w-auto"
+                      />
+                    </div>
                   </li>
                 ))}
               </ul>
