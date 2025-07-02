@@ -499,7 +499,7 @@ export default function InitiateProcess() {
           </section>
 
           {/* Uploaded Document List */}
-          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+          <section className="bg-white border border-gray-200 rounded-xl shadow p-4 sm:p-6">
             <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Uploaded Documents
             </h3>
@@ -509,22 +509,24 @@ export default function InitiateProcess() {
                 <IconInfoCircle color="blue" /> No documents uploaded yet.
               </div>
             ) : (
-              <ul className="mt-4 space-y-3">
+              <ul className="mt-4 space-y-4">
                 {documentFields.map((doc, index) => (
                   <li
                     key={doc.documentId}
-                    className="flex items-center justify-between p-2 bg-white border rounded-lg shadow-sm"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border rounded-lg shadow-sm"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full">
+                    <div className="flex items-start gap-4">
+                      <div className="min-w-10 min-h-10 w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full text-white text-lg">
                         📄
                       </div>
-                      <div>
-                        <p className="text-lg font-medium text-gray-900">
+                      <div className="text-sm min-w-0">
+                        <p className="text-base font-medium text-gray-900 break-words">
                           {doc.name || 'Unnamed Document'}
                         </p>
-                        <p className="text-md">ID : {doc.documentId}</p>
-                        <p className="text-md">Tags : {doc.tags.join(', ')}</p>
+                        <p className="text-gray-700">ID: {doc.documentId}</p>
+                        <p className="text-gray-700">
+                          Tags: {doc.tags?.join(', ') || 'None'}
+                        </p>
                         {doc.info && (
                           <p className="text-sm text-blue-700 bg-blue-50 px-2 py-1 rounded-md mt-1 w-fit">
                             ℹ️ {doc.info}
@@ -532,7 +534,8 @@ export default function InitiateProcess() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+
+                    <div className="flex sm:flex-col gap-2 sm:items-end">
                       <CustomButton
                         type="button"
                         click={() =>
@@ -544,13 +547,15 @@ export default function InitiateProcess() {
                             true,
                           )
                         }
-                        text={'View'}
+                        text="View"
+                        className="w-full sm:w-auto"
                       />
                       <CustomButton
                         type="button"
                         click={() => removeDocument(index)}
-                        variant={'danger'}
-                        text={'✖'}
+                        variant="danger"
+                        text="✖"
+                        className="w-full sm:w-auto"
                       />
                     </div>
                   </li>
