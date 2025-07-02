@@ -2241,6 +2241,90 @@ async function getUserRecommendations(tx, userId) {
   });
 }
 
+async function copyAndDeleteSingleDocument(processId, documentId, accessToken) {
+  try {
+    // Fetch the ProcessInstance with related workflow data
+    const processInstance = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      include: {
+        workflow: true,
+      },
+    });
+
+    if (!processInstance) {
+      throw new Error(`ProcessInstance with id ${processId} not found`);
+    }
+
+    // Fetch the document details
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { path: true },
+    });
+
+    if (!document) {
+      throw new Error(`Document with id ${documentId} not found`);
+    }
+
+    // Extract workflowName and processName
+    const workflowName = processInstance.workflow.name;
+    const processName = processInstance.name;
+
+    // Construct paths and name
+    const sourcePath = `./${document.path}`;
+    const destinationPath = `../${workflowName}/${processName}`;
+    const name = sourcePath.split("/").pop();
+
+    // Perform file copy operation
+    const copyResult = await new Promise((resolve, reject) => {
+      file_copy(
+        {
+          headers: { authorization: `Bearer ${accessToken}` },
+          body: { sourcePath, destinationPath, name },
+        },
+        {
+          status: (code) => ({
+            json: (data) => {
+              if (code === 200) resolve(data);
+              else reject(data);
+            },
+          }),
+        }
+      );
+    });
+
+    // Delete the original file
+    await new Promise((resolve, reject) => {
+      delete_file(
+        {
+          headers: { authorization: `Bearer ${accessToken}` },
+          body: { documentId },
+        },
+        {
+          status: (code) => ({
+            json: (data) => {
+              if (code === 200) resolve(data);
+              else reject(data);
+            },
+          }),
+        }
+      );
+    });
+
+    // Return the copied documentId
+    if (copyResult.documentId) {
+      return copyResult.documentId;
+    }
+
+    throw new Error("Copy operation did not return a documentId");
+  } catch (error) {
+    console.error(
+      `Error processing document ${documentId} for process ${processId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export const createQuery = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -2333,12 +2417,19 @@ export const createQuery = async (req, res) => {
       const documentHistoryEntries = [];
       for (const change of documentChanges) {
         const {
-          documentId,
           requiresApproval,
           isReplacement,
           replacesDocumentId,
           superseding = false,
         } = change;
+
+        let documentId = change.documentId;
+
+        documentId = await copyAndDeleteSingleDocument(
+          processId,
+          documentId,
+          accessToken
+        );
 
         const document = await tx.document.findUnique({
           where: { id: documentId },
@@ -2375,10 +2466,19 @@ export const createQuery = async (req, res) => {
           }
         }
 
+        const oldProcessDoc = await tx.processDocument.findFirst({
+          where: { documentId: parseInt(replacesDocumentId) },
+        });
+
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
             documentId,
+            tags: oldProcessDoc?.tags || [],
+            preApproved: false,
+            reasonOfSupersed: oldProcessDoc?.reasonOfSupersed || null,
+            description:
+              oldProcessDoc?.description || "Description not provided",
             isReplacement,
             superseding,
             replacedDocumentId: isReplacement
