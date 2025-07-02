@@ -196,7 +196,7 @@ const PdfViewer = ({
               ({currentIndex + 1} of {documents.length})
             </span>
           )}
-          {EDITABLE_TYPES.includes(currentDoc?.type) && (
+          {/* {EDITABLE_TYPES.includes(currentDoc?.type) && (
             <button
               onClick={toggleEditMode}
               className={`p-1 rounded-full transition ${
@@ -206,7 +206,7 @@ const PdfViewer = ({
             >
               <IconPencil size={22} />
             </button>
-          )}
+          )} */}
         </div>
         <button
           onClick={handleViewClose}

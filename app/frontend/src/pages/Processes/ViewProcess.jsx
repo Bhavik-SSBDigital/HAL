@@ -525,13 +525,13 @@ const ViewProcess = () => {
                       title="View Document"
                       text={<IconEye size={18} className="text-white" />}
                     />
-                    <CustomButton
+                    {/* <CustomButton
                       className="px-2"
                       click={() => handleDownloadFile(doc.name, doc.path)}
                       disabled={actionsLoading}
                       title="Download Document"
                       text={<IconDownload size={18} className="text-white" />}
-                    />
+                    /> */}
                     <CustomButton
                       variant="success"
                       className="px-2"
@@ -540,7 +540,7 @@ const ViewProcess = () => {
                       }
                       disabled={
                         actionsLoading ||
-                        doc?.signedBy?.filter(
+                        doc?.signedBy?.find(
                           (entry) => entry.signedBy == username,
                         ) ||
                         doc?.type?.toUpperCase() !== 'PDF' ||
@@ -782,7 +782,7 @@ const ViewProcess = () => {
                         title="View Document"
                         text={<IconEye size={18} className="text-white" />}
                       />
-                      <CustomButton
+                      {/* <CustomButton
                         className="px-2"
                         variant="secondary"
                         click={() =>
@@ -793,7 +793,7 @@ const ViewProcess = () => {
                         }
                         title="Download Document"
                         text={<IconDownload size={18} className="text-white" />}
-                      />
+                      /> */}
                     </div>
                   </div>
 
@@ -853,7 +853,7 @@ const ViewProcess = () => {
                                     <IconEye size={16} className="text-white" />
                                   }
                                 />
-                                <CustomButton
+                                {/* <CustomButton
                                   className="px-2"
                                   variant="secondary"
                                   size="xs"
@@ -867,7 +867,7 @@ const ViewProcess = () => {
                                       className="text-white"
                                     />
                                   }
-                                />
+                                /> */}
                               </div>
                             </CustomCard>
                           );
