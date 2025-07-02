@@ -15,7 +15,7 @@ export default function ReOpenProcessModal({
   processId,
   documents = [],
   close,
-  storagePath
+  storagePath,
 }) {
   const {
     control,
@@ -34,6 +34,7 @@ export default function ReOpenProcessModal({
           oldDocumentId: '',
           newDocumentId: '',
           uploadedFileName: '',
+          reasonOfSupersed: '',
         },
       ],
     },
@@ -53,7 +54,7 @@ export default function ReOpenProcessModal({
       const generatedName = await GenerateDocumentName(
         workflowId,
         replacedDocId,
-        file.name.split('.').pop()
+        file.name.split('.').pop(),
       );
 
       // Upload the document (with or without name)
@@ -61,7 +62,7 @@ export default function ReOpenProcessModal({
         [file],
         generatedName?.data?.documentName,
         [],
-        storagePath
+        storagePath,
       );
 
       if (!response || !response.length || !response[0]) {
@@ -104,6 +105,7 @@ export default function ReOpenProcessModal({
         supersededDocuments: data.supersededDocuments.map((d) => ({
           oldDocumentId: parseInt(d.oldDocumentId, 10),
           newDocumentId: d.newDocumentId,
+          reasonOfSupersed: d.reasonOfSupersed,
         })),
       });
 
@@ -177,6 +179,18 @@ export default function ReOpenProcessModal({
               )}
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Reason for Superseding
+              </label>
+              <input
+                type="text"
+                {...register(`supersededDocuments.${index}.reasonOfSupersed`)}
+                className="w-full border p-2 rounded text-sm"
+                placeholder="Enter reason"
+              />
+            </div>
+
             <input
               type="hidden"
               {...register(`supersededDocuments.${index}.newDocumentId`)}
@@ -197,6 +211,7 @@ export default function ReOpenProcessModal({
             oldDocumentId: '',
             newDocumentId: '',
             uploadedFileName: '',
+            reasonOfSupersed: '',
           })
         }
         className={'mx-auto block'}

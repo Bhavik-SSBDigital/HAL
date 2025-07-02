@@ -18,6 +18,7 @@ import CustomButton from '../../CustomComponents/CustomButton';
 import TopLoader from '../../common/Loader/TopLoader';
 import ViewFile from '../view/View';
 import CustomCard from '../../CustomComponents/CustomCard';
+import Title from '../../CustomComponents/Title';
 
 export default function InitiateProcess() {
   const navigate = useNavigate();
@@ -206,9 +207,7 @@ export default function InitiateProcess() {
     <>
       {actionsLoading ? <TopLoader /> : null}
       <CustomCard className="max-w-7xl mx-auto p-6">
-        <h2 className="text-3xl text-center font-bold mb-6 text-gray-800">
-          Initiate Process
-        </h2>
+        <Title text={'Initiate Process'} />
 
         <form className="space-y-10">
           {/* Process Info Section */}
