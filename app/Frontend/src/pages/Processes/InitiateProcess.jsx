@@ -24,7 +24,13 @@ export default function InitiateProcess() {
   const [workflowData, setWorkflowData] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [tags, setTags] = useState([]);
+  const [fileDetails, setFileDetails] = useState({
+    tags: [],
+    partNumber: '',
+    preApproved: false,
+    fileDescription: '',
+  });
+
   const [newTag, setNewTag] = useState('');
   const [templates, setTemplates] = useState([]);
   const [actionsLoading, setActionsLoading] = useState(false);
@@ -80,33 +86,47 @@ export default function InitiateProcess() {
       return;
     }
 
-    if (!selectedFile || !tags.length) return;
+    if (!selectedFile || !fileDetails?.tags?.length) return;
 
     setActionsLoading(true);
 
     try {
       // Generate file name from backend
 
-      const generatedName = await GenerateDocumentName(workflowId, null ,selectedFile.name.split('.').pop());
+      const generatedName = await GenerateDocumentName(
+        workflowId,
+        null,
+        selectedFile.name.split('.').pop(),
+      );
 
       // Upload file using generated name and tags
       const res = await uploadDocumentInProcess(
         [selectedFile],
         generatedName?.data?.documentName,
-        tags,
+        fileDetails?.tags,
       );
 
       // Success logic
       toast.success('File uploaded successfully');
+
       addDocument({
         documentId: res[0],
         name: generatedName?.data?.documentName,
-        tags: tags,
+        tags: fileDetails.tags,
+        description: fileDetails.fileDescription,
+        partNumber: fileDetails.partNumber,
+        preApproved: fileDetails.preApproved,
       });
 
       // Reset form
+      setFileDetails({
+        tags: [],
+        partNumber: '',
+        preApproved: false,
+        fileDescription: '',
+      });
+
       setNewTag('');
-      setTags([]);
       setSelectedFile(null);
       if (inputRef.current) inputRef.current.value = null;
     } catch (err) {
@@ -147,8 +167,7 @@ export default function InitiateProcess() {
         name: res?.data?.documentName,
         tags: [],
         documentPath: res?.data?.documentPath,
-        description:
-          'This document is prepared from template document, please edit if you want to add the latest data in the document',
+        info: 'This document is prepared from template document, please edit if you want to add the latest data in the document',
       });
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
@@ -186,102 +205,108 @@ export default function InitiateProcess() {
   return (
     <>
       {actionsLoading ? <TopLoader /> : null}
-      <CustomCard className={'max-w-7xl mx-auto'}>
+      <CustomCard className="max-w-7xl mx-auto p-6">
         <h2 className="text-3xl text-center font-bold mb-6 text-gray-800">
           Initiate Process
         </h2>
 
-        <form className="space-y-6">
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <input
-              {...register('description', {
-                required: 'Description is required',
-              })}
-              className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.description && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
+        <form className="space-y-10">
+          {/* Process Info Section */}
+          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
+              Process Details
+            </h3>
 
-          {/* Workflow Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Select Workflow
-            </label>
-            <select
-              className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => {
-                const selected = workflowData.find(
-                  (wf) => wf.name === e.target.value,
-                );
-                setSelectedWorkflow(selected);
-              }}
-            >
-              <option value="">Select a Workflow</option>
-              {workflowData.map((wf) => (
-                <option key={wf.name} value={wf.name}>
-                  {wf.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Version Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Select Version
-            </label>
-            <Controller
-              name="workflowId"
-              control={control}
-              rules={{ required: 'Version selection is required' }}
-              render={({ field }) => (
-                <select
-                  {...field}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <input
+                  {...register('description', {
+                    required: 'Description is required',
+                  })}
                   className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!selectedWorkflow}
+                  placeholder="Enter process description"
+                />
+                {errors.description && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Select Workflow
+                </label>
+                <select
+                  className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const selected = workflowData.find(
+                      (wf) => wf.name === e.target.value,
+                    );
+                    setSelectedWorkflow(selected);
+                  }}
                 >
-                  <option value="">Select a Version</option>
-                  {selectedWorkflow?.versions.map((ver) => (
-                    <option key={ver.id} value={ver.id}>
-                      Version {ver.version} - {ver.description}
+                  <option value="">Select a Workflow</option>
+                  {workflowData.map((wf) => (
+                    <option key={wf.name} value={wf.name}>
+                      {wf.name}
                     </option>
                   ))}
                 </select>
-              )}
-            />
-            {errors.workflowId && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.workflowId.message}
-              </p>
-            )}
-          </div>
+              </div>
 
-          {/* Show Workflow Steps */}
-          {workflowId && (
-            <div className="border border-gray-400 rounded-md p-4 shadow-lg">
-              <Show
-                steps={
-                  selectedWorkflow?.versions?.find(
-                    (item) => item.id === workflowId,
-                  )?.steps
-                }
-              />
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Select Version
+                </label>
+                <Controller
+                  name="workflowId"
+                  control={control}
+                  rules={{ required: 'Version selection is required' }}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!selectedWorkflow}
+                    >
+                      <option value="">Select a Version</option>
+                      {selectedWorkflow?.versions.map((ver) => (
+                        <option key={ver.id} value={ver.id}>
+                          Version {ver.version} - {ver.description}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+                {errors.workflowId && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.workflowId.message}
+                  </p>
+                )}
+              </div>
+              {/* Show Workflow Steps */}
             </div>
-          )}
+            {workflowId && (
+              <div className="border mt-3 w-full border-gray-400 rounded-md p-4 shadow-lg">
+                <Show
+                  steps={
+                    selectedWorkflow?.versions?.find(
+                      (item) => item.id === workflowId,
+                    )?.steps
+                  }
+                />
+              </div>
+            )}
+          </section>
 
-          {/* Template Section */}
+          {/* Templates */}
           {templates?.length > 0 && (
-            <div className="p-6 bg-white border border-gray-300 rounded-lg shadow-lg mx-auto mb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                Available Templates
+            <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                Templates
               </h3>
               <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {templates.map((template) => (
@@ -306,16 +331,18 @@ export default function InitiateProcess() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
 
-          {/* File Upload Section */}
-          <div className="p-6 bg-white border border-gray-300 rounded-lg shadow-lg mx-auto">
-            <label className="block text-lg font-semibold text-gray-800 mb-2">
+          {/* Upload File */}
+          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Upload Document
-            </label>
+            </h3>
 
-            {/* File Selection */}
+            <label className="block text-sm font-medium text-gray-700">
+              Choose File
+            </label>
             <div className="flex flex-col items-center gap-3 p-4 border border-dashed border-gray-400 rounded-lg bg-gray-100 hover:bg-gray-200 transition cursor-pointer">
               <label className="flex flex-col items-center gap-2 text-gray-700 font-medium cursor-pointer">
                 <span className="text-2xl">📂</span>
@@ -328,7 +355,6 @@ export default function InitiateProcess() {
                 />
               </label>
 
-              {/* Selected File Display */}
               {selectedFile && (
                 <div className="mt-2 w-full text-center">
                   <span className="text-gray-800 font-medium text-sm truncate block">
@@ -347,9 +373,7 @@ export default function InitiateProcess() {
 
             {/* Tag Input */}
             <div className="mt-4">
-              <label className="text-sm font-medium text-gray-700">
-                Add Tags
-              </label>
+              <label className="text-sm font-medium text-gray-700">Tags</label>
               <div className="flex gap-2 mt-2">
                 <input
                   type="text"
@@ -368,7 +392,10 @@ export default function InitiateProcess() {
                   type="button"
                   onClick={() => {
                     if (newTag.trim()) {
-                      setTags([...tags, newTag.trim()]);
+                      setFileDetails((prev) => ({
+                        ...prev,
+                        tags: [...prev.tags, newTag.trim()],
+                      }));
                       setNewTag('');
                     }
                   }}
@@ -377,16 +404,17 @@ export default function InitiateProcess() {
                   Add
                 </button>
               </div>
-
-              {/* Tags List */}
-              {tags.length > 0 && (
+              {fileDetails.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
-                  {tags.map((tag, index) => (
+                  {fileDetails.tags.map((tag, index) => (
                     <span
                       key={index}
                       className="bg-purple-600 text-white px-3 py-1 text-sm rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-700 transition"
                       onClick={() =>
-                        setTags(tags.filter((_, i) => i !== index))
+                        setFileDetails((prev) => ({
+                          ...prev,
+                          tags: prev.tags.filter((_, i) => i !== index),
+                        }))
                       }
                     >
                       {tag} <span className="text-lg">&times;</span>
@@ -396,88 +424,145 @@ export default function InitiateProcess() {
               )}
             </div>
 
-            {/* Upload Button */}
+            {/* Part Number & Description */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Part Number
+                </label>
+                <input
+                  type="text"
+                  value={fileDetails.partNumber}
+                  onChange={(e) =>
+                    setFileDetails((prev) => ({
+                      ...prev,
+                      partNumber: e.target.value,
+                    }))
+                  }
+                  className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter part number"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Document Description
+                </label>
+                <input
+                  type="text"
+                  value={fileDetails.fileDescription}
+                  onChange={(e) =>
+                    setFileDetails((prev) => ({
+                      ...prev,
+                      fileDescription: e.target.value,
+                    }))
+                  }
+                  className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter file-specific description"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="preApproved"
+                checked={fileDetails.preApproved}
+                onChange={(e) =>
+                  setFileDetails((prev) => ({
+                    ...prev,
+                    preApproved: e.target.checked,
+                  }))
+                }
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label
+                htmlFor="preApproved"
+                className="text-sm font-medium text-gray-700"
+              >
+                Pre-Approved
+              </label>
+            </div>
+
             <CustomButton
               type="button"
               click={handleUpload}
               text={'Upload Document'}
-              disabled={!selectedFile || actionsLoading || !tags.length}
-              className="w-full mt-4"
+              disabled={
+                !selectedFile || actionsLoading || !fileDetails?.tags.length
+              }
+              className="w-full mt-6"
             />
+          </section>
 
-            {/* Document List */}
-            <div className="mt-5">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Uploaded Documents
-              </h2>
-              {documentFields.length === 0 ? (
-                <p className="flex font-semibold align-middle gap-2 text-sm text-gray-500 mt-2 bg-purple-100 p-3 rounded-md text-black">
-                  <IconInfoCircle color="blue" /> No documents uploaded yet.
-                </p>
-              ) : (
-                <ul className="mt-4 space-y-3">
-                  {documentFields.map((doc, index) => (
-                    <li
-                      key={doc.documentId}
-                      className="flex items-center justify-between p-2 bg-white border rounded-lg shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full">
-                          📄
-                        </div>
-                        <hr className="bg-slate-200 text-white w-[2px] min-h-[70px]" />
-                        <div>
-                          <p className="text-lg font-medium text-gray-900">
-                            {doc.name || 'Unnamed Document'}
-                          </p>
-                          <p className="text-md">ID : {doc.documentId}</p>
-                          <p className="text-md">
-                            Tags : {doc.tags.join(', ')}
-                          </p>
-                          {doc.description && (
-                            <p className="text-sm text-blue-700 bg-blue-50 px-2 py-1 rounded-md mt-1 w-fit">
-                              ℹ️ {doc.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <CustomButton
-                          type="button"
-                          click={() =>
-                            handleViewFile(
-                              doc.name,
-                              doc.documentPath || '/check',
-                              doc.documentId,
-                              doc.name?.split('.').pop(),
-                              true,
-                            )
-                          }
-                          text={'View'}
-                        />
-                        <CustomButton
-                          type="button"
-                          click={() => removeDocument(index)}
-                          variant={'danger'}
-                          text={'✖'}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
+          {/* Uploaded Document List */}
+          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
+              Uploaded Documents
+            </h3>
 
-          {/* Submit Button */}
-          <button
+            {documentFields.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 mt-2 bg-purple-100 p-3 rounded-md text-black">
+                <IconInfoCircle color="blue" /> No documents uploaded yet.
+              </div>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {documentFields.map((doc, index) => (
+                  <li
+                    key={doc.documentId}
+                    className="flex items-center justify-between p-2 bg-white border rounded-lg shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full">
+                        📄
+                      </div>
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">
+                          {doc.name || 'Unnamed Document'}
+                        </p>
+                        <p className="text-md">ID : {doc.documentId}</p>
+                        <p className="text-md">Tags : {doc.tags.join(', ')}</p>
+                        {doc.info && (
+                          <p className="text-sm text-blue-700 bg-blue-50 px-2 py-1 rounded-md mt-1 w-fit">
+                            ℹ️ {doc.info}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <CustomButton
+                        type="button"
+                        click={() =>
+                          handleViewFile(
+                            doc.name,
+                            doc.documentPath || '/check',
+                            doc.documentId,
+                            doc.name?.split('.').pop(),
+                            true,
+                          )
+                        }
+                        text={'View'}
+                      />
+                      <CustomButton
+                        type="button"
+                        click={() => removeDocument(index)}
+                        variant={'danger'}
+                        text={'✖'}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <CustomButton
             type="button"
-            onClick={handleSubmit(onSubmit)}
+            click={handleSubmit(onSubmit)}
             disabled={actionsLoading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md w-full transition"
-          >
-            Submit
-          </button>
+            text="Submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          />
         </form>
       </CustomCard>
 
