@@ -235,33 +235,37 @@ export const sign_document = async (req, res, next) => {
       const dscPath = user.dscFileName
         ? path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName)
         : undefined;
-      const signatureCoordinates = user.dscFileName
-        ? await print_signature_after_content_on_the_last_page(
-            pdfDoc,
-            lastPage,
-            documentPath,
-            jpegImagePath,
-            userData.username,
-            formatDate(Date.now()),
-            remarks,
-            helveticaFont,
-            pythonEnvPath,
-            pythonScriptPath,
-            dscPath,
-            p12password
-          )
-        : await print_signature_after_content_on_the_last_page(
-            pdfDoc,
-            lastPage,
-            documentPath,
-            jpegImagePath,
-            userData.username,
-            formatDate(Date.now()),
-            remarks,
-            helveticaFont,
-            pythonEnvPath,
-            pythonScriptPath
-          );
+
+      console.log("dsc path", dscPath);
+      const signatureCoordinates =
+        //  user.dscFileName
+        //   ? await print_signature_after_content_on_the_last_page(
+        //       pdfDoc,
+        //       lastPage,
+        //       documentPath,
+        //       jpegImagePath,
+        //       userData.username,
+        //       formatDate(Date.now()),
+        //       remarks,
+        //       helveticaFont,
+        //       pythonEnvPath,
+        //       pythonScriptPath,
+        //       dscPath,
+        //       p12password
+        //     )
+        //   :
+        await print_signature_after_content_on_the_last_page(
+          pdfDoc,
+          lastPage,
+          documentPath,
+          jpegImagePath,
+          userData.username,
+          formatDate(Date.now()),
+          remarks,
+          helveticaFont,
+          pythonEnvPath,
+          pythonScriptPath
+        );
 
       await prisma.signCoordinate.create({
         data: {
@@ -792,23 +796,23 @@ async function print_signature_after_content_on_the_last_page(
 
   let pdfBytes;
 
-  if (!user.dscFileName) {
-    pdfBytes = await pdfDoc.save();
-    await fs.writeFile(absDocumentPath, pdfBytes);
-  } else {
-    pdfBytes = await pdfDoc.save({ useObjectStreams: false });
-    const pdfWithPlaceholder = await plainAddPlaceholder({
-      pdfBuffer: Buffer.from(pdfBytes),
-      reason: "Digital Signature",
-      signatureLength: 8192,
-    });
+  // if (!user.dscFileName) {
+  pdfBytes = await pdfDoc.save();
+  await fs.writeFile(absDocumentPath, pdfBytes);
+  // } else {
+  //   pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+  //   const pdfWithPlaceholder = await plainAddPlaceholder({
+  //     pdfBuffer: Buffer.from(pdfBytes),
+  //     reason: "Digital Signature",
+  //     signatureLength: 8192,
+  //   });
 
-    const p12Buffer = readFileSync(p12Path);
-    const signer = new P12Signer(p12Buffer, { passphrase: p12password });
-    const signPdf = new SignPdf();
-    const signedPdf = await signPdf.sign(pdfWithPlaceholder, signer);
-    await fs.writeFile(absDocumentPath, signedPdf);
-  }
+  //   const p12Buffer = readFileSync(p12Path);
+  //   const signer = new P12Signer(p12Buffer, { passphrase: p12password });
+  //   const signPdf = new SignPdf();
+  //   const signedPdf = await signPdf.sign(pdfWithPlaceholder, signer);
+  //   await fs.writeFile(absDocumentPath, signedPdf);
+  // }
 
   return signatureCoordinates;
 }
