@@ -235,10 +235,7 @@ const ViewProcess = () => {
           doc.id === remarksModalOpen.id
             ? {
                 ...doc,
-                signedBy: {
-                  signedBy: username,
-                  remarks,
-                },
+                signedBy: [...doc?.signedBy, { signedBy: username, remarks }],
               }
             : doc,
         ),
@@ -541,7 +538,7 @@ const ViewProcess = () => {
                       disabled={
                         actionsLoading ||
                         doc?.signedBy?.find(
-                          (entry) => entry.signedBy == username,
+                          (entry) => entry?.signedBy == username,
                         ) ||
                         doc?.type?.toUpperCase() !== 'PDF' ||
                         doc?.rejectionDetails
