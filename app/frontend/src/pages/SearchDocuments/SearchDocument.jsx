@@ -8,29 +8,38 @@ import TopLoader from '../../common/Loader/TopLoader';
 import { IconEye, IconDownload } from '@tabler/icons-react';
 import { ImageConfig } from '../../config/ImageConfig';
 import DocumentVersioning from '../DocumentVersioning';
-import { deepSearch, GetUsersWithDetails } from '../../common/Apis';
+import ViewFile from '../view/View';
+
+import {
+  deepSearch,
+  GetUsersWithDetails,
+  ViewDocument,
+} from '../../common/Apis';
 
 export default function DocumentSearch() {
+  // state
   const { register, handleSubmit, reset } = useForm();
   const [results, setResults] = useState([]);
-  const [selectedDocs, setSelectedDocs] = useState([]);
   const [filesData, setFilesData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
   const [users, setUsers] = useState([]);
+  const [fileView, setFileView] = useState(null);
+  const [lastQuery, setLastQuery] = useState();
 
-  const fetchDocuments = async (data) => {
+  // handlers
+  const fetchDocuments = async (data, showToast) => {
     setLoading(true);
     try {
-      const queryParams = new URLSearchParams({
-        ...data,
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-      }).toString();
-
+      const queryParams = new URLSearchParams(data).toString();
       const response = await deepSearch(queryParams);
+      if (showToast) {
+        toast.success(
+          `${response?.data?.pagination?.totalCount} results found`,
+        );
+      }
 
-      setResults(response?.data?.result || []);
+      setResults(response?.data?.data || []);
       setPagination((prev) => ({
         ...prev,
         totalCount: response?.data?.pagination?.totalCount || 0,
@@ -44,30 +53,46 @@ export default function DocumentSearch() {
   };
 
   const onSubmit = (data) => {
-    fetchDocuments(data);
+    setLastQuery(data); // Save the query
+    fetchDocuments(data, true);
   };
 
-  const toggleSelect = (docId) => {
-    setSelectedDocs((prev) =>
-      prev.includes(docId)
-        ? prev.filter((id) => id !== docId)
-        : [...prev, docId],
-    );
-  };
-
-  const handleCompare = () => {
-    const selected = results.filter((doc) => selectedDocs.includes(doc.id));
-    if (selected.length !== 2) {
-      toast.info('Select 2 documents to compare');
-      return;
+  const handleViewFile = async (name, path, fileId, type, isEditing) => {
+    setLoading(true);
+    try {
+      const fileData = await ViewDocument(name, path, type, fileId);
+      setFileView(fileData);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setLoading(false);
     }
-    setFilesData([{ url: selected[0].path }, { url: selected[1].path }]);
   };
+
+  // const handleCompare = () => {
+  //   const selected = results.filter((doc) => selectedDocs.includes(doc.id));
+  //   if (selected.length !== 2) {
+  //     toast.info('Select 2 documents to compare');
+  //     return;
+  //   }
+  //   setFilesData([{ url: selected[0].path }, { url: selected[1].path }]);
+  // };
 
   const handlePagination = (dir) => {
-    setPagination((prev) => {
-      const newPage = dir === 'next' ? prev.page + 1 : prev.page - 1;
-      return { ...prev, page: Math.max(1, newPage) };
+    const newPage = dir === 'next' ? pagination.page + 1 : pagination.page - 1;
+
+    const updatedPagination = {
+      ...pagination,
+      page: Math.max(1, newPage),
+    };
+
+    setPagination(updatedPagination);
+
+    fetchDocuments({
+      ...lastQuery,
+      page: Math.max(1, newPage),
+      pageSize: pagination.pageSize,
     });
   };
 
@@ -256,13 +281,19 @@ export default function DocumentSearch() {
             click={() => {
               reset();
               setResults([]);
-              setSelectedDocs([]);
+              setLastQuery(null);
+              setPagination({
+                page: 1,
+                pageSize: 10,
+                totalCount: 0,
+                totalPages: 1,
+              });
             }}
           />
         </div>
       </form>
 
-      {selectedDocs.length > 0 && (
+      {/* {selectedDocs.length > 0 && (
         <div className="mt-4 flex justify-between items-center bg-gray-100 px-4 py-3 rounded">
           <div className="flex gap-4">
             {results
@@ -275,11 +306,10 @@ export default function DocumentSearch() {
           </div>
           <CustomButton text="Compare" click={handleCompare} />
         </div>
-      )}
+      )} */}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {results.map((doc) => {
-          const isSelected = selectedDocs.includes(doc.id);
           const extension = doc.name?.split('.').pop()?.toLowerCase();
           return (
             <CustomCard
@@ -287,26 +317,26 @@ export default function DocumentSearch() {
               className="relative flex flex-col justify-between"
             >
               {/* Status Badge */}
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-0 right-1">
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${
-                    doc.isArchived
+                    doc.inBin
                       ? 'bg-red-100 text-red-800'
-                      : 'bg-green-100 text-green-800'
+                      : doc?.isArchived
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-green-100 text-green-800'
                   }`}
                 >
-                  {doc.isArchived ? 'Archived' : 'Active'}
+                  {doc.isArchived
+                    ? 'Archived'
+                    : doc?.inBin
+                      ? 'Deleted'
+                      : 'Active'}
                 </span>
               </div>
 
               {/* Header */}
               <div className="flex gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={isSelected}
-                  onChange={() => toggleSelect(doc.id)}
-                />
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                   <img
                     width={28}
@@ -314,8 +344,8 @@ export default function DocumentSearch() {
                     alt="icon"
                   />
                 </div>
-                <div>
-                  <p className="font-semibold">{doc.name}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold break-words">{doc.name}</p>
                   <p className="text-sm text-gray-500">Type: {extension}</p>
                 </div>
               </div>
@@ -324,18 +354,16 @@ export default function DocumentSearch() {
               <div className="mt-4 flex justify-end gap-2">
                 <CustomButton
                   text={<IconEye size={18} className="text-white" />}
-                  title="View"
-                  click={() => window.open(doc.path, '_blank')}
-                />
-                <CustomButton
-                  text={<IconDownload size={18} className="text-white" />}
-                  title="Download"
-                  click={() => {
-                    const a = document.createElement('a');
-                    a.href = doc.path;
-                    a.download = doc.name;
-                    a.click();
-                  }}
+                  title="View (Updated)"
+                  click={() =>
+                    handleViewFile(
+                      doc.name,
+                      doc.path,
+                      doc.id,
+                      doc.name.split('.').pop(),
+                      false,
+                    )
+                  }
                 />
               </div>
             </CustomCard>
@@ -349,6 +377,7 @@ export default function DocumentSearch() {
           <CustomButton
             text="Previous"
             disabled={pagination.page === 1}
+            type={'button'}
             click={() => handlePagination('prev')}
           />
           <span>
@@ -356,6 +385,7 @@ export default function DocumentSearch() {
           </span>
           <CustomButton
             text="Next"
+            type={'button'}
             disabled={pagination.page === pagination.totalPages}
             click={() => handlePagination('next')}
           />
@@ -381,6 +411,14 @@ export default function DocumentSearch() {
           </div>
         </div>
       )} */}
+
+      {fileView && (
+        <ViewFile
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={() => setFileView(null)}
+        />
+      )}
     </CustomCard>
   );
 }
