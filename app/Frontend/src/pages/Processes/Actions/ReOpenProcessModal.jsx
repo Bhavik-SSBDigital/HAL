@@ -153,11 +153,20 @@ export default function ReOpenProcessModal({
                 className="w-full border p-2 rounded text-sm"
               >
                 <option value="">-- Select Document --</option>
-                {documents.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name}
-                  </option>
-                ))}
+                {documents
+                  .filter(
+                    (doc) =>
+                      !getValues('supersededDocuments')
+                        ?.map((item, i) =>
+                          i !== index ? item.oldDocumentId : null,
+                        )
+                        .includes(String(doc.id)),
+                  )
+                  .map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.name}
+                    </option>
+                  ))}
               </select>
             </div>
 
