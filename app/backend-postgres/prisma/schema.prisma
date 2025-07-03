@@ -37,6 +37,7 @@ model Document {
   type                  String
   path                  String    @unique
   createdById           Int
+  createdBy             User?     @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
   createdOn             DateTime  @default(now())
   lastUpdatedOn         DateTime  @updatedAt
   isArchived            Boolean   @default(false)
@@ -117,6 +118,7 @@ model User {
   documentHistory       DocumentHistory[] @relation("DocumentHistoryByUser")
   initiatedRecommendations Recommendation[] @relation("RecommendationInitiator")
   recommendedRecommendations Recommendation[] @relation("RecommendationRecommender")
+  createdDocuments      Document[] @relation("DocumentCreatedByRelation") // Add this line
 }
 
 model Token {
@@ -388,6 +390,7 @@ model ProcessDocument {
   rejections       DocumentRejection[]
   signCoordinates  SignCoordinate[] @relation()
   documentHistory  DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
+  @@unique([documentId, processId])
 }
 
 model DocumentSignature {
