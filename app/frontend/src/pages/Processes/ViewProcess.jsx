@@ -541,7 +541,8 @@ const ViewProcess = () => {
                           (entry) => entry?.signedBy == username,
                         ) ||
                         doc?.type?.toUpperCase() !== 'PDF' ||
-                        doc?.rejectionDetails
+                        doc?.rejectionDetails ||
+                        doc?.preApproved
                       }
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
@@ -553,7 +554,10 @@ const ViewProcess = () => {
                         setRemarksModalOpen({ id: doc.id, open: 'reject' })
                       }
                       disabled={
-                        actionsLoading || isCompleted || doc.rejectionDetails
+                        actionsLoading ||
+                        isCompleted ||
+                        doc.rejectionDetails ||
+                        doc?.preApproved
                       }
                       title="Reject Document"
                       text={<IconX size={18} className="text-white" />}
