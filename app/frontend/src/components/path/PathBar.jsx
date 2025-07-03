@@ -5,7 +5,7 @@ import { backButtonPath, onReload } from '../../Slices/PathSlice';
 import folderIcon from '../../assets/images/folder.png';
 import { useNavigate } from 'react-router-dom';
 
-export default function PathBar({ pathValue, setCurrentPath, state }) {
+export default function PathBar({ pathValue, setCurrentPath, state, reset }) {
   const navigate = useNavigate();
   if (!pathValue) {
     return;
@@ -20,6 +20,7 @@ export default function PathBar({ pathValue, setCurrentPath, state }) {
     } else {
       console.error('Invalid index:', index);
     }
+    reset();
   };
   function truncateFileName(fileName, maxLength = 10) {
     if (fileName.length <= maxLength) {

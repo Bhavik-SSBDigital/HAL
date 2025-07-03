@@ -407,6 +407,7 @@ export default function FileSysten() {
         pathValue={currentPath}
         setCurrentPath={setCurrentPath}
         state={'path'}
+        reset={resetFilters}
       />
       {/* Sidebar and Filter Button */}
       <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-1 mt-1">
