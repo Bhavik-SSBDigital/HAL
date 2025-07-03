@@ -135,6 +135,7 @@ const upload = multer({
       ".png",
       ".jpeg",
       ".jpg",
+      ".pfx",
     ];
     const ext = path.extname(file.originalname).toLowerCase();
     console.log("ext", ext);
