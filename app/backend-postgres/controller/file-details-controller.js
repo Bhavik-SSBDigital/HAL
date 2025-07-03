@@ -785,7 +785,7 @@ export const search_documents = async (req, res) => {
       },
       skip: (parsedPage - 1) * parsedPageSize,
       take: parsedPageSize,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdOn: "desc" },
     });
 
     // Transform the response
@@ -796,7 +796,7 @@ export const search_documents = async (req, res) => {
       name: doc.name,
       isArchived: doc.isArchived,
       inBin: doc.inBin,
-      createdByUsername: doc.createdBy?.username || null,
+      createdByUsername: doc.createdBy?.username || null, // Fixed typo: cr -> createdBy
       partNumber: doc.processDocuments[0]?.partNumber || null,
       processId: doc.processDocuments[0]?.processId || null,
       processName: doc.processDocuments[0]?.process?.name || null,
