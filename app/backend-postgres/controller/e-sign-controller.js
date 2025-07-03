@@ -231,6 +231,10 @@ export const sign_document = async (req, res, next) => {
       //     user.dscFileName
       //   )
       // );
+
+      const dscPath = user.dscFileName
+        ? path.join(__dirname, envVariables.DSC_FOLDER_PATH, user.dscFileName)
+        : undefined;
       const signatureCoordinates = user.dscFileName
         ? await print_signature_after_content_on_the_last_page(
             pdfDoc,
@@ -243,11 +247,7 @@ export const sign_document = async (req, res, next) => {
             helveticaFont,
             pythonEnvPath,
             pythonScriptPath,
-            path.join(
-              __dirname,
-              envVariables.DSC_FOLDER_PATH,
-              user.dscFileName
-            ),
+            dscPath,
             p12password
           )
         : await print_signature_after_content_on_the_last_page(
