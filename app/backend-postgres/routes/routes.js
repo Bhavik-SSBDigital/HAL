@@ -61,6 +61,7 @@ import {
   getDocumentDetailsForAdmin,
   getDocumentDetailsOnTheBasisOfPathForEdit,
   getDocumentChildren,
+  search_documents,
 } from "../controller/file-details-controller.js";
 
 import {
@@ -337,6 +338,8 @@ router.get(
   "/processDocuments/:processId/:versionNumber",
   get_process_documents
 );
+
+router.get("/searchDocuments", search_documents);
 
 router.post("/reopenProcess", reopen_process);
 

@@ -650,3 +650,168 @@ export const getDocumentDetailsForAdmin = async (req, res) => {
     await prisma.$disconnect();
   }
 };
+
+export const search_documents = async (req, res) => {
+  try {
+    const {
+      name,
+      tags,
+      partNumber,
+      isArchived,
+      inBin,
+      createdByUsername,
+      processName,
+      processId,
+      description,
+      preApproved,
+      superseding,
+      page = "1",
+      pageSize = "10",
+    } = req.query;
+
+    // Convert string parameters to appropriate types
+    const parsedPartNumber = partNumber ? parseInt(partNumber, 10) : undefined;
+    const parsedPage = parseInt(page, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
+
+    // Validate partNumber
+    if (partNumber && isNaN(parsedPartNumber)) {
+      return res.status(400).json({ error: "Invalid partNumber format" });
+    }
+
+    // Parse tags if provided as a comma-separated string or JSON string
+    let parsedTags = [];
+    if (tags) {
+      try {
+        parsedTags = Array.isArray(tags) ? tags : JSON.parse(tags);
+        if (!Array.isArray(parsedTags)) {
+          parsedTags = tags.split(",").map((tag) => tag.trim());
+        }
+      } catch (e) {
+        parsedTags = tags.split(",").map((tag) => tag.trim());
+      }
+    }
+
+    // Build the where clause for the query
+    const where = {
+      AND: [
+        name ? { name: { contains: name, mode: "insensitive" } } : {},
+        parsedTags.length > 0 ? { tags: { hasSome: parsedTags } } : {},
+        isArchived !== undefined ? { isArchived: isArchived === "true" } : {},
+        inBin !== undefined ? { inBin: inBin === "true" } : {},
+        createdByUsername
+          ? {
+              createdBy: {
+                username: { contains: createdByUsername, mode: "insensitive" },
+              },
+            }
+          : {},
+      ],
+    };
+
+    // Add ProcessDocument-related conditions
+    if (
+      parsedPartNumber ||
+      processId ||
+      processName ||
+      description ||
+      preApproved !== undefined ||
+      superseding !== undefined
+    ) {
+      where.processDocuments = {
+        some: {
+          AND: [
+            parsedPartNumber ? { partNumber: parsedPartNumber } : {},
+            processId ? { processId } : {},
+            processName
+              ? {
+                  process: {
+                    name: { contains: processName, mode: "insensitive" },
+                  },
+                }
+              : {},
+            description
+              ? { description: { contains: description, mode: "insensitive" } }
+              : {},
+            preApproved !== undefined
+              ? { preApproved: preApproved === "true" }
+              : {},
+            superseding !== undefined
+              ? { superseding: superseding === "true" }
+              : {},
+          ],
+        },
+      };
+    }
+
+    // Execute the query
+    const documents = await prisma.document.findMany({
+      where,
+      select: {
+        id: true,
+        path: true,
+        tags: true,
+        name: true,
+        isArchived: true,
+        inBin: true,
+        createdBy: {
+          select: {
+            username: true,
+          },
+        },
+        processDocuments: {
+          select: {
+            partNumber: true,
+            processId: true,
+            description: true,
+            preApproved: true,
+            superseding: true,
+            process: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      skip: (parsedPage - 1) * parsedPageSize,
+      take: parsedPageSize,
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Transform the response to include all requested fields at the root level
+    const formattedDocuments = documents.map((doc) => ({
+      id: doc.id,
+      path: doc.path,
+      tags: doc.tags,
+      name: doc.name,
+      isArchived: doc.isArchived,
+      inBin: doc.inBin,
+      createdByUsername: doc.createdBy?.username || null,
+      partNumber: doc.processDocuments[0]?.partNumber || null,
+      processId: doc.processDocuments[0]?.processId || null,
+      processName: doc.processDocuments[0]?.process?.name || null,
+      description: doc.processDocuments[0]?.description || null,
+      preApproved: doc.processDocuments[0]?.preApproved || null,
+      superseding: doc.processDocuments[0]?.superseding || null,
+    }));
+
+    // Get total count for pagination
+    const totalCount = await prisma.document.count({ where });
+
+    res.status(200).json({
+      data: formattedDocuments,
+      pagination: {
+        page: parsedPage,
+        pageSize: parsedPageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / parsedPageSize),
+      },
+    });
+  } catch (error) {
+    console.error("Error searching documents:", error);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    await prisma.$disconnect();
+  }
+};
