@@ -172,7 +172,7 @@ export const SignDocument = async (
     processId,
     processStepInstanceId,
     documentId,
-    ...remarks,
+    remarks,
   });
 };
 export const SignRevoke = async (processId, documentId) => {
