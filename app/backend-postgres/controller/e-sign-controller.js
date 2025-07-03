@@ -219,18 +219,18 @@ export const sign_document = async (req, res, next) => {
         );
       }
     } else {
-      console.log("env variables", envVariables);
-      console.log("user", user);
-      console.log(
-        "wdf",
-        path.join(
-          __dirname,
-          "../../../../",
-          "storage",
-          envVariables.DSC_FOLDER_PATH,
-          user.dscFileName
-        )
-      );
+      // console.log("env variables", envVariables);
+      // console.log("user", user);
+      // console.log(
+      //   "wdf",
+      //   path.join(
+      //     __dirname,
+      //     "../../../../",
+      //     "storage",
+      //     envVariables.DSC_FOLDER_PATH,
+      //     user.dscFileName
+      //   )
+      // );
       const signatureCoordinates = user.dscFileName
         ? await print_signature_after_content_on_the_last_page(
             pdfDoc,
