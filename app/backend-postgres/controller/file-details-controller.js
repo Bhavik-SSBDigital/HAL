@@ -674,12 +674,18 @@ export const search_documents = async (req, res) => {
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
 
-    // Validate partNumber
+    // Validate inputs
     if (partNumber && isNaN(parsedPartNumber)) {
       return res.status(400).json({ error: "Invalid partNumber format" });
     }
+    if (isNaN(parsedPage) || parsedPage < 1) {
+      return res.status(400).json({ error: "Invalid page number" });
+    }
+    if (isNaN(parsedPageSize) || parsedPageSize < 1) {
+      return res.status(400).json({ error: "Invalid page size" });
+    }
 
-    // Parse tags if provided as a comma-separated string or JSON string
+    // Parse tags
     let parsedTags = [];
     if (tags) {
       try {
@@ -692,7 +698,7 @@ export const search_documents = async (req, res) => {
       }
     }
 
-    // Build the where clause for the query
+    // Build the where clause
     const where = {
       AND: [
         name ? { name: { contains: name, mode: "insensitive" } } : {},
@@ -744,6 +750,9 @@ export const search_documents = async (req, res) => {
       };
     }
 
+    // Log the where clause for debugging
+    console.log("Where clause:", JSON.stringify(where, null, 2));
+
     // Execute the query
     const documents = await prisma.document.findMany({
       where,
@@ -779,7 +788,7 @@ export const search_documents = async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // Transform the response to include all requested fields at the root level
+    // Transform the response
     const formattedDocuments = documents.map((doc) => ({
       id: doc.id,
       path: doc.path,
