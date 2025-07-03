@@ -409,3 +409,8 @@ export const uploadTemplateFile = async (formData) => {
 export const useTemplateDocument = async (formData) => {
   return apiClient.post('/useTemplateDocument', formData);
 };
+
+// searching
+export const deepSearch = async (queryParams) => {
+  return apiClient.get(`/searchDocuments?${queryParams}`);
+};

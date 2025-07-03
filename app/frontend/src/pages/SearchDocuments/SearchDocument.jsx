@@ -1,197 +1,369 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
 import { toast } from 'react-toastify';
-import DocumentVersioning from '../DocumentVersioning';
-import TopLoader from '../../common/Loader/TopLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
 import Title from '../../CustomComponents/Title';
+import TopLoader from '../../common/Loader/TopLoader';
+import { IconEye, IconDownload } from '@tabler/icons-react';
+import { ImageConfig } from '../../config/ImageConfig';
+import DocumentVersioning from '../DocumentVersioning';
+import { deepSearch, GetUsersWithDetails } from '../../common/Apis';
 
-export default function SimpleDocumentSearch() {
+export default function DocumentSearch() {
   const { register, handleSubmit, reset } = useForm();
-  const [actionsLoading, setActionsLoading] = useState(false);
   const [results, setResults] = useState([]);
-  const [documentsToCompare, setDocumentsToCompare] = useState([]);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [filesData, setFilesData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10 });
+  const [users, setUsers] = useState([]);
 
-  const onSubmit = async (data) => {
-    setActionsLoading(true);
+  const fetchDocuments = async (data) => {
+    setLoading(true);
     try {
-      // Replace this with your real API call
-      const response = await fetch('/api/documents/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const queryParams = new URLSearchParams({
+        ...data,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+      }).toString();
 
-      const result = await response.json();
-      setResults(result.documents || []);
+      const response = await deepSearch(queryParams);
+
+      setResults(response?.data?.result || []);
+      setPagination((prev) => ({
+        ...prev,
+        totalCount: response?.data?.pagination?.totalCount || 0,
+        totalPages: response?.data?.pagination?.totalPages || 1,
+      }));
     } catch (err) {
       toast.error('Failed to fetch documents');
     } finally {
-      setActionsLoading(false);
+      setLoading(false);
     }
+  };
+
+  const onSubmit = (data) => {
+    fetchDocuments(data);
+  };
+
+  const toggleSelect = (docId) => {
+    setSelectedDocs((prev) =>
+      prev.includes(docId)
+        ? prev.filter((id) => id !== docId)
+        : [...prev, docId],
+    );
   };
 
   const handleCompare = () => {
-    if (documentsToCompare.length !== 2) {
-      return toast.info('Select 2 documents to compare');
+    const selected = results.filter((doc) => selectedDocs.includes(doc.id));
+    if (selected.length !== 2) {
+      toast.info('Select 2 documents to compare');
+      return;
     }
-    setFilesData([
-      { url: documentsToCompare[0].path },
-      { url: documentsToCompare[1].path },
-    ]);
+    setFilesData([{ url: selected[0].path }, { url: selected[1].path }]);
   };
 
-  const toggleSelect = (doc) => {
-    setDocumentsToCompare((prev) => {
-      const exists = prev.find((d) => d.documentId === doc.documentId);
-      if (exists) {
-        return prev.filter((d) => d.documentId !== doc.documentId);
-      } else {
-        return prev.length < 2 ? [...prev, doc] : prev;
-      }
+  const handlePagination = (dir) => {
+    setPagination((prev) => {
+      const newPage = dir === 'next' ? prev.page + 1 : prev.page - 1;
+      return { ...prev, page: Math.max(1, newPage) };
     });
   };
 
+  const getUsers = async () => {
+    try {
+      const response = await GetUsersWithDetails();
+      setUsers(response?.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    getUsers();
+  }, []);
   return (
     <CustomCard className={'mx-auto'}>
-      {actionsLoading && <TopLoader />}
-
+      {loading && <TopLoader />}
       <Title text={'Deep Document Search'} />
 
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="grid grid-cols-1 md:grid-cols-2 gap-4"
       >
+        {/* name */}
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Document Name
           </label>
           <input
-            {...register('documentName')}
+            {...register('name')}
             placeholder="Enter document name"
-            className="w-full border px-4 py-2 rounded"
+            className="w-full border p-2 rounded"
           />
         </div>
 
+        {/* tags */}
         <div>
-          <label className="block text-sm font-medium mb-1">Branch</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tags
+          </label>
           <input
-            {...register('branch')}
-            placeholder="Enter branch"
-            className="w-full border px-4 py-2 rounded"
+            {...register('tags')}
+            placeholder="Comma-separated tags"
+            className="w-full border p-2 rounded"
           />
         </div>
 
+        {/* partNumber */}
         <div>
-          <label className="block text-sm font-medium mb-1">Department</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Part Number
+          </label>
           <input
-            {...register('department')}
-            placeholder="Enter department"
-            className="w-full border px-4 py-2 rounded"
+            {...register('partNumber')}
+            placeholder="Enter part number"
+            className="w-full border p-2 rounded"
           />
         </div>
 
+        {/* isArchived */}
         <div>
-          <label className="block text-sm font-medium mb-1">Year</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Archived
+          </label>
+          <select
+            {...register('isArchived')}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Select</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        {/* inBin */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            In Bin
+          </label>
+          <select {...register('inBin')} className="w-full border p-2 rounded">
+            <option value="">Select</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        {/* createdByUsername (dropdown static for now) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Created By
+          </label>
+          <select
+            {...register('createdByUsername')}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Select</option>
+            {users?.map((user, index) => {
+              const roles = user.roles?.join(', ') || 'No Roles';
+              const departments = user.departments?.length
+                ? `(${user.departments.join(', ')})`
+                : '';
+
+              return (
+                <option key={user.id} value={user.username}>
+                  {`${user.username} - ${roles} ${departments}`}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* processName */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Process Name
+          </label>
           <input
-            {...register('year')}
-            placeholder="Enter year"
-            className="w-full border px-4 py-2 rounded"
+            {...register('processName')}
+            placeholder="Enter process name"
+            className="w-full border p-2 rounded"
           />
         </div>
 
-        <div className="md:col-span-2 flex justify-end gap-4">
-          <CustomButton
-            type="submit"
-            text="Search"
-            variant="primary"
-            disabled={actionsLoading}
+        {/* processId */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Process ID
+          </label>
+          <input
+            {...register('processId')}
+            placeholder="Enter process ID"
+            className="w-full border p-2 rounded"
           />
+        </div>
+
+        {/* description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <input
+            {...register('description')}
+            placeholder="Enter description"
+            className="w-full border p-2 rounded"
+          />
+        </div>
+
+        {/* preApproved */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pre-Approved
+          </label>
+          <select
+            {...register('preApproved')}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Select</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        {/* superseding */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Superseding
+          </label>
+          <select
+            {...register('superseding')}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Select</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        {/* Buttons */}
+        <div className="md:col-span-2 flex justify-end gap-4 mt-2">
+          <CustomButton type="submit" text="Search" />
           <CustomButton
             text="Clear"
-            type={'button'}
+            type="button"
             variant="none"
-            disabled={actionsLoading}
             click={() => {
               reset();
               setResults([]);
-              setDocumentsToCompare([]);
+              setSelectedDocs([]);
             }}
           />
         </div>
       </form>
 
-      {/* Compare bar */}
-      {documentsToCompare.length > 0 && (
-        <div className="mt-6 flex items-center justify-between bg-gray-50 border px-4 py-3 rounded">
+      {selectedDocs.length > 0 && (
+        <div className="mt-4 flex justify-between items-center bg-gray-100 px-4 py-3 rounded">
           <div className="flex gap-4">
-            {documentsToCompare.map((doc) => (
-              <div
-                key={doc.documentId}
-                className="px-3 py-1 bg-gray-200 rounded"
-              >
-                {doc.name}
-              </div>
-            ))}
+            {results
+              .filter((d) => selectedDocs.includes(d.id))
+              .map((doc) => (
+                <span key={doc.id} className="bg-gray-200 px-3 py-1 rounded">
+                  {doc.name}
+                </span>
+              ))}
           </div>
+          <CustomButton text="Compare" click={handleCompare} />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+        {results.map((doc) => {
+          const isSelected = selectedDocs.includes(doc.id);
+          const extension = doc.name?.split('.').pop()?.toLowerCase();
+          return (
+            <CustomCard
+              key={doc.id}
+              className="relative flex flex-col justify-between"
+            >
+              {/* Status Badge */}
+              <div className="absolute top-2 right-2">
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${
+                    doc.isArchived
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-green-100 text-green-800'
+                  }`}
+                >
+                  {doc.isArchived ? 'Archived' : 'Active'}
+                </span>
+              </div>
+
+              {/* Header */}
+              <div className="flex gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(doc.id)}
+                />
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <img
+                    width={28}
+                    src={ImageConfig[extension] || ImageConfig['default']}
+                    alt="icon"
+                  />
+                </div>
+                <div>
+                  <p className="font-semibold">{doc.name}</p>
+                  <p className="text-sm text-gray-500">Type: {extension}</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-4 flex justify-end gap-2">
+                <CustomButton
+                  text={<IconEye size={18} className="text-white" />}
+                  title="View"
+                  click={() => window.open(doc.path, '_blank')}
+                />
+                <CustomButton
+                  text={<IconDownload size={18} className="text-white" />}
+                  title="Download"
+                  click={() => {
+                    const a = document.createElement('a');
+                    a.href = doc.path;
+                    a.download = doc.name;
+                    a.click();
+                  }}
+                />
+              </div>
+            </CustomCard>
+          );
+        })}
+      </div>
+
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="flex justify-between items-center mt-6">
           <CustomButton
-            text="Compare"
-            variant="outlined"
-            click={handleCompare}
+            text="Previous"
+            disabled={pagination.page === 1}
+            click={() => handlePagination('prev')}
+          />
+          <span>
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <CustomButton
+            text="Next"
+            disabled={pagination.page === pagination.totalPages}
+            click={() => handlePagination('next')}
           />
         </div>
       )}
 
-      {/* Results */}
-      {results.length > 0 && (
-        <div className="mt-8 space-y-4">
-          <h3 className="text-lg font-semibold">Results: {results.length}</h3>
-          {results.map((doc) => (
-            <CustomCard key={doc.documentId}>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="checkbox"
-                    checked={
-                      !!documentsToCompare.find(
-                        (d) => d.documentId === doc.documentId,
-                      )
-                    }
-                    onChange={() => toggleSelect(doc)}
-                  />
-                  <div>
-                    <h4 className="font-semibold">{doc.name}</h4>
-                    <p className="text-gray-500 text-sm">{doc.path}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <CustomButton
-                    text="View"
-                    variant="text"
-                    click={() => window.open(doc.path, '_blank')}
-                  />
-                  <CustomButton
-                    text="Download"
-                    variant="secondary"
-                    click={() => {
-                      const a = document.createElement('a');
-                      a.href = doc.path;
-                      a.download = doc.name;
-                      a.click();
-                    }}
-                  />
-                </div>
-              </div>
-            </CustomCard>
-          ))}
-        </div>
-      )}
-
-      {/* Document Compare Dialog */}
-      {filesData.length === 2 && (
+      {/* Compare View */}
+      {/* {filesData.length === 2 && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl max-w-6xl w-full relative">
             <button
@@ -202,13 +374,13 @@ export default function SimpleDocumentSearch() {
             </button>
             <h2 className="text-xl font-bold mb-4">Document Versioning</h2>
             <DocumentVersioning
-              file1={filesData[0]?.url}
-              file2={filesData[1]?.url}
+              file1={filesData[0].url}
+              file2={filesData[1].url}
               observations={[]}
             />
           </div>
         </div>
-      )}
+      )} */}
     </CustomCard>
   );
 }
