@@ -65,6 +65,7 @@ const ViewProcess = () => {
     id: null,
     open: false,
   });
+  const disableActions = process?.currentStepType != 'APPROVAL';
 
   const processDetails = [
     { label: 'Process ID', value: process?.processId },
@@ -373,7 +374,7 @@ const ViewProcess = () => {
             text={'Re-Open'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('re-open')}
-            disabled={actionsLoading || !isCompleted}
+            disabled={actionsLoading || !isCompleted || disableActions}
           />
           <CustomButton
             variant={'primary'}
@@ -381,7 +382,10 @@ const ViewProcess = () => {
             className={'min-w-[150px]'}
             click={handleClaim}
             disabled={
-              actionsLoading || isCompleted || process?.toBePicked === false
+              disableActions ||
+              actionsLoading ||
+              isCompleted ||
+              process?.toBePicked === false
             }
           />
           <CustomButton
@@ -389,14 +393,14 @@ const ViewProcess = () => {
             text={'Query'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('query')}
-            disabled={actionsLoading || isCompleted}
+            disabled={actionsLoading || isCompleted || disableActions}
           />
           <CustomButton
             variant={'secondary'}
             text={'Ask Recommendation'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('recommend')}
-            disabled={actionsLoading || isCompleted}
+            disabled={actionsLoading || isCompleted || disableActions}
           />
           <CustomButton
             variant={'danger'}
@@ -542,7 +546,8 @@ const ViewProcess = () => {
                         ) ||
                         doc?.type?.toUpperCase() !== 'PDF' ||
                         doc?.rejectionDetails ||
-                        doc?.preApproved
+                        doc?.preApproved ||
+                        disableActions
                       }
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
@@ -557,7 +562,8 @@ const ViewProcess = () => {
                         actionsLoading ||
                         isCompleted ||
                         doc.rejectionDetails ||
-                        doc?.preApproved
+                        doc?.preApproved ||
+                        disableActions
                       }
                       title="Reject Document"
                       text={<IconX size={18} className="text-white" />}
@@ -936,7 +942,7 @@ const ViewProcess = () => {
                   </div>
                   <div className="mt-4 flex justify-end">
                     <CustomButton
-                      disabled={actionsLoading || isCompleted}
+                      disabled={actionsLoading || isCompleted || disableActions}
                       text="Solve Query"
                       variant="primary"
                       click={() => handleSolveQuery(query)}
