@@ -53,8 +53,72 @@ export default function DocumentSearch() {
   };
 
   const onSubmit = (data) => {
-    setLastQuery(data); // Save the query
-    fetchDocuments(data, true);
+    const usedFilters = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+    setLastQuery(usedFilters);
+    fetchDocuments(usedFilters, true);
+  };
+
+  const getMatchedFields = (doc) => {
+    const fields = [];
+
+    const check = (key, label, value) => {
+      if (
+        lastQuery?.[key] !== undefined &&
+        lastQuery?.[key] !== '' &&
+        value !== undefined &&
+        value !== null
+      ) {
+        fields.push({ label, value: highlightMatch(key, value) });
+      }
+    };
+
+    check('processName', 'Process Name', doc.processName);
+    check('processId', 'Process ID', doc.processId);
+    check('description', 'Description', doc.description);
+    check('createdByUsername', 'Created By', doc.createdByUsername);
+    check('isArchived', 'Archived', doc.isArchived ? 'true' : 'false');
+    check('inBin', 'In Bin', doc.inBin ? 'true' : 'false');
+    check('preApproved', 'Pre-Approved', doc.preApproved?.toString());
+    check('superseding', 'Superseding', doc.superseding?.toString());
+
+    if (Array.isArray(doc.tags) && doc.tags.length > 0 && lastQuery?.tags) {
+      doc.tags.forEach((tag) => {
+        if (tag.toLowerCase().includes(lastQuery.tags.toLowerCase())) {
+          fields.push({ label: 'Tag', value: highlightMatch('tags', tag) });
+        }
+      });
+    }
+
+    return fields;
+  };
+
+  const highlightMatch = (fieldKey, value) => {
+    if (!lastQuery?.[fieldKey] || typeof value !== 'string') return value;
+
+    const query = lastQuery[fieldKey].toString().toLowerCase();
+    const lowerValue = value.toLowerCase();
+    const index = lowerValue.indexOf(query);
+
+    if (index === -1) return value;
+
+    const before = value.substring(0, index);
+    const match = value.substring(index, index + query.length);
+    const after = value.substring(index + query.length);
+
+    return (
+      <>
+        {before}
+        <span className="bg-yellow-200 font-semibold rounded-sm px-0.5">
+          {match}
+        </span>
+        {after}
+      </>
+    );
   };
 
   const handleViewFile = async (name, path, fileId, type, isEditing) => {
@@ -273,11 +337,12 @@ export default function DocumentSearch() {
 
         {/* Buttons */}
         <div className="md:col-span-2 flex justify-end gap-4 mt-2">
-          <CustomButton type="submit" text="Search" />
+          <CustomButton disabled={loading} type="submit" text="Search" />
           <CustomButton
             text="Clear"
             type="button"
             variant="none"
+            disabled={loading}
             click={() => {
               reset();
               setResults([]);
@@ -292,25 +357,11 @@ export default function DocumentSearch() {
           />
         </div>
       </form>
-
-      {/* {selectedDocs.length > 0 && (
-        <div className="mt-4 flex justify-between items-center bg-gray-100 px-4 py-3 rounded">
-          <div className="flex gap-4">
-            {results
-              .filter((d) => selectedDocs.includes(d.id))
-              .map((doc) => (
-                <span key={doc.id} className="bg-gray-200 px-3 py-1 rounded">
-                  {doc.name}
-                </span>
-              ))}
-          </div>
-          <CustomButton text="Compare" click={handleCompare} />
-        </div>
-      )} */}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {results.map((doc) => {
           const extension = doc.name?.split('.').pop()?.toLowerCase();
+          const matchedFields = getMatchedFields(doc);
+
           return (
             <CustomCard
               key={doc.id}
@@ -329,14 +380,14 @@ export default function DocumentSearch() {
                 >
                   {doc.isArchived
                     ? 'Archived'
-                    : doc?.inBin
+                    : doc.inBin
                       ? 'Deleted'
                       : 'Active'}
                 </span>
               </div>
 
               {/* Header */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                   <img
                     width={28}
@@ -345,10 +396,27 @@ export default function DocumentSearch() {
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold break-words">{doc.name}</p>
-                  <p className="text-sm text-gray-500">Type: {extension}</p>
+                  <p className="font-semibold break-words">
+                    {highlightMatch('name', doc.name)}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Type: {highlightMatch('partNumber', extension)}
+                  </p>
                 </div>
               </div>
+
+              {/* Matched Info */}
+              {matchedFields.length > 0 && (
+                <div className="mt-4 text-sm bg-gray-50 border rounded p-2 space-y-1">
+                  <p className="font-medium text-gray-700">Matched Info:</p>
+                  {matchedFields.map((field, i) => (
+                    <p key={i} className="text-gray-600">
+                      <span className="font-medium">{field.label}:</span>{' '}
+                      {field.value}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               {/* Actions */}
               <div className="mt-4 flex justify-end gap-2">
@@ -356,13 +424,7 @@ export default function DocumentSearch() {
                   text={<IconEye size={18} className="text-white" />}
                   title="View (Updated)"
                   click={() =>
-                    handleViewFile(
-                      doc.name,
-                      doc.path,
-                      doc.id,
-                      doc.name.split('.').pop(),
-                      false,
-                    )
+                    handleViewFile(doc.name, doc.path, doc.id, extension, false)
                   }
                 />
               </div>
