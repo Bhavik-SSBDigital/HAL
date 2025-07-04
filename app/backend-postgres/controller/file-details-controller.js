@@ -791,7 +791,7 @@ export const search_documents = async (req, res) => {
     // Transform the response
     const formattedDocuments = documents.map((doc) => ({
       id: doc.id,
-      path: doc.path,
+      path: doc.path.split("/").slice(0, -1).join("/"),
       tags: doc.tags,
       name: doc.name,
       isArchived: doc.isArchived,
