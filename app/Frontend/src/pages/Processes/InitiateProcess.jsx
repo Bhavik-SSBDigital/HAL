@@ -94,11 +94,18 @@ export default function InitiateProcess() {
     try {
       // Generate file name from backend
 
-      const generatedName = await GenerateDocumentName(
-        workflowId,
-        null,
-        selectedFile.name.split('.').pop(),
-      );
+      const generatedName = fileDetails.preApproved
+        ? {
+            data: {
+              documentName:
+                fileDetails.name + '.' + selectedFile.name.split('.').pop(),
+            },
+          }
+        : await GenerateDocumentName(
+            workflowId,
+            null,
+            selectedFile.name.split('.').pop(),
+          );
 
       // Upload file using generated name and tags
       const res = await uploadDocumentInProcess(
@@ -464,6 +471,25 @@ export default function InitiateProcess() {
                   placeholder="Enter file-specific description"
                 />
               </div>
+              {fileDetails.preApproved ? (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Document Name
+                  </label>
+                  <input
+                    type="text"
+                    value={fileDetails.name}
+                    onChange={(e) =>
+                      setFileDetails((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter Name"
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-4 flex items-center gap-2">
