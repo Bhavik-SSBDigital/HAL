@@ -118,7 +118,7 @@ export const uploadDocumentInProcess = async (
   documentId,
 ) => {
   const res = storagePath
-    ? upload(fileList, storagePath, name, true, tags, documentId)
+    ? await upload(fileList, storagePath, name, true, tags, documentId)
     : await upload(fileList, '../check', name, true, tags, documentId);
   return res;
 };

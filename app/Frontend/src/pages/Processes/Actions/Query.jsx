@@ -58,15 +58,16 @@ export default function Query({
   //   handlers
   const handleDocumentUpload = async (file, index, replacedDocId) => {
     if (!file) return;
-
     try {
       // Step 1: Generate Document Name
 
-      const generatedName = await GenerateDocumentName(
-        workflowId,
-        replacedDocId,
-        file.name.split('.').pop(),
-      );
+      const generatedName = replacedDocId
+        ? { data: { documentName: file.name } }
+        : await GenerateDocumentName(
+            workflowId,
+            replacedDocId,
+            file.name.split('.').pop(),
+          );
       if (!generatedName) {
         toast.error('Failed to generate document name');
         return;
@@ -78,6 +79,7 @@ export default function Query({
         generatedName?.data?.documentName,
         [],
         storagePath,
+        replacedDocId,
       );
       if (!response || !response.length || !response[0]) {
         throw new Error('Document upload failed or returned no ID');

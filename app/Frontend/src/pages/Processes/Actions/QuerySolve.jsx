@@ -58,11 +58,13 @@ export default function QuerySolve({
     console.log('storage path from query solve', storagePath);
     try {
       // 🔹 Step 1: Generate document name from backend
-      const generatedName = await GenerateDocumentName(
-        workflowId,
-        replacedDocId,
-        file.name.split('.').pop(),
-      );
+      const generatedName = replacedDocId
+        ? { data: { documentName: file.name } }
+        : await GenerateDocumentName(
+            workflowId,
+            replacedDocId,
+            file.name.split('.').pop(),
+          );
 
       // 🔹 Step 2: Upload document with generated name
       const response = await uploadDocumentInProcess(
