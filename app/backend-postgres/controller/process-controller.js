@@ -352,7 +352,7 @@ export const initiate_process = async (req, res, next) => {
           reopenCycle: 0,
           preApproved: item.preApproved || false, // Include preApproved, default to false if not provided
           tags: item.tags || [], // Include tags, default to empty array if not provided
-          partNumber: item.partNumber || null, // Include partNumber, default to null if not provided
+          partNumber: parseInt(item.partNumber) || null, // Include partNumber, default to null if not provided
           description: item.description || null, // Include description, default to null if not provided
         })) || [];
 
@@ -1015,8 +1015,6 @@ export const view_process = async (req, res) => {
       },
     });
 
-    console.log("process documents", processDocuments);
-
     // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
       processDocuments
@@ -1044,7 +1042,6 @@ export const view_process = async (req, res) => {
     }
 
     // Build documentVersioning
-
     const documentVersioning = [];
     const allProcessDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
@@ -1098,6 +1095,7 @@ export const view_process = async (req, res) => {
           path: processDoc.document.path.split("/").slice(0, -1).join("/"),
           type: processDoc.document.type,
           tags: processDoc.tags,
+          preApproved: processDoc.preApproved,
           reasonOfSupersed: processDoc.reasonOfSupersed,
           description: processDoc.description,
           partNumber: processDoc.partNumber,
@@ -1119,7 +1117,7 @@ export const view_process = async (req, res) => {
       }
     }
 
-    // Handle any documents not included in chains (shouldn't happen with proper data)
+    // Handle any documents not included in chains
     const includedDocIds = new Set(
       documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
     );
@@ -1137,13 +1135,14 @@ export const view_process = async (req, res) => {
             path: doc.document.path.split("/").slice(0, -1).join("/"),
             type: doc.document.type,
             tags: doc.document.tags,
-            reasonOfSupersed: doc.document.reasonOfSupersed,
-            description: doc.document.description,
+            reasonOfSupersed: doc.reasonOfSupersed,
+            description: doc.description,
             partNumber: doc.document.partNumber,
             active: doc.document.id === latestDocument?.document?.id,
             isReplacement: doc.isReplacement,
             superseding: doc.superseding,
             reopenCycle: doc.reopenCycle,
+            preApproved: doc.preApproved,
           },
         ],
       });
@@ -1151,31 +1150,31 @@ export const view_process = async (req, res) => {
 
     // Build sededDocuments
     const sededDocuments = [];
+
     if (processDocuments.length > 0) {
       // Sort all documents by ID to get chronological order
       const allDocsSorted = [...processDocuments].sort(
         (a, b) => a.document.id - b.document.id
       );
 
-      // Find the first document with reopenCycle = 1
-      const firstReopenCycle1Doc = allDocsSorted.find(
+      // Find all documents with reopenCycle = 1
+      const reopenCycle1Docs = allDocsSorted.filter(
         (doc) => doc.reopenCycle === 1
       );
 
-      let documentWhichSuperseded = null;
-      const versions = [];
-
-      if (firstReopenCycle1Doc) {
-        // Find the document that was replaced by the first reopenCycle=1 document
-        documentWhichSuperseded = allDocsSorted.find(
+      // Process each reopenCycle = 1 document
+      reopenCycle1Docs.forEach((firstReopenCycle1Doc) => {
+        // Find the document that was replaced by this reopenCycle=1 document
+        const documentWhichSuperseded = allDocsSorted.find(
           (doc) => doc.documentId === firstReopenCycle1Doc.replacedDocumentId
         );
 
-        // Now build versions by finding documents just before reopenCycle increments
+        const versions = [];
         let currentDoc = firstReopenCycle1Doc;
         let currentReopenCycle = 1;
         let lastDocBeforeCycleChange = null;
 
+        // Build versions by finding documents just before reopenCycle increments
         while (currentDoc) {
           if (currentDoc.reopenCycle > currentReopenCycle) {
             // Found a cycle change - add the last doc from previous cycle
@@ -1198,6 +1197,7 @@ export const view_process = async (req, res) => {
                   (latestDocument?.document.id || null),
                 isReplacement: lastDocBeforeCycleChange.isReplacement,
                 superseding: lastDocBeforeCycleChange.superseding,
+                preApproved: lastDocBeforeCycleChange.preApproved,
                 reopenCycle: lastDocBeforeCycleChange.reopenCycle,
               });
             }
@@ -1233,33 +1233,38 @@ export const view_process = async (req, res) => {
             isReplacement: lastDocBeforeCycleChange.isReplacement,
             superseding: lastDocBeforeCycleChange.superseding,
             reopenCycle: lastDocBeforeCycleChange.reopenCycle,
+            preApproved: lastDocBeforeCycleChange.preApproved,
             reasonOfSupersed:
               lastDocBeforeCycleChange.document.reasonOfSupersed,
             description: lastDocBeforeCycleChange.document.description,
             partNumber: lastDocBeforeCycleChange.document.partNumber,
           });
         }
-      }
 
-      if (documentWhichSuperseded) {
-        sededDocuments.push({
-          documentWhichSuperseded: {
-            id: documentWhichSuperseded.document.id,
-            name: documentWhichSuperseded.document.name,
-            path: documentWhichSuperseded.document.path
-              .split("/")
-              .slice(0, -1)
-              .join("/"),
-            type: documentWhichSuperseded.document.type,
-            tags: documentWhichSuperseded.tags,
-            reasonOfSupersed: documentWhichSuperseded.reasonOfSupersed,
-            description: documentWhichSuperseded.description,
-            partNumber: documentWhichSuperseded.partNumber,
-          },
-          latestDocumentId: latestDocument ? latestDocument.document.id : null,
-          versions: versions,
-        });
-      }
+        // Add to sededDocuments if a superseded document was found
+        if (documentWhichSuperseded) {
+          sededDocuments.push({
+            documentWhichSuperseded: {
+              id: documentWhichSuperseded.document.id,
+              name: documentWhichSuperseded.document.name,
+              path: documentWhichSuperseded.document.path
+                .split("/")
+                .slice(0, -1)
+                .join("/"),
+              type: documentWhichSuperseded.document.type,
+              preApproved: documentWhichSuperseded.preApproved,
+              tags: documentWhichSuperseded.tags,
+              reasonOfSupersed: documentWhichSuperseded.reasonOfSupersed,
+              description: documentWhichSuperseded.description,
+              partNumber: documentWhichSuperseded.partNumber,
+            },
+            latestDocumentId: latestDocument
+              ? latestDocument.document.id
+              : null,
+            versions: versions,
+          });
+        }
+      });
     }
 
     // Transform documents for response
@@ -1299,7 +1304,6 @@ export const view_process = async (req, res) => {
         const parts = doc.document.path.split("/");
         parts.pop();
         const updatedPath = parts.join("/");
-        console.log("doc document tag", doc.document);
         return {
           id: doc.document.id,
           name: doc.document.name,
@@ -1315,6 +1319,7 @@ export const view_process = async (req, res) => {
           approvalCount: signedBy.length,
           isReplacement: doc.isReplacement,
           superseding: doc.superseding,
+          preApproved: doc.preApproved,
           reopenCycle: doc.reopenCycle,
           reasonOfSupersed: doc.reasonOfSupersed,
           description: doc.description,
@@ -1442,7 +1447,8 @@ export const view_process = async (req, res) => {
                         await prisma.user.findUnique({
                           where: {
                             id: parseInt(
-                              qa.details.assigneeDetails.assignedAssigneeId
+                              qa.details.assigneeFDA0.assigneeDetails
+                                .assignedAssigneeId
                             ),
                           },
                           select: { username: true },
@@ -1531,6 +1537,14 @@ export const view_process = async (req, res) => {
       ...new Set(processDocs.map((doc) => doc.reopenCycle + 1)),
     ].sort((a, b) => a - b);
 
+    // Find the current step instance to get stepNumber and stepType
+    const currentStepInstance = process.stepInstances.find(
+      (item) =>
+        item.id ===
+        process.stepInstances.filter((item) => item.status === "IN_PROGRESS")[0]
+          ?.id
+    );
+
     return res.status(200).json({
       process: {
         processStoragePath: process.storagePath,
@@ -1563,6 +1577,9 @@ export const view_process = async (req, res) => {
         documentVersioning,
         sededDocuments,
         workflow,
+        currentStepNumber:
+          currentStepInstance?.workflowStep?.stepNumber || null,
+        currentStepType: currentStepInstance?.workflowStep?.stepType || null,
       },
     });
   } catch (error) {
@@ -2417,20 +2434,14 @@ export const createQuery = async (req, res) => {
       const documentHistoryEntries = [];
       for (const change of documentChanges) {
         const {
+          documentId,
           requiresApproval,
           isReplacement,
           replacesDocumentId,
           superseding = false,
         } = change;
 
-        let documentId = change.documentId;
-
-        documentId = await copyAndDeleteSingleDocument(
-          processId,
-          documentId,
-          accessToken
-        );
-
+        console.log("replaces", replacesDocumentId);
         const document = await tx.document.findUnique({
           where: { id: documentId },
         });
@@ -2460,25 +2471,33 @@ export const createQuery = async (req, res) => {
             replacedDocument.path
           );
 
-          const ext = path.extname(oldDocPath).toLowerCase();
-          if (ext === ".pdf") {
-            await watermarkDocument(oldDocPath, oldDocPath, "REPLACED");
-          }
-        }
+          const record = await tx.processDocument.findUnique({
+            where: {
+              documentId_processId: {
+                documentId: parseInt(replacesDocumentId),
+                processId,
+              },
+            },
+          });
 
-        const oldProcessDoc = await tx.processDocument.findFirst({
-          where: { documentId: parseInt(replacesDocumentId) },
-        });
+          if (!record) {
+            throw new Error("ProcessDocument not found");
+          }
+
+          const processDocument_ = await tx.processDocument.delete({
+            where: {
+              documentId_processId: {
+                documentId: parseInt(replacesDocumentId),
+                processId,
+              },
+            },
+          });
+        }
 
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
             documentId,
-            tags: oldProcessDoc?.tags || [],
-            preApproved: false,
-            reasonOfSupersed: oldProcessDoc?.reasonOfSupersed || null,
-            description:
-              oldProcessDoc?.description || "Description not provided",
             isReplacement,
             superseding,
             replacedDocumentId: isReplacement
@@ -2709,7 +2728,6 @@ export const createQuery = async (req, res) => {
     });
   }
 };
-
 export const assignDocumentUpload = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -3502,7 +3520,12 @@ export const reopen_process = async (req, res) => {
         }
 
         const oldDocProcessDoc = await tx.processDocument.findUnique({
-          where: { documentId: parseInt(oldDocumentId) },
+          where: {
+            documentId_processId: {
+              documentId: parseInt(oldDocumentId),
+              processId: processId,
+            },
+          },
         });
 
         // Create ProcessDocument entry for superseded document
@@ -3567,9 +3590,9 @@ export const reopen_process = async (req, res) => {
           const oldDocPath = path.join(__dirname, STORAGE_PATH, oldDoc.path);
 
           const ext = path.extname(oldDocPath).toLowerCase();
-          if (ext === ".pdf") {
-            await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
-          }
+          // if (ext === ".pdf") {
+          await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
+          // }
         }
       }
 
