@@ -53,6 +53,7 @@ const EDITABLE_TYPES = [
   'ppt',
   'odp',
   'odg',
+  'tiff',
 ];
 
 const PdfViewer = ({

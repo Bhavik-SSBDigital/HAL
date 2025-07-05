@@ -81,6 +81,7 @@ export const file_upload = async (req, res) => {
     let workName = req.headers["x-work-name"];
     let cabinetNo = req.headers["x-cabinet-no"];
     let year = req.headers["x-year"];
+    let documentId = req.headers["x-file-id"];
 
     isInvolvedInProcess =
       isInvolvedInProcess === "undefined" || undefined
@@ -94,7 +95,22 @@ export const file_upload = async (req, res) => {
     let extra = req.headers["x-file-path"];
     extra = extra.substring(2);
     let relativePath = process.env.STORAGE_PATH + extra;
-    const saveTo = path.join(__dirname, relativePath, fileName);
+
+    let document;
+
+    console.log("doc id", documentId);
+
+    if (documentId && documentId !== "undefined" && documentId !== undefined) {
+      console.log("wrong");
+      document = await prisma.document.findUnique({
+        where: { id: parseInt(documentId) },
+      });
+    }
+
+    const saveTo =
+      documentId && documentId !== "undefined"
+        ? path.join(__dirname, STORAGE_PATH, document.path)
+        : path.join(__dirname, relativePath, fileName);
     relativePath = relativePath + `/${fileName}`;
 
     try {
@@ -118,6 +134,17 @@ export const file_upload = async (req, res) => {
     writableStream.on("finish", async () => {
       if (chunkNumber === totalChunks - 1) {
         try {
+          if (
+            documentId !== "undefined" &&
+            documentId !== undefined &&
+            documentId
+          ) {
+            console.log("lo");
+            return res.status(200).json({
+              message: "File upload completed.",
+              documentId: documentId,
+            });
+          }
           const newDocument = await prisma.document.create({
             data: {
               name: fileName,
@@ -135,6 +162,8 @@ export const file_upload = async (req, res) => {
               // highlights: { create: [] },
             },
           });
+
+          console.log("new doc", newDocument);
 
           await createUserPermissions(newDocument.id, userData.username, true);
 

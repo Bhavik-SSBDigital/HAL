@@ -391,6 +391,9 @@ model ProcessDocument {
   signCoordinates  SignCoordinate[] @relation()
   documentHistory  DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
   @@unique([documentId, processId])
+  @@index([processId])
+  @@index([documentId])
+  @@index([replacedDocumentId])
 }
 
 model DocumentSignature {

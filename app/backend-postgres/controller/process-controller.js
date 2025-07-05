@@ -24,6 +24,35 @@ const {
 
 const prisma = new PrismaClient();
 
+async function connectWithRetry(maxRetries = 5, delay = 1000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await prisma.$connect();
+      console.log("Prisma client connected successfully");
+      return true;
+    } catch (error) {
+      if (
+        error.message.includes("Engine is not yet connected") &&
+        i < maxRetries - 1
+      ) {
+        console.warn(
+          `Connection attempt ${i + 1} failed, retrying in ${delay}ms...`
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, delay * Math.pow(2, i))
+        ); // Exponential backoff
+      } else {
+        throw error; // Throw if max retries reached or different error
+      }
+    }
+  }
+}
+
+connectWithRetry().catch((err) => {
+  console.error("Failed to connect to Prisma client:", err);
+  process.exit(1); // Exit process if connection fails
+});
+
 const STORAGE_PATH = process.env.STORAGE_PATH;
 
 async function checkDocumentAccess(userId, documentId, requiredAccess) {
@@ -793,149 +822,150 @@ export const view_process = async (req, res) => {
       });
     }
 
-    const process = await prisma.processInstance.findUnique({
-      where: { id: processId },
-      include: {
-        initiator: {
-          select: { id: true, username: true, name: true, email: true },
+    if (userData === "Unauthorized" || !userData?.id) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: "Unauthorized request",
+          details: "Invalid or missing authorization token.",
+          code: "UNAUTHORIZED",
         },
-        workflow: {
-          select: {
-            id: true,
-            name: true,
-            version: true,
+      });
+    }
+
+    console.log(`Fetching process with processId: ${processId}`);
+
+    const retry = async (fn, retries = 3, delay = 1000) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          return await fn();
+        } catch (error) {
+          if (i === retries - 1) throw error;
+          console.warn(`Retry ${i + 1} for processId: ${processId}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    };
+
+    // Fetch ProcessInstance with minimal relations
+    const process = await retry(() =>
+      prisma.processInstance.findUnique({
+        where: { id: processId },
+        include: {
+          initiator: {
+            select: { id: true, username: true, name: true, email: true },
           },
-        },
-        currentStep: {
-          select: {
-            id: true,
-            stepName: true,
-            stepNumber: true,
-            stepType: true,
-          },
-        },
-        documents: {
-          include: {
-            document: {
-              select: {
-                id: true,
-                name: true,
-                type: true,
-                path: true,
-              },
-            },
-            signatures: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                  },
-                },
-              },
-            },
-            rejections: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                  },
-                },
-              },
-            },
-            documentHistory: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                  },
-                },
-                replacedDocument: {
-                  select: {
-                    id: true,
-                    name: true,
-                    path: true,
-                  },
-                },
-              },
+          workflow: { select: { id: true, name: true, version: true } },
+          currentStep: {
+            select: {
+              id: true,
+              stepName: true,
+              stepNumber: true,
+              stepType: true,
             },
           },
         },
-        stepInstances: {
-          where: {
-            status: {
-              in: [
-                "IN_PROGRESS",
-                "FOR_RECIRCULATION",
-                "APPROVED",
-                "FOR_RECOMMENDATION",
-              ],
-            },
+      })
+    );
+
+    if (!process) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: "Process not found",
+          details: "No process found with the specified ID.",
+          code: "PROCESS_NOT_FOUND",
+        },
+      });
+    }
+
+    // Fetch documents separately
+    const documents = await retry(() =>
+      prisma.processDocument.findMany({
+        where: { processId: process.id },
+        include: {
+          document: {
+            select: { id: true, name: true, type: true, path: true },
           },
-          include: {
-            workflowStep: {
-              select: {
-                id: true,
-                stepName: true,
-                stepNumber: true,
-                stepType: true,
-              },
-            },
-            workflowAssignment: {
-              include: {
-                step: {
-                  select: {
-                    id: true,
-                    stepName: true,
-                    stepNumber: true,
-                    stepType: true,
-                  },
-                },
-              },
-            },
-            pickedBy: {
-              select: {
-                id: true,
-                username: true,
-              },
-            },
-            processQA: {
-              where: {
-                OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-                status: "OPEN",
-              },
-              include: {
-                initiator: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-                process: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-            recommendations: {
-              include: {
-                initiator: {
-                  select: { id: true, username: true },
-                },
-                recommender: {
-                  select: { id: true, username: true },
-                },
+          signatures: {
+            include: { user: { select: { id: true, username: true } } },
+          },
+          rejections: {
+            include: { user: { select: { id: true, username: true } } },
+          },
+          documentHistory: {
+            include: {
+              user: { select: { id: true, name: true, username: true } },
+              replacedDocument: {
+                select: { id: true, name: true, path: true },
               },
             },
           },
         },
-      },
-    });
+      })
+    );
+
+    // Fetch stepInstances separately
+    const stepInstances = await retry(() =>
+      prisma.processStepInstance.findMany({
+        where: {
+          processId: process.id,
+          status: {
+            in: [
+              "IN_PROGRESS",
+              "FOR_RECIRCULATION",
+              "APPROVED",
+              "FOR_RECOMMENDATION",
+            ],
+          },
+        },
+        include: {
+          workflowStep: {
+            select: {
+              id: true,
+              stepName: true,
+              stepNumber: true,
+              stepType: true,
+            },
+          },
+          workflowAssignment: {
+            include: {
+              step: {
+                select: {
+                  id: true,
+                  stepName: true,
+                  stepNumber: true,
+                  stepType: true,
+                },
+              },
+            },
+          },
+          pickedBy: { select: { id: true, username: true } },
+          processQA: {
+            where: {
+              OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
+              status: "OPEN",
+            },
+            include: {
+              initiator: { select: { id: true, name: true } },
+              process: { select: { id: true, name: true } },
+            },
+          },
+          recommendations: {
+            include: {
+              initiator: { select: { id: true, username: true } },
+              recommender: { select: { id: true, username: true } },
+            },
+          },
+        },
+      })
+    );
+
+    process.documents = documents;
+    process.stepInstances = stepInstances;
+
+    console.log("process searched");
+    console.log("process searched");
 
     if (!process) {
       return res.status(404).json({
@@ -967,6 +997,8 @@ export const view_process = async (req, res) => {
         username: true,
       },
     });
+
+    console.log("assignees fetched");
 
     const assigneeMap = assignees.reduce((map, user) => {
       map[user.id] = user;
@@ -1015,6 +1047,8 @@ export const view_process = async (req, res) => {
       },
     });
 
+    console.log("process documents fetched");
+
     // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
       processDocuments
@@ -1027,6 +1061,7 @@ export const view_process = async (req, res) => {
         .map((pd) => pd.replacedDocumentId)
     );
 
+    console.log("process document", processDocuments);
     // Find the latest document (neither replaced nor superseded)
     let latestDocument = processDocuments.find(
       (pd) =>
@@ -1064,6 +1099,8 @@ export const view_process = async (req, res) => {
       },
     });
 
+    console.log("1072");
+
     // Create maps for quick lookups
     const docIdToProcessDoc = new Map(
       allProcessDocuments.map((d) => [d.documentId, d])
@@ -1073,6 +1110,8 @@ export const view_process = async (req, res) => {
         .filter((d) => d.replacedDocumentId)
         .map((d) => [d.replacedDocumentId, d.documentId])
     );
+
+    console.log("1082");
 
     // Find all terminal documents (not replaced by any other)
     const terminalDocumentIds = allProcessDocuments
@@ -1117,6 +1156,8 @@ export const view_process = async (req, res) => {
       }
     }
 
+    console.log("1129");
+
     // Handle any documents not included in chains
     const includedDocIds = new Set(
       documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
@@ -1148,6 +1189,7 @@ export const view_process = async (req, res) => {
       });
     }
 
+    console.log("1161");
     // Build sededDocuments
     const sededDocuments = [];
 
@@ -1173,9 +1215,12 @@ export const view_process = async (req, res) => {
         let currentDoc = firstReopenCycle1Doc;
         let currentReopenCycle = 1;
         let lastDocBeforeCycleChange = null;
+        const visitedDocIds = new Set(); // Track visited document IDs to prevent infinite loops
 
         // Build versions by finding documents just before reopenCycle increments
-        while (currentDoc) {
+        while (currentDoc && !visitedDocIds.has(currentDoc.documentId)) {
+          visitedDocIds.add(currentDoc.documentId); // Mark current document as visited
+
           if (currentDoc.reopenCycle > currentReopenCycle) {
             // Found a cycle change - add the last doc from previous cycle
             if (lastDocBeforeCycleChange) {
@@ -1183,22 +1228,24 @@ export const view_process = async (req, res) => {
                 id: lastDocBeforeCycleChange.document.id,
                 name: lastDocBeforeCycleChange.document.name,
                 path: lastDocBeforeCycleChange.document.path
-                  .split("/")
-                  .slice(0, -1)
-                  .join("/"),
-                type: lastDocBeforeCycleChange.document.type,
-                tags: lastDocBeforeCycleChange.document.tags,
+                  ? lastDocBeforeCycleChange.document.path
+                      .split("/")
+                      .slice(0, -1)
+                      .join("/")
+                  : "",
+                type: lastDocBeforeCycleChange.document.type || "",
+                tags: lastDocBeforeCycleChange.tags || [],
                 reasonOfSupersed:
-                  lastDocBeforeCycleChange.document.reasonOfSupersed,
-                description: lastDocBeforeCycleChange.document.description,
-                partNumber: lastDocBeforeCycleChange.document.partNumber,
+                  lastDocBeforeCycleChange.reasonOfSupersed || null,
+                description: lastDocBeforeCycleChange.description || null,
+                partNumber: lastDocBeforeCycleChange.partNumber || null,
                 active:
                   lastDocBeforeCycleChange.document.id ===
-                  (latestDocument?.document.id || null),
-                isReplacement: lastDocBeforeCycleChange.isReplacement,
-                superseding: lastDocBeforeCycleChange.superseding,
-                preApproved: lastDocBeforeCycleChange.preApproved,
-                reopenCycle: lastDocBeforeCycleChange.reopenCycle,
+                  (latestDocument?.document?.id || null),
+                isReplacement: lastDocBeforeCycleChange.isReplacement || false,
+                superseding: lastDocBeforeCycleChange.superseding || false,
+                preApproved: lastDocBeforeCycleChange.preApproved || false,
+                reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
               });
             }
             currentReopenCycle = currentDoc.reopenCycle;
@@ -1222,22 +1269,23 @@ export const view_process = async (req, res) => {
             id: lastDocBeforeCycleChange.document.id,
             name: lastDocBeforeCycleChange.document.name,
             path: lastDocBeforeCycleChange.document.path
-              .split("/")
-              .slice(0, -1)
-              .join("/"),
-            type: lastDocBeforeCycleChange.document.type,
-            tags: lastDocBeforeCycleChange.document.tags,
+              ? lastDocBeforeCycleChange.document.path
+                  .split("/")
+                  .slice(0, -1)
+                  .join("/")
+              : "",
+            type: lastDocBeforeCycleChange.document.type || "",
+            tags: lastDocBeforeCycleChange.tags || [],
             active:
               lastDocBeforeCycleChange.document.id ===
-              (latestDocument?.document.id || null),
-            isReplacement: lastDocBeforeCycleChange.isReplacement,
-            superseding: lastDocBeforeCycleChange.superseding,
-            reopenCycle: lastDocBeforeCycleChange.reopenCycle,
-            preApproved: lastDocBeforeCycleChange.preApproved,
-            reasonOfSupersed:
-              lastDocBeforeCycleChange.document.reasonOfSupersed,
-            description: lastDocBeforeCycleChange.document.description,
-            partNumber: lastDocBeforeCycleChange.document.partNumber,
+              (latestDocument?.document?.id || null),
+            isReplacement: lastDocBeforeCycleChange.isReplacement || false,
+            superseding: lastDocBeforeCycleChange.superseding || false,
+            reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
+            preApproved: lastDocBeforeCycleChange.preApproved || false,
+            reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed || null,
+            description: lastDocBeforeCycleChange.description || null,
+            partNumber: lastDocBeforeCycleChange.partNumber || null,
           });
         }
 
@@ -1248,15 +1296,18 @@ export const view_process = async (req, res) => {
               id: documentWhichSuperseded.document.id,
               name: documentWhichSuperseded.document.name,
               path: documentWhichSuperseded.document.path
-                .split("/")
-                .slice(0, -1)
-                .join("/"),
-              type: documentWhichSuperseded.document.type,
-              preApproved: documentWhichSuperseded.preApproved,
-              tags: documentWhichSuperseded.tags,
-              reasonOfSupersed: documentWhichSuperseded.reasonOfSupersed,
-              description: documentWhichSuperseded.description,
-              partNumber: documentWhichSuperseded.partNumber,
+                ? documentWhichSuperseded.document.path
+                    .split("/")
+                    .slice(0, -1)
+                    .join("/")
+                : "",
+              type: documentWhichSuperseded.document.type || "",
+              preApproved: documentWhichSuperseded.preApproved || false,
+              tags: documentWhichSuperseded.tags || [],
+              reasonOfSupersed:
+                documentWhichSuperseded.reasonOfSupersed || null,
+              description: documentWhichSuperseded.description || null,
+              partNumber: documentWhichSuperseded.partNumber || null,
             },
             latestDocumentId: latestDocument
               ? latestDocument.document.id
@@ -1267,11 +1318,16 @@ export const view_process = async (req, res) => {
       });
     }
 
+    console.log("1281");
+
+    console.log("process documents", processDocuments);
     // Transform documents for response
     const transformedDocuments = processDocuments
       .filter(
         (doc) =>
-          !replacedDocumentIds.has(doc.documentId) &&
+          (!replacedDocumentIds.has(doc.documentId) ||
+            (doc.replacedDocument &&
+              doc.document.id === doc.replacedDocument.id)) &&
           !supersededDocumentIds.has(doc.documentId)
       )
       .map((doc) => {
@@ -1328,6 +1384,8 @@ export const view_process = async (req, res) => {
         };
       });
 
+    console.log("1338");
+
     const queryDetails = await Promise.all(
       process.stepInstances.flatMap((step) =>
         step.processQA.map(async (qa) => {
@@ -1370,6 +1428,7 @@ export const view_process = async (req, res) => {
                   },
                 })
               : [];
+          console.log("qa details", qa.details);
 
           return {
             stepInstanceId: step.id,
@@ -1447,8 +1506,7 @@ export const view_process = async (req, res) => {
                         await prisma.user.findUnique({
                           where: {
                             id: parseInt(
-                              qa.details.assigneeFDA0.assigneeDetails
-                                .assignedAssigneeId
+                              qa.details.assigneeDetails.assignedAssigneeId
                             ),
                           },
                           select: { username: true },
@@ -1461,6 +1519,8 @@ export const view_process = async (req, res) => {
         })
       )
     );
+
+    console.log("query details fetched");
 
     const recommendationDetails = await Promise.all(
       process.stepInstances.flatMap((step) =>
@@ -1512,6 +1572,7 @@ export const view_process = async (req, res) => {
       )
     );
 
+    console.log("recommendation details fetched");
     const toBePicked = process.stepInstances.some(
       (step) => step.assignedTo === userData.id && step.status === "IN_PROGRESS"
     );
@@ -1532,11 +1593,13 @@ export const view_process = async (req, res) => {
       distinct: ["reopenCycle"],
     });
 
+    console.log("process docs fetched 1545");
     // Map reopenCycle to version numbers (reopenCycle + 1) and ensure uniqueness
     const versions = [
       ...new Set(processDocs.map((doc) => doc.reopenCycle + 1)),
     ].sort((a, b) => a - b);
 
+    console.log("1553");
     // Find the current step instance to get stepNumber and stepType
     const currentStepInstance = process.stepInstances.find(
       (item) =>
@@ -1544,6 +1607,7 @@ export const view_process = async (req, res) => {
         process.stepInstances.filter((item) => item.status === "IN_PROGRESS")[0]
           ?.id
     );
+    console.log("1558");
 
     return res.status(200).json({
       process: {
@@ -1579,7 +1643,10 @@ export const view_process = async (req, res) => {
         workflow,
         currentStepNumber:
           currentStepInstance?.workflowStep?.stepNumber || null,
-        currentStepType: currentStepInstance?.workflowStep?.stepType || null,
+        currentStepType:
+          process.status === "COMPLETED"
+            ? "APPROVAL"
+            : currentStepInstance?.workflowStep?.stepType,
       },
     });
   } catch (error) {
@@ -2443,7 +2510,7 @@ export const createQuery = async (req, res) => {
 
         console.log("replaces", replacesDocumentId);
         const document = await tx.document.findUnique({
-          where: { id: documentId },
+          where: { id: parseInt(documentId) },
         });
         if (!document) {
           throw new Error(`Document ${documentId} not found`);
@@ -2492,12 +2559,14 @@ export const createQuery = async (req, res) => {
               },
             },
           });
+
+          console.log("deleted", processDocument_);
         }
 
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
-            documentId,
+            documentId: parseInt(documentId),
             isReplacement,
             superseding,
             replacedDocumentId: isReplacement
@@ -2507,9 +2576,11 @@ export const createQuery = async (req, res) => {
           },
         });
 
+        console.log("created", processDocument);
+
         const history = await tx.documentHistory.create({
           data: {
-            documentId,
+            documentId: parseInt(documentId),
             processId,
             stepInstanceId,
             userId: userData.id,
@@ -2534,7 +2605,7 @@ export const createQuery = async (req, res) => {
 
         documentHistoryEntries.push(history);
         qaDetails.documentChanges.push({
-          documentId,
+          documentId: parseInt(documentId),
           requiresApproval,
           isReplacement,
           superseding,
@@ -2545,7 +2616,7 @@ export const createQuery = async (req, res) => {
         });
 
         await ensureDocumentAccessWithParents(tx, {
-          documentId,
+          documentId: parseInt(documentId),
           userId: userData.id,
           stepInstanceId,
           processId,

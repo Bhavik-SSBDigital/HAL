@@ -77,6 +77,7 @@ const Editor = ({ documentId, fileType, name, path, accessToken, onError, readOn
           odp: 'impress',
           odg: 'draw',
           pdf: 'draw',
+          tiff: 'draw',
         };
 
         const appName = appMap[fileType.toLowerCase()];
