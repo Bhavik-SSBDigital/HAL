@@ -860,6 +860,20 @@ const ViewProcess = () => {
                                     <IconEye size={16} className="text-white" />
                                   }
                                 />
+
+                                <CustomButton
+                                  variant="info"
+                                  className="px-2"
+                                  click={() => setDocumentModalOpen(ver)}
+                                  disabled={actionsLoading || isCompleted}
+                                  title="Details"
+                                  text={
+                                    <IconAlignBoxCenterMiddle
+                                      size={18}
+                                      className="text-white"
+                                    />
+                                  }
+                                />
                                 {/* <CustomButton
                                   className="px-2"
                                   variant="secondary"
@@ -1066,27 +1080,43 @@ const ViewProcess = () => {
               Document Details
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-              <DetailItem label="Name" value={documentModalOpen?.name} />
+              <DetailItem
+                label="Name"
+                value={documentModalOpen?.name || '--'}
+              />
+              <DetailItem
+                label="Description"
+                value={documentModalOpen?.description || '--'}
+              />
+              <DetailItem
+                label="Prev-approved"
+                value={documentModalOpen?.preApproved ? 'Yes' : 'No'}
+              />
+              <DetailItem
+                label="Part-Number"
+                value={documentModalOpen?.partNumber || '--'}
+              />
+              {/* <DetailItem label="Tags" value={documentModalOpen?.tags} /> */}
               <DetailItem
                 label="Type"
-                value={documentModalOpen?.type?.toUpperCase()}
+                value={documentModalOpen?.type?.toUpperCase() || '--'}
               />
               <DetailItem
                 label="Access"
-                value={documentModalOpen?.access?.flat()?.join(', ')}
+                value={documentModalOpen?.tags?.flat()?.join(', ') || '--'}
               />
               <DetailItem
                 label="Approval Count"
-                value={documentModalOpen?.approvalCount}
+                value={documentModalOpen?.approvalCount || '--'}
               />
             </div>
             <div className="space-y-2">
               <h3 className="text-base font-semibold text-gray-900 border-b pb-1">
                 Signed By
               </h3>
-              {documentModalOpen?.signedBy.length > 0 ? (
+              {documentModalOpen?.signedBy?.length > 0 ? (
                 <ul className="list-disc list-inside space-y-2 pl-2 text-gray-700">
-                  {documentModalOpen?.signedBy.map((entry, idx) => (
+                  {documentModalOpen?.signedBy?.map((entry, idx) => (
                     <li key={idx}>
                       <div>
                         <span className="font-medium">{entry.signedBy}</span>
