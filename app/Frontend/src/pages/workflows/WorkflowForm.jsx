@@ -311,6 +311,7 @@ function AssignmentForm({
   setSelectedNodes,
   selectedNodes,
 }) {
+  console.log(selectedNodes);
   const { register, handleSubmit, watch, control, setValue } = useForm({
     defaultValues: {
       assigneeType: 'USER',
@@ -611,6 +612,7 @@ function AssignmentForm({
                               Allow Parallel ( Process will be sent to all roles
                               at the same time )
                             </th>
+                            <th className="p-2 text-center">Direction</th>
                           </tr>
                         </thead>
 
@@ -640,6 +642,28 @@ function AssignmentForm({
                                   }}
                                   className="cursor-pointer"
                                 />
+                              </td>
+                              <td className="p-3 text-center">
+                                <label className="block text-sm font-semibold mb-2">
+                                  Direction Of Flow
+                                </label>
+                                <select
+                                  value={node.direction || ''}
+                                  onChange={(e) => {
+                                    const updatedNodes = [...selectedNodes];
+                                    updatedNodes[index] = {
+                                      ...node,
+                                      direction: e.target.value,
+                                    };
+                                    setSelectedNodes(updatedNodes);
+                                  }}
+                                  required
+                                  className="border p-2 w-full rounded-sm mb-3"
+                                >
+                                  <option value="">Select Direction</option>
+                                  <option value="UPWARDS">UPWARDS</option>
+                                  <option value="DOWNWARDS">DOWNWARDS</option>
+                                </select>
                               </td>
                             </tr>
                           ))}
@@ -691,7 +715,7 @@ function AssignmentForm({
             </select>
 
             {/* Direction */}
-            {assigneeType.toLowerCase() == 'department' && (
+            {/* {assigneeType.toLowerCase() == 'department' && (
               <>
                 <label className="block text-sm font-semibold mb-2">
                   Direction Of Flow
@@ -705,7 +729,7 @@ function AssignmentForm({
                   <option value="DOWNWARDS">DOWNWARDS</option>
                 </select>
               </>
-            )}
+            )} */}
 
             {/* Submit & Cancel Buttons */}
             <div className="flex justify-end space-x-2">

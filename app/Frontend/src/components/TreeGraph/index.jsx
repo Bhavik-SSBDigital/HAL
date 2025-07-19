@@ -40,7 +40,12 @@ const TreeGraph = ({
         // New department, add it with the selected full node object
         updatedHierarchy = [
           ...prevHierarchy,
-          { department: departmentId, roles: [node] },
+          {
+            department: departmentId,
+            roles: [node],
+            allowParallel: false,
+            direction: 'UPWARDS',
+          },
         ];
       }
 
