@@ -12,6 +12,7 @@ import {
   IconThumbUp,
   IconCheckupList,
   IconSignature,
+  IconUpload,
 } from '@tabler/icons-react';
 import TimelineLegend from './TimelineLegend';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -32,6 +33,7 @@ const iconMap = {
     <IconThumbUp size={20} className="text-purple-800" />
   ),
   STEP_COMPLETED: <IconCheck size={20} className="text-green-700" />,
+  DOCUMENT_UPLOADED: <IconUpload size={20} className="text-green-700" />,
 };
 
 const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
@@ -63,6 +65,61 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
     const { actionType, details = {} } = activity;
 
     switch (actionType) {
+      case 'DOCUMENT_UPLOADED':
+        return (
+          <div className="timeline-item p-4 border-l-4 border-indigo-500 bg-indigo-50 rounded-md mb-4">
+            <div className="text-sm text-gray-500 mb-1">
+              {new Date(createdAt).toLocaleString()}
+            </div>
+            <div className="text-indigo-700 space-y-1">
+              <p>
+                <strong>Uploaded By:</strong> {details.uploadedBy || 'N/A'}
+              </p>
+              <p>
+                <strong>Workflow:</strong> {details.workflow || 'N/A'}
+              </p>
+              <p>
+                <strong>Role:</strong> {details.role || 'N/A'}
+              </p>
+              <p>
+                <strong>Department:</strong> {details.department || 'N/A'}
+              </p>
+              <p>
+                <strong>Step:</strong> {details.stepName || 'N/A'}
+              </p>
+              <p>
+                <strong>Tags:</strong>{' '}
+                {details.tags && details.tags.length > 0
+                  ? details.tags.join(', ')
+                  : 'N/A'}
+              </p>
+              <p>
+                <strong>Document:</strong> {details.name || 'N/A'}{' '}
+                {details.name && details.path && (
+                  <CustomButton
+                    disabled={actionsLoading}
+                    click={() =>
+                      handleView(
+                        details.name,
+                        details.path,
+                        details.documentId,
+                        details.type,
+                      )
+                    }
+                    variant="info"
+                    type="button"
+                    text="View"
+                    className="ml-2"
+                  />
+                )}
+              </p>
+            </div>
+            {description && (
+              <p className="mt-2 text-gray-600 italic">{description}</p>
+            )}
+          </div>
+        );
+
       case 'PROCESS_INITIATED':
         return (
           <div className="timeline-item p-4 border-l-4 border-blue-500 bg-blue-50 rounded-md mb-4">
