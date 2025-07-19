@@ -403,6 +403,13 @@ const ViewProcess = () => {
             disabled={actionsLoading || isCompleted || disableActions}
           />
           <CustomButton
+            variant={'secondary'}
+            text={'Timeline'}
+            click={() => navigate(`/timeline/${process?.processId}`)}
+            className={'min-w-[150px]'}
+            disabled={actionsLoading || isCompleted}
+          />
+          <CustomButton
             variant={'danger'}
             text={'Complete'}
             click={() => handleCompleteProcess(process?.processStepInstanceId)}

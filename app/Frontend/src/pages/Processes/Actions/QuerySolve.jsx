@@ -19,7 +19,6 @@ export default function QuerySolve({
   existingQuery,
   storagePath,
 }) {
-  console.log('querySolve');
   const {
     register,
     control,
@@ -101,7 +100,6 @@ export default function QuerySolve({
       toast.error(errorMsg);
     }
   };
-
   const handleStepChange = (e) => {
     const selectedStepName = e.target.value;
     const fullStepObj = steps.find(
@@ -139,40 +137,42 @@ export default function QuerySolve({
             placeholder="Write your query here"
           />
         </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
-          <table className="w-full border border-gray-300 text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border p-2 text-left">Document Name</th>
-                <th className="border p-2 text-left">Summary Text</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summaryFields.map((doc, index) => (
-                <tr key={doc.documentId} className="bg-white">
-                  <td className="border p-2">{doc?.documentDetails?.name}</td>
-                  <td className="border p-2">
-                    <textarea
-                      {...register(`documentSummaries.${index}.feedbackText`)}
-                      className="w-full border p-2 rounded"
-                      disabled
-                      rows={2}
-                      placeholder="Enter document summary"
-                    />
-                    {/* Hidden input to include documentId in form submission */}
-                    <input
-                      type="hidden"
-                      disabled
-                      value={doc.id}
-                      {...register(`documentSummaries.${index}.documentId`)}
-                    />
-                  </td>
+        {summaryFields.length !== 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Document Summaries</h3>
+            <table className="w-full border border-gray-300 text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border p-2 text-left">Document Name</th>
+                  <th className="border p-2 text-left">Summary Text</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {summaryFields.map((doc, index) => (
+                  <tr key={doc.documentId} className="bg-white">
+                    <td className="border p-2">{doc?.documentDetails?.name}</td>
+                    <td className="border p-2">
+                      <textarea
+                        {...register(`documentSummaries.${index}.feedbackText`)}
+                        className="w-full border p-2 rounded"
+                        disabled
+                        rows={2}
+                        placeholder="Enter document summary"
+                      />
+                      {/* Hidden input to include documentId in form submission */}
+                      <input
+                        type="hidden"
+                        disabled
+                        value={doc.id}
+                        {...register(`documentSummaries.${index}.documentId`)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div>
           <h3 className="text-lg font-semibold mb-2">Document Changes</h3>
           {changeFields.map((field, index) => {
@@ -188,14 +188,16 @@ export default function QuerySolve({
                 key={field.id}
                 className="border rounded p-4 mb-4 space-y-3 bg-gray-50 relative"
               >
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    {...register(`documentChanges.${index}.isReplacement`)}
-                  />
-                  Is Replacement
-                </label>
+                {summaryFields.length !== 0 && (
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      {...register(`documentChanges.${index}.isReplacement`)}
+                    />
+                    Is Replacement
+                  </label>
+                )}
 
                 {isReplacement && (
                   <div>
@@ -260,7 +262,7 @@ export default function QuerySolve({
               appendChange({
                 documentId: '',
                 requiresApproval: false,
-                isReplacement: true,
+                isReplacement: false,
               })
             }
             text={'Add Change'}
