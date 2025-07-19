@@ -18,6 +18,7 @@ export default function NewUser() {
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -25,6 +26,8 @@ export default function NewUser() {
       email: '',
       status: '',
       roles: [],
+      password: '',
+      confirmPassword: '',
     },
   });
   const [roles, setRoles] = useState([]);
@@ -43,9 +46,10 @@ export default function NewUser() {
 
   const onSubmit = async (data) => {
     try {
-      const response = id ? await EditUser(id, data) : await CreateUser(data);
-      toast.success(response?.data?.message);
-      navigate('/users/list');
+      console.log(data);
+      // const response = id ? await EditUser(id, data) : await CreateUser(data);
+      // toast.success(response?.data?.message);
+      // navigate('/users/list');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error occurred');
     }
@@ -56,6 +60,7 @@ export default function NewUser() {
       setActionsLoading(true);
       try {
         const response = await GetUser(id);
+        console.log(response);
         reset(response?.data?.data);
       } catch (error) {
         console.log(error?.response?.data?.message || error?.message);
@@ -122,6 +127,67 @@ export default function NewUser() {
                 <p className="text-red-500 text-sm">{errors.email.message}</p>
               )}
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <Controller
+                name="password"
+                control={control}
+                rules={{
+                  required: !id && 'Password is required', // Only required for create
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters',
+                  },
+                }}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="password"
+                    className="w-full p-2 border rounded"
+                    placeholder="Enter password"
+                  />
+                )}
+              />
+              {errors.password && (
+                <p className="text-red-500 text-sm">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <Controller
+                name="confirmPassword"
+                control={control}
+                rules={{
+                  validate: (value) => {
+                    if (value !== watch('password')) {
+                      return 'Passwords do not match';
+                    }
+                    return true;
+                  },
+                }}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="password"
+                    className="w-full p-2 border rounded"
+                    placeholder="Confirm password"
+                  />
+                )}
+              />
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Status
