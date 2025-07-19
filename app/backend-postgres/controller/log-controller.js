@@ -157,6 +157,7 @@ export const get_user_activity_log = async (req, res) => {
       select: {
         id: true,
         name: true,
+        workflowId: true,
         workflow: {
           select: {
             name: true,
@@ -175,6 +176,135 @@ export const get_user_activity_log = async (req, res) => {
         },
       });
     }
+
+    // Fetch workflow details
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: process.workflowId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        version: true,
+        createdAt: true,
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        steps: {
+          select: {
+            stepNumber: true,
+            stepName: true,
+            allowParallel: true,
+            requiresDocument: true,
+            assignments: {
+              select: {
+                id: true,
+                assigneeType: true,
+                assigneeIds: true,
+                actionType: true,
+                accessTypes: true,
+                direction: true,
+                allowParallel: true,
+                selectedRoles: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Collect assignee IDs and role IDs for enrichment
+    const departmentIds = new Set();
+    const roleIds = new Set();
+    const userIds = new Set();
+    const selectedRoleIds = new Set();
+
+    workflow.steps.forEach((step) => {
+      step.assignments.forEach((assignment) => {
+        assignment.assigneeIds.forEach((id) => {
+          switch (assignment.assigneeType) {
+            case "DEPARTMENT":
+              departmentIds.add(id);
+              break;
+            case "ROLE":
+              roleIds.add(id);
+              break;
+            case "USER":
+              userIds.add(id);
+              break;
+          }
+        });
+        assignment.selectedRoles.forEach((roleId) =>
+          selectedRoleIds.add(roleId)
+        );
+      });
+    });
+
+    // Fetch related entities
+    const [departments, roles, users, selectedRoles] = await Promise.all([
+      prisma.department.findMany({
+        where: { id: { in: Array.from(departmentIds) } },
+        select: { id: true, name: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(roleIds) } },
+        select: { id: true, role: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: Array.from(userIds) } },
+        select: { id: true, username: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(selectedRoleIds) } },
+        select: { id: true, role: true },
+      }),
+    ]);
+
+    // Create lookup maps
+    const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
+    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+    const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
+
+    // Enrich workflow data
+    const enrichedWorkflow = {
+      id: workflow.id,
+      version: workflow.version,
+      description: workflow.description,
+      createdBy: workflow.createdBy,
+      createdAt: workflow.createdAt,
+      steps: workflow.steps.map((step) => ({
+        stepNumber: step.stepNumber,
+        stepName: step.stepName,
+        allowParallel: step.allowParallel,
+        requiresDocument: step.requiresDocument,
+        assignments: step.assignments.map((a) => ({
+          assigneeType: a.assigneeType,
+          assigneeIds: a.assigneeIds.map((id) => {
+            let name = "Unknown";
+            switch (a.assigneeType) {
+              case "DEPARTMENT":
+                name = departmentMap.get(id) || "Unknown Department";
+                break;
+              case "ROLE":
+                name = roleMap.get(id) || "Unknown Role";
+                break;
+              case "USER":
+                name = userMap.get(id) || "Unknown User";
+                break;
+            }
+            return { id, name };
+          }),
+          actionType: a.actionType,
+          accessTypes: a.accessTypes,
+          direction: a.direction,
+          allowParallel: a.allowParallel,
+          selectedRoles: a.selectedRoles.map((roleId) => ({
+            id: roleId,
+            name: selectedRoleMap.get(roleId) || "Unknown Role",
+          })),
+        })),
+      })),
+    };
 
     let stepInstance = null;
     let timeStart = new Date(0);
@@ -330,7 +460,7 @@ export const get_user_activity_log = async (req, res) => {
           processId,
           document: {
             createdById: userData.id,
-            createdOn: { gte: timeStart, lte: timeEnd }, // Use createdOn
+            createdOn: { gte: timeStart, lte: timeEnd },
           },
         },
         include: {
@@ -437,7 +567,7 @@ export const get_user_activity_log = async (req, res) => {
           return {
             actionType: "DOCUMENT_UPLOADED",
             description: `Uploaded document "${documentDetails.name}"`,
-            createdAt: pd.document.createdOn.toISOString(), // Use createdOn
+            createdAt: pd.document.createdOn.toISOString(),
             details: {
               documentId: pd.documentId,
               name: documentDetails.name,
@@ -768,6 +898,7 @@ export const get_user_activity_log = async (req, res) => {
         processStepInstanceId: stepInstanceId || null,
         stepName: stepInstance?.workflowStep?.stepName || null,
         recirculationCycle: stepInstance?.recirculationCycle || 0,
+        workflow: enrichedWorkflow,
         activities: sortedActivities,
       },
     });
@@ -1102,6 +1233,135 @@ export const get_process_activity_logs = async (req, res) => {
       });
     }
 
+    // Fetch workflow details
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: process.workflowId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        version: true,
+        createdAt: true,
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        steps: {
+          select: {
+            stepNumber: true,
+            stepName: true,
+            allowParallel: true,
+            requiresDocument: true,
+            assignments: {
+              select: {
+                id: true,
+                assigneeType: true,
+                assigneeIds: true,
+                actionType: true,
+                accessTypes: true,
+                direction: true,
+                allowParallel: true,
+                selectedRoles: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Collect assignee IDs and role IDs for enrichment
+    const departmentIds = new Set();
+    const roleIds = new Set();
+    const userIds = new Set();
+    const selectedRoleIds = new Set();
+
+    workflow.steps.forEach((step) => {
+      step.assignments.forEach((assignment) => {
+        assignment.assigneeIds.forEach((id) => {
+          switch (assignment.assigneeType) {
+            case "DEPARTMENT":
+              departmentIds.add(id);
+              break;
+            case "ROLE":
+              roleIds.add(id);
+              break;
+            case "USER":
+              userIds.add(id);
+              break;
+          }
+        });
+        assignment.selectedRoles.forEach((roleId) =>
+          selectedRoleIds.add(roleId)
+        );
+      });
+    });
+
+    // Fetch related entities
+    const [departments, roles, users, selectedRoles] = await Promise.all([
+      prisma.department.findMany({
+        where: { id: { in: Array.from(departmentIds) } },
+        select: { id: true, name: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(roleIds) } },
+        select: { id: true, role: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: Array.from(userIds) } },
+        select: { id: true, username: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(selectedRoleIds) } },
+        select: { id: true, role: true },
+      }),
+    ]);
+
+    // Create lookup maps
+    const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
+    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+    const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
+
+    // Enrich workflow data
+    const enrichedWorkflow = {
+      id: workflow.id,
+      version: workflow.version,
+      description: workflow.description,
+      createdBy: workflow.createdBy,
+      createdAt: workflow.createdAt,
+      steps: workflow.steps.map((step) => ({
+        stepNumber: step.stepNumber,
+        stepName: step.stepName,
+        allowParallel: step.allowParallel,
+        requiresDocument: step.requiresDocument,
+        assignments: step.assignments.map((a) => ({
+          assigneeType: a.assigneeType,
+          assigneeIds: a.assigneeIds.map((id) => {
+            let name = "Unknown";
+            switch (a.assigneeType) {
+              case "DEPARTMENT":
+                name = departmentMap.get(id) || "Unknown Department";
+                break;
+              case "ROLE":
+                name = roleMap.get(id) || "Unknown Role";
+                break;
+              case "USER":
+                name = userMap.get(id) || "Unknown User";
+                break;
+            }
+            return { id, name };
+          }),
+          actionType: a.actionType,
+          accessTypes: a.accessTypes,
+          direction: a.direction,
+          allowParallel: a.allowParallel,
+          selectedRoles: a.selectedRoles.map((roleId) => ({
+            id: roleId,
+            name: selectedRoleMap.get(roleId) || "Unknown Role",
+          })),
+        })),
+      })),
+    };
+
     let stepInstance = null;
     let timeStart = new Date(0);
     let timeEnd = new Date();
@@ -1235,7 +1495,7 @@ export const get_process_activity_logs = async (req, res) => {
       prisma.processDocument.findMany({
         where: {
           processId,
-          document: { createdOn: { gte: timeStart, lte: timeEnd } }, // Use createdOn
+          document: { createdOn: { gte: timeStart, lte: timeEnd } },
         },
         include: {
           document: {
@@ -1318,13 +1578,13 @@ export const get_process_activity_logs = async (req, res) => {
         processDocuments.map(async (pd) => {
           const documentDetails = await getDocumentDetails(pd.documentId);
           const assignmentDetails = await getAssignmentDetails(
-            null, // ProcessDocument has no stepInstanceId
+            null,
             pd.processId
           );
           return {
             actionType: "DOCUMENT_UPLOADED",
             description: `Uploaded document "${documentDetails.name}"`,
-            createdAt: pd.document.createdOn.toISOString(), // Use createdOn
+            createdAt: pd.document.createdOn.toISOString(),
             details: {
               documentId: pd.documentId,
               name: documentDetails.name,
@@ -1573,7 +1833,7 @@ export const get_process_activity_logs = async (req, res) => {
                   rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
                 details: {
                   recommendationId: rec.id,
-                  processId: reg.processId,
+                  processId: rec.processId,
                   processName: rec.process.name,
                   stepInstanceId: rec.stepInstanceId || null,
                   stepName: rec.stepInstance?.workflowStep?.stepName || "N/A",
@@ -1655,6 +1915,7 @@ export const get_process_activity_logs = async (req, res) => {
         processStepInstanceId: stepInstanceId || null,
         stepName: stepInstance?.workflowStep?.stepName || null,
         recirculationCycle: stepInstance?.recirculationCycle || 0,
+        workflow: enrichedWorkflow,
         activities: allActivities,
       },
     });
