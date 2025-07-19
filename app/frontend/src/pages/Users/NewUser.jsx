@@ -47,9 +47,9 @@ export default function NewUser() {
   const onSubmit = async (data) => {
     try {
       console.log(data);
-      // const response = id ? await EditUser(id, data) : await CreateUser(data);
-      // toast.success(response?.data?.message);
-      // navigate('/users/list');
+      const response = id ? await EditUser(id, data) : await CreateUser(data);
+      toast.success(response?.data?.message);
+      navigate('/users/list');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error occurred');
     }
