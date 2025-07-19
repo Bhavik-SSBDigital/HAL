@@ -820,8 +820,8 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
 
               {/* Content */}
               <CustomCard className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs text-gray-400 font-mono">
+                <div className="flex text-black justify-between items-center mb-1">
+                  <p className="text-sm font-bold font-mono">
                     {new Date(activity.createdAt).toLocaleString()}
                   </p>
                   <span className="text-sm font-semibold text-gray-700">

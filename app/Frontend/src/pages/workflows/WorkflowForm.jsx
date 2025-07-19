@@ -15,7 +15,14 @@ import {
   getRolesHierarchyInDepartment,
   GetUsersWithDetails,
 } from '../../common/Apis';
-import { Autocomplete, TextField } from '@mui/material';
+import {
+  Autocomplete,
+  TextField,
+  FormControl,
+  FormLabel,
+  FormGroup,
+  FormHelperText,
+} from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
 import CustomButton from '../../CustomComponents/CustomButton';
 
@@ -311,7 +318,77 @@ function AssignmentForm({
   setSelectedNodes,
   selectedNodes,
 }) {
-  console.log(selectedNodes);
+  function sortSelectedRolesByStep(data, selectedIds, direction) {
+    const selectedSet = new Set(selectedIds);
+
+    // Helper: find parent-child relationships
+    function findParents(node) {
+      const results = [];
+      if (node.children) {
+        for (const child of node.children) {
+          if (selectedSet.has(child.id)) {
+            results.push({ child: child.id, parent: node.id });
+          }
+          results.push(...findParents(child));
+        }
+      }
+      return results;
+    }
+
+    // Gather all parent-child pairs
+    let parentChildPairs = [];
+    for (const root of data) {
+      parentChildPairs = parentChildPairs.concat(findParents(root));
+    }
+
+    // Step 1: identify leaf nodes (selected with no selected children)
+    const selectedWithChildren = new Set(
+      parentChildPairs.map((pc) => pc.parent),
+    );
+    const leaves = Array.from(selectedSet).filter(
+      (id) => !selectedWithChildren.has(id),
+    );
+
+    // Step 2: find selected parents of the selected leaves
+    const parents = parentChildPairs
+      .filter((pc) => leaves.includes(pc.child) && selectedSet.has(pc.parent))
+      .map((pc) => pc.parent);
+
+    const uniqueParents = [...new Set(parents)];
+
+    // Map IDs to names
+    const idToName = {};
+    (function mapAll(nodes) {
+      for (const n of nodes) {
+        idToName[n.id] = n.name;
+        if (n.children) mapAll(n.children);
+      }
+    })(data);
+
+    // Build step-based output
+    const stepGroups =
+      direction === 'UPWARDS'
+        ? [
+            { step: 1, roles: leaves.map((id) => idToName[id]) },
+            { step: 2, roles: uniqueParents.map((id) => idToName[id]) },
+          ]
+        : [
+            { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
+            { step: 2, roles: leaves.map((id) => idToName[id]) },
+          ];
+
+    // Return JSX UI
+    return (
+      <div>
+        {stepGroups.map((group) => (
+          <div key={group.step} className="text-sm text-gray-800 mb-1">
+            <strong>Step {group.step}:</strong> {group.roles.join(', ')}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   const { register, handleSubmit, watch, control, setValue } = useForm({
     defaultValues: {
       assigneeType: 'USER',
@@ -624,9 +701,11 @@ function AssignmentForm({
                                 {node.department}
                               </td>
                               <td className="p-3 whitespace-nowrap">
-                                {node.roles
-                                  .map((role) => role.name)
-                                  .join(' → ')}
+                                {sortSelectedRolesByStep(
+                                  node.roles,
+                                  node.roles.map((item) => item.id),
+                                  node.direction,
+                                )}
                               </td>
                               <td className="p-3 text-center">
                                 <input
