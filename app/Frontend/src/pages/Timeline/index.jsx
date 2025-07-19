@@ -68,21 +68,12 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'DOCUMENT_UPLOADED':
         return (
           <div className="timeline-item p-4 border-l-4 border-indigo-500 bg-indigo-50 rounded-md mb-4">
-            <div className="text-sm text-gray-500 mb-1">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
             <div className="text-indigo-700 space-y-1">
               <p>
                 <strong>Uploaded By:</strong> {details?.uploadedBy || 'N/A'}
               </p>
               <p>
                 <strong>Workflow:</strong> {details?.workflow || 'N/A'}
-              </p>
-              <p>
-                <strong>Role:</strong> {details?.role || 'N/A'}
-              </p>
-              <p>
-                <strong>Department:</strong> {details?.department || 'N/A'}
               </p>
               <p>
                 <strong>Step:</strong> {details?.stepName || 'N/A'}
@@ -225,9 +216,6 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'QUERY_RAISED':
         return (
           <div className="timeline-item p-4 border-l-4 border-yellow-500 bg-yellow-50 rounded-md mb-4">
-            <div className="text-sm text-gray-600 mb-2">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
             <div className="text-yellow-700 space-y-2">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -390,10 +378,6 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'QUERY_RESOLVED':
         return (
           <div className="timeline-item p-4 border-l-4 border-green-600 bg-green-50 rounded-md mb-4">
-            <div className="text-sm text-gray-600 mb-2">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
-
             <div className="text-green-700 space-y-2">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -562,9 +546,6 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'RECOMMENDATION_REQUESTED':
         return (
           <div className="timeline-item p-4 border-l-4 border-purple-600 bg-purple-50 rounded-md mb-4">
-            <div className="text-sm text-gray-600 mb-2">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
             <div className="text-purple-700 space-y-1">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -711,10 +692,6 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'RECOMMENDATION_PROVIDED':
         return (
           <div className="timeline-item p-4 border-l-4 border-purple-800 bg-purple-100 rounded-md mb-4">
-            <div className="text-sm text-gray-600 mb-2">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
-
             <div className="text-purple-900 space-y-1">
               <p>
                 <strong>Step:</strong> {details.stepName || 'N/A'}
@@ -789,9 +766,6 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
       case 'STEP_COMPLETED':
         return (
           <div className="timeline-item p-4 border-l-4 border-green-600 bg-green-50 rounded-md mb-4">
-            <div className="text-sm text-gray-600 mb-2">
-              {new Date(details?.createdAt).toLocaleString()}
-            </div>
             <p className="text-green-700 font-semibold">
               <strong>Step Completed:</strong> {details.stepName || 'N/A'}
             </p>
