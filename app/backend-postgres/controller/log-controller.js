@@ -2,6 +2,139 @@ import { PrismaClient } from "@prisma/client";
 import { verifyUser } from "../utility/verifyUser.js";
 const prisma = new PrismaClient();
 
+// Helper function to format timestamp
+const formatDate = (date) => {
+  return new Date(date).toLocaleString("en-US", { timeZone: "UTC" });
+};
+
+// Helper function to get assignment details for a process step instance
+const getAssignmentDetails = async (processStepInstanceId, processId) => {
+  try {
+    if (!processStepInstanceId || typeof processStepInstanceId !== "string") {
+      return {
+        workflow: "Unknown",
+        assignmentType: "Unknown",
+        role: "N/A",
+        department: "N/A",
+      };
+    }
+
+    const stepInstance = await prisma.processStepInstance.findUnique({
+      where: { id: processStepInstanceId },
+      include: {
+        workflowStep: {
+          include: {
+            workflow: true,
+          },
+        },
+        process: true,
+        workflowAssignment: {
+          include: {
+            departmentRoles: {
+              include: {
+                department: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!stepInstance)
+      return {
+        workflow: "Unknown",
+        assignmentType: "Unknown",
+        role: "N/A",
+        department: "N/A",
+      };
+
+    const workflowName = stepInstance.workflowStep?.workflow?.name || "Unknown";
+    const assignmentType =
+      stepInstance.workflowAssignment?.assigneeType || "Unknown";
+    let roleName = "N/A";
+    let departmentName = "N/A";
+
+    if (stepInstance.workflowAssignment?.departmentRoles?.length > 0) {
+      const deptRole = stepInstance.workflowAssignment.departmentRoles[0];
+      roleName = deptRole.role?.role || "N/A";
+      departmentName = deptRole.department?.name || "N/A";
+    } else if (stepInstance.roleId) {
+      const role = await prisma.role.findUnique({
+        where: { id: stepInstance.roleId },
+        select: { role: true },
+      });
+      roleName = role?.role || "N/A";
+    } else if (stepInstance.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: stepInstance.departmentId },
+        select: { name: true },
+      });
+      departmentName = department?.name || "N/A";
+    }
+
+    return {
+      workflow: workflowName,
+      assignmentType,
+      role: roleName,
+      department: departmentName,
+    };
+  } catch (error) {
+    console.error("Error fetching assignment details:", error);
+    return {
+      workflow: "Unknown",
+      assignmentType: "Unknown",
+      role: "N/A",
+      department: "N/A",
+    };
+  }
+};
+
+// Helper function to get user details
+const getUserDetails = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, name: true },
+    });
+    return user
+      ? `${user.name || user.username} (${user.username})`
+      : "Unknown User";
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    return "Unknown User";
+  }
+};
+
+// Helper function to get document details
+const getDocumentDetails = async (documentId) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { name: true, type: true, path: true, tags: true },
+    });
+    return document
+      ? {
+          name: document.name,
+          type: document.type,
+          path: document.path,
+          tags: document.tags,
+        }
+      : { name: "Unknown", type: "Unknown", path: "N/A", tags: [] };
+  } catch (error) {
+    console.error("Error fetching document details:", error);
+    return { name: "Unknown", type: "Unknown", path: "N/A", tags: [] };
+  }
+};
+
+// Helper function to format path
+export const make_path = (path_) => {
+  const parts = path_.split("/");
+  parts.pop();
+  const updatedPath = parts.join("/");
+  return updatedPath;
+};
+
 export const get_user_activity_log = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -19,10 +152,17 @@ export const get_user_activity_log = async (req, res) => {
 
     const { processId, stepInstanceId } = req.params;
 
-    // Validate process
     const process = await prisma.processInstance.findUnique({
       where: { id: processId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        workflow: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     if (!process) {
@@ -37,11 +177,10 @@ export const get_user_activity_log = async (req, res) => {
     }
 
     let stepInstance = null;
-    let timeStart = new Date(0); // Default to epoch start
-    let timeEnd = new Date(); // Default to now
+    let timeStart = new Date(0);
+    let timeEnd = new Date();
 
     if (stepInstanceId) {
-      // Validate step instance if provided
       stepInstance = await prisma.processStepInstance.findUnique({
         where: { id: stepInstanceId },
         include: {
@@ -65,7 +204,6 @@ export const get_user_activity_log = async (req, res) => {
       timeEnd = stepInstance.decisionAt || new Date();
     }
 
-    // Check user involvement: assignee, recommender, query initiator, resolver, or initiator
     const isAssignee = stepInstance
       ? stepInstance.assignedTo === userData.id
       : await prisma.processStepInstance.findFirst({
@@ -75,12 +213,14 @@ export const get_user_activity_log = async (req, res) => {
             OR: [{ status: "IN_PROGRESS" }, { status: "APPROVED" }],
           },
         });
+
     const isRecommender = await prisma.recommendation.findFirst({
       where: {
         processId,
         OR: [{ initiatorId: userData.id }, { recommenderId: userData.id }],
       },
     });
+
     const isQueryInvolved = await prisma.processQA.findFirst({
       where: {
         processId,
@@ -90,6 +230,7 @@ export const get_user_activity_log = async (req, res) => {
         ],
       },
     });
+
     const isInitiator = await prisma.processInstance.findFirst({
       where: { id: processId, initiatorId: userData.id },
     });
@@ -105,7 +246,6 @@ export const get_user_activity_log = async (req, res) => {
       });
     }
 
-    // Fetch all step instances for the user in this process
     const userStepInstances = await prisma.processStepInstance.findMany({
       where: {
         processId,
@@ -121,37 +261,14 @@ export const get_user_activity_log = async (req, res) => {
       },
     });
 
-    const stepInstanceIds = userStepInstances.map((s) => s.id);
-
-    // Fetch actions
     const [
-      documentHistory,
       documentSignatures,
       documentRejections,
+      processDocuments,
       processQAs,
       recommendations,
       processInstance,
     ] = await Promise.all([
-      prisma.documentHistory.findMany({
-        where: {
-          processId,
-          userId: userData.id,
-          createdAt: { gte: timeStart, lte: timeEnd },
-        },
-        include: {
-          document: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              path: true,
-              tags: true,
-            },
-          },
-          replacedDocument: { select: { id: true, name: true, path: true } },
-          user: { select: { id: true, name: true, username: true } },
-        },
-      }),
       prisma.documentSignature.findMany({
         where: {
           processDocument: { processId },
@@ -161,10 +278,23 @@ export const get_user_activity_log = async (req, res) => {
         include: {
           processDocument: {
             include: {
-              document: { select: { id: true, name: true, path: true } },
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                  tags: true,
+                },
+              },
             },
           },
           user: { select: { id: true, username: true } },
+          processStepInstance: {
+            select: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
         },
       }),
       prisma.documentRejection.findMany({
@@ -176,10 +306,45 @@ export const get_user_activity_log = async (req, res) => {
         include: {
           processDocument: {
             include: {
-              document: { select: { id: true, name: true, path: true } },
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                  tags: true,
+                },
+              },
             },
           },
           user: { select: { id: true, username: true } },
+          processStepInstance: {
+            select: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
+        },
+      }),
+      prisma.processDocument.findMany({
+        where: {
+          processId,
+          document: {
+            createdById: userData.id,
+            createdOn: { gte: timeStart, lte: timeEnd }, // Use createdOn
+          },
+        },
+        include: {
+          document: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              path: true,
+              tags: true,
+              createdById: true,
+              createdOn: true,
+            },
+          },
         },
       }),
       prisma.processQA.findMany({
@@ -210,6 +375,11 @@ export const get_user_activity_log = async (req, res) => {
           initiator: { select: { id: true, username: true } },
           recommender: { select: { id: true, username: true } },
           process: { select: { id: true, name: true } },
+          stepInstance: {
+            include: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
         },
       }),
       prisma.processInstance.findFirst({
@@ -218,109 +388,220 @@ export const get_user_activity_log = async (req, res) => {
           id: true,
           name: true,
           createdAt: true,
-          initiator: { select: { username: true } },
+          initiator: { select: { username: true, id: true } },
         },
       }),
     ]);
 
-    // Format actions
-    const activities = [];
-
-    // Process Initiation
-    if (processInstance) {
-      activities.push({
-        actionType: "PROCESS_INITIATED",
-        description: `Initiated process "${processInstance.name}"`,
-        createdAt: processInstance.createdAt.toISOString(),
-        details: {
-          processId: processInstance.id,
-          processName: processInstance.name,
-          initiatorName: processInstance.initiator.username,
+    const getStepInstanceDetails = async (stepInstanceId) => {
+      if (!stepInstanceId) return null;
+      return await prisma.processStepInstance.findUnique({
+        where: { id: stepInstanceId },
+        include: {
+          workflowStep: { select: { stepName: true, stepNumber: true } },
         },
       });
-    }
+    };
 
-    // Document History
-    // documentHistory.forEach((history) => {
-    //   activities.push({
-    //     actionType: `DOCUMENT_${history.actionType}`,
-    //     description: `${history.actionType.toLowerCase()} "${
-    //       history.document.name
-    //     }"`,
-    //     createdAt: history.createdAt.toISOString(),
-    //     details: {
-    //       documentId: history.document.id,
-    //       name: history.document.name,
-    //       type: history.document.type,
-    //       path: history.document.path,
-    //       tags: history.document.tags,
-    //       actionDetails: history.actionDetails || [],
-    //       replacedDocument: history.replacedDocument
-    //         ? {
-    //             id: history.replacedDocument.id,
-    //             name: history.replacedDocument.name,
-    //             path: history.replacedDocument.path,
-    //           }
-    //         : null,
-    //       user: history.user.name,
-    //       isRecirculationTrigger: history.isRecirculationTrigger,
-    //     },
-    //   });
-    // });
+    const activities = [].concat(
+      ...(processInstance
+        ? [
+            {
+              actionType: "PROCESS_INITIATED",
+              description: `Initiated process "${processInstance.name}"`,
+              createdAt: processInstance.createdAt.toISOString(),
+              details: {
+                processId: processInstance.id,
+                processName: processInstance.name,
+                initiatorName: await getUserDetails(
+                  processInstance.initiator.id
+                ),
+                workflow: process.workflow?.name || "N/A",
+                assignmentType: "N/A",
+                role: "N/A",
+                department: "N/A",
+              },
+            },
+          ]
+        : []),
+      ...(await Promise.all(
+        processDocuments.map(async (pd) => {
+          const documentDetails = await getDocumentDetails(pd.documentId);
+          const assignmentDetails = await getAssignmentDetails(
+            pd.stepInstanceId,
+            pd.processId
+          );
+          const stepInstance = pd.stepInstanceId
+            ? await getStepInstanceDetails(pd.stepInstanceId)
+            : null;
+          return {
+            actionType: "DOCUMENT_UPLOADED",
+            description: `Uploaded document "${documentDetails.name}"`,
+            createdAt: pd.document.createdOn.toISOString(), // Use createdOn
+            details: {
+              documentId: pd.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              uploadedBy: await getUserDetails(pd.document.createdById),
+              stepInstanceId: pd.stepInstanceId || null,
+              stepName: stepInstance?.workflowStep?.stepName || "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(await Promise.all(
+        documentSignatures.map(async (sig) => {
+          const documentDetails = await getDocumentDetails(
+            sig.processDocument.documentId
+          );
+          const assignmentDetails = await getAssignmentDetails(
+            sig.processStepInstanceId,
+            sig.processDocument.processId
+          );
+          return {
+            actionType: "DOCUMENT_SIGNED",
+            description: `Signed "${documentDetails.name}"`,
+            createdAt: sig.signedAt.toISOString(),
+            details: {
+              documentId: sig.processDocument.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              signedBy: await getUserDetails(sig.userId),
+              signedAt: sig.signedAt.toISOString(),
+              remarks: sig.reason || null,
+              byRecommender: sig.byRecommender,
+              isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
+              stepInstanceId: sig.processStepInstanceId || null,
+              stepName:
+                sig.processStepInstance?.workflowStep?.stepName || "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(await Promise.all(
+        documentRejections.map(async (dr) => {
+          const documentDetails = await getDocumentDetails(
+            dr.processDocument.documentId
+          );
+          const assignmentDetails = await getAssignmentDetails(
+            dr.processStepInstanceId,
+            dr.processDocument.processId
+          );
+          return {
+            actionType: "DOCUMENT_REJECTED",
+            description: `Rejected "${documentDetails.name}"`,
+            createdAt: dr.rejectedAt.toISOString(),
+            details: {
+              documentId: dr.processDocument.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              rejectedBy: await getUserDetails(dr.userId),
+              rejectionReason: dr.reason || null,
+              rejectedAt: dr.rejectedAt.toISOString(),
+              byRecommender: dr.byRecommender,
+              isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
+              stepInstanceId: dr.processStepInstanceId || null,
+              stepName: dr.processStepInstance?.workflowStep?.stepName || "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(
+        await Promise.all(
+          processQAs.map(async (qa) => {
+            const assignmentDetails = await getAssignmentDetails(
+              qa.stepInstanceId,
+              qa.processId
+            );
+            const initiatorDetails = await getUserDetails(qa.initiatorId);
+            const actions = [];
 
-    // Document Signatures
-    documentSignatures.forEach((sig) => {
-      activities.push({
-        actionType: "DOCUMENT_SIGNED",
-        description: `Signed "${sig.processDocument.document.name}"`,
-        createdAt: sig.signedAt.toISOString(),
-        details: {
-          signedBy: sig.user.username,
-          signedAt: sig.signedAt.toISOString(),
-          remarks: sig.reason || null,
-          byRecommender: sig.byRecommender,
-          isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
-          documentId: sig.processDocument.documentId,
-          name: sig.processDocument.document.name,
-          path: make_path(sig.processDocument.document.path),
-        },
-      });
-    });
+            if (qa.initiatorId === userData.id) {
+              actions.push({
+                actionType: "QUERY_RAISED",
+                description: `Raised query: "${qa.question}"`,
+                createdAt: qa.createdAt.toISOString(),
+                details: {
+                  stepInstanceId: qa.stepInstanceId || null,
+                  stepName: qa.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
+                  status: qa.stepInstance?.status || null,
+                  queryText: qa.question,
+                  initiatorName: initiatorDetails,
+                  createdAt: qa.createdAt.toISOString(),
+                  taskType: "QUERY_UPLOAD",
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-    // Document Rejections
-    documentRejections.forEach((dr) => {
-      activities.push({
-        actionType: "DOCUMENT_REJECTED",
-        description: `Rejected "${dr.processDocument.document.name}"`,
-        createdAt: dr.rejectedAt.toISOString(),
-        details: {
-          rejectedBy: dr.user.username,
-          rejectionReason: dr.reason || null,
-          rejectedAt: dr.rejectedAt.toISOString(),
-          byRecommender: dr.byRecommender,
-          isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
-          documentId: dr.processDocument.documentId,
-          name: dr.processDocument.document.name,
-          path: make_path(dr.processDocument.document.path),
-        },
-      });
-    });
+            if (qa.entityId === userData.id && qa.status === "RESOLVED") {
+              actions.push({
+                actionType: "QUERY_RESOLVED",
+                description: `Resolved query: "${qa.question}"`,
+                createdAt:
+                  qa.answeredAt?.toISOString() || qa.createdAt.toISOString(),
+                details: {
+                  stepInstanceId: qa.stepInstanceId || null,
+                  stepName: qa.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
+                  status: qa.stepInstance?.status || null,
+                  queryText: qa.question,
+                  initiatorName: initiatorDetails,
+                  createdAt: qa.createdAt.toISOString(),
+                  taskType: "RESOLVED",
+                  answerText: qa.answer || null,
+                  answeredAt: qa.answeredAt?.toISOString() || null,
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-    // Process QAs
-    const queryDetails = await Promise.all(
-      processQAs.map(async (qa) => {
-        const documentHistoryIds = [
-          ...(qa.details?.documentChanges?.map((dc) => dc.documentHistoryId) ||
-            []),
-          ...(qa.details?.documentSummaries?.map(
-            (ds) => ds.documentHistoryId
-          ) || []),
-        ];
-        const documentHistories = documentHistoryIds.length
-          ? await prisma.documentHistory.findMany({
-              where: { id: { in: documentHistoryIds } },
-              include: {
-                document: {
+            return actions;
+          })
+        )
+      ).flat(),
+      ...(
+        await Promise.all(
+          recommendations.map(async (rec) => {
+            const assignmentDetails = await getAssignmentDetails(
+              rec.stepInstanceId,
+              rec.processId
+            );
+            const initiatorDetails = await getUserDetails(rec.initiatorId);
+            const recommenderDetails = await getUserDetails(rec.recommenderId);
+            const documentSummaries = rec.documentSummaries || [];
+            const documentResponses = rec.details?.documentResponses || [];
+            const documentIds = documentSummaries.map((ds) =>
+              parseInt(ds.documentId)
+            );
+            const documents = documentIds.length
+              ? await prisma.document.findMany({
+                  where: { id: { in: documentIds } },
                   select: {
                     id: true,
                     name: true,
@@ -328,248 +609,147 @@ export const get_user_activity_log = async (req, res) => {
                     path: true,
                     tags: true,
                   },
-                },
-                replacedDocument: {
-                  select: { id: true, name: true, path: true },
-                },
-                user: { select: { id: true, name: true, username: true } },
-              },
-            })
-          : [];
+                })
+              : [];
 
-        const baseDetails = {
-          stepInstanceId: qa.stepInstanceId || null,
-          stepName: qa.stepInstance?.workflowStep?.stepName || null,
-          stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
-          status: qa.stepInstance?.status || null,
-          queryText: qa.question,
-          initiatorName: qa.initiator.name,
-          createdAt: qa.createdAt.toISOString(),
-          documentChanges:
-            qa.details?.documentChanges?.map((dc) => {
-              const history = documentHistories.find(
-                (h) => h.id === dc.documentHistoryId
-              );
-              return {
-                documentId: dc.documentId,
-                requiresApproval: dc.requiresApproval,
-                isReplacement: dc.isReplacement,
-                documentHistoryId: dc.documentHistoryId,
-                document: history?.document
-                  ? {
-                      id: history.document.id,
-                      name: history.document.name,
-                      type: history.document.type,
-                      path: make_path(history.document.path),
-                      tags: history.document.tags,
-                    }
-                  : null,
-                actionDetails: history?.actionDetails || null,
-                user: history?.user?.name || null,
-                createdAt: history?.createdAt?.toISOString() || null,
-                replacedDocument: history?.replacedDocument
-                  ? {
-                      id: history.replacedDocument.id,
-                      name: history.replacedDocument.name,
-                      path: make_path(history.replacedDocument.path),
-                    }
-                  : null,
+            const documentMap = documents.reduce((map, doc) => {
+              map[doc.id] = {
+                name: doc.name,
+                type: doc.type,
+                path: make_path(doc.path),
+                tags: doc.tags,
               };
-            }) || [],
-          documentSummaries:
-            qa.details?.documentSummaries?.map((ds) => {
-              const history = documentHistories.find(
-                (h) => h.id === ds.documentHistoryId
+              return map;
+            }, {});
+
+            const documentDetails = documentSummaries.map((ds) => {
+              const response = documentResponses.find(
+                (dr) => dr.documentId === parseInt(ds.documentId)
               );
               return {
                 documentId: ds.documentId,
-                feedbackText: ds.feedbackText,
-                documentHistoryId: ds.documentHistoryId,
-                documentDetails: history?.document
-                  ? {
-                      id: history.document.id,
-                      name: history.document.name,
-                      path: make_path(history.document.path),
-                    }
-                  : null,
-                user: history?.user?.username || null,
-                createdAt: history?.createdAt?.toISOString() || null,
+                documentName:
+                  documentMap[ds.documentId]?.name || "Unknown Document",
+                documentType: documentMap[ds.documentId]?.type || "Unknown",
+                documentPath: documentMap[ds.documentId]?.path || "N/A",
+                tags: documentMap[ds.documentId]?.tags || [],
+                queryText: ds.queryText,
+                answerText: response?.answerText || null,
+                requiresApproval: ds.requiresApproval,
               };
-            }) || [],
-          assigneeDetails: qa.details?.assigneeDetails
-            ? {
-                assignedStepName: qa.details.assigneeDetails.assignedStepName,
-                assignedAssigneeId:
-                  qa.details.assigneeDetails.assignedAssigneeId,
-                assignedAssigneeName: qa.details.assigneeDetails
-                  .assignedAssigneeId
-                  ? (
-                      await prisma.user.findUnique({
-                        where: {
-                          id: parseInt(
-                            qa.details.assigneeDetails.assignedAssigneeId
-                          ),
-                        },
-                        select: { username: true },
-                      })
-                    )?.username || null
-                  : null,
-              }
-            : null,
-        };
+            });
 
-        const actions = [];
-        if (qa.initiatorId === userData.id) {
-          actions.push({
-            actionType: "QUERY_RAISED",
-            description: `Raised query: "${qa.question}"`,
-            createdAt: qa.createdAt.toISOString(),
-            details: { ...baseDetails, taskType: "QUERY_UPLOAD" },
-          });
-        }
-        if (qa.entityId === userData.id && qa.status === "RESOLVED") {
-          actions.push({
-            actionType: "QUERY_RESOLVED",
-            description: `Resolved query: "${qa.question}"`,
-            createdAt:
-              qa.answeredAt?.toISOString() || qa.createdAt.toISOString(),
-            details: {
-              ...baseDetails,
-              taskType: "RESOLVED",
-              answerText: qa.answer || null,
-              answeredAt: qa.answeredAt?.toISOString() || null,
-            },
-          });
-        }
-        return actions;
-      })
+            const actions = [];
+
+            if (rec.initiatorId === userData.id) {
+              actions.push({
+                actionType: "RECOMMENDATION_REQUESTED",
+                description: `Requested recommendation: "${rec.recommendationText}"`,
+                createdAt: rec.createdAt.toISOString(),
+                details: {
+                  recommendationId: rec.id,
+                  processId: rec.processId,
+                  processName: rec.process.name,
+                  stepInstanceId: rec.stepInstanceId || null,
+                  stepName: rec.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber:
+                    rec.stepInstance?.workflowStep?.stepNumber || null,
+                  status: rec.status,
+                  recommendationText: rec.recommendationText,
+                  initiatorName: initiatorDetails,
+                  recommenderName: recommenderDetails,
+                  createdAt: rec.createdAt.toISOString(),
+                  responseText: rec.responseText || null,
+                  respondedAt: rec.respondedAt
+                    ? rec.respondedAt.toISOString()
+                    : null,
+                  documentDetails,
+                  documentResponses: documentResponses || [],
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
+
+            if (
+              rec.recommenderId === userData.id &&
+              rec.status === "RESOLVED"
+            ) {
+              actions.push({
+                actionType: "RECOMMENDATION_PROVIDED",
+                description: `Provided recommendation: "${
+                  rec.responseText || "No response"
+                }"`,
+                createdAt:
+                  rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
+                details: {
+                  recommendationId: rec.id,
+                  processId: rec.processId,
+                  processName: rec.process.name,
+                  stepInstanceId: rec.stepInstanceId || null,
+                  stepName: rec.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber:
+                    rec.stepInstance?.workflowStep?.stepNumber || null,
+                  status: rec.status,
+                  recommendationText: rec.recommendationText,
+                  initiatorName: initiatorDetails,
+                  recommenderName: recommenderDetails,
+                  createdAt: rec.createdAt.toISOString(),
+                  responseText: rec.responseText || null,
+                  respondedAt: rec.respondedAt
+                    ? rec.respondedAt.toISOString()
+                    : null,
+                  documentDetails,
+                  documentResponses: documentResponses || [],
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
+
+            return actions;
+          })
+        )
+      ).flat(),
+      ...(
+        await Promise.all(
+          userStepInstances.map(async (step) => {
+            if (step.status === "APPROVED" && step.decisionAt) {
+              const assignmentDetails = await getAssignmentDetails(
+                step.id,
+                processId
+              );
+              return {
+                actionType: "STEP_COMPLETED",
+                description: `Completed step "${step.workflowStep?.stepName}"`,
+                createdAt: step.decisionAt.toISOString(),
+                details: {
+                  stepInstanceId: step.id,
+                  stepName: step.workflowStep?.stepName,
+                  stepNumber: step.workflowStep?.stepNumber || null,
+                  completedBy: await getUserDetails(userData.id),
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              };
+            }
+            return null;
+          })
+        )
+      ).filter(Boolean)
     );
 
-    // Recommendations
-    const recommendationDetails = await Promise.all(
-      recommendations.map(async (rec) => {
-        const documentSummaries = rec.documentSummaries || [];
-        const documentResponses = rec.details?.documentResponses || [];
-        const documentIds = documentSummaries.map((ds) =>
-          parseInt(ds.documentId)
-        );
-        const documents = documentIds.length
-          ? await prisma.document.findMany({
-              where: { id: { in: documentIds } },
-              select: { id: true, name: true, path: true },
-            })
-          : [];
+    const sortedActivities = activities
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-        const documentMap = documents.reduce((map, doc) => {
-          map[doc.id] = { name: doc.name, path: make_path(doc.path) };
-          return map;
-        }, {});
-
-        const documentDetails = documentSummaries.map((ds) => {
-          const response = documentResponses.find(
-            (dr) => dr.documentId === parseInt(ds.documentId)
-          );
-          return {
-            documentId: ds.documentId,
-            documentName:
-              documentMap[ds.documentId]?.name || "Unknown Document",
-            documentPath: documentMap[ds.documentId]?.path
-              ? documentMap[ds.documentId].path.substring(
-                  0,
-                  documentMap[ds.documentId].path.lastIndexOf("/")
-                )
-              : "Unknown Path",
-            queryText: ds.queryText,
-            answerText: response?.answerText || null,
-            requiresApproval: ds.requiresApproval,
-          };
-        });
-
-        const actions = [];
-        if (rec.initiatorId === userData.id) {
-          actions.push({
-            actionType: "RECOMMENDATION_REQUESTED",
-            description: `Requested recommendation: "${rec.recommendationText}"`,
-            createdAt: rec.createdAt.toISOString(),
-            details: {
-              recommendationId: rec.id,
-              processId: rec.processId,
-              processName: rec.process.name,
-              stepInstanceId: rec.stepInstanceId || null,
-              stepName: stepInstance?.workflowStep?.stepName || null,
-              stepNumber: stepInstance?.workflowStep?.stepNumber || null,
-              status: rec.status,
-              recommendationText: rec.recommendationText,
-              initiatorName: rec.initiator.username,
-              recommenderName: rec.recommender.username,
-              createdAt: rec.createdAt.toISOString(),
-              responseText: rec.responseText || null,
-              respondedAt: rec.respondedAt
-                ? rec.respondedAt.toISOString()
-                : null,
-              documentDetails,
-              documentResponses: documentResponses || [],
-            },
-          });
-        }
-        if (rec.recommenderId === userData.id && rec.status === "RESOLVED") {
-          actions.push({
-            actionType: "RECOMMENDATION_PROVIDED",
-            description: `Provided recommendation: "${
-              rec.responseText || "No response"
-            }"`,
-            createdAt:
-              rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
-            details: {
-              recommendationId: rec.id,
-              processId: rec.processId,
-              processName: rec.process.name,
-              stepInstanceId: rec.stepInstanceId || null,
-              stepName: stepInstance?.workflowStep?.stepName || null,
-              stepNumber: stepInstance?.workflowStep?.stepNumber || null,
-              status: rec.status,
-              recommendationText: rec.recommendationText,
-              initiatorName: rec.initiator.username,
-              recommenderName: rec.recommender.username,
-              createdAt: rec.createdAt.toISOString(),
-              responseText: rec.responseText || null,
-              respondedAt: rec.respondedAt
-                ? rec.respondedAt.toISOString()
-                : null,
-              documentDetails,
-              documentResponses: documentResponses || [],
-            },
-          });
-        }
-        return actions;
-      })
-    );
-
-    // Step Completion
-    userStepInstances.forEach((step) => {
-      if (step.status === "APPROVED" && step.decisionAt) {
-        activities.push({
-          actionType: "STEP_COMPLETED",
-          description: `Completed step "${step.workflowStep?.stepName}"`,
-          createdAt: step.decisionAt.toISOString(),
-          details: {
-            stepInstanceId: step.id,
-            stepName: step.workflowStep?.stepName,
-            stepNumber: step.workflowStep?.stepNumber || null,
-          },
-        });
-      }
-    });
-
-    // Combine and sort actions
-    const allActivities = [
-      ...activities,
-      ...queryDetails.flat(),
-      ...recommendationDetails.flat(),
-    ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // If no activities, return 404 to indicate no relevant user actions
-    if (allActivities.length === 0) {
+    if (sortedActivities.length === 0) {
       return res.status(404).json({
         success: false,
         error: {
@@ -588,11 +768,11 @@ export const get_user_activity_log = async (req, res) => {
         processStepInstanceId: stepInstanceId || null,
         stepName: stepInstance?.workflowStep?.stepName || null,
         recirculationCycle: stepInstance?.recirculationCycle || 0,
-        activities: allActivities,
+        activities: sortedActivities,
       },
     });
   } catch (error) {
-    console.error("Error fetching user activity log:", error);
+    console.error("Error in get_user_activity_log:", error);
     return res.status(500).json({
       success: false,
       error: {
@@ -603,11 +783,9 @@ export const get_user_activity_log = async (req, res) => {
     });
   }
 };
-
 export const get_user_activity_logs = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
-
     const userData = await verifyUser(accessToken);
     if (userData === "Unauthorized" || !userData?.id) {
       return res.status(401).json({
@@ -620,7 +798,6 @@ export const get_user_activity_logs = async (req, res) => {
       });
     }
 
-    // Fetch process IDs where user is involved
     const [
       stepInstances,
       recommenderProcesses,
@@ -673,7 +850,6 @@ export const get_user_activity_logs = async (req, res) => {
       ]),
     ];
 
-    // Fetch logs for each process
     const logs = await Promise.all(
       allProcessIds.map(async (processId) => {
         const process = await prisma.processInstance.findUnique({
@@ -683,6 +859,7 @@ export const get_user_activity_logs = async (req, res) => {
             name: true,
             createdAt: true,
             initiator: { select: { username: true } },
+            workflow: { select: { name: true } },
           },
         });
 
@@ -691,23 +868,15 @@ export const get_user_activity_logs = async (req, res) => {
         const userSteps = stepInstances.filter(
           (s) => s.processId === processId
         );
-        const stepInstanceIds = userSteps.map((s) => s.id);
 
-        // Count actions
         const [
-          documentHistoryCount,
           signatureCount,
           rejectionCount,
+          documentCount,
           queryCount,
           recommendationCount,
           initiated,
         ] = await Promise.all([
-          prisma.documentHistory.count({
-            where: {
-              processId,
-              userId: userData.id,
-            },
-          }),
           prisma.documentSignature.count({
             where: {
               processDocument: { processId },
@@ -718,6 +887,14 @@ export const get_user_activity_logs = async (req, res) => {
             where: {
               processDocument: { processId },
               userId: userData.id,
+            },
+          }),
+          prisma.processDocument.count({
+            where: {
+              processId,
+              document: {
+                createdById: userData.id,
+              },
             },
           }),
           prisma.processQA.count({
@@ -744,67 +921,130 @@ export const get_user_activity_logs = async (req, res) => {
           }),
         ]);
 
-        // Check if the user has any meaningful activity
         const hasActivity =
-          documentHistoryCount > 0 ||
           signatureCount > 0 ||
           rejectionCount > 0 ||
+          documentCount > 0 ||
           queryCount > 0 ||
           recommendationCount > 0 ||
           initiated;
 
-        // Skip processes with no user activity
         if (!hasActivity) return null;
 
         const steps = userSteps.length
-          ? userSteps.map((s) => ({
-              stepInstanceId: s.id,
-              stepName: s.workflowStep?.stepName || "Unknown Step",
-              stepNumber: s.workflowStep?.stepNumber || null,
-              recirculationCycle: s.recirculationCycle || 0,
-            }))
+          ? await Promise.all(
+              userSteps.map(async (s) => {
+                const assignmentDetails = await getAssignmentDetails(
+                  s.id,
+                  processId
+                );
+                return {
+                  stepInstanceId: s.id,
+                  stepName: s.workflowStep?.stepName || "Unknown Step",
+                  stepNumber: s.workflowStep?.stepNumber || null,
+                  recirculationCycle: s.recirculationCycle || 0,
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                };
+              })
+            )
           : null;
 
-        // Find last activity timestamp
-        const lastActivity = await prisma.$queryRaw`
-            SELECT MAX("createdAt") as "lastActivityAt"
-            FROM (
-              SELECT "createdAt" FROM "DocumentHistory" WHERE "processId" = ${processId} AND "userId" = ${userData.id}
-              UNION
-              SELECT "signedAt" as "createdAt" FROM "DocumentSignature" WHERE "processDocumentId" IN (SELECT id FROM "ProcessDocument" WHERE "processId" = ${processId}) AND "userId" = ${userData.id}
-              UNION
-              SELECT "rejectedAt" as "createdAt" FROM "DocumentRejection" WHERE "processDocumentId" IN (SELECT id FROM "ProcessDocument" WHERE "processId" = ${processId}) AND "userId" = ${userData.id}
-              UNION
-              SELECT "createdAt" FROM "ProcessQA" WHERE "processId" = ${processId} AND ("initiatorId" = ${userData.id} OR ("entityId" = ${userData.id} AND status = 'RESOLVED'))
-              UNION
-              SELECT "createdAt" FROM "Recommendation" WHERE "processId" = ${processId} AND ("initiatorId" = ${userData.id} OR "recommenderId" = ${userData.id})
-              UNION
-              SELECT "createdAt" FROM "ProcessInstance" WHERE id = ${processId} AND "initiatorId" = ${userData.id}
-            ) as activities
-          `;
+        const lastActivities = await Promise.all([
+          prisma.documentSignature.findFirst({
+            where: {
+              processDocument: { processId },
+              userId: userData.id,
+            },
+            orderBy: { signedAt: "desc" },
+            select: { signedAt: true },
+          }),
+          prisma.documentRejection.findFirst({
+            where: {
+              processDocument: { processId },
+              userId: userData.id,
+            },
+            orderBy: { rejectedAt: "desc" },
+            select: { rejectedAt: true },
+          }),
+          prisma.processDocument.findFirst({
+            where: {
+              processId,
+              document: { createdById: userData.id },
+            },
+            orderBy: { document: { createdOn: "desc" } }, // Use document.createdOn
+            select: { document: { select: { createdOn: true } } },
+          }),
+          prisma.processQA.findFirst({
+            where: {
+              processId,
+              OR: [
+                { initiatorId: userData.id },
+                { entityId: userData.id, status: "RESOLVED" },
+              ],
+            },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
+          }),
+          prisma.recommendation.findFirst({
+            where: {
+              processId,
+              OR: [
+                { initiatorId: userData.id },
+                { recommenderId: userData.id },
+              ],
+            },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
+          }),
+          prisma.processInstance.findFirst({
+            where: {
+              id: processId,
+              initiatorId: userData.id,
+            },
+            select: { createdAt: true },
+          }),
+        ]);
+
+        const timestamps = lastActivities
+          .flatMap((activity) => {
+            if (!activity) return [];
+            return [
+              activity.signedAt ||
+                activity.rejectedAt ||
+                (activity.document
+                  ? activity.document.createdOn
+                  : activity.createdAt),
+            ].filter(Boolean);
+          })
+          .map((date) => new Date(date));
+
+        const lastActivityAt =
+          timestamps.length > 0
+            ? new Date(Math.max(...timestamps)).toISOString()
+            : process.createdAt.toISOString();
 
         return {
           processId: process.id,
           processName: process.name,
-          initiatorName: process.initiator.username,
+          initiatorName: await getUserDetails(process.initiator),
           createdAt: process.createdAt.toISOString(),
           steps,
           actionSummary: {
-            documents: documentHistoryCount,
             signatures: signatureCount,
             rejections: rejectionCount,
+            documents: documentCount,
             queries: queryCount,
             recommendations: recommendationCount,
             initiated: initiated ? 1 : 0,
           },
-          lastActivityAt:
-            lastActivity[0]?.lastActivityAt?.toISOString() ||
-            process.createdAt.toISOString(),
+          lastActivityAt,
         };
       })
     );
 
-    // Filter out null results and sort by last activity
     const validLogs = logs
       .filter((log) => log)
       .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
@@ -843,10 +1083,12 @@ export const get_process_activity_logs = async (req, res) => {
 
     const { processId, stepInstanceId } = req.params;
 
-    // Validate process
     const process = await prisma.processInstance.findUnique({
       where: { id: processId },
-      select: { id: true, name: true },
+      include: {
+        workflow: { select: { name: true } },
+        initiator: true,
+      },
     });
 
     if (!process) {
@@ -861,11 +1103,10 @@ export const get_process_activity_logs = async (req, res) => {
     }
 
     let stepInstance = null;
-    let timeStart = new Date(0); // Default to epoch start
-    let timeEnd = new Date(); // Default to now
+    let timeStart = new Date(0);
+    let timeEnd = new Date();
 
     if (stepInstanceId) {
-      // Validate step instance if provided
       stepInstance = await prisma.processStepInstance.findUnique({
         where: { id: stepInstanceId },
         include: {
@@ -889,78 +1130,112 @@ export const get_process_activity_logs = async (req, res) => {
       timeEnd = stepInstance.decisionAt || new Date();
     }
 
-    // Check user involvement: assignee, recommender, query initiator, resolver, or initiator
-    // const isAssignee = stepInstance
-    //   ? stepInstance.assignedTo === userData.id
-    //   : await prisma.processStepInstance.findFirst({
-    //       where: {
-    //         processId,
-    //         assignedTo: userData.id,
-    //         OR: [{ status: "IN_PROGRESS" }, { status: "APPROVED" }],
-    //       },
-    //     });
-    // const isRecommender = await prisma.recommendation.findFirst({
-    //   where: {
-    //     processId,
-    //     OR: [{ initiatorId: userData.id }, { recommenderId: userData.id }],
-    //   },
-    // });
-    // const isQueryInvolved = await prisma.processQA.findFirst({
-    //   where: {
-    //     processId,
-    //     OR: [
-    //       { initiatorId: userData.id },
-    //       { entityId: userData.id, status: "RESOLVED" },
-    //     ],
-    //   },
-    // });
-    // const isInitiator = await prisma.processInstance.findFirst({
-    //   where: { id: processId, initiatorId: userData.id },
-    // });
+    const hasAccess = await prisma.documentAccess.findFirst({
+      where: {
+        processId,
+        OR: [
+          { userId: userData.id },
+          {
+            roleId: {
+              in: (
+                await prisma.userRole.findMany({
+                  where: { userId: userData.id },
+                })
+              ).map((ur) => ur.roleId),
+            },
+          },
+          {
+            departmentId: {
+              in: (
+                await prisma.department.findMany({
+                  where: { users: { some: { id: userData.id } } },
+                })
+              ).map((d) => d.id),
+            },
+          },
+        ],
+      },
+    });
 
-    // if (!isAssignee && !isRecommender && !isQueryInvolved && !isInitiator) {
+    // if (!hasAccess && process.initiatorId !== userData.id) {
     //   return res.status(403).json({
     //     success: false,
     //     error: {
     //       message: "Forbidden",
-    //       details: "User has no involvement in this process.",
+    //       details: "User has no access to this process.",
     //       code: "FORBIDDEN",
     //     },
     //   });
     // }
 
-    // Fetch all step instances for the user in this process
     const userStepInstances = await prisma.processStepInstance.findMany({
-      where: {
-        processId,
-        // assignedTo: userData.id,
-        // OR: [{ status: "IN_PROGRESS" }, { status: "APPROVED" }],
-      },
+      where: { processId },
       select: {
         id: true,
         createdAt: true,
         decisionAt: true,
         status: true,
         workflowStep: { select: { stepName: true, stepNumber: true } },
+        assignedTo: true,
       },
     });
 
-    const stepInstanceIds = userStepInstances.map((s) => s.id);
-
-    // Fetch actions
     const [
-      documentHistory,
       documentSignatures,
       documentRejections,
+      processDocuments,
       processQAs,
       recommendations,
       processInstance,
     ] = await Promise.all([
-      prisma.documentHistory.findMany({
+      prisma.documentSignature.findMany({
+        where: {
+          processDocument: { processId },
+          signedAt: { gte: timeStart, lte: timeEnd },
+        },
+        include: {
+          processDocument: {
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                  tags: true,
+                },
+              },
+            },
+          },
+          user: { select: { id: true, username: true } },
+        },
+      }),
+      prisma.documentRejection.findMany({
+        where: {
+          processDocument: { processId },
+          rejectedAt: { gte: timeStart, lte: timeEnd },
+        },
+        include: {
+          processDocument: {
+            include: {
+              document: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  path: true,
+                  tags: true,
+                },
+              },
+            },
+          },
+          user: { select: { id: true, username: true } },
+        },
+      }),
+      prisma.processDocument.findMany({
         where: {
           processId,
-          userId: userData.id,
-          createdAt: { gte: timeStart, lte: timeEnd },
+          document: { createdOn: { gte: timeStart, lte: timeEnd } }, // Use createdOn
         },
         include: {
           document: {
@@ -970,49 +1245,16 @@ export const get_process_activity_logs = async (req, res) => {
               type: true,
               path: true,
               tags: true,
+              createdById: true,
+              createdOn: true,
             },
           },
-          replacedDocument: { select: { id: true, name: true, path: true } },
-          user: { select: { id: true, name: true, username: true } },
-        },
-      }),
-      prisma.documentSignature.findMany({
-        where: {
-          processDocument: { processId },
-          userId: userData.id,
-          signedAt: { gte: timeStart, lte: timeEnd },
-        },
-        include: {
-          processDocument: {
-            include: {
-              document: { select: { id: true, name: true, path: true } },
-            },
-          },
-          user: { select: { id: true, username: true } },
-        },
-      }),
-      prisma.documentRejection.findMany({
-        where: {
-          processDocument: { processId },
-          userId: userData.id,
-          rejectedAt: { gte: timeStart, lte: timeEnd },
-        },
-        include: {
-          processDocument: {
-            include: {
-              document: { select: { id: true, name: true, path: true } },
-            },
-          },
-          user: { select: { id: true, username: true } },
+          rejectedBy: { select: { id: true, username: true } },
         },
       }),
       prisma.processQA.findMany({
         where: {
           processId,
-          OR: [
-            { initiatorId: userData.id },
-            { entityId: userData.id, status: "RESOLVED" },
-          ],
           createdAt: { gte: timeStart, lte: timeEnd },
         },
         include: {
@@ -1027,124 +1269,226 @@ export const get_process_activity_logs = async (req, res) => {
       prisma.recommendation.findMany({
         where: {
           processId,
-          OR: [{ initiatorId: userData.id }, { recommenderId: userData.id }],
           createdAt: { gte: timeStart, lte: timeEnd },
         },
         include: {
           initiator: { select: { id: true, username: true } },
           recommender: { select: { id: true, username: true } },
           process: { select: { id: true, name: true } },
+          stepInstance: {
+            include: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
         },
       }),
       prisma.processInstance.findFirst({
-        where: { id: processId, initiatorId: userData.id },
+        where: { id: processId },
         select: {
           id: true,
           name: true,
           createdAt: true,
-          initiator: { select: { username: true } },
+          initiator: { select: { id: true, username: true } },
         },
       }),
     ]);
 
-    // Format actions
-    const activities = [];
+    const activities = await Promise.all([
+      ...(processInstance
+        ? [
+            {
+              actionType: "PROCESS_INITIATED",
+              description: `Initiated process "${processInstance.name}"`,
+              createdAt: processInstance.createdAt.toISOString(),
+              details: {
+                processId: processInstance.id,
+                processName: processInstance.name,
+                initiatorName: await getUserDetails(
+                  processInstance.initiatorId
+                ),
+                workflow: process.workflow?.name || "N/A",
+                assignmentType: "N/A",
+                role: "N/A",
+                department: "N/A",
+              },
+            },
+          ]
+        : []),
+      ...(await Promise.all(
+        processDocuments.map(async (pd) => {
+          const documentDetails = await getDocumentDetails(pd.documentId);
+          const assignmentDetails = await getAssignmentDetails(
+            null, // ProcessDocument has no stepInstanceId
+            pd.processId
+          );
+          return {
+            actionType: "DOCUMENT_UPLOADED",
+            description: `Uploaded document "${documentDetails.name}"`,
+            createdAt: pd.document.createdOn.toISOString(), // Use createdOn
+            details: {
+              documentId: pd.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              uploadedBy: await getUserDetails(pd.document.createdById),
+              stepInstanceId: null,
+              stepName: "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(await Promise.all(
+        documentSignatures.map(async (sig) => {
+          const documentDetails = await getDocumentDetails(
+            sig.processDocument.documentId
+          );
+          const assignmentDetails = await getAssignmentDetails(
+            sig.processStepInstanceId,
+            sig.processDocument.processId
+          );
+          return {
+            actionType: "DOCUMENT_SIGNED",
+            description: `Signed "${documentDetails.name}"`,
+            createdAt: sig.signedAt.toISOString(),
+            details: {
+              documentId: sig.processDocument.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              signedBy: await getUserDetails(sig.userId),
+              signedAt: sig.signedAt.toISOString(),
+              remarks: sig.reason || null,
+              byRecommender: sig.byRecommender,
+              isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
+              stepInstanceId: sig.processStepInstanceId || null,
+              stepName:
+                sig.processStepInstance?.workflowStep?.stepName || "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(await Promise.all(
+        documentRejections.map(async (dr) => {
+          const documentDetails = await getDocumentDetails(
+            dr.processDocument.documentId
+          );
+          const assignmentDetails = await getAssignmentDetails(
+            dr.processStepInstanceId,
+            dr.processDocument.processId
+          );
+          return {
+            actionType: "DOCUMENT_REJECTED",
+            description: `Rejected "${documentDetails.name}"`,
+            createdAt: dr.rejectedAt.toISOString(),
+            details: {
+              documentId: dr.processDocument.documentId,
+              name: documentDetails.name,
+              type: documentDetails.type,
+              path: make_path(documentDetails.path),
+              tags: documentDetails.tags,
+              rejectedBy: await getUserDetails(dr.userId),
+              rejectionReason: dr.reason || null,
+              rejectedAt: dr.rejectedAt.toISOString(),
+              byRecommender: dr.byRecommender,
+              isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
+              stepInstanceId: dr.processStepInstanceId || null,
+              stepName: dr.processStepInstance?.workflowStep?.stepName || "N/A",
+              workflow: assignmentDetails.workflow,
+              assignmentType: assignmentDetails.assignmentType,
+              role: assignmentDetails.role,
+              department: assignmentDetails.department,
+            },
+          };
+        })
+      )),
+      ...(
+        await Promise.all(
+          processQAs.map(async (qa) => {
+            const assignmentDetails = await getAssignmentDetails(
+              qa.stepInstanceId,
+              qa.processId
+            );
+            const initiatorDetails = await getUserDetails(qa.initiatorId);
+            const actions = [];
 
-    // Process Initiation
-    if (processInstance) {
-      activities.push({
-        actionType: "PROCESS_INITIATED",
-        description: `Initiated process "${processInstance.name}"`,
-        createdAt: processInstance.createdAt.toISOString(),
-        details: {
-          processId: processInstance.id,
-          processName: processInstance.name,
-          initiatorName: processInstance.initiator.username,
-        },
-      });
-    }
+            if (qa.initiatorId === userData.id) {
+              actions.push({
+                actionType: "QUERY_RAISED",
+                description: `Raised query: "${qa.question}"`,
+                createdAt: qa.createdAt.toISOString(),
+                details: {
+                  stepInstanceId: qa.stepInstanceId || null,
+                  stepName: qa.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
+                  status: qa.stepInstance?.status || null,
+                  queryText: qa.question,
+                  initiatorName: initiatorDetails,
+                  createdAt: qa.createdAt.toISOString(),
+                  taskType: "QUERY_UPLOAD",
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-    // Document History
-    // documentHistory.forEach((history) => {
-    //   activities.push({
-    //     actionType: `DOCUMENT_${history.actionType}`,
-    //     description: `${history.actionType.toLowerCase()} "${
-    //       history.document.name
-    //     }"`,
-    //     createdAt: history.createdAt.toISOString(),
-    //     details: {
-    //       documentId: history.document.id,
-    //       name: history.document.name,
-    //       type: history.document.type,
-    //       path: history.document.path,
-    //       tags: history.document.tags,
-    //       actionDetails: history.actionDetails || [],
-    //       replacedDocument: history.replacedDocument
-    //         ? {
-    //             id: history.replacedDocument.id,
-    //             name: history.replacedDocument.name,
-    //             path: history.replacedDocument.path,
-    //           }
-    //         : null,
-    //       user: history.user.name,
-    //       isRecirculationTrigger: history.isRecirculationTrigger,
-    //     },
-    //   });
-    // });
+            if (qa.entityId === userData.id && qa.status === "RESOLVED") {
+              actions.push({
+                actionType: "QUERY_RESOLVED",
+                description: `Resolved query: "${qa.question}"`,
+                createdAt:
+                  qa.answeredAt?.toISOString() || qa.createdAt.toISOString(),
+                details: {
+                  stepInstanceId: qa.stepInstanceId || null,
+                  stepName: qa.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
+                  status: qa.stepInstance?.status || null,
+                  queryText: qa.question,
+                  initiatorName: initiatorDetails,
+                  createdAt: qa.createdAt.toISOString(),
+                  taskType: "RESOLVED",
+                  answerText: qa.answer || null,
+                  answeredAt: qa.answeredAt?.toISOString() || null,
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-    // Document Signatures
-    documentSignatures.forEach((sig) => {
-      activities.push({
-        actionType: "DOCUMENT_SIGNED",
-        description: `Signed "${sig.processDocument.document.name}"`,
-        createdAt: sig.signedAt.toISOString(),
-        details: {
-          signedBy: sig.user.username,
-          signedAt: sig.signedAt.toISOString(),
-          remarks: sig.reason || null,
-          byRecommender: sig.byRecommender,
-          isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
-          documentId: sig.processDocument.documentId,
-          name: sig.processDocument.document.name,
-          path: make_path(sig.processDocument.document.path),
-        },
-      });
-    });
-
-    // Document Rejections
-    documentRejections.forEach((dr) => {
-      activities.push({
-        actionType: "DOCUMENT_REJECTED",
-        description: `Rejected "${dr.processDocument.document.name}"`,
-        createdAt: dr.rejectedAt.toISOString(),
-        details: {
-          rejectedBy: dr.user.username,
-          rejectionReason: dr.reason || null,
-          rejectedAt: dr.rejectedAt.toISOString(),
-          byRecommender: dr.byRecommender,
-          isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
-          documentId: dr.processDocument.documentId,
-          name: dr.processDocument.document.name,
-          path: make_path(dr.processDocument.document.path),
-        },
-      });
-    });
-
-    // Process QAs
-    const queryDetails = await Promise.all(
-      processQAs.map(async (qa) => {
-        const documentHistoryIds = [
-          ...(qa.details?.documentChanges?.map((dc) => dc.documentHistoryId) ||
-            []),
-          ...(qa.details?.documentSummaries?.map(
-            (ds) => ds.documentHistoryId
-          ) || []),
-        ];
-        const documentHistories = documentHistoryIds.length
-          ? await prisma.documentHistory.findMany({
-              where: { id: { in: documentHistoryIds } },
-              include: {
-                document: {
+            return actions;
+          })
+        )
+      ).flat(),
+      ...(
+        await Promise.all(
+          recommendations.map(async (rec) => {
+            const assignmentDetails = await getAssignmentDetails(
+              rec.stepInstanceId,
+              rec.processId
+            );
+            const initiatorDetails = await getUserDetails(rec.initiatorId);
+            const recommenderDetails = await getUserDetails(rec.recommenderId);
+            const documentSummaries = rec.documentSummaries || [];
+            const documentResponses = rec.details?.documentResponses || [];
+            const documentIds = documentSummaries.map((ds) =>
+              parseInt(ds.documentId)
+            );
+            const documents = documentIds.length
+              ? await prisma.document.findMany({
+                  where: { id: { in: documentIds } },
                   select: {
                     id: true,
                     name: true,
@@ -1152,253 +1496,152 @@ export const get_process_activity_logs = async (req, res) => {
                     path: true,
                     tags: true,
                   },
-                },
-                replacedDocument: {
-                  select: { id: true, name: true, path: true },
-                },
-                user: { select: { id: true, name: true, username: true } },
-              },
-            })
-          : [];
+                })
+              : [];
 
-        const baseDetails = {
-          stepInstanceId: qa.stepInstanceId || null,
-          stepName: qa.stepInstance?.workflowStep?.stepName || null,
-          stepNumber: qa.stepInstance?.workflowStep?.stepNumber || null,
-          status: qa.stepInstance?.status || null,
-          queryText: qa.question,
-          initiatorName: qa.initiator.name,
-          createdAt: qa.createdAt.toISOString(),
-          documentChanges:
-            qa.details?.documentChanges?.map((dc) => {
-              const history = documentHistories.find(
-                (h) => h.id === dc.documentHistoryId
-              );
-              return {
-                documentId: dc.documentId,
-                requiresApproval: dc.requiresApproval,
-                isReplacement: dc.isReplacement,
-                documentHistoryId: dc.documentHistoryId,
-                document: history?.document
-                  ? {
-                      id: history.document.id,
-                      name: history.document.name,
-                      type: history.document.type,
-                      path: make_path(history.document.path),
-                      tags: history.document.tags,
-                    }
-                  : null,
-                actionDetails: history?.actionDetails || null,
-                user: history?.user?.name || null,
-                createdAt: history?.createdAt?.toISOString() || null,
-                replacedDocument: history?.replacedDocument
-                  ? {
-                      id: history.replacedDocument.id,
-                      name: history.replacedDocument.name,
-                      path: make_path(history.replacedDocument.path),
-                    }
-                  : null,
+            const documentMap = documents.reduce((map, doc) => {
+              map[doc.id] = {
+                name: doc.name,
+                type: doc.type,
+                path: make_path(doc.path),
+                tags: doc.tags,
               };
-            }) || [],
-          documentSummaries:
-            qa.details?.documentSummaries?.map((ds) => {
-              const history = documentHistories.find(
-                (h) => h.id === ds.documentHistoryId
+              return map;
+            }, {});
+
+            const documentDetails = documentSummaries.map((ds) => {
+              const response = documentResponses.find(
+                (dr) => dr.documentId === parseInt(ds.documentId)
               );
               return {
                 documentId: ds.documentId,
-                feedbackText: ds.feedbackText,
-                documentHistoryId: ds.documentHistoryId,
-                documentDetails: history?.document
-                  ? {
-                      id: history.document.id,
-                      name: history.document.name,
-                      path: make_path(history.document.path),
-                    }
-                  : null,
-                user: history?.user?.username || null,
-                createdAt: history?.createdAt?.toISOString() || null,
+                documentName:
+                  documentMap[ds.documentId]?.name || "Unknown Document",
+                documentType: documentMap[ds.documentId]?.type || "Unknown",
+                documentPath: documentMap[ds.documentId]?.path || "N/A",
+                tags: documentMap[ds.documentId]?.tags || [],
+                queryText: ds.queryText,
+                answerText: response?.answerText || null,
+                requiresApproval: ds.requiresApproval,
               };
-            }) || [],
-          assigneeDetails: qa.details?.assigneeDetails
-            ? {
-                assignedStepName: qa.details.assigneeDetails.assignedStepName,
-                assignedAssigneeId:
-                  qa.details.assigneeDetails.assignedAssigneeId,
-                assignedAssigneeName: qa.details.assigneeDetails
-                  .assignedAssigneeId
-                  ? (
-                      await prisma.user.findUnique({
-                        where: {
-                          id: parseInt(
-                            qa.details.assigneeDetails.assignedAssigneeId
-                          ),
-                        },
-                        select: { username: true },
-                      })
-                    )?.username || null
-                  : null,
-              }
-            : null,
-        };
+            });
 
-        const actions = [];
-        if (qa.initiatorId === userData.id) {
-          actions.push({
-            actionType: "QUERY_RAISED",
-            description: `Raised query: "${qa.question}"`,
-            createdAt: qa.createdAt.toISOString(),
-            details: { ...baseDetails, taskType: "QUERY_UPLOAD" },
-          });
-        }
-        if (qa.entityId === userData.id && qa.status === "RESOLVED") {
-          actions.push({
-            actionType: "QUERY_RESOLVED",
-            description: `Resolved query: "${qa.question}"`,
-            createdAt:
-              qa.answeredAt?.toISOString() || qa.createdAt.toISOString(),
-            details: {
-              ...baseDetails,
-              taskType: "RESOLVED",
-              answerText: qa.answer || null,
-              answeredAt: qa.answeredAt?.toISOString() || null,
-            },
-          });
-        }
-        return actions;
-      })
-    );
+            const actions = [];
 
-    // Recommendations
-    const recommendationDetails = await Promise.all(
-      recommendations.map(async (rec) => {
-        const documentSummaries = rec.documentSummaries || [];
-        const documentResponses = rec.details?.documentResponses || [];
-        const documentIds = documentSummaries.map((ds) =>
-          parseInt(ds.documentId)
-        );
-        const documents = documentIds.length
-          ? await prisma.document.findMany({
-              where: { id: { in: documentIds } },
-              select: { id: true, name: true, path: true },
-            })
-          : [];
+            if (rec.initiatorId === userData.id) {
+              actions.push({
+                actionType: "RECOMMENDATION_REQUESTED",
+                description: `Requested recommendation: "${rec.recommendationText}"`,
+                createdAt: rec.createdAt.toISOString(),
+                details: {
+                  recommendationId: rec.id,
+                  processId: rec.processId,
+                  processName: rec.process.name,
+                  stepInstanceId: rec.stepInstanceId || null,
+                  stepName: rec.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber:
+                    rec.stepInstance?.workflowStep?.stepNumber || null,
+                  status: rec.status,
+                  recommendationText: rec.recommendationText,
+                  initiatorName: initiatorDetails,
+                  recommenderName: recommenderDetails,
+                  createdAt: rec.createdAt.toISOString(),
+                  responseText: rec.responseText || null,
+                  respondedAt: rec.respondedAt
+                    ? rec.respondedAt.toISOString()
+                    : null,
+                  documentDetails,
+                  documentResponses: documentResponses || [],
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-        const documentMap = documents.reduce((map, doc) => {
-          map[doc.id] = { name: doc.name, path: make_path(doc.path) };
-          return map;
-        }, {});
+            if (
+              rec.recommenderId === userData.id &&
+              rec.status === "RESOLVED"
+            ) {
+              actions.push({
+                actionType: "RECOMMENDATION_PROVIDED",
+                description: `Provided recommendation: "${
+                  rec.responseText || "No response"
+                }"`,
+                createdAt:
+                  rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
+                details: {
+                  recommendationId: rec.id,
+                  processId: reg.processId,
+                  processName: rec.process.name,
+                  stepInstanceId: rec.stepInstanceId || null,
+                  stepName: rec.stepInstance?.workflowStep?.stepName || "N/A",
+                  stepNumber:
+                    rec.stepInstance?.workflowStep?.stepNumber || null,
+                  status: rec.status,
+                  recommendationText: rec.recommendationText,
+                  initiatorName: initiatorDetails,
+                  recommenderName: recommenderDetails,
+                  createdAt: rec.createdAt.toISOString(),
+                  responseText: rec.responseText || null,
+                  respondedAt: rec.respondedAt
+                    ? rec.respondedAt.toISOString()
+                    : null,
+                  documentDetails,
+                  documentResponses: documentResponses || [],
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              });
+            }
 
-        const documentDetails = documentSummaries.map((ds) => {
-          const response = documentResponses.find(
-            (dr) => dr.documentId === parseInt(ds.documentId)
-          );
-          return {
-            documentId: ds.documentId,
-            documentName:
-              documentMap[ds.documentId]?.name || "Unknown Document",
-            documentPath: documentMap[ds.documentId]?.path
-              ? documentMap[ds.documentId].path.substring(
-                  0,
-                  documentMap[ds.documentId].path.lastIndexOf("/")
-                )
-              : "Unknown Path",
-            queryText: ds.queryText,
-            answerText: response?.answerText || null,
-            requiresApproval: ds.requiresApproval,
-          };
-        });
+            return actions;
+          })
+        )
+      ).flat(),
+      ...(
+        await Promise.all(
+          userStepInstances.map(async (step) => {
+            if (step.status === "APPROVED" && step.decisionAt) {
+              const assignmentDetails = await getAssignmentDetails(
+                step.id,
+                processId
+              );
+              return {
+                actionType: "STEP_COMPLETED",
+                description: `Completed step "${step.workflowStep?.stepName}"`,
+                createdAt: step.decisionAt.toISOString(),
+                details: {
+                  stepInstanceId: step.id,
+                  stepName: step.workflowStep?.stepName,
+                  stepNumber: step.workflowStep?.stepNumber || null,
+                  completedBy: await getUserDetails(step.assignedTo),
+                  workflow: assignmentDetails.workflow,
+                  assignmentType: assignmentDetails.assignmentType,
+                  role: assignmentDetails.role,
+                  department: assignmentDetails.department,
+                },
+              };
+            }
+            return null;
+          })
+        )
+      ).filter((action) => action !== null),
+    ]);
 
-        const actions = [];
-        if (rec.initiatorId === userData.id) {
-          actions.push({
-            actionType: "RECOMMENDATION_REQUESTED",
-            description: `Requested recommendation: "${rec.recommendationText}"`,
-            createdAt: rec.createdAt.toISOString(),
-            details: {
-              recommendationId: rec.id,
-              processId: rec.processId,
-              processName: rec.process.name,
-              stepInstanceId: rec.stepInstanceId || null,
-              stepName: stepInstance?.workflowStep?.stepName || null,
-              stepNumber: stepInstance?.workflowStep?.stepNumber || null,
-              status: rec.status,
-              recommendationText: rec.recommendationText,
-              initiatorName: rec.initiator.username,
-              recommenderName: rec.recommender.username,
-              createdAt: rec.createdAt.toISOString(),
-              responseText: rec.responseText || null,
-              respondedAt: rec.respondedAt
-                ? rec.respondedAt.toISOString()
-                : null,
-              documentDetails,
-              documentResponses: documentResponses || [],
-            },
-          });
-        }
-        if (rec.recommenderId === userData.id && rec.status === "RESOLVED") {
-          actions.push({
-            actionType: "RECOMMENDATION_PROVIDED",
-            description: `Provided recommendation: "${
-              rec.responseText || "No response"
-            }"`,
-            createdAt:
-              rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
-            details: {
-              recommendationId: rec.id,
-              processId: rec.processId,
-              processName: rec.process.name,
-              stepInstanceId: rec.stepInstanceId || null,
-              stepName: stepInstance?.workflowStep?.stepName || null,
-              stepNumber: stepInstance?.workflowStep?.stepNumber || null,
-              status: rec.status,
-              recommendationText: rec.recommendationText,
-              initiatorName: rec.initiator.username,
-              recommenderName: rec.recommender.username,
-              createdAt: rec.createdAt.toISOString(),
-              responseText: rec.responseText || null,
-              respondedAt: rec.respondedAt
-                ? rec.respondedAt.toISOString()
-                : null,
-              documentDetails,
-              documentResponses: documentResponses || [],
-            },
-          });
-        }
-        return actions;
-      })
-    );
+    const allActivities = (await Promise.all(activities))
+      .flat()
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-    // Step Completion
-    userStepInstances.forEach((step) => {
-      if (step.status === "APPROVED" && step.decisionAt) {
-        activities.push({
-          actionType: "STEP_COMPLETED",
-          description: `Completed step "${step.workflowStep?.stepName}"`,
-          createdAt: step.decisionAt.toISOString(),
-          details: {
-            stepInstanceId: step.id,
-            stepName: step.workflowStep?.stepName,
-            stepNumber: step.workflowStep?.stepNumber || null,
-          },
-        });
-      }
-    });
-
-    // Combine and sort actions
-    const allActivities = [
-      ...activities,
-      ...queryDetails.flat(),
-      ...recommendationDetails.flat(),
-    ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // If no activities, return 404 to indicate no relevant user actions
     if (allActivities.length === 0) {
       return res.status(404).json({
         success: false,
         error: {
           message: "No activities found",
-          details: "User has no recorded actions in this process or step.",
+          details: "No recorded actions in this process or step.",
           code: "NO_ACTIVITIES",
         },
       });
@@ -1416,21 +1659,14 @@ export const get_process_activity_logs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching user activity log:", error);
+    console.error("Error fetching process activity logs:", error);
     return res.status(500).json({
       success: false,
       error: {
-        message: "Failed to fetch user activity log",
+        message: "Failed to fetch process activity logs",
         details: error.message,
         code: "ACTIVITY_LOG_ERROR",
       },
     });
   }
-};
-
-export const make_path = (path_) => {
-  const parts = path_.split("/");
-  parts.pop();
-  const updatedPath = parts.join("/");
-  return updatedPath;
 };

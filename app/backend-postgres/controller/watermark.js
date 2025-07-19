@@ -1,64 +1,176 @@
-import {
-  PDFDocument,
-  rgb,
-  StandardFonts,
-  PDFParser,
-  PDFName,
-  PDFArray,
-  degrees,
-} from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import fs from "fs/promises";
 import path from "path";
+import sharp from "sharp";
+import os from "os";
 
+// Unified watermarking function
 export async function watermarkDocument(inputPath, outputPath, watermarkText) {
+  let tempPath;
   try {
-    // Check file extension
+    // Validate input
+    await fs.access(inputPath);
     const ext = path.extname(inputPath).toLowerCase();
-    if (ext !== ".pdf") {
-      throw new Error(
-        `Unsupported file extension: ${ext}. Please convert to PDF first (e.g., use libreoffice for DOCX or image-to-PDF tools).`
-      );
+    if (![".pdf", ".jpg", ".jpeg", ".tiff", ".png"].includes(ext)) {
+      throw new Error(`Unsupported file format: ${ext}`);
     }
 
-    // Read the input PDF file
-    const pdfBytes = await fs.readFile(inputPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    // Create temp file
+    tempPath = path.join(os.tmpdir(), `watermarked-${Date.now()}${ext}`);
 
-    // Get all pages
-    const pages = pdfDoc.getPages();
-
-    // Iterate through each page and add watermark
-    for (const page of pages) {
-      const { width, height } = page.getSize();
-      const font = await pdfDoc.embedFont("Helvetica"); // Use default Helvetica font
-      const fontSize = 50;
-      const textWidth = font.widthOfTextAtSize(watermarkText, fontSize);
-      const textHeight = fontSize;
-
-      // Calculate position for diagonal watermark (center of the page)
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      // Draw watermark text with 45-degree rotation
-      page.drawText(watermarkText, {
-        x: centerX - textWidth / 2,
-        y: centerY + textHeight / 2,
-        size: fontSize,
-        font,
-        color: rgb(0.5, 0.5, 0.5, 0.3), // Semi-transparent gray
-        rotate: degrees(-45), // Diagonal
-        opacity: 0.3, // Transparency
-      });
+    // Process file
+    if (ext === ".pdf") {
+      await watermarkPDF(inputPath, tempPath, watermarkText);
+    } else {
+      await processImageFile(inputPath, tempPath, watermarkText, ext);
     }
 
-    // Save the watermarked PDF
-    const pdfBytesWatermarked = await pdfDoc.save();
-    await fs.writeFile(outputPath, pdfBytesWatermarked);
+    // Move to final location
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.rename(tempPath, outputPath);
 
-    console.log(`Watermarked document saved to ${outputPath}`);
     return { success: true, outputPath };
   } catch (error) {
-    console.error("Error watermarking document:", error.message);
+    console.error("Watermarking error:", error);
     return { success: false, error: error.message };
+  } finally {
+    if (tempPath) await fs.unlink(tempPath).catch(() => {});
+  }
+}
+
+// PDF watermarking
+async function watermarkPDF(inputPath, outputPath, watermarkText) {
+  const pdfBytes = await fs.readFile(inputPath);
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  for (const page of pdfDoc.getPages()) {
+    const { width, height } = page.getSize();
+    const fontSize = Math.max(Math.min(width, height) * 0.07, 20);
+    const textWidth = font.widthOfTextAtSize(watermarkText, fontSize);
+
+    page.drawText(watermarkText, {
+      x: width / 2 - textWidth / 2,
+      y: height / 2,
+      size: fontSize,
+      font,
+      color: rgb(0.4, 0.4, 0.4, 0.5),
+      rotate: degrees(-45),
+      opacity: 0.5,
+    });
+  }
+
+  await fs.writeFile(outputPath, await pdfDoc.save());
+}
+
+// New robust image processing
+async function processImageFile(inputPath, outputPath, watermarkText, ext) {
+  const image = sharp(inputPath, { failOnError: true });
+  const metadata = await image.metadata();
+
+  // Create SVG watermark
+  const svg = `
+    <svg width="${metadata.width}" height="${
+    metadata.height
+  }" xmlns="http://www.w3.org/2000/svg">
+      <text 
+        x="50%" y="50%"
+        font-family="Helvetica"
+        font-size="${Math.max(
+          Math.min(metadata.width, metadata.height) * 0.07,
+          20
+        )}"
+        fill="#666666"
+        fill-opacity="0.5"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        transform="rotate(-45, ${metadata.width / 2}, ${metadata.height / 2})"
+      >${watermarkText}</text>
+    </svg>
+  `;
+
+  const svgBuffer = Buffer.from(svg);
+
+  // TIFF-specific handling with compatibility fixes
+  if (ext === ".tiff") {
+    const inputBuffer = await fs.readFile(inputPath);
+
+    // For multi-page TIFF
+    if (metadata.pages > 1) {
+      const processedPages = [];
+
+      for (let i = 0; i < metadata.pages; i++) {
+        const pageImage = sharp(inputBuffer, { page: i });
+        const pageMeta = await pageImage.metadata();
+
+        const pageSvg = `
+          <svg width="${pageMeta.width}" height="${
+          pageMeta.height
+        }" xmlns="http://www.w3.org/2000/svg">
+            <text 
+              x="50%" y="50%"
+              font-size="${Math.max(
+                Math.min(pageMeta.width, pageMeta.height) * 0.07,
+                20
+              )}"
+              fill="#666666"
+              fill-opacity="0.5"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              transform="rotate(-45, ${pageMeta.width / 2}, ${
+          pageMeta.height / 2
+        })"
+            >${watermarkText}</text>
+          </svg>
+        `;
+
+        processedPages.push(
+          await pageImage
+            .composite([{ input: Buffer.from(pageSvg), blend: "over" }])
+            .toBuffer()
+        );
+      }
+
+      // Use first page as base and append others
+      const baseImage = sharp(processedPages[0]);
+      for (let i = 1; i < processedPages.length; i++) {
+        baseImage.append(processedPages[i]);
+      }
+
+      await baseImage
+        .withMetadata()
+        .toFormat("tiff", {
+          compression: "lzw",
+          predictor: "horizontal",
+          resolutionUnit: "inch", // Explicitly set resolution unit
+          density: metadata.density || 72, // Preserve original DPI
+        })
+        .toFile(outputPath);
+    }
+    // Single-page TIFF
+    else {
+      await image
+        .composite([{ input: svgBuffer, blend: "over" }])
+        .withMetadata()
+        .toFormat("tiff", {
+          compression: "lzw",
+          predictor: "horizontal",
+          resolutionUnit: "inch",
+          density: metadata.density || 72,
+        })
+        .toFile(outputPath);
+    }
+  }
+  // Other image formats
+  else {
+    await image
+      .composite([{ input: svgBuffer, blend: "over" }])
+      .toFormat(ext.substring(1), {
+        ...(ext === ".jpg" || ext === ".jpeg"
+          ? { mozjpeg: true, quality: 100 }
+          : {}),
+        ...(ext === ".png" ? { compressionLevel: 0 } : {}),
+      })
+      .toFile(outputPath);
   }
 }

@@ -184,6 +184,7 @@ model WorkflowAssignment {
   stepId        String
   actionType    ActionType
   assigneeIds   Int[]
+  selectedRoles Int[]        @default([])
   assigneeType  AssigneeType
   allowParallel Boolean      @default(false)
   accessTypes   AccessType[] @default([])
@@ -373,7 +374,7 @@ model ProcessDocument {
   processId        String
   description      String?
   reasonOfSupersed String?
-  partNumber       Int?
+  partNumber       BigInt?
   preApproved      Boolean   @default(false)
   tags                  String[]  @default([])
   documentId       Int

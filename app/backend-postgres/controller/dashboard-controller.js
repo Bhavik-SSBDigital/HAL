@@ -27,6 +27,13 @@ const formatDocumentPath = (path) => {
   return parts.join("/");
 };
 
+const getDocType = (path) => {
+  if (!path) return "";
+  const parts = path.split(".");
+  console.log("parts", JSON.stringify(parts));
+  return parts[parts.length - 1].toLowerCase();
+};
+
 // 1. /getNumbers Endpoint
 export const getNumbers = async (req, res) => {
   try {
@@ -330,6 +337,7 @@ export const getDetails = async (req, res) => {
             documentId: s.processDocument.document.id,
             documentName: s.processDocument.document.name,
             documentPath: formatDocumentPath(s.processDocument.document.path),
+            documentType: getDocType(s.processDocument.document.path),
             processId: s.processDocument.process.id,
             processName: s.processDocument.process.name,
             signedAt: s.signedAt.toISOString(),
@@ -355,6 +363,7 @@ export const getDetails = async (req, res) => {
             documentId: r.processDocument.document.id,
             documentName: r.processDocument.document.name,
             documentPath: formatDocumentPath(r.processDocument.document.path),
+            documentType: getDocType(r.processDocument.document.path),
             processId: r.processDocument.process.id,
             processName: r.processDocument.process.name,
             rejectedAt: r.rejectedAt.toISOString(),
@@ -378,6 +387,7 @@ export const getDetails = async (req, res) => {
             replacedDocumentId: h.document.id,
             replacedDocName: h.document.name,
             replacedDocumentPath: formatDocumentPath(h.document.path),
+            replacedDocumentType: getDocType(h.document.path),
             replacesDocumentId: h.replacedDocument?.id || null,
             replacesDocumentName: h.replacedDocument?.name || null,
             replacesDocumentPath: formatDocumentPath(
@@ -1027,6 +1037,7 @@ export const getWorkflowAnalysis = async (req, res) => {
             documentId: s.processDocument.document.id,
             documentName: s.processDocument.document.name,
             documentPath: formatDocumentPath(s.processDocument.document.path),
+            documentType: getDocType(s.processDocument.document.path),
             processId: s.processDocument.process.id,
             processName: s.processDocument.process.name,
             signedAt: s.signedAt.toISOString(),
@@ -1055,6 +1066,7 @@ export const getWorkflowAnalysis = async (req, res) => {
             documentId: r.processDocument.document.id,
             documentName: r.processDocument.document.name,
             documentPath: formatDocumentPath(r.processDocument.document.path),
+            documentType: getDocType(r.processDocument.document.path),
             processId: r.processDocument.process.id,
             processName: r.processDocument.process.name,
             rejectedAt: r.rejectedAt.toISOString(),
@@ -1079,9 +1091,10 @@ export const getWorkflowAnalysis = async (req, res) => {
             replacedDocumentId: h.document.id,
             replacedDocName: h.document.name,
             replacedDocumentPath: formatDocumentPath(h.document.path),
-            replacesDocumentId: h.replacedDocument?.id || null,
-            replacesDocumentName: h.replacedDocument?.name || null,
-            replacesDocumentPath: h.replacedDocument?.path
+            replacedDocumentId: h.replacedDocument?.id || null,
+            replacedDocumentType: getDocType(h.replacedDocument?.path),
+            replacedDocumentName: h.replacedDocument?.name || null,
+            replacedDocumentPath: h.replacedDocument?.path
               ? formatDocumentPath(h.replacedDocument.path)
               : null,
             replacedBy: h.user.username,

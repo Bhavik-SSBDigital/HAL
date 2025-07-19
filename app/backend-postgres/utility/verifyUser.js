@@ -8,7 +8,6 @@ export const verifyUser = async (accessToken) => {
   try {
     const decodedData = jwt.verify(accessToken, process.env.SECRET_ACCESS_KEY);
 
-    console.log("decodedData", decodedData);
     // Fetch full user details from the database
     const user = decodedData.id
       ? await prisma.user.findUnique({
