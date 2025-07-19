@@ -12,6 +12,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 export default function Show({ steps }) {
+  console.log(steps);
   const [nodes, setNodes] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
 
@@ -50,6 +51,12 @@ export default function Show({ steps }) {
                         <th className="border border-gray-300 px-3 py-2">
                           Assignees
                         </th>
+                        <th className="border border-gray-300 px-3 py-2">
+                          direction
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2">
+                          Roles
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -70,6 +77,17 @@ export default function Show({ steps }) {
                                   .map((item) => item.name)
                                   .join(', ')
                               : 'N/A'}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2">
+                            {assignment.direction || '--'}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2">
+                            {assignment.selectedRoles &&
+                            assignment.selectedRoles.length > 0
+                              ? assignment.selectedRoles
+                                  .map((role) => role.name)
+                                  .join(', ')
+                              : '--'}
                           </td>
                         </tr>
                       ))}
