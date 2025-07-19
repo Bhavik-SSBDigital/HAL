@@ -194,9 +194,9 @@ export default function WorkflowForm({
                           <th className="p-2 text-left whitespace-nowrap">
                             Action Type
                           </th>
-                          <th className="p-2 text-left whitespace-nowrap">
+                          {/* <th className="p-2 text-left whitespace-nowrap">
                             Access Type
-                          </th>
+                          </th> */}
                           <th className="p-2 text-left whitespace-nowrap">
                             Assignees
                           </th>
@@ -216,9 +216,9 @@ export default function WorkflowForm({
                             <td className="p-2 whitespace-nowrap">
                               {assignment.actionType}
                             </td>
-                            <td className="p-2 whitespace-nowrap">
+                            {/* <td className="p-2 whitespace-nowrap">
                               {assignment.accessTypes?.join(', ') || 'N/A'}
-                            </td>
+                            </td> */}
                             <td className="p-2 whitespace-nowrap">
                               {assignment.assigneeIds
                                 .map(
@@ -316,7 +316,7 @@ function AssignmentForm({
       assigneeType: 'USER',
       actionType: 'APPROVAL',
       assigneeIds: [],
-      accessTypes: [],
+      // accessTypes: [],
       direction: null,
     },
   });
@@ -656,7 +656,7 @@ function AssignmentForm({
             )}
 
             {/* Access Types Selection */}
-            <label className="block text-sm font-semibold mb-2">
+            {/* <label className="block text-sm font-semibold mb-2">
               Access Type
             </label>
             <Controller
@@ -674,7 +674,7 @@ function AssignmentForm({
                   )}
                 />
               )}
-            />
+            /> */}
 
             {/* Action Type */}
             <label className="block text-sm font-semibold mb-2">
@@ -687,7 +687,7 @@ function AssignmentForm({
             >
               <option value="APPROVAL">APPROVAL</option>
               <option value="VIEW">VIEW</option>
-              <option value="RECOMMENDATION">RECOMMENDATION</option>
+              {/* <option value="RECOMMENDATION">RECOMMENDATION</option> */}
             </select>
 
             {/* Direction */}

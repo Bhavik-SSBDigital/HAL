@@ -14,6 +14,7 @@ import CustomButton from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
 import { ViewDocument } from '../../common/Apis';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 const WorkflowAnalysisDetails = ({
   data,
@@ -169,7 +170,13 @@ const WorkflowAnalysisDetails = ({
                 <ul className="list-disc list-inside text-sm text-gray-600">
                   {step.processes.map((p) => (
                     <li key={p.processId}>
-                      {p.processName} by {p.createdBy} on
+                      <Link
+                        to={`/timeline/${p.processId}`}
+                        className="text-green-600 underline hover:text-green-800"
+                      >
+                        {p.processName}
+                      </Link>{' '}
+                      by {p.createdBy} on{' '}
                       {new Date(p.createdAt).toLocaleString()}
                     </li>
                   ))}
