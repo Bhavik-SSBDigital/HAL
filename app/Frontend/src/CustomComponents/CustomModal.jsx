@@ -20,7 +20,10 @@ export default function CustomModal({ children, isOpen, onClose, className }) {
         >
           <motion.div
             key="modal-content"
-            className={`bg-white z-50 p-6 rounded-lg shadow-lg relative border border-slate-700 max-h-[95vh] max-w-2xl w-full overflow-auto m-3 ${className} `}
+            className={`bg-white z-50 p-6 rounded-lg shadow-lg relative border border-slate-700 
+  max-h-[95vh] overflow-auto m-3 
+  w-fit min-w-[42rem] max-w-4xl 
+  ${className}`}
             initial={{ y: 20, scale: 0.95, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 20, scale: 0.95, opacity: 0 }}
