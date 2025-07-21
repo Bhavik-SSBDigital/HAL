@@ -21,6 +21,7 @@ function removeDuplicates(array) {
 }
 
 import dotenv from "dotenv";
+import { serializeBigInt } from "./process-controller.js";
 
 dotenv.config();
 
@@ -809,7 +810,7 @@ export const search_documents = async (req, res) => {
     const totalCount = await prisma.document.count({ where });
 
     res.status(200).json({
-      data: formattedDocuments,
+      data: serializeBigInt(formattedDocuments),
       pagination: {
         page: parsedPage,
         pageSize: parsedPageSize,

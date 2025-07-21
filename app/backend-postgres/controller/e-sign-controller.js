@@ -836,9 +836,9 @@ async function print_signature_at_coordinates(
     select: { dscFileName: true },
   });
 
-  if (!user.dscFileName) {
-    throw new Error("Please Upload your DSC to sign the document");
-  }
+  // if (!user.dscFileName) {
+  //   throw new Error("Please Upload your DSC to sign the document");
+  // }
   const signatureImageBytes = await fs.readFile(jpegImagePath);
   const signatureImage = await pdfDoc.embedJpg(signatureImageBytes);
 

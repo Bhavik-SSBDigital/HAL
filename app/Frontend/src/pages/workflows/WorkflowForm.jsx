@@ -63,9 +63,14 @@ export default function WorkflowForm({
   };
 
   const handleAssignmentSubmit = (assignment) => {
-    console.log(assignment);
     const updatedSteps = [...stepFields];
     const stepName = getValues(`steps.${currentStepIndex}.stepName`);
+  
+    // If assigneeType is DEPARTMENT, set the direction from selectedNodes
+    if (assignment.assigneeType === 'DEPARTMENT' && selectedNodes.length > 0) {
+      assignment.direction = selectedNodes[0]?.direction || null; // Use the direction from selectedNodes
+    }
+  
     updatedSteps[currentStepIndex].assignments = [
       ...(updatedSteps[currentStepIndex].assignments || []),
       { ...assignment, selectedRoles: selectedNodes },
@@ -74,7 +79,6 @@ export default function WorkflowForm({
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
   };
-
   const createWorkflow = async (data) => {
     if (!data?.steps || data.steps.length < 2) {
       toast.info('Please add at least two steps to proceed.');

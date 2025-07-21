@@ -18,10 +18,10 @@ const PORT = process.env.PORT;
 const app = express();
 
 // Middleware to log incoming request URLs
-app.use((req, res, next) => {
-  console.log(`Request received at: ${req.method} ${req.url}`);
-  next();
-});
+// app.use((req, res, next) => {
+//   console.log(`Request received at: ${req.method} ${req.url}`);
+//   next();
+// });
 
 // Apply express.raw specifically for WOPI POST and PUT requests
 // app.use(

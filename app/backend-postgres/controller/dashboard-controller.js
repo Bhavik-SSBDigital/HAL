@@ -30,7 +30,7 @@ const formatDocumentPath = (path) => {
 const getDocType = (path) => {
   if (!path) return "";
   const parts = path.split(".");
-  console.log("parts", JSON.stringify(parts));
+
   return parts[parts.length - 1].toLowerCase();
 };
 

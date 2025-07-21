@@ -1160,7 +1160,8 @@ export const get_user_activity_logs = async (req, res) => {
         return {
           processId: process.id,
           processName: process.name,
-          initiatorName: await getUserDetails(process.initiator),
+          // initiatorName: await getUserDetails(process.initiator),
+          initiatorName: process.initiator.username,
           createdAt: process.createdAt.toISOString(),
           steps,
           actionSummary: {

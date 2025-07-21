@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { verifyUser } from "../utility/verifyUser.js";
 import { file_copy } from "./file-controller.js";
+import { buildRoleHierarchyForAssignment } from "./process-controller.js";
 import {
   createFolder,
   createUserPermissions,
@@ -63,6 +64,8 @@ export const add_workflow = async (req, res) => {
 
       for (let i = 0; i < steps.length; i++) {
         const assignments = steps[i].assignments || [];
+
+        console.log("assiugnment", assignments);
 
         if (assignments.length) {
           const groupedAssignments = {};
@@ -636,6 +639,50 @@ export const get_workflows = async (req, res) => {
     });
     const userRoleIds = userRoles.map((r) => r.roleId);
 
+    // Fetch assignments for DEPARTMENT type to build hierarchies
+    const departmentAssignments = await prisma.workflowAssignment.findMany({
+      where: {
+        assigneeType: "DEPARTMENT",
+        step: {
+          stepNumber: 1,
+          workflow: {
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        direction: true,
+        allowParallel: true,
+        selectedRoles: true,
+      },
+    });
+
+    // Build role hierarchies for each department assignment
+    const departmentRoleFilters = await Promise.all(
+      departmentAssignments.map(async (assignment) => {
+        const hierarchy = await buildRoleHierarchyForAssignment(
+          assignment.direction,
+          assignment.allowParallel,
+          assignment.selectedRoles
+        );
+        // Check first level for UPWARDS, last level for DOWNWARDS
+        const targetRoles =
+          assignment.direction === "UPWARDS"
+            ? hierarchy[0] || []
+            : hierarchy[hierarchy.length - 1] || [];
+        return targetRoles.some((roleId) => userRoleIds.includes(roleId));
+      })
+    );
+
+    // Filter assignments where user roles match the hierarchy condition
+    const validDepartmentAssignments = departmentAssignments
+      .filter((_, index) => departmentRoleFilters[index])
+      .map((assignment) => ({
+        direction: assignment.direction,
+        allowParallel: assignment.allowParallel,
+        selectedRoles: assignment.selectedRoles,
+      }));
+
     // Fetch workflows where user is assigned to step 1
     const workflows = await prisma.workflow.findMany({
       where: {
@@ -653,11 +700,11 @@ export const get_workflows = async (req, res) => {
                   },
                   {
                     assigneeType: "DEPARTMENT",
-                    departmentRoles: {
-                      some: {
-                        roleId: { in: userRoleIds },
-                      },
-                    },
+                    OR: validDepartmentAssignments.map((assignment) => ({
+                      direction: assignment.direction,
+                      allowParallel: assignment.allowParallel,
+                      selectedRoles: { hasSome: assignment.selectedRoles },
+                    })),
                   },
                 ],
               },
@@ -689,7 +736,7 @@ export const get_workflows = async (req, res) => {
                 accessTypes: true,
                 direction: true,
                 allowParallel: true,
-                selectedRoles: true, // Moved to assignments
+                selectedRoles: true,
               },
             },
           },
