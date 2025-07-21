@@ -42,8 +42,21 @@ export default function AskRecommend({
 
   //   handlers
   const onSubmit = async (data) => {
+    const validSummaries = data.documentSummaries.filter(
+      (doc) => doc.queryText && doc.queryText.trim() !== '',
+    );
+
+    // Step 2: Validation — at least one required
+    if (validSummaries.length === 0) {
+      toast.warn('Please provide at least one Query Text.');
+      return; // stop submission
+    }
+
     try {
-      const response = await createRecommend(data);
+      const response = await createRecommend({
+        ...data,
+        documentSummaries: validSummaries,
+      });
       toast.success(response?.data?.message);
       navigate('/processes/work');
     } catch (error) {
