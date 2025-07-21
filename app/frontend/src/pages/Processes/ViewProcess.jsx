@@ -407,7 +407,7 @@ const ViewProcess = () => {
             text={'Timeline'}
             click={() => navigate(`/timeline/${process?.processId}`)}
             className={'min-w-[150px]'}
-            disabled={actionsLoading || isCompleted}
+            disabled={actionsLoading}
           />
           <CustomButton
             variant={'danger'}
