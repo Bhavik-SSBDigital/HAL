@@ -27,6 +27,8 @@ const pipelineAsync = promisify(pipeline);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const COLLABORA_URL = process.env.WOPI_SERVER_URL;
+
 function getContentTypeFromExtension(extension) {
   const mimeTypes = {
     txt: "text/plain",
@@ -1385,20 +1387,22 @@ export const recover_from_recycle_bin = async (req, res) => {
 const discoveryXml = `<wopi-discovery>
   <net-zone name="external-http">
     <app name="Word">
-      <action name="view" ext="docx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
-      <action name="edit" ext="docx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="view" ext="docx" urlsrc="${COLLABORA_URL}/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="edit" ext="docx" urlsrc="${COLLABORA_URL}/loleaflet/25.04.2.2/loleaflet.html?"/>
     </app>
     <app name="Excel">
-      <action name="view" ext="xlsx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
-      <action name="edit" ext="xlsx" urlsrc="http://localhost:9980/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="view" ext="xlsx" urlsrc="${COLLABORA_URL}/loleaflet/25.04.2.2/loleaflet.html?"/>
+      <action name="edit" ext="xlsx" urlsrc="${COLLABORA_URL}/loleaflet/25.04.2.2/loleaflet.html?"/>
     </app>
   </net-zone>
 </wopi-discovery>`;
 
+const COLLABORA_SERVER_IP = process.env.COLLABORA_SERVER_IP || "localhost";
+
 const setWopiHeaders = (res) => {
   res.set({
     "X-WOPI-AllowedHosts": "*",
-    "X-WOPI-MachineName": "localhost",
+    "X-WOPI-MachineName": COLLABORA_SERVER_IP,
     "Access-Control-Allow-Origin": "*",
     "Content-Type": "application/json",
   });
@@ -1425,9 +1429,7 @@ export const wopiDiscovery = async (req, res) => {
 
 export const checkCollaboraCapabilities = async (req, res) => {
   try {
-    const response = await axios.get(
-      "http://localhost:9980/hosting/capabilities"
-    );
+    const response = await axios.get(`${COLLABORA_URL}/hosting/capabilities`);
     res.json(response.data);
   } catch (err) {
     console.error("Error fetching Collabora capabilities:", err.message);
@@ -1437,7 +1439,7 @@ export const checkCollaboraCapabilities = async (req, res) => {
 
 export const checkHostingDiscovery = async (req, res) => {
   try {
-    const response = await axios.get("http://localhost:9980/hosting/discovery");
+    const response = await axios.get(`${COLLABORA_URL}/hosting/discovery`);
     res.set("Content-Type", "application/xml");
     res.send(response.data);
   } catch (err) {
