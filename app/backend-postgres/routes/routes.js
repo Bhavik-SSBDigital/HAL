@@ -51,7 +51,7 @@ import {
 // } from "../controller/recommendation-controller.js";
 
 // import {
-//   postHighlight,
+// postHighlight,
 //   getHighlights,
 // } from "../controller/highlight-controller.js";
 
@@ -278,7 +278,11 @@ router.get("/recommendations/:recommendationId", get_recommendation);
 
 // // Highlight routes
 // router.post("/highlights", postHighlight);
-// router.get("/documents/highlights/:documentId", getHighlights);
+router.get("/getHighlightsInFile/:documentId", (req, res, next) => {
+  return res.status(200).json({
+    highlights: [],
+  });
+});
 
 router.get("/logs/getUserLogs", get_user_activity_logs);
 router.get("/logs/:processId/:stepInstanceId?", get_user_activity_log);

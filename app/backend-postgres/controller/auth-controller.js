@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { send_mail_for_sign_up } from "./email-handler.js";
 import { PrismaClient } from "@prisma/client";
