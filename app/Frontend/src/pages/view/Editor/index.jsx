@@ -169,7 +169,7 @@ const Editor = ({
         }
 
         // Construct WOPISrc and query string
-        const wopiSrc = `http://host.docker.internal:9000/wopi/files/${documentId}`;
+        const wopiSrc = `${backend_url}/wopi/files/${documentId}`;
 
         const params = new URLSearchParams({
           access_token: wopiToken,
