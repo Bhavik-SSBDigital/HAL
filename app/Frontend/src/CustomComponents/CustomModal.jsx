@@ -6,7 +6,7 @@ export default function CustomModal({
   isOpen,
   onClose,
   className,
-  size = 'lg',
+  size = '3xl',
 }) {
   const sizeClasses = {
     xs: 'max-w-xs min-w-[16rem]',
