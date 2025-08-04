@@ -7,13 +7,11 @@ import BranchList from './pages/Branches/List';
 import UserList from './pages/Users/List';
 import RolesList from './pages/Roles/List';
 import WorkList from './pages/Processes/List';
-// import PublishedList from './pages/Published/List';
 import DepartmentList from './pages/Department/List';
 import NewBranch from './pages/Branches/NewBranch';
 import NewUser from './pages/Users/NewUser';
 import NewRole from './pages/Roles/NewRole';
 import NewDepartment from './pages/Department/NewDepartment';
-// import FileSystem from './pages/FileSystem/MenuBar/FileSystem';
 import FileSystem from './pages/FileSystem';
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
@@ -28,16 +26,6 @@ import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
 import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
 import MetaData from './pages/MetaData';
-// import Editor from './pages/view/Editor';
-// import History from './pages/Meeting/History';
-
-// editors
-// import DraftEditor from './pages/view/Editor/DraftEditor';
-// import ReactQuillEditor from './pages/view/Editor/ReactQuillEditor';
-// import SlateEditor from './pages/view/Editor/SlateEditor';
-// import TinyMCEEditor from './pages/view/Editor/TinyMCEEditor';
-// import DraftEditor from './pages/view/Editor/DraftEditor';
-// import SlateEditor from './pages/view/Editor/SlateEditor';
 import Workflows from './pages/workflows';
 import RecycleBin from './pages/RecycleBin';
 import Recommendations from './pages/Recommendations';
@@ -362,16 +350,6 @@ function App() {
             </DefaultLayout>
           }
         />
-
-        {/* <Route
-          path="/processes/published"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Published List" />
-              <PublishedList />
-            </DefaultLayout>
-          }
-        /> */}
         <Route
           path="/auth/signin"
           element={
@@ -426,56 +404,6 @@ function App() {
             </DefaultLayout>
           }
         />
-        {/* editors route */}
-        {/* <Route
-          path="/editor"
-          element={
-            <DefaultLayout>
-              <PageTitle title="editor" />
-              <Editor />
-            </DefaultLayout>
-          }
-        /> */}
-        {/* <Route
-          path="/draft"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Draft.js Editor" />
-              <DraftEditor />
-            </DefaultLayout>
-          }
-        /> */}
-
-        {/* Route for React Quill Editor */}
-        {/* <Route
-          path="/react-quill"
-          element={
-            <DefaultLayout>
-              <PageTitle title="React Quill Editor" />
-              <ReactQuillEditor />
-            </DefaultLayout>
-          }
-        /> */}
-        {/* Route for Slate Editor */}
-        {/* <Route
-          path="/slate"
-          element={
-            <DefaultLayout>
-              <PageTitle title="Slate Editor" />
-              <SlateEditor />
-            </DefaultLayout>
-          }
-        /> */}
-        {/* Route for TinyMCE Editor */}
-        {/* <Route
-          path="/tinymce"
-          element={
-            <DefaultLayout>
-              <PageTitle title="TinyMCE Editor" />
-              <TinyMCEEditor />
-            </DefaultLayout>
-          }
-        /> */}
 
         <Route
           path="/workflows"
