@@ -276,7 +276,7 @@ const ViewRecommendation = () => {
                           doc.documentName,
                           doc.documentPath,
                           doc.documentId,
-                          doc.documentType,
+                          doc.documentName.split('.').pop(),
                         )
                       }
                       disabled={actionsLoading}
