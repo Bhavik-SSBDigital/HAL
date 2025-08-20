@@ -207,35 +207,22 @@ export default function InitiateProcess() {
       // 1. Convert file via backend (must return blob)
       const response = await ConvertToPDFA(id); // make sure ConvertToPDFA sets { responseType: 'blob' }
 
+      const currentDoc = documentFields.find((doc) => doc.documentId == id);
+
       if (!response || !response.data) {
         throw new Error('No file data received from backend');
       }
 
-      // 2. Extract filename from Content-Disposition header
-      let filename = 'converted123.pdf';
-      const contentDisposition = response.headers?.['content-disposition'];
-
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match?.[1]) {
-          filename = match[1];
-        }
-      }
-
       // 3. Wrap into File object
-      const file = new File([response.data], filename, {
+      const file = new File([response.data], currentDoc?.name, {
         type: 'application/pdf',
       });
 
       if (!file || file.size === 0) {
         throw new Error('Converted file is empty or invalid');
       }
-      console.log(111);
 
-      // 4. Upload converted file
-      const uploadedIds = await uploadDocumentInProcess([file]);
-      console.log(112);
-      // 5. Delete old file
+      // 4. Delete old file
       try {
         await DeleteFile(id);
       } catch (deleteErr) {
@@ -243,14 +230,15 @@ export default function InitiateProcess() {
         // Non-blocking — file was converted & uploaded successfully
       }
 
+      // 5. Upload converted file
+      const uploadedIds = await uploadDocumentInProcess([file]);
+
       // 6. Success UI + state update
       toast.success('File converted & uploaded successfully');
 
-      const currentDoc = documentFields.find((doc) => doc.documentId == id);
-
       const newDoc = {
         documentId: uploadedIds[0],
-        name: file.name,
+        name: currentDoc?.name,
         tags: currentDoc?.tags,
         description: currentDoc?.fileDescription,
         partNumber: currentDoc?.partNumber,
