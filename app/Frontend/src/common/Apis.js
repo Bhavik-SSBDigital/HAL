@@ -167,14 +167,18 @@ export const SignDocument = async (
   processStepInstanceId,
   documentId,
   remarks,
+  p12password,
 ) => {
+  console.log('p12 pss in sign doc', p12password);
   return apiClient.post('/signDocument', {
     processId,
     processStepInstanceId,
     documentId,
     remarks,
+    p12password,
   });
 };
+
 export const SignRevoke = async (processId, documentId) => {
   return apiClient.post('/revokeSign', {
     processId,
