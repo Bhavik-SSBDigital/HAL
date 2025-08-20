@@ -236,6 +236,11 @@ export const GenerateDocumentName = async (
 export const GetDocumentsVersionWise = async (version, processId) => {
   return apiClient.get(`/processDocuments/${processId}/${version}`);
 };
+export const ConvertToPDFA = async (id) => {
+  return apiClient.get(`/convert-pdf-to-a/${id}`, {
+    responseType: 'blob',
+  });
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {
