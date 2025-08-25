@@ -218,7 +218,7 @@ export default function InitiateProcess() {
 
         <form className="space-y-10">
           {/* Process Info Section */}
-          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+          <section className="bg-white p-6">
             <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Process Details
             </h3>
@@ -310,7 +310,7 @@ export default function InitiateProcess() {
 
           {/* Templates */}
           {templates?.length > 0 && (
-            <section className="bg-white border border-gray-200 rounded-xl shadow p-4 sm:p-6">
+            <section className="bg-white p-4 sm:p-6">
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
                 Templates
               </h3>
@@ -345,7 +345,7 @@ export default function InitiateProcess() {
           )}
 
           {/* Upload File */}
-          <section className="bg-white border border-gray-200 rounded-xl shadow p-6">
+          <section className="bg-white p-6">
             <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Upload Document
             </h3>
@@ -525,7 +525,7 @@ export default function InitiateProcess() {
           </section>
 
           {/* Uploaded Document List */}
-          <section className="bg-white border border-gray-200 rounded-xl shadow p-4 sm:p-6">
+          <section className="bg-white p-4 sm:p-6">
             <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Uploaded Documents
             </h3>
@@ -539,8 +539,9 @@ export default function InitiateProcess() {
                 {documentFields.map((doc, index) => (
                   <li
                     key={doc.documentId}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border rounded-lg shadow-sm"
+                    className="p-4 bg-white border rounded-lg shadow-sm space-y-3"
                   >
+                    {/* Row 1: File details */}
                     <div className="flex items-start gap-4">
                       <div className="min-w-10 min-h-10 w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full text-white text-lg">
                         📄
@@ -561,7 +562,8 @@ export default function InitiateProcess() {
                       </div>
                     </div>
 
-                    <div className="flex sm:flex-col gap-2 sm:items-end">
+                    {/* Row 2: Actions */}
+                    <div className="flex flex-wrap justify-end gap-2">
                       <CustomButton
                         type="button"
                         click={() =>
@@ -574,14 +576,15 @@ export default function InitiateProcess() {
                           )
                         }
                         text="View"
-                        className="w-full sm:w-auto"
+                        className="w-auto"
                       />
+                     
                       <CustomButton
                         type="button"
                         click={() => removeDocument(index)}
                         variant="danger"
                         text="✖"
-                        className="w-full sm:w-auto"
+                        className="w-auto"
                       />
                     </div>
                   </li>
