@@ -13,12 +13,15 @@ import {
   IconCheckupList,
   IconSignature,
   IconUpload,
+  IconChevronUp,
+  IconChevronDown,
 } from '@tabler/icons-react';
 import TimelineLegend from './TimelineLegend';
 import CustomButton from '../../CustomComponents/CustomButton';
 import { ViewDocument } from '../../common/Apis';
 import ViewFile from '../view/View';
 import CustomCard from '../../CustomComponents/CustomCard';
+import Show from '../workflows/Show';
 
 const iconMap = {
   PROCESS_INITIATED: <IconInfoCircle size={20} className="text-blue-600" />,
@@ -36,7 +39,12 @@ const iconMap = {
   DOCUMENT_UPLOADED: <IconUpload size={20} className="text-green-700" />,
 };
 
-const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
+const Timeline = ({
+  activities,
+  setActionsLoading,
+  actionsLoading,
+  workflow,
+}) => {
   // handlers
   const handleViewAllSelectedFiles = async (documents) => {
     setActionsLoading(true);
@@ -780,6 +788,7 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
 
   //   states
   const [fileView, setFileView] = useState(null);
+  const [expanded, setExpanded] = useState(false);
   // handlers
   const handleView = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
@@ -796,8 +805,30 @@ const Timeline = ({ activities, setActionsLoading, actionsLoading }) => {
 
   return (
     <>
-      <div className="mt-2 space-y-8">
+      <div className="space-y-5 mt-2">
         <TimelineLegend />
+
+        <CustomCard className="transition-all duration-300 ease-in-out">
+          <button
+            onClick={() => setExpanded((prev) => !prev)}
+            className="w-full flex items-center justify-between text-left text-green-700 font-semibold mb-2 hover:underline"
+          >
+            <span>Workflow</span>
+            {expanded ? (
+              <IconChevronUp className="transition-transform duration-300" />
+            ) : (
+              <IconChevronDown className="transition-transform duration-300" />
+            )}
+          </button>
+
+          <div
+            className={`transition-all duration-500 ease-in-out overflow-hidden ${
+              expanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <Show steps={workflow} />
+          </div>
+        </CustomCard>
         <h2 className="text-2xl text-center font-bold underline text-gray-900">
           Timeline
         </h2>

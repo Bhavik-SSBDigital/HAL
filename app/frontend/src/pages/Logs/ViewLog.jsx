@@ -104,6 +104,7 @@ const ViewLog = () => {
           activities={data?.activities}
           actionsLoading={actionsLoading}
           setActionsLoading={setActionsLoading}
+          workflow={data?.workflow?.steps}
         />
       </div>
     </div>

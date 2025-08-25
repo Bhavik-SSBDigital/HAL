@@ -69,6 +69,7 @@ export default function TimelinePage() {
         actionsLoading={actionsLoading}
         activities={data?.process?.activities}
         setActionsLoading={setActionsLoading}
+        workflow={data?.process?.workflow?.steps}
       />
     </div>
   );
