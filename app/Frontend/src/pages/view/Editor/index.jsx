@@ -243,8 +243,8 @@ const Editor = ({
     <iframe
       src={editorUrl}
       title="Collabora Online Editor"
-      width="1200px"
-      height="600px"
+      width="100%"
+      height="100%"
       style={{ border: 'none', minHeight: '600px' }}
       allowFullScreen
       onError={handleIframeError}

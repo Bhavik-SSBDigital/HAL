@@ -41,8 +41,9 @@ export default function CustomModal({
           <motion.div
             key="modal-content"
             className={`
+             
               bg-white z-50 p-6 rounded-lg shadow-lg relative border border-slate-700 
-              max-h-[95vh] overflow-auto m-3 
+              max-h-[95vh] overflow-auto m-3
               ${sizeClasses[size] || sizeClasses.lg}
               ${className}
             `}

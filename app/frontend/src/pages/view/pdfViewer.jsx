@@ -251,7 +251,11 @@ function PdfContainer({
           className="pdf-page"
           position="relative"
         >
-          <Page pageNumber={i} renderTextLayer />
+          <Page
+            className={'!block !mx-auto w-fit'}
+            pageNumber={i}
+            renderTextLayer
+          />
           {highlights.map((highlight, index1) =>
             highlight.coordinates
               .filter((coord) => coord.page === i)

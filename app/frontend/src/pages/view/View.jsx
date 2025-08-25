@@ -156,7 +156,7 @@ const PdfViewer = ({
       isOpen={!!docu}
       onClose={handleViewClose}
       className="max-h-[90vh] overflow-auto"
-      size={'2xl'}
+      size={'full'}
     >
       <div className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white shadow-md border-b rounded-t-lg">
         <div className="flex items-center gap-2">
@@ -218,49 +218,48 @@ const PdfViewer = ({
           <IconSquareRoundedX size={22} />
         </button>
       </div>
-      <div className="pt-7 w-fit">
-        {currentDoc ? (
-          EDITABLE_TYPES.includes(currentDoc.type) ? (
-            <Editor
-              documentId={currentDoc.fileId}
-              fileType={currentDoc.type}
-              name={currentDoc.name}
-              path={currentDoc.department?.path || currentDoc.path}
-              accessToken={accessToken}
-              onError={handleEditorError}
-              readOnly={!isEditing}
-            />
-          ) : currentDoc.type === 'pdf' ? (
-            <PdfContainer
-              url={currentDoc.url}
-              documentId={currentDoc.fileId}
-              workflow={workflow}
-              maxReceiverStepNumber={maxReceiverStepNumber}
-              processId={processId}
-              currentStep={currentDoc.step}
-              controls={controls}
-              signed={signedDocument}
-            />
-          ) : (
-            <DocViewer
-              documents={[{ uri: currentDoc.url }]}
-              activeDocument={activeDocument}
-              className="my-doc-viewer-style"
-              pluginRenderers={DocViewerRenderers}
-              onDocumentChange={handleDocumentChange}
-              style={{
-                display: 'flex',
-                height: '100%',
-                width: '100%',
-                padding: '1rem',
-              }}
-              signed={signedDocument}
-            />
-          )
+
+      {currentDoc ? (
+        EDITABLE_TYPES.includes(currentDoc.type) ? (
+          <Editor
+            documentId={currentDoc.fileId}
+            fileType={currentDoc.type}
+            name={currentDoc.name}
+            path={currentDoc.department?.path || currentDoc.path}
+            accessToken={accessToken}
+            onError={handleEditorError}
+            readOnly={!isEditing}
+          />
+        ) : currentDoc.type === 'pdf' ? (
+          <PdfContainer
+            url={currentDoc.url}
+            documentId={currentDoc.fileId}
+            workflow={workflow}
+            maxReceiverStepNumber={maxReceiverStepNumber}
+            processId={processId}
+            currentStep={currentDoc.step}
+            controls={controls}
+            signed={signedDocument}
+          />
         ) : (
-          <div className="text-center text-gray-500">Loading document...</div>
-        )}
-      </div>
+          <DocViewer
+            documents={[{ uri: currentDoc.url }]}
+            activeDocument={activeDocument}
+            className="my-doc-viewer-style"
+            pluginRenderers={DocViewerRenderers}
+            onDocumentChange={handleDocumentChange}
+            style={{
+              display: 'flex',
+              height: '100%',
+              width: '100%',
+              padding: '1rem',
+            }}
+            signed={signedDocument}
+          />
+        )
+      ) : (
+        <div className="text-center text-gray-500">Loading document...</div>
+      )}
     </CustomModal>
   );
 };
