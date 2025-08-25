@@ -1,31 +1,62 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import sessionData from '../../Store';
 import axios from 'axios';
+import { GetNotifications } from '../../common/Apis';
 
 const DropdownMessage = () => {
-  const { alerts, setAlerts } = sessionData();
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const dropdown = useRef<any>(null);
+  const [alerts, setAlerts] = useState([]);
+  const dropdown = useRef(null);
   const navigate = useNavigate();
-  const handleViewProcess = (id: any, workflow: any, forMonitoring: any) => {
-    if (forMonitoring) {
-      navigate(
-        `/monitor/View?data=${encodeURIComponent(
-          id,
-        )}&workflow=${encodeURIComponent(workflow)}`,
-      );
-    } else {
-      navigate(
-        `/processes/work/view?data=${encodeURIComponent(
-          id,
-        )}&workflow=${encodeURIComponent(workflow)}`,
-      );
+
+  const getNotifications = async () => {
+    try {
+      const res = await GetNotifications();
+
+      if (res.status === 200) {
+        const now = new Date();
+        const filtered = (res.data || [])
+          .filter((n) => {
+            const createdAt = new Date(n.createdAt);
+            const diffInDays =
+              (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+            return diffInDays > 15; // only older than 15 days
+          })
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+        console.log(filtered);
+        setAlerts(filtered);
+      }
+    } catch (error) {
+      console.error('Failed to fetch old notifications', error);
     }
   };
-  const handleRemoveNotification = async (id: any) => {
+
+  const handleView = async (id) => {
+    navigate(`/process/view/${id}`);
+    setDropdownOpen(!dropdownOpen);
+  };
+  // const handleViewProcess = (id, workflow, forMonitoring) => {
+  //   if (forMonitoring) {
+  //     navigate(
+  //       `/monitor/View?data=${encodeURIComponent(
+  //         id,
+  //       )}&workflow=${encodeURIComponent(workflow)}`,
+  //     );
+  //   } else {
+  //     navigate(
+  //       `/processes/work/view?data=${encodeURIComponent(
+  //         id,
+  //       )}&workflow=${encodeURIComponent(workflow)}`,
+  //     );
+  //   }
+  //   setDropdownOpen(false);
+  // };
+
+  const handleRemoveNotification = async (id) => {
     try {
       const url = backendUrl + `/removeProcessNotification/${id}`;
       const res = await axios.post(url, null, {
@@ -34,18 +65,21 @@ const DropdownMessage = () => {
         },
       });
       if (res.status === 200) {
-        const updatedNotifications = alerts.filter(
-          (item) => item.processId !== id,
-        );
-        setAlerts(updatedNotifications);
+        const updated = alerts.filter((item) => item.processId !== id);
+        setAlerts(updated);
       }
     } catch (error) {
-      console.error('error', error);
+      console.error('error removing notification', error);
     }
   };
 
+  useEffect(() => {
+    getNotifications();
+  }, []);
+
   return (
     <li className="relative">
+      {/* Bell Icon */}
       <div
         className="border border-gray-300"
         style={{
@@ -84,72 +118,63 @@ const DropdownMessage = () => {
           <path d="M12 16h.01" />
         </svg>
       </div>
+
       {dropdownOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-0 z-20"
+          className="fixed inset-0 bg-black opacity-0 z-1"
           onClick={() => setDropdownOpen(false)}
           style={{ height: '100vh', width: '100vw' }}
         ></div>
       )}
-      {/* <!-- Dropdown Start --> */}
+
+      {/* Dropdown */}
       <div
         ref={dropdown}
-        onFocus={() => setDropdownOpen(true)}
-        onBlur={() => setDropdownOpen(false)}
-        className={`absolute -right-16 mt-2.5 flex h-90 w-75 flex-col rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark sm:right-0 sm:w-80 ${
-          dropdownOpen === true ? 'block' : 'hidden'
+        className={`absolute -right-16 z-9 mt-2.5 flex h-90 w-75 flex-col rounded-sm border border-stroke bg-white shadow-default sm:right-0 sm:w-80 ${
+          dropdownOpen ? 'block' : 'hidden'
         }`}
       >
         <div className="px-4.5 py-3">
-          <h5 className="text-sm font-medium text-bodydark2">Alerts</h5>
+          <h5 className="text-sm font-medium text-gray-700">Alerts</h5>
         </div>
         <hr style={{ color: 'lightgray' }} />
+
         <ul className="flex h-auto flex-col overflow-y-auto">
           {alerts.length ? (
-            alerts.map((item: any) => {
-              return (
-                <li>
-                  <div
-                    style={{ cursor: 'pointer' }}
-                    className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4"
-                    onClick={() => {
-                      // setWork(item.work);
-                      handleRemoveNotification(item.processId);
-                      handleViewProcess(
-                        item?.processId,
-                        item?.workFlowToBeFollowed,
-                        item?.forMonitoring,
-                      );
-                    }}
-                  >
-                    <p className="text-sm">
-                      <span className="text-black dark:text-white">
-                        {item.processName}
-                      </span>
+            alerts.map((item, index) => (
+              <li key={index}>
+                <div className="flex items-center justify-between border-t border-stroke px-4.5 py-3 hover:bg-gray-100">
+                  {/* Left side - Alert info */}
+                  <div className="flex flex-col">
+                    <p className="text-sm font-semibold text-black">
+                      {item.processName}
                     </p>
-
-                    <p className="text-xs">
-                      {new Date(item.receivedAt).toLocaleString()}
+                    <p className="text-xs text-gray-500">
+                      {new Date(item.createdAt).toLocaleString()}
                     </p>
                   </div>
-                </li>
-              );
-            })
+
+                  {/* Right side - View button */}
+                  <button
+                    className="ml-3 rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                    onClick={(e) => {
+                      e.stopPropagation(); // prevent parent click
+                      handleRemoveNotification(item.processId);
+                      handleView(item?.processId);
+                    }}
+                  >
+                    View
+                  </button>
+                </div>
+              </li>
+            ))
           ) : (
-            // <li>
-            <h5
-              className="text-sm font-medium text-bodydark2 p-3"
-              style={{
-                textAlign: 'center',
-              }}
-            >
-              No Alerts
-            </h5>
-            // </li>
+            <li className="px-4 py-3 text-center text-sm text-gray-500">
+              No old alerts (older than 15 days)
+            </li>
           )}
         </ul>
       </div>
-      {/* <!-- Dropdown End --> */}
     </li>
   );
 };

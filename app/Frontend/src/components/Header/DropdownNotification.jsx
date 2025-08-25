@@ -12,7 +12,15 @@ const DropdownNotification = () => {
     try {
       const res = await GetNotifications();
       if (res.status === 200) {
-        setNotifications(res.data || []);
+        const now = new Date();
+        const filteredNotifications = (res.data || []).filter((n) => {
+          const createdAt = new Date(n.createdAt);
+          const diffInDays =
+            (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+          return diffInDays <= 15; // keep only notifications created in the last 15 days
+        });
+
+        setNotifications(filteredNotifications);
       }
     } catch (error) {
       console.error('Failed to fetch notifications', error);
