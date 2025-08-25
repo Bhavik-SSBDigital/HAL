@@ -127,7 +127,7 @@ export default function AskRecommend({
               <tr>
                 <th className="border p-2 text-left">Document Name</th>
                 <th className="border p-2 text-left">Summary Text</th>
-                <th className="border p-2 text-left">Requires Approval</th>
+                {/* <th className="border p-2 text-left">Requires Approval</th> */}
               </tr>
             </thead>
             <tbody>
@@ -148,7 +148,7 @@ export default function AskRecommend({
                       {...register(`documentSummaries.${index}.documentId`)}
                     />
                   </td>
-                  <td className="border p-2">
+                  {/* <td className="border p-2">
                     <label className="inline-flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -159,7 +159,7 @@ export default function AskRecommend({
                       />
                       <span className="text-sm">Yes</span>
                     </label>
-                  </td>
+                  </td> */}
                 </tr>
               ))}
             </tbody>
