@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import {
-  ConvertToPDFA,
-  DeleteFile,
-  DownloadFile,
   GenerateDocumentName,
   GetWorkflows,
   getWorkflowTemplates,
@@ -15,7 +12,7 @@ import {
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
-import { IconDownload, IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import CustomButton from '../../CustomComponents/CustomButton';
 import TopLoader from '../../common/Loader/TopLoader';
@@ -66,7 +63,6 @@ export default function InitiateProcess() {
     remove: removeDocument,
   } = useFieldArray({ control, name: 'documents' });
 
-  console.log(documentFields);
   useEffect(() => {
     const getWorkflowsData = async () => {
       try {
@@ -194,67 +190,6 @@ export default function InitiateProcess() {
       const fileData = await ViewDocument(name, path, type, fileId, editing);
       setFileView(fileData);
     } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-  const ConvertPDF = async (id) => {
-    setActionsLoading(true);
-    try {
-      // Must request as blob, not JSON
-      const response = await ConvertToPDFA(id);
-
-      // Extract filename from Content-Disposition header
-      const contentDisposition = response.headers['content-disposition'];
-      let filename = 'converted.pdf';
-
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match?.[1]) {
-          filename = match[1];
-        }
-      }
-
-      // Wrap into File object with backend-provided filename
-      const file = new File([response.data], filename, {
-        type: 'application/pdf',
-      });
-
-      const res = await uploadDocumentInProcess([file]);
-      await DeleteFile(id);
-
-      toast.success('File uploaded successfully');
-      const currentDoc = documentFields.find((doc) => doc.documentId == id);
-
-      const newDoc = {
-        documentId: res[0],
-        name: file.name, // backend filename
-        tags: currentDoc?.tags,
-        description: currentDoc?.fileDescription,
-        partNumber: currentDoc?.partNumber,
-        preApproved: currentDoc?.preApproved,
-        converted: true,
-      };
-
-      const filteredDocuments = documentFields.map((doc) =>
-        doc.documentId == id ? newDoc : doc,
-      );
-
-      // setDocumentFields(filteredDocuments);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-      console.error(error);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-  const handleDownload = async (name) => {
-    setActionsLoading(true);
-    try {
-      await DownloadFile(name, '../check');
-    } catch (error) {
-      console.log(error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
@@ -629,7 +564,6 @@ export default function InitiateProcess() {
                     <div className="flex sm:flex-col gap-2 sm:items-end">
                       <CustomButton
                         type="button"
-                        disabled={actionsLoading}
                         click={() =>
                           handleViewFile(
                             doc.name,
@@ -642,30 +576,8 @@ export default function InitiateProcess() {
                         text="View"
                         className="w-full sm:w-auto"
                       />
-                      {doc.name.split('.').pop() == 'pdf' && (
-                        <CustomButton
-                          type="button"
-                          click={() => ConvertPDF(doc.documentId)}
-                          variant="secondary"
-                          disabled={actionsLoading || doc.converted}
-                          text="Convert to PDFA"
-                          className="w-full sm:w-auto"
-                        />
-                      )}
-                      <CustomButton
-                        variant="none"
-                        text={
-                          <>
-                            <IconDownload size={18} /> Download
-                          </>
-                        }
-                        className="w-full flex items-center gap-2"
-                        click={() => handleDownload(doc.name)}
-                        disabled={actionsLoading}
-                      />
                       <CustomButton
                         type="button"
-                        disabled={actionsLoading}
                         click={() => removeDocument(index)}
                         variant="danger"
                         text="✖"
