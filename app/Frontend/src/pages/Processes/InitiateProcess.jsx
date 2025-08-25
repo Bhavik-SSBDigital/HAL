@@ -202,18 +202,12 @@ export default function InitiateProcess() {
   const ConvertPDF = async (id) => {
     setActionsLoading(true);
     try {
-      if (!id) throw new Error('Invalid document ID');
+      // Must request as blob, not JSON
+      const response = await ConvertToPDFA(id);
 
-      // 1. Convert file via backend (must return blob)
-      const response = await ConvertToPDFA(id); // make sure ConvertToPDFA sets { responseType: 'blob' }
-
-      if (!response || !response.data) {
-        throw new Error('No file data received from backend');
-      }
-
-      // 2. Extract filename from Content-Disposition header
-      let filename = 'converted123.pdf';
-      const contentDisposition = response.headers?.['content-disposition'];
+      // Extract filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'converted.pdf';
 
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="?([^"]+)"?/);
@@ -222,35 +216,20 @@ export default function InitiateProcess() {
         }
       }
 
-      // 3. Wrap into File object
+      // Wrap into File object with backend-provided filename
       const file = new File([response.data], filename, {
         type: 'application/pdf',
       });
 
-      if (!file || file.size === 0) {
-        throw new Error('Converted file is empty or invalid');
-      }
-      console.log(111);
+      const res = await uploadDocumentInProcess([file]);
+      await DeleteFile(id);
 
-      // 4. Upload converted file
-      const uploadedIds = await uploadDocumentInProcess([file]);
-      console.log(112);
-      // 5. Delete old file
-      try {
-        await DeleteFile(id);
-      } catch (deleteErr) {
-        console.warn('Warning: failed to delete original file', deleteErr);
-        // Non-blocking — file was converted & uploaded successfully
-      }
-
-      // 6. Success UI + state update
-      toast.success('File converted & uploaded successfully');
-
+      toast.success('File uploaded successfully');
       const currentDoc = documentFields.find((doc) => doc.documentId == id);
 
       const newDoc = {
-        documentId: uploadedIds[0],
-        name: file.name,
+        documentId: res[0],
+        name: file.name, // backend filename
         tags: currentDoc?.tags,
         description: currentDoc?.fileDescription,
         partNumber: currentDoc?.partNumber,
@@ -262,18 +241,14 @@ export default function InitiateProcess() {
         doc.documentId == id ? newDoc : doc,
       );
 
-      // update UI state
       // setDocumentFields(filteredDocuments);
     } catch (error) {
-      console.error('ConvertPDF error:', error);
-      toast.error(
-        error?.response?.data?.message || error?.message || 'Conversion failed',
-      );
+      toast.error(error?.response?.data?.message || error?.message);
+      console.error(error);
     } finally {
       setActionsLoading(false);
     }
   };
-
   const handleDownload = async (name) => {
     setActionsLoading(true);
     try {
