@@ -401,7 +401,7 @@ function App(props) {
                         display: 'flex',
                         alignItems: 'center',
                       }}
-                      onClick={(e) => handleFolderClick(item.id, e, item.path)}
+                      onClick={(e) => handleFolderClick(item.id, e, item.path.startsWith('..') ?  `${item.path}/${item.name}` : `..${item.path}/${item.name}`)}
                     >
                       {item.isOpen ? (
                         <KeyboardArrowUpIcon />
