@@ -204,6 +204,13 @@ export const DownloadFile = async (name, path) => {
     toast.error(error?.response?.data?.message || error?.messsage);
   }
 };
+export const DownloadFileWithWaterMark = async (documentId, password) => {
+  return apiClient.post(
+    `/downloadWatermarkedFile/${documentId}`,
+    { password },
+    { responseType: 'blob' },
+  );
+};
 export const CutPaste = async (body) => {
   return apiClient.post('/cutFile', body);
 };

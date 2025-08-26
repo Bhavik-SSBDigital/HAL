@@ -10,6 +10,7 @@ import {
   CutPaste,
   DeleteFile,
   DownloadFile,
+  DownloadFileWithWaterMark,
   DownloadFolder,
   GetFolderData,
   GetRootFolders,
@@ -42,6 +43,7 @@ import moment from 'moment';
 import { useForm } from 'react-hook-form';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import { Tooltip } from '@mui/material';
+import ModalWithField from '../../components/ModalWithField';
 
 export default function FileSysten() {
   // States
@@ -69,6 +71,7 @@ export default function FileSysten() {
   const fileName = useSelector((state) => state.path.fileName);
   const sourcePath = useSelector((state) => state.path.sourcePath);
   const method = useSelector((state) => state.path.method);
+  const [open, setOpen] = useState(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -180,6 +183,44 @@ export default function FileSysten() {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setActionsLoading(false);
+    }
+  };
+
+  const handleDownloadWithWatermark = async (password) => {
+    try {
+      const response = await DownloadFileWithWaterMark(
+        selectedItem.id,
+        password,
+      );
+
+      // Create a blob from the response data
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'],
+      });
+
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a hidden anchor element
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extract filename from headers if available
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = selectedItem?.name;
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+
+      // Trigger the download
+      link.click();
+
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('File download failed:', error);
+      toast.error(error?.response?.data?.message || error?.message);
     }
   };
 
@@ -647,7 +688,7 @@ export default function FileSysten() {
                   disabled={actionsLoading}
                 />
 
-                {/* <CustomButton
+                <CustomButton
                   variant="none"
                   text={
                     <>
@@ -659,7 +700,18 @@ export default function FileSysten() {
                     handleDownload(selectedItem.name, selectedItem.path)
                   }
                   disabled={actionsLoading}
-                /> */}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconDownload size={18} /> Download With Watermark
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => setOpen(selectedItem.id)}
+                  disabled={actionsLoading}
+                />
 
                 <CustomButton
                   variant="none"
@@ -882,6 +934,16 @@ export default function FileSysten() {
           </div>
         </form>
       </CustomModal>
+
+      {/* modal for watermark download */}
+      <ModalWithField
+        open={open}
+        setOpen={setOpen}
+        actionsLoading={actionsLoading}
+        setActionsLoading={setActionsLoading}
+        fieldName="password" // 👈 parent defines the field name
+        onSubmit={handleDownloadWithWatermark}
+      />
 
       {/* View File Modal */}
       {fileView && (
