@@ -319,81 +319,31 @@ const ViewProcess = () => {
   const extractDocumentsByReopenCycle = (processData) => {
     const { documents, sededDocuments } = processData;
 
-    // Get all unique reopen cycles
+    // Merge all documents and superseded versions
+    const allDocsMap = new Map();
+
+    documents.forEach((doc) => allDocsMap.set(doc.id, { ...doc }));
+
+    sededDocuments.forEach((seded) => {
+      seded.versions.forEach((version) =>
+        allDocsMap.set(version.id, { ...version }),
+      );
+    });
+
+    // Unique reopen cycles
     const reopenCycles = [
-      ...new Set([
-        ...documents.map((doc) => doc.reopenCycle),
-        ...sededDocuments.flatMap((seded) =>
-          seded.versions.map((v) => v.reopenCycle),
-        ),
-      ]),
+      ...new Set([...allDocsMap.values()].map((doc) => doc.reopenCycle)),
     ].sort((a, b) => a - b);
 
-    // Create a map to track the latest document for each original document
-    const documentLineage = new Map();
-
-    // Initialize with original documents
-    documents.forEach((doc) => {
-      documentLineage.set(doc.id, [
-        {
-          id: doc.id,
-          name: doc.name,
-          type: doc.type,
-          tags: doc.tags,
-          description: doc.description,
-          partNumber: doc.partNumber,
-          preApproved: doc.preApproved,
-          isReplacement: doc.isReplacement,
-          superseding: doc.superseding,
-          active: doc.active,
-          reopenCycle: doc.reopenCycle,
-          reasonOfSupersed: doc.reasonOfSupersed,
-        },
-      ]);
-    });
-
-    // Process superseded documents
-    sededDocuments.forEach((seded) => {
-      const supersededId = seded.documentWhichSuperseded.id;
-      seded.versions.forEach((version) => {
-        const lineage = documentLineage.get(supersededId) || [];
-        lineage.push({
-          id: version.id,
-          name: version.name,
-          type: version.type,
-          tags: version.tags,
-          description: version.description,
-          partNumber: version.partNumber,
-          preApproved: version.preApproved,
-          isReplacement: version.isReplacement,
-          superseding: version.superseding,
-          active: version.active,
-          reopenCycle: version.reopenCycle,
-          reasonOfSupersed: version.reasonOfSupersed,
-        });
-        documentLineage.set(supersededId, lineage);
-      });
-    });
-
-    // Create result arrays for each reopen cycle
+    // Group documents by exact reopenCycle
     const result = reopenCycles.map((cycle) => {
-      const cycleDocs = [];
-
-      // For each document lineage
-      documentLineage.forEach((lineage) => {
-        // Find the most recent document for this cycle or earlier
-        const relevantDoc = lineage
-          .filter((doc) => doc.reopenCycle <= cycle)
-          .sort((a, b) => b.reopenCycle - a.reopenCycle)[0];
-
-        if (relevantDoc) {
-          cycleDocs.push(relevantDoc);
-        }
-      });
+      const docsForCycle = [...allDocsMap.values()]
+        .filter((doc) => doc.reopenCycle === cycle)
+        .sort((a, b) => a.id - b.id);
 
       return {
         reopenCycle: cycle,
-        documents: cycleDocs.sort((a, b) => a.id - b.id), // Sort by ID for consistency
+        documents: docsForCycle,
       };
     });
 
@@ -403,7 +353,6 @@ const ViewProcess = () => {
   const DocumentsCycle = (process) => {
     // Extract cycles
     const cycles = extractDocumentsByReopenCycle(process);
-    console.log(cycles);
 
     // Maximum number of documents in any cycle
     const maxDocs = Math.max(...cycles?.map((cycle) => cycle.documents.length));
