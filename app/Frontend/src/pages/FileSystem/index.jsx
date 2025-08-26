@@ -701,17 +701,21 @@ export default function FileSysten() {
                   }
                   disabled={actionsLoading}
                 />
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconDownload size={18} /> Download With Watermark
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => setOpen(selectedItem.id)}
-                  disabled={actionsLoading}
-                />
+                {['pdf', 'jpg', 'jpeg', 'png', 'tiff'].includes(
+                  selectedItem?.type,
+                ) ? (
+                  <CustomButton
+                    variant="none"
+                    text={
+                      <>
+                        <IconDownload size={18} /> Download With Watermark
+                      </>
+                    }
+                    className="w-full flex items-center gap-2"
+                    click={() => setOpen(selectedItem.id)}
+                    disabled={actionsLoading}
+                  />
+                ) : null}
 
                 <CustomButton
                   variant="none"
