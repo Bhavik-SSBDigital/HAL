@@ -1725,7 +1725,7 @@ export const downloadWatermarkedFile = async (req, res) => {
   try {
     const documentId = req.params.documentId;
     console.log("Document ID:", documentId);
-    const { password, watermarkText = "XDD" } = req.body;
+    const { password, watermarkText = "HAL KORWA" } = req.body;
     console.log("Password:", password ? "Provided" : "Missing");
 
     if (!password) {
