@@ -2832,7 +2832,7 @@ export const complete_process_step = async (req, res) => {
 
       // 8. Advance to next step
 
-      if (incompleteAssignments.length === 0 && isCompleted) {
+      if (incompleteAssignments.length === 0) {
         const advanceResult = await advanceToNextStep(
           tx,
           stepInstance.processId,
