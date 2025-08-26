@@ -96,6 +96,7 @@ import {
   wopiLock,
   wopiUnlock,
   wopiRefreshLock,
+  downloadWatermarkedFile,
 } from "../controller/file-controller.js";
 
 import {
@@ -346,5 +347,7 @@ router.get(
 router.get("/searchDocuments", search_documents);
 
 router.post("/reopenProcess", reopen_process);
+
+router.post("/downloadWatermarkedFile/:documentId", downloadWatermarkedFile);
 
 export default router;

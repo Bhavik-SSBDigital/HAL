@@ -1,8 +1,10 @@
 import fs from "fs/promises";
 import { createWriteStream, createReadStream, read } from "fs";
 import { fileURLToPath } from "url";
-import { dirname, join, normalize, extname } from "path";
+import { dirname, join, normalize, extname, basename } from "path";
+import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import fsCB from "fs";
+import sharp from "sharp";
 import path from "path";
 import axios from "axios";
 import { Transform } from "stream";
@@ -16,6 +18,7 @@ import { pipeline } from "stream";
 import dotnev from "dotenv";
 
 import { PrismaClient } from "@prisma/client";
+import { execSync } from "child_process";
 
 const prisma = new PrismaClient();
 
@@ -1714,4 +1717,297 @@ export const wopiRefreshLock = (req, res) => {
 
   // Refresh means re-saving the same lock, so we do nothing but 200
   return res.status(200).send();
+};
+
+export const downloadWatermarkedFile = async (req, res) => {
+  let tempFilePath = null;
+  let watermarkedFilePath = null;
+  try {
+    const documentId = req.params.documentId;
+    console.log("Document ID:", documentId);
+    const { password, watermarkText = "XDD" } = req.body;
+    console.log("Password:", password ? "Provided" : "Missing");
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    // Fetch the document from the database
+    const document = await prisma.document.findUnique({
+      where: { id: parseInt(documentId) },
+    });
+
+    if (!document) {
+      return res.status(404).json({ message: "File not found in database" });
+    }
+
+    // Resolve absolute file path
+    const STORAGE_PATH = process.env.STORAGE_PATH;
+    const absoluteFilePath = path.join(__dirname, STORAGE_PATH, document.path);
+    console.log("Absolute file path:", absoluteFilePath);
+
+    // Check if the file exists
+    try {
+      await fs.access(absoluteFilePath);
+    } catch (error) {
+      console.error("File access error:", error);
+      return res.status(404).json({ message: "File not found in storage" });
+    }
+
+    // Get file stats and extension
+    const stats = await fs.stat(absoluteFilePath);
+    const ext = path.extname(absoluteFilePath).toLowerCase();
+    const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".tiff"];
+
+    // Determine MIME type (always PDF for allowed extensions due to encryption)
+    const contentType = getContentTypeFromExtension(ext.slice(1));
+
+    // Create temporary file paths
+    tempFilePath = path.join(
+      __dirname,
+      STORAGE_PATH,
+      `temp_${Date.now()}_${path.basename(absoluteFilePath, ext)}.pdf`
+    );
+    console.log("Temporary file path:", tempFilePath);
+
+    // Apply watermark and password protection based on file type
+    if (allowedExtensions.includes(ext)) {
+      if (ext === ".pdf") {
+        // PDF watermarking
+        const pdfBytes = await fs.readFile(absoluteFilePath);
+        console.log("Input PDF size:", pdfBytes.length, "bytes");
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        const pages = pdfDoc.getPages();
+        console.log("Number of pages:", pages.length);
+        for (const page of pages) {
+          const { width, height } = page.getSize();
+          const fontSize = Math.max(Math.min(width, height) * 0.07, 20);
+          const textWidth = helveticaFont.widthOfTextAtSize(
+            watermarkText,
+            fontSize
+          );
+
+          page.drawText(watermarkText, {
+            x: width / 2 - textWidth / 2,
+            y: height / 2,
+            size: fontSize,
+            font: helveticaFont,
+            color: rgb(0.5, 0.5, 0.5),
+            opacity: 0.5,
+            rotate: degrees(-45),
+          });
+        }
+
+        // Save watermarked PDF without encryption
+        const watermarkedPdfBytes = await pdfDoc.save();
+        watermarkedFilePath = path.join(
+          __dirname,
+          STORAGE_PATH,
+          `watermarked_${Date.now()}_${path.basename(absoluteFilePath)}`
+        );
+        await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
+        console.log("Watermarked PDF saved at:", watermarkedFilePath);
+      } else {
+        // Image watermarking and conversion to PDF
+        const image = sharp(absoluteFilePath, { failOn: "none" });
+        const metadata = await image.metadata();
+
+        // Create SVG watermark
+        const fontSize = Math.max(
+          Math.min(metadata.width || 0, metadata.height || 0) * 0.07,
+          20
+        );
+        const svg = `
+          <svg width="${metadata.width}" height="${
+          metadata.height
+        }" xmlns="http://www.w3.org/2000/svg">
+            <text 
+              x="50%" y="50%"
+              font-family="Helvetica"
+              font-size="${fontSize}"
+              fill="#808080"
+              fill-opacity="0.5"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              transform="rotate(-45, ${metadata.width / 2}, ${
+          metadata.height / 2
+        })"
+            >${watermarkText}</text>
+          </svg>
+        `;
+
+        const svgBuffer = Buffer.from(svg);
+
+        // Apply watermark with sharp
+        let outputImage = image
+          .composite([
+            {
+              input: svgBuffer,
+              blend: "over",
+            },
+          ])
+          .withMetadata();
+
+        // Format-specific options
+        if (ext === ".jpg" || ext === ".jpeg") {
+          outputImage = outputImage.jpeg({ quality: 100, mozjpeg: true });
+        } else if (ext === ".png") {
+          outputImage = outputImage.png({ compressionLevel: 0 });
+        } else if (ext === ".tiff") {
+          outputImage = outputImage.tiff({
+            compression: "lzw",
+            predictor: "horizontal",
+            resolutionUnit: "inch",
+            xres: metadata.density || 72,
+            yres: metadata.density || 72,
+          });
+        }
+
+        // Save watermarked image temporarily
+        const tempImagePath = path.join(
+          __dirname,
+          STORAGE_PATH,
+          `temp_image_${Date.now()}${ext}`
+        );
+        await outputImage.toFile(tempImagePath);
+        console.log("Watermarked image saved at:", tempImagePath);
+
+        // Convert image to PDF
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([metadata.width, metadata.height]);
+        let imageObj;
+        if (ext === ".jpg" || ext === ".jpeg") {
+          imageObj = await pdfDoc.embedJpg(await fs.readFile(tempImagePath));
+        } else if (ext === ".png") {
+          imageObj = await pdfDoc.embedPng(await fs.readFile(tempImagePath));
+        } else if (ext === ".tiff") {
+          // Convert TIFF to PNG for pdf-lib compatibility
+          const tiffToPng = await sharp(tempImagePath).png().toBuffer();
+          imageObj = await pdfDoc.embedPng(tiffToPng);
+        }
+        page.drawImage(imageObj, {
+          x: 0,
+          y: 0,
+          width: metadata.width,
+          height: metadata.height,
+        });
+
+        // Save PDF without encryption
+        const pdfBytes = await pdfDoc.save();
+        watermarkedFilePath = path.join(
+          __dirname,
+          STORAGE_PATH,
+          `watermarked_${Date.now()}_${path.basename(
+            absoluteFilePath,
+            ext
+          )}.pdf`
+        );
+        await fs.writeFile(watermarkedFilePath, pdfBytes);
+        console.log(
+          "Watermarked PDF from image saved at:",
+          watermarkedFilePath
+        );
+
+        // Clean up temporary image
+        await fs
+          .unlink(tempImagePath)
+          .catch((err) => console.error("Error deleting temp image:", err));
+      }
+
+      // Apply password protection with qpdf
+      try {
+        await execSync(
+          `qpdf --encrypt "${password}" "${password}" 256 --print=full --modify=none --extract=n --annotate=n --form=n --assemble=n --accessibility=n -- "${watermarkedFilePath}" "${tempFilePath}"`
+        );
+        console.log("qpdf encryption applied successfully");
+      } catch (error) {
+        console.error("qpdf encryption failed:", error);
+        throw new Error(
+          "Failed to apply password protection with qpdf: " + error.message
+        );
+      }
+
+      // Debugging: Save a copy to inspect password protection
+      const debugFilePath = path.join(
+        __dirname,
+        STORAGE_PATH,
+        `debug_${Date.now()}.pdf`
+      );
+      await fs.copyFile(tempFilePath, debugFilePath);
+      console.log(`Debug PDF saved at: ${debugFilePath}`);
+    } else {
+      // Copy unsupported file types as-is
+      await fs.copyFile(absoluteFilePath, tempFilePath);
+    }
+
+    // Verify temporary file exists
+    try {
+      await fs.access(tempFilePath);
+    } catch (error) {
+      console.error("Temporary file not created:", error);
+      throw new Error("Failed to create temporary file");
+    }
+
+    // Set headers for file delivery
+    const tempStats = await fs.stat(tempFilePath);
+    console.log(`Temporary file size: ${tempStats.size} bytes`);
+    res.set({
+      "Content-Type": contentType,
+      "Content-Length": tempStats.size,
+      "Content-Disposition": `attachment; filename="${path.basename(
+        absoluteFilePath,
+        ext
+      )}.pdf"`,
+      "Accept-Ranges": "bytes",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Content-Security-Policy": "default-src 'none'",
+    });
+
+    // Stream the temporary file
+    const fileStream = createReadStream(tempFilePath);
+    fileStream.on("error", (err) => {
+      console.error("File stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error streaming file" });
+      }
+    });
+
+    await pipelineAsync(fileStream, res);
+    console.log("File streamed successfully");
+  } catch (error) {
+    console.error("Error processing file:", error);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ message: "Error processing file: " + error.message });
+    }
+  } finally {
+    // Clean up the temporary file if it exists
+    if (tempFilePath) {
+      try {
+        await fs.access(tempFilePath);
+        await fs.unlink(tempFilePath);
+        console.log("Temporary file deleted:", tempFilePath);
+      } catch (err) {
+        if (err.code !== "ENOENT") {
+          console.error("Error deleting temp file:", err);
+        }
+      }
+    }
+    // Clean up the watermarked file if it exists
+    if (watermarkedFilePath) {
+      try {
+        await fs.access(watermarkedFilePath);
+        await fs.unlink(watermarkedFilePath);
+        console.log("Watermarked file deleted:", watermarkedFilePath);
+      } catch (err) {
+        if (err.code !== "ENOENT") {
+          console.error("Error deleting watermarked file:", err);
+        }
+      }
+    }
+  }
 };
