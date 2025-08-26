@@ -159,7 +159,7 @@ function App() {
           }
         />
         <Route
-          path="/physicalDocuments"
+          path="/physical-document"
           element={
             <DefaultLayout>
               <PageTitle title="Physical Documents" />

@@ -1,367 +1,169 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  VerticalTimeline,
-  VerticalTimelineElement,
-} from 'react-vertical-timeline-component';
-import 'react-vertical-timeline-component/style.min.css';
-
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  CircularProgress,
-  IconButton,
-  Stack,
-  TextField,
-  Box,
-  Pagination,
-} from '@mui/material';
-import View from '../view/View';
-
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import ComponentLoader from '../../common/Loader/ComponentLoader';
-import styles from './PhysicalDocuments.module.css';
-import {
-  IconChecklist,
-  IconEye,
-  IconFileExport,
-  IconFileImport,
-  IconFileInfo,
-  IconSquareLetterX,
-} from '@tabler/icons-react';
-import moment from 'moment';
-import { useNavigate } from 'react-router-dom';
-import { download } from '../../components/drop-file-input/FileUploadDownload';
+import { useEffect, useState } from 'react';
+import CustomButton from '../../CustomComponents/CustomButton';
+import TopLoader from '../../common/Loader/TopLoader';
+import { getPhysicalRequests } from '../../common/Apis';
 
 const PhysicalDocuments = () => {
-  const [physicalDocumentsHistory, setPhysicalDocumentsHistory] = useState([]);
-  const token = sessionStorage.getItem('accessToken');
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const [openDialog, setOpenDialog] = useState(false);
-  const [advancedDetails, setAdvancedDetails] = useState([]);
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [viewLoading, setViewLoading] = useState('');
-  const [page, setPage] = useState(0);
+  const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleViewClick = async (doc) => {
-    setViewLoading(doc?._id);
-    setSelectedDocument(doc);
-    try {
-      const url = backendUrl + `/getDocumentHistory/${doc._id}`;
-      const res = await axios({
-        method: 'get',
-        url: url,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAdvancedDetails(res.data.docTrackingDetails);
-      setOpenDialog(true);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      console.log('finally');
-      setViewLoading(null);
-    }
+  const statuses = [
+    'PENDING_ADMIN_APPROVAL',
+    'ADMIN_APPROVED',
+    'ADMIN_REJECTED',
+    'PENDING_HOD_APPROVAL',
+    'HOD_APPROVED',
+    'HOD_REJECTED',
+    'PENDING_USER_RESPONSE',
+    'DOC_RETURNED',
+    'DOC_SCRAPPED',
+  ];
+
+  // Static API response data
+  const staticData = {
+    approved: [
+      {
+        id: 1,
+        document: { id: 1, name: 'Audit Report 2025' },
+        department: { id: 2, name: 'Finance' },
+        reason: 'Need physical copy for audit',
+        status: 'ADMIN_APPROVED',
+        messages: [
+          {
+            id: 1,
+            message: 'Approved by admin',
+            user: { id: 102, name: 'Admin User' },
+            createdAt: '2025-08-26T13:15:00Z',
+          },
+        ],
+      },
+    ],
+    rejected: [
+      {
+        id: 2,
+        document: { id: 3, name: 'Contract X' },
+        department: { id: 2, name: 'Finance' },
+        reason: 'For client meeting',
+        status: 'HOD_REJECTED',
+        messages: [
+          {
+            id: 2,
+            message: 'Rejected: Not necessary',
+            user: { id: 103, name: 'HOD User' },
+            createdAt: '2025-08-26T13:20:00Z',
+          },
+        ],
+      },
+    ],
+    pendingHod: [
+      {
+        id: 3,
+        document: { id: 4, name: 'Policy Doc' },
+        department: { id: 2, name: 'Finance' },
+        reason: 'For training',
+        status: 'PENDING_HOD_APPROVAL',
+        messages: [],
+      },
+    ],
   };
 
-  const handleClose = () => {
-    setOpenDialog(false);
-    setAdvancedDetails(null);
-    setSelectedDocument(null);
-    setViewLoading('');
-  };
-  const [returnDocumentLoading, setReturnDocumentLoading] = useState(false);
-
-  const returnDocument = async (index, borrower) => {
-    setReturnDocumentLoading(true);
-    const url = backendUrl + '/returnDocument';
-    try {
-      const res = await axios.post(
-        url,
-        { documentId: selectedDocument?._id, borrower },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setAdvancedDetails((prev) =>
-        prev.map((item, i) =>
-          i == index
-            ? { ...item, returnedAt: Date.now(), isReturned: true }
-            : item,
-        ),
-      );
-      toast.success(res.data.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setReturnDocumentLoading(false);
-    }
-  };
-
-  const getHistory = async () => {
-    const url = backendUrl + '/getBorrowedDocuments';
-    try {
-      const res = await axios({
-        method: 'get',
-        url: url,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setPhysicalDocumentsHistory(res.data.documents || []);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredDocuments = useMemo(() => {
-    return physicalDocumentsHistory.filter((doc) =>
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [searchTerm, physicalDocumentsHistory]);
-
-  const handleChangePage = (newPage) => {
-    setPage(newPage);
-  };
-
-  const [fileView, setFileView] = useState(null);
-  const navigate = useNavigate();
-
-  const handleView = async (name, id, url) => {
-    let updatedPath = url.split('/storage')[1];
-    const pathWithoutFile = updatedPath.split('/').slice(0, -1).join('/');
-    const finalPath = `..${pathWithoutFile}`;
+  const fetchRequests = async () => {
     setLoading(true);
     try {
-      const fileData = await download(name, finalPath, true);
-      setLoading(false);
-      if (fileData) {
-        setFileView({
-          url: fileData.data,
-          type: fileData.fileType,
-          fileId: id,
-        });
-      } else {
-        toast.error('Invalid file data.');
-      }
-    } catch (error) {
-      toast.error('Unable to view the file.');
+      const response = await getPhysicalRequests();
+      setRequests(response?.data);
+      setFilteredRequests(response?.data);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleViewFile = (url) => {
-    let updatedPath = url.split('/storage')[1];
-
-    // Remove the file name by splitting the updated path by "/" and removing the last element
-    const pathWithoutFile = updatedPath.split('/').slice(0, -1).join('/');
-
-    // Add "../" at the start
-    const finalPath = `..${pathWithoutFile}`;
-
-    sessionStorage.setItem('path', finalPath);
-    // navigate(`/files/pathWithoutFile`)
-  };
-
-  const handleViewClose = () => {
-    setFileView(null);
   };
 
   useEffect(() => {
-    getHistory();
+    fetchRequests();
   }, []);
-  return loading ? (
-    <ComponentLoader />
-  ) : (
-    <>
-      <div>
-        <Stack>
-          <Box>
-            <TextField
-              size="small"
-              label="Search"
-              sx={{ background: 'white', mb: 1 }}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </Box>
-        </Stack>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Document Name</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredDocuments.length ? (
-                filteredDocuments
-                  ?.slice(page * 10, (page + 1) * 10)
-                  ?.map((doc) => (
-                    <TableRow key={doc._id}>
-                      <TableCell className={styles.cell}>{doc.name}</TableCell>
-                      <TableCell className={styles.cell}>
-                        <IconButton
-                          variant="contained"
-                          color="primary"
-                          disabled={viewLoading}
-                          onClick={() => handleViewClick(doc)}
-                        >
-                          {viewLoading == doc._id ? (
-                            <CircularProgress size={22} />
-                          ) : (
-                            <>
-                              <IconEye style={{ marginRight: '3px' }} />{' '}
-                              <Typography>View Details</Typography>
-                            </>
-                          )}
-                        </IconButton>
-                        <IconButton
-                          disabled={doc?.onlyMetaData}
-                          onClick={() =>
-                            handleView(doc.name, doc._id, doc.path)
-                          }
-                          color="secondary"
-                        >
-                          <IconEye />
-                          <Typography>View File</Typography>
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-              ) : (
-                <TableRow>
-                  <TableCell>No Data</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Stack
-          justifyContent="flex-end"
-          mt={1}
-          flexDirection="row"
-          alignItems="center"
+
+  useEffect(() => {
+    if (statusFilter) {
+      setFilteredRequests(
+        requests.filter((req) => req.status === statusFilter),
+      );
+    } else {
+      setFilteredRequests(requests);
+    }
+  }, [statusFilter, requests]);
+
+  if (loading) {
+    return <TopLoader />;
+  }
+
+  return (
+    <div className="p-6">
+      {/* Filter */}
+      <div className="flex items-center gap-3 mb-4">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border rounded-lg px-3 py-2 focus:ring focus:ring-green-500"
         >
-          <Pagination
-            page={page + 1}
-            onChange={(event, page) => handleChangePage(page - 1)}
-            count={Math.ceil(filteredDocuments.length / 10)}
-            variant="outlined"
-            shape="rounded"
-          />
-        </Stack>
-
-        {/* Dialog for advanced details */}
-        <Dialog open={openDialog} onClose={handleClose} fullWidth maxWidth="md">
-          <IconButton
-            onClick={handleClose}
-            sx={{ position: 'absolute', right: '0px' }}
-          >
-            <IconSquareLetterX />
-          </IconButton>
-          <DialogTitle fontWeight={700}>
-            {selectedDocument?.name} History
-          </DialogTitle>
-          <DialogContent>
-            <VerticalTimeline lineColor="lightgray">
-              {advancedDetails?.map((detail, index) => (
-                <VerticalTimelineElement
-                  key={index}
-                  contentStyle={{
-                    padding: '10px 20px',
-                    border: '1px solid lightgray',
-                    borderBottom: '4px solid #2196f3',
-                    boxShadow: 'rgba(99, 99, 99, 0.2) 0px 2px 8px 0px',
-                  }}
-                  contentArrowStyle={{
-                    borderRight: '8px solid  #757575',
-                    height: '12px',
-                  }}
-                  iconStyle={{
-                    background: detail?.isReturned ? 'green' : 'blue',
-                    color: '#fff',
-                  }}
-                  style={{ boxShadow: 'none', padding: '0px' }}
-                  icon={
-                    detail?.isReturned ? <IconChecklist /> : <IconFileInfo />
-                  }
-                >
-                  <Typography variant="subtitle1" textAlign="left">
-                    <strong>{index == 0 ? 'Received By' : 'Borrower'}</strong> :{' '}
-                    {detail.borrower}
-                  </Typography>
-                  <Typography variant="subtitle1" textAlign="left">
-                    <strong>{index == 0 ? 'Submitter' : 'Lender'}</strong> :{' '}
-                    {detail.lender}
-                  </Typography>
-                  <Typography variant="subtitle1" textAlign="left">
-                    <strong>
-                      {index == 0 ? 'Submission Date' : 'Borrow Date'}
-                    </strong>{' '}
-                    : {moment(detail.time).format('DD-MM-YYYY / hh:mm')}
-                  </Typography>
-                  {index !== 0 ? (
-                    <>
-                      <Typography variant="subtitle1" textAlign="left">
-                        <strong>Purpose</strong> : {detail.purpose}
-                      </Typography>
-
-                      <Typography variant="subtitle1" textAlign="left">
-                        <strong>Returned Date</strong> :
-                        {detail.returnedAt
-                          ? moment(detail.returnedAt).format('DD-MM-YYYY hh:mm')
-                          : 'N/A'}
-                      </Typography>
-                      {detail?.isReturned ? (
-                        <>
-                          <Typography variant="subtitle1" textAlign="left">
-                            <strong>Returned :</strong> Yes{' '}
-                          </Typography>
-                        </>
-                      ) : (
-                        <Button
-                          onClick={() => returnDocument(index, detail.borrower)}
-                          sx={{ marginLeft: 'auto', display: 'block' }}
-                          variant="contained"
-                          size="small"
-                          disabled={returnDocumentLoading}
-                        >
-                          {returnDocumentLoading ? (
-                            <CircularProgress size={22} />
-                          ) : (
-                            'Return'
-                          )}
-                        </Button>
-                      )}
-                    </>
-                  ) : null}
-                </VerticalTimelineElement>
-              ))}
-            </VerticalTimeline>
-          </DialogContent>
-        </Dialog>
-      </div>
-      {fileView ? (
-        <View
-          docu={fileView}
-          setFileView={setFileView}
-          handleViewClose={handleViewClose}
+          <option value="">All Status</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+        <CustomButton
+          text="Refresh"
+          click={fetchRequests}
+          variant="primary"
+          disabled={loading}
         />
-      ) : null}
-    </>
+      </div>
+
+      {/* List */}
+      <div className="space-y-3">
+        {filteredRequests.length > 0 ? (
+          filteredRequests.map((req) => (
+            <div
+              key={req.id}
+              className="p-4 border rounded-lg shadow-sm bg-white flex justify-between items-center"
+            >
+              <div>
+                <p className="font-semibold">{req.document?.name}</p>
+                <p className="text-sm text-gray-600">
+                  {req.reason} -{' '}
+                  <span className="font-medium">{req.department?.name}</span>
+                </p>
+                {req.messages?.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Last message:{' '}
+                    {req.messages[req.messages.length - 1].message} (
+                    {req.messages[req.messages.length - 1].user.name})
+                  </p>
+                )}
+              </div>
+              <span
+                className={`px-3 py-1 text-xs rounded-full border ${
+                  req.status.includes('APPROVED')
+                    ? 'bg-green-100 text-green-700'
+                    : req.status.includes('REJECTED')
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                }`}
+              >
+                {req.status}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500">No requests found.</p>
+        )}
+      </div>
+    </div>
   );
 };
 

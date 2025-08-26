@@ -421,3 +421,16 @@ export const useTemplateDocument = async (formData) => {
 export const deepSearch = async (queryParams) => {
   return apiClient.get(`/searchDocuments?${queryParams}`);
 };
+
+// physical document
+export const createPhysicalRequest = async (data) => {
+  return apiClient.post(`/createPhysicalRequest`, {
+    documentId: data?.documentId,
+    departmentId: data?.departmentId,
+    reason: data?.reason,
+  });
+};
+
+export const getPhysicalRequests = async () => {
+  return apiClient.get('/getPhysicalRequests');
+};

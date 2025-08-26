@@ -19,6 +19,7 @@ import {
   IconHistory,
   IconArchive,
   IconSearch,
+  IconScript,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -144,6 +145,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       label: 'Workflows',
       icon: <IconChartDots3 size={26} />,
       active: pathname == '/workflows',
+    },
+    {
+      path: '/physical-document',
+      label: 'Physical Document',
+      icon: <IconScript size={26} />,
+      active: pathname == '/physical-document',
     },
     isPhysicalDocumentKeeper && {
       path: '/meta-data',
