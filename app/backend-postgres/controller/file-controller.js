@@ -1722,6 +1722,7 @@ export const wopiRefreshLock = (req, res) => {
 export const downloadWatermarkedFile = async (req, res) => {
   let tempFilePath = null;
   let watermarkedFilePath = null;
+  let tempImagePath = null;
   try {
     const documentId = req.params.documentId;
     console.log("Document ID:", documentId);
@@ -1748,7 +1749,8 @@ export const downloadWatermarkedFile = async (req, res) => {
 
     // Check if the file exists
     try {
-      await fs.access(absoluteFilePath);
+      await fs.access(absoluteFilePath, fs.constants.R_OK);
+      console.log("Input file accessible:", absoluteFilePath);
     } catch (error) {
       console.error("File access error:", error);
       return res.status(404).json({ message: "File not found in storage" });
@@ -1757,6 +1759,7 @@ export const downloadWatermarkedFile = async (req, res) => {
     // Get file stats and extension
     const stats = await fs.stat(absoluteFilePath);
     const ext = path.extname(absoluteFilePath).toLowerCase();
+    console.log("File extension:", ext);
     const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".tiff"];
 
     // Determine MIME type (always PDF for allowed extensions due to encryption)
@@ -1807,12 +1810,23 @@ export const downloadWatermarkedFile = async (req, res) => {
           STORAGE_PATH,
           `watermarked_${Date.now()}_${path.basename(absoluteFilePath)}`
         );
-        await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
-        console.log("Watermarked PDF saved at:", watermarkedFilePath);
+        try {
+          await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
+          console.log("Watermarked PDF saved at:", watermarkedFilePath);
+          await fs.access(
+            watermarkedFilePath,
+            fs.constants.R_OK | fs.constants.W_OK
+          );
+          console.log("Watermarked PDF verified:", watermarkedFilePath);
+        } catch (error) {
+          console.error("Failed to write/verify watermarked PDF:", error);
+          throw new Error("Failed to write watermarked PDF");
+        }
       } else {
         // Image watermarking and conversion to PDF
         const image = sharp(absoluteFilePath, { failOn: "none" });
         const metadata = await image.metadata();
+        console.log("Image dimensions:", metadata.width, "x", metadata.height);
 
         // Create SVG watermark
         const fontSize = Math.max(
@@ -1866,13 +1880,20 @@ export const downloadWatermarkedFile = async (req, res) => {
         }
 
         // Save watermarked image temporarily
-        const tempImagePath = path.join(
+        tempImagePath = path.join(
           __dirname,
           STORAGE_PATH,
           `temp_image_${Date.now()}${ext}`
         );
-        await outputImage.toFile(tempImagePath);
-        console.log("Watermarked image saved at:", tempImagePath);
+        try {
+          await outputImage.toFile(tempImagePath);
+          console.log("Watermarked image saved at:", tempImagePath);
+          await fs.access(tempImagePath, fs.constants.R_OK);
+          console.log("Watermarked image verified:", tempImagePath);
+        } catch (error) {
+          console.error("Failed to write/verify watermarked image:", error);
+          throw new Error("Failed to write watermarked image");
+        }
 
         // Convert image to PDF
         const pdfDoc = await PDFDocument.create();
@@ -1883,7 +1904,6 @@ export const downloadWatermarkedFile = async (req, res) => {
         } else if (ext === ".png") {
           imageObj = await pdfDoc.embedPng(await fs.readFile(tempImagePath));
         } else if (ext === ".tiff") {
-          // Convert TIFF to PNG for pdf-lib compatibility
           const tiffToPng = await sharp(tempImagePath).png().toBuffer();
           imageObj = await pdfDoc.embedPng(tiffToPng);
         }
@@ -1904,24 +1924,32 @@ export const downloadWatermarkedFile = async (req, res) => {
             ext
           )}.pdf`
         );
-        await fs.writeFile(watermarkedFilePath, pdfBytes);
-        console.log(
-          "Watermarked PDF from image saved at:",
-          watermarkedFilePath
-        );
-
-        // Clean up temporary image
-        await fs
-          .unlink(tempImagePath)
-          .catch((err) => console.error("Error deleting temp image:", err));
+        try {
+          await fs.writeFile(watermarkedFilePath, pdfBytes);
+          console.log(
+            "Watermarked PDF from image saved at:",
+            watermarkedFilePath
+          );
+          await fs.access(
+            watermarkedFilePath,
+            fs.constants.R_OK | fs.constants.W_OK
+          );
+          console.log("Watermarked PDF verified:", watermarkedFilePath);
+        } catch (error) {
+          console.error("Failed to write/verify watermarked PDF:", error);
+          throw new Error("Failed to write watermarked PDF from image");
+        }
       }
 
       // Apply password protection with qpdf
       try {
+        console.log("Executing qpdf command...");
         await execSync(
-          `qpdf --encrypt "${password}" "${password}" 256 --print=full --modify=none --extract=n --annotate=n --form=n --assemble=n --accessibility=n -- "${watermarkedFilePath}" "${tempFilePath}"`
+          `qpdf --encrypt "${password}" "${password}" 256 -- "${watermarkedFilePath}" "${tempFilePath}"`
         );
         console.log("qpdf encryption applied successfully");
+        await fs.access(tempFilePath, fs.constants.R_OK);
+        console.log("Encrypted PDF verified:", tempFilePath);
       } catch (error) {
         console.error("qpdf encryption failed:", error);
         throw new Error(
@@ -1935,16 +1963,23 @@ export const downloadWatermarkedFile = async (req, res) => {
         STORAGE_PATH,
         `debug_${Date.now()}.pdf`
       );
-      await fs.copyFile(tempFilePath, debugFilePath);
-      console.log(`Debug PDF saved at: ${debugFilePath}`);
+      try {
+        await fs.copyFile(tempFilePath, debugFilePath);
+        console.log(`Debug PDF saved at: ${debugFilePath}`);
+      } catch (error) {
+        console.error("Failed to save debug PDF:", error);
+        throw new Error("Failed to save debug PDF");
+      }
     } else {
       // Copy unsupported file types as-is
+      console.log("Unsupported file type, copying as-is:", ext);
       await fs.copyFile(absoluteFilePath, tempFilePath);
     }
 
     // Verify temporary file exists
     try {
-      await fs.access(tempFilePath);
+      await fs.access(tempFilePath, fs.constants.R_OK);
+      console.log("Final temporary file verified:", tempFilePath);
     } catch (error) {
       console.error("Temporary file not created:", error);
       throw new Error("Failed to create temporary file");
@@ -1953,6 +1988,7 @@ export const downloadWatermarkedFile = async (req, res) => {
     // Set headers for file delivery
     const tempStats = await fs.stat(tempFilePath);
     console.log(`Temporary file size: ${tempStats.size} bytes`);
+    console.log("Output format: PDF (password-protected)");
     res.set({
       "Content-Type": contentType,
       "Content-Length": tempStats.size,
@@ -2006,6 +2042,18 @@ export const downloadWatermarkedFile = async (req, res) => {
       } catch (err) {
         if (err.code !== "ENOENT") {
           console.error("Error deleting watermarked file:", err);
+        }
+      }
+    }
+    // Clean up the temporary image file if it exists
+    if (tempImagePath) {
+      try {
+        await fs.access(tempImagePath);
+        await fs.unlink(tempImagePath);
+        console.log("Temporary image deleted:", tempImagePath);
+      } catch (err) {
+        if (err.code !== "ENOENT") {
+          console.error("Error deleting temp image:", err);
         }
       }
     }
