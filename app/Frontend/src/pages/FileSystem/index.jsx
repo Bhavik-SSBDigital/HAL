@@ -7,11 +7,13 @@ import {
   ArchiveFile,
   CopyPaste,
   CreateFolder,
+  createPhysicalRequest,
   CutPaste,
   DeleteFile,
   DownloadFile,
   DownloadFileWithWaterMark,
   DownloadFolder,
+  getDepartments,
   GetFolderData,
   GetRootFolders,
   ViewDocument,
@@ -31,6 +33,7 @@ import {
   IconSettings,
   IconArchive,
   IconTrash,
+  IconScript,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
@@ -40,14 +43,16 @@ import { toast } from 'react-toastify';
 import { copy, cut } from '../../Slices/PathSlice';
 import TopLoader from '../../common/Loader/TopLoader';
 import moment from 'moment';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import { Tooltip } from '@mui/material';
 import ModalWithField from '../../components/ModalWithField';
+import CustomTextField from '../../CustomComponents/CustomTextField';
 
 export default function FileSysten() {
   // States
   const dispatch = useDispatch();
+  const [departments, setDepartments] = useState([]);
   const username = sessionStorage.getItem('username');
   const [fileType, setFileType] = useState('all');
   const [showUploadFileModal, setUploadFileModal] = useState(false);
@@ -365,6 +370,36 @@ export default function FileSysten() {
     reset: resetFile,
   } = useForm();
 
+  // physical document request
+  const {
+    register: registerDepartment,
+    handleSubmit: handleSubmitDepartment,
+    formState: {
+      errors: departmentErrors,
+      isSubmitting: isSubmittingDepartment,
+    },
+    control: controlDepartment,
+    reset: resetDepartment,
+  } = useForm({
+    defaultValues: {
+      departmentId: '',
+      reason: '',
+    },
+  });
+  const onSubmit = async (data) => {
+    setActionsLoading(true);
+    try {
+      // data has { departmentId, reason }
+      await createPhysicalRequest({ ...data, documentId: selectedItem?.id });
+      resetDepartment(); // clear form after submit
+      setOpen(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   // function to create metadata of newly uploaded file
   const createUploadedFileMetadata = (file, uploadPath, createdBy, fileExt) => {
     const now = new Date().toISOString();
@@ -436,6 +471,18 @@ export default function FileSysten() {
       document.removeEventListener('click', handleClickOutside);
     };
   }, [isContextMenuOpen]);
+
+  useEffect(() => {
+    const getDepartmentList = async () => {
+      try {
+        const response = await getDepartments();
+        setDepartments(response?.data?.departments);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getDepartmentList();
+  }, []);
 
   if (loading) {
     return <ComponentLoader />;
@@ -661,7 +708,10 @@ export default function FileSysten() {
 
       {/* Action Menu (Popup) */}
       {selectedItem ? (
-        <CustomModal isOpen={isMenuOpen && selectedItem}>
+        <CustomModal
+          isOpen={isMenuOpen && selectedItem}
+          className={'overflow-auto'}
+        >
           <h3 className="font-semibold mb-3">{selectedItem?.name}</h3>
 
           {/* Actions */}
@@ -712,7 +762,7 @@ export default function FileSysten() {
                       </>
                     }
                     className="w-full flex items-center gap-2"
-                    click={() => setOpen(selectedItem.id)}
+                    click={() => setOpen('password')}
                     disabled={actionsLoading}
                   />
                 ) : null}
@@ -737,6 +787,17 @@ export default function FileSysten() {
                   }
                   className="w-full flex items-center gap-2"
                   click={() => handleCut(selectedItem.name, selectedItem.path)}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconScript size={18} /> Request Physical Document
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => setOpen('physicalDocument')}
                   disabled={actionsLoading}
                 />
                 <CustomButton
@@ -941,13 +1002,87 @@ export default function FileSysten() {
 
       {/* modal for watermark download */}
       <ModalWithField
-        open={open}
+        open={open == 'password'}
         setOpen={setOpen}
         actionsLoading={actionsLoading}
         setActionsLoading={setActionsLoading}
         fieldName="password" // 👈 parent defines the field name
         onSubmit={handleDownloadWithWatermark}
       />
+
+      <CustomModal
+        isOpen={open === 'physicalDocument'}
+        onClose={() => {
+          setOpen(false);
+          resetDepartment();
+        }}
+        size="md"
+      >
+        <h2 className="text-lg font-semibold mb-4">
+          Request Physical Document
+        </h2>
+
+        <form onSubmit={handleSubmitDepartment(onSubmit)} className="space-y-4">
+          {/* Department Dropdown */}
+          <div>
+            <select
+              {...registerDepartment('departmentId', {
+                required: 'Department is required',
+              })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-green-500"
+            >
+              <option value="">-- Select Department --</option>
+              {departments?.map((item) => (
+                <option key={item?.id} value={item?.id}>
+                  {item?.name}
+                </option>
+              ))}
+            </select>
+            {departmentErrors.departmentId && (
+              <p className="text-red-500 text-sm mt-1">
+                {departmentErrors.departmentId.message}
+              </p>
+            )}
+          </div>
+
+          {/* Reason Input */}
+          <div>
+            <Controller
+              name="reason"
+              control={controlDepartment}
+              rules={{ required: 'Reason is required' }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  label="Reason"
+                  placeholder="Enter Reason"
+                  error={departmentErrors.reason?.message}
+                />
+              )}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-2">
+            <CustomButton
+              type="button"
+              variant="danger"
+              disabled={actionsLoading}
+              click={() => {
+                setOpen(false);
+                resetDepartment();
+              }}
+              text="Cancel"
+            />
+            <CustomButton
+              type="submit"
+              variant="primary"
+              text={'Submit'}
+              disabled={actionsLoading}
+            />
+          </div>
+        </form>
+      </CustomModal>
 
       {/* View File Modal */}
       {fileView && (
