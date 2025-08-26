@@ -316,6 +316,161 @@ const ViewProcess = () => {
     });
   };
 
+  const extractDocumentsByReopenCycle = (processData) => {
+    const { documents, sededDocuments } = processData;
+
+    // Get all unique reopen cycles
+    const reopenCycles = [
+      ...new Set([
+        ...documents.map((doc) => doc.reopenCycle),
+        ...sededDocuments.flatMap((seded) =>
+          seded.versions.map((v) => v.reopenCycle),
+        ),
+      ]),
+    ].sort((a, b) => a - b);
+
+    // Create a map to track the latest document for each original document
+    const documentLineage = new Map();
+
+    // Initialize with original documents
+    documents.forEach((doc) => {
+      documentLineage.set(doc.id, [
+        {
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+          tags: doc.tags,
+          description: doc.description,
+          partNumber: doc.partNumber,
+          preApproved: doc.preApproved,
+          isReplacement: doc.isReplacement,
+          superseding: doc.superseding,
+          active: doc.active,
+          reopenCycle: doc.reopenCycle,
+          reasonOfSupersed: doc.reasonOfSupersed,
+        },
+      ]);
+    });
+
+    // Process superseded documents
+    sededDocuments.forEach((seded) => {
+      const supersededId = seded.documentWhichSuperseded.id;
+      seded.versions.forEach((version) => {
+        const lineage = documentLineage.get(supersededId) || [];
+        lineage.push({
+          id: version.id,
+          name: version.name,
+          type: version.type,
+          tags: version.tags,
+          description: version.description,
+          partNumber: version.partNumber,
+          preApproved: version.preApproved,
+          isReplacement: version.isReplacement,
+          superseding: version.superseding,
+          active: version.active,
+          reopenCycle: version.reopenCycle,
+          reasonOfSupersed: version.reasonOfSupersed,
+        });
+        documentLineage.set(supersededId, lineage);
+      });
+    });
+
+    // Create result arrays for each reopen cycle
+    const result = reopenCycles.map((cycle) => {
+      const cycleDocs = [];
+
+      // For each document lineage
+      documentLineage.forEach((lineage) => {
+        // Find the most recent document for this cycle or earlier
+        const relevantDoc = lineage
+          .filter((doc) => doc.reopenCycle <= cycle)
+          .sort((a, b) => b.reopenCycle - a.reopenCycle)[0];
+
+        if (relevantDoc) {
+          cycleDocs.push(relevantDoc);
+        }
+      });
+
+      return {
+        reopenCycle: cycle,
+        documents: cycleDocs.sort((a, b) => a.id - b.id), // Sort by ID for consistency
+      };
+    });
+
+    return result;
+  };
+
+  const DocumentsCycle = (process) => {
+    // Extract cycles
+    const cycles = extractDocumentsByReopenCycle(process);
+    console.log(cycles);
+
+    // Maximum number of documents in any cycle
+    const maxDocs = Math.max(...cycles?.map((cycle) => cycle.documents.length));
+
+    return (
+      <CustomCard className={'mt-2'}>
+        <h2 className="text-xl font-semibold mb-4">
+          Documents by Reopen Cycle
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-300">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="py-2 px-4 border">Reopen Cycle</th>
+                {Array.from({ length: maxDocs }).map((_, idx) => (
+                  <th key={idx} className="py-2 px-4 border">
+                    Document {idx + 1}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cycles.map((cycle) => (
+                <tr key={cycle.reopenCycle}>
+                  <td className="py-2 px-4 border font-medium">
+                    {cycle.reopenCycle}
+                  </td>
+
+                  {Array.from({ length: maxDocs }).map((_, idx) => {
+                    const doc = cycle.documents[idx];
+
+                    return (
+                      <td key={idx} className="py-2 px-4 border">
+                        {doc ? (
+                          <div className="flex items-center space-x-2">
+                            {/* Use ImageConfig for icons */}
+                            <img
+                              width={28}
+                              src={
+                                ImageConfig[doc.type] || ImageConfig['default']
+                              }
+                              alt={doc.type}
+                            />
+                            <span
+                              className={`truncate ${
+                                doc.active ? 'font-semibold' : 'text-gray-400'
+                              }`}
+                            >
+                              {doc.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CustomCard>
+    );
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -595,6 +750,8 @@ const ViewProcess = () => {
           </div>
         </>
       )}
+
+      {process && DocumentsCycle(process)}
 
       {/* {process?.documentVersioning?.length > 0 && (
         <div className="mt-12">
