@@ -58,6 +58,7 @@ export default function NewRole() {
       role: '',
       department: '',
       isAdmin: false,
+      isDepartmentHead: false,
       parentRoleId: '',
       isRootLevel: false,
       selectedView: [],
@@ -200,7 +201,27 @@ export default function NewRole() {
                       onChange={(e) =>
                         setValue('isAdmin', e.target.value === 'Yes')
                       }
-                      value={field.value ? 'Yse' : 'No'}
+                      value={field.value ? 'yes' : 'No'}
+                      {...field}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value={'Yes'}>Yes</option>
+                      <option value={'No'}>No</option>
+                    </select>
+                  )}
+                />
+              </div>
+              <div>
+                <label className="block mb-1">Is Department Head?</label>
+                <Controller
+                  name="isDepartmentHead"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      onChange={(e) =>
+                        setValue('isDepartmentHead', e.target.value === 'Yes')
+                      }
+                      value={field.value ? 'yes' : 'No'}
                       {...field}
                       className="w-full p-2 border rounded"
                     >
