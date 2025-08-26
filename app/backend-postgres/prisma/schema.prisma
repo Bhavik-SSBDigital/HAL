@@ -68,6 +68,7 @@ model Role {
   role            String
   isRootLevel     Boolean   @default(false)
   isAdmin         Boolean   @default(false)
+  isDepartmentHead Boolean  @default(false)
   isActive        Boolean   @default(true)
   parentRoleId    Int?
   createdAt       DateTime  @default(now())

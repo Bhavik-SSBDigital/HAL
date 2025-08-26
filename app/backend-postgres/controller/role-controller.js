@@ -33,6 +33,7 @@ export const add_role = async (req, res) => {
       parentRoleId,
       isRootLevel,
       isAdmin,
+      isDepartmentHead,
     } = req.body;
 
     // Check if department is required and exists
@@ -101,6 +102,7 @@ export const add_role = async (req, res) => {
           departmentId: departmentObj?.id || null,
           isRootLevel: Boolean(isRootLevel),
           isAdmin: Boolean(isAdmin),
+          isDepartmentHead: Boolean(isDepartmentHead),
           parentRoleId: parentRoleId ? parseInt(parentRoleId) : null,
         },
       }),
@@ -177,6 +179,7 @@ export const get_roles = async (req, res) => {
         departmentId: true,
         isRootLevel: true,
         isAdmin: true,
+        isDepartmentHead: true,
         createdAt: true,
         updatedAt: true,
         branch: {
@@ -192,6 +195,7 @@ export const get_roles = async (req, res) => {
       id: role.id,
       role: role.role,
       isRootLevel: role.isRootLevel,
+      isDepartmentHead: role.isDepartmentHead,
       departmentId: role.departmentId,
       departmentName: role.branch?.name || null,
       createdAt: role.createdAt,
@@ -290,6 +294,7 @@ export const get_role = async (req, res) => {
         : null,
       isRootLevel: role.isRootLevel,
       isAdmin: role.isAdmin,
+      isDepartmentHead: role.isDepartmentHead,
       parentRoleId: role.parentRoleId,
       parentRole: role.parentRole,
       createdAt: role.createdAt,
@@ -326,6 +331,7 @@ export const edit_role = async (req, res) => {
       parentRoleId,
       isRootLevel,
       isAdmin,
+      isDepartmentHead,
     } = req.body;
 
     // Check if role exists
@@ -406,6 +412,7 @@ export const edit_role = async (req, res) => {
           departmentId: departmentObj?.id || null,
           isRootLevel: Boolean(isRootLevel),
           isAdmin: Boolean(isAdmin),
+          isDepartmentHead: Boolean(isDepartmentHead),
           parentRoleId: parentRoleId ? parseInt(parentRoleId) : null,
           updatedAt: new Date(),
         },
