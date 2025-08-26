@@ -316,74 +316,76 @@ const ViewProcess = () => {
     });
   };
 
-function extractDocumentsByReopenCycle(processData) {
+  function extractDocumentsByReopenCycle(processData) {
     const { documentVersioning } = processData;
-    
+
     // Get all unique reopen cycles and sort them
     const allReopenCycles = new Set();
     const documentLineage = new Map();
-    
+
     // First, get the original document order from cycle 0
     const originalOrder = [];
     const originalDocumentsMap = new Map();
-    
+
     // Pre-process all document versions and find original order
-    documentVersioning.forEach(docGroup => {
-        const versions = docGroup.versions.sort((a, b) => a.reopenCycle - b.reopenCycle);
-        documentLineage.set(docGroup.latestDocumentId, versions);
-        
-        // Find the original version (cycle 0) to establish order
-        const originalVersion = versions.find(v => v.reopenCycle === 0);
-        if (originalVersion) {
-            originalOrder.push(originalVersion.id);
-            originalDocumentsMap.set(originalVersion.id, versions);
-        }
-        
-        versions.forEach(version => {
-            allReopenCycles.add(version.reopenCycle);
-        });
+    documentVersioning.forEach((docGroup) => {
+      const versions = docGroup.versions.sort(
+        (a, b) => a.reopenCycle - b.reopenCycle,
+      );
+      documentLineage.set(docGroup.latestDocumentId, versions);
+
+      // Find the original version (cycle 0) to establish order
+      const originalVersion = versions.find((v) => v.reopenCycle === 0);
+      if (originalVersion) {
+        originalOrder.push(originalVersion.id);
+        originalDocumentsMap.set(originalVersion.id, versions);
+      }
+
+      versions.forEach((version) => {
+        allReopenCycles.add(version.reopenCycle);
+      });
     });
-    
+
     const reopenCycles = Array.from(allReopenCycles).sort((a, b) => a - b);
-    
+
     // Build result for each cycle
-    const result = reopenCycles.map(currentCycle => {
-        const cycleDocuments = [];
-        
-        // Process documents in the original order
-        originalOrder.forEach(originalDocId => {
-            const versions = originalDocumentsMap.get(originalDocId);
-            if (versions) {
-                // Find the latest version that exists at or before current cycle
-                let appropriateVersion = null;
-                
-                for (let i = versions.length - 1; i >= 0; i--) {
-                    if (versions[i].reopenCycle <= currentCycle) {
-                        appropriateVersion = versions[i];
-                        break;
-                    }
-                }
-                
-                if (appropriateVersion) {
-                    cycleDocuments.push(appropriateVersion);
-                }
+    const result = reopenCycles.map((currentCycle) => {
+      const cycleDocuments = [];
+
+      // Process documents in the original order
+      originalOrder.forEach((originalDocId) => {
+        const versions = originalDocumentsMap.get(originalDocId);
+        if (versions) {
+          // Find the latest version that exists at or before current cycle
+          let appropriateVersion = null;
+
+          for (let i = versions.length - 1; i >= 0; i--) {
+            if (versions[i].reopenCycle <= currentCycle) {
+              appropriateVersion = versions[i];
+              break;
             }
-        });
-        
-        return {
-            reopenCycle: currentCycle,
-            documents: cycleDocuments
-        };
+          }
+
+          if (appropriateVersion) {
+            cycleDocuments.push(appropriateVersion);
+          }
+        }
+      });
+
+      return {
+        reopenCycle: currentCycle,
+        documents: cycleDocuments,
+      };
     });
-    
+
     return result;
-}
+  }
 
   const DocumentsCycle = (process) => {
     // Extract cycles
     const cycles = extractDocumentsByReopenCycle(process);
 
-    console.log("cycles", cycles)
+    console.log('cycles', cycles);
 
     // Maximum number of documents in any cycle
     const maxDocs = Math.max(...cycles?.map((cycle) => cycle.documents.length));
@@ -429,12 +431,30 @@ function extractDocumentsByReopenCycle(processData) {
                               alt={doc.type}
                             />
                             <span
+                              title={doc.name}
                               className={`truncate ${
                                 doc.active ? 'font-semibold' : 'text-gray-400'
                               }`}
                             >
                               {doc.name}
                             </span>
+                            <CustomButton
+                              className="px-2"
+                              click={() =>
+                                handleViewFile(
+                                  doc.name,
+                                  doc.path,
+                                  doc.id,
+                                  doc.type,
+                                  false,
+                                )
+                              }
+                              disabled={actionsLoading}
+                              title="View Document"
+                              text={
+                                <IconEye size={18} className="text-white" />
+                              }
+                            />
                           </div>
                         ) : (
                           <span className="text-gray-300">-</span>
