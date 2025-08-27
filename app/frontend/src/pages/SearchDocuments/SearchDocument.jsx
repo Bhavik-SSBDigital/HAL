@@ -1,23 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CustomCard from '../../CustomComponents/CustomCard';
 import Title from '../../CustomComponents/Title';
 import TopLoader from '../../common/Loader/TopLoader';
-import { IconEye, IconDownload } from '@tabler/icons-react';
+import { IconEye, IconScript } from '@tabler/icons-react';
 import { ImageConfig } from '../../config/ImageConfig';
 import DocumentVersioning from '../DocumentVersioning';
 import ViewFile from '../view/View';
-
+import CustomModal from '../../CustomComponents/CustomModal';
+import CustomTextField from '../../CustomComponents/CustomTextField';
 import {
   deepSearch,
   GetUsersWithDetails,
   ViewDocument,
+  getDepartments,
+  createPhysicalRequest,
 } from '../../common/Apis';
 
 export default function DocumentSearch() {
-  // state
+  // State
   const { register, handleSubmit, reset } = useForm();
   const [results, setResults] = useState([]);
   const [filesData, setFilesData] = useState([]);
@@ -26,8 +29,26 @@ export default function DocumentSearch() {
   const [users, setUsers] = useState([]);
   const [fileView, setFileView] = useState(null);
   const [lastQuery, setLastQuery] = useState();
+  const [departments, setDepartments] = useState([]);
+  const [open, setOpen] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [actionsLoading, setActionsLoading] = useState(false);
 
-  // handlers
+  // Form for physical document request
+  const {
+    register: registerDepartment,
+    handleSubmit: handleSubmitDepartment,
+    formState: { errors: departmentErrors, isSubmitting: isSubmittingDepartment },
+    control: controlDepartment,
+    reset: resetDepartment,
+  } = useForm({
+    defaultValues: {
+      departmentId: '',
+      reason: '',
+    },
+  });
+
+  // Handlers
   const fetchDocuments = async (data, showToast) => {
     setLoading(true);
     try {
@@ -134,14 +155,10 @@ export default function DocumentSearch() {
     }
   };
 
-  // const handleCompare = () => {
-  //   const selected = results.filter((doc) => selectedDocs.includes(doc.id));
-  //   if (selected.length !== 2) {
-  //     toast.info('Select 2 documents to compare');
-  //     return;
-  //   }
-  //   setFilesData([{ url: selected[0].path }, { url: selected[1].path }]);
-  // };
+  const handlePhysicalDocumentRequest = (doc) => {
+    setSelectedItem(doc);
+    setOpen('physicalDocument');
+  };
 
   const handlePagination = (dir) => {
     const newPage = dir === 'next' ? pagination.page + 1 : pagination.page - 1;
@@ -169,9 +186,34 @@ export default function DocumentSearch() {
     }
   };
 
+  const getDepartmentList = async () => {
+    try {
+      const response = await getDepartments();
+      setDepartments(response?.data?.departments);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const onSubmitPhysicalRequest = async (data) => {
+    setActionsLoading(true);
+    try {
+      await createPhysicalRequest({ ...data, documentId: selectedItem?.id });
+      resetDepartment();
+      setOpen(false);
+      toast.success('Physical document request submitted successfully');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     getUsers();
+    getDepartmentList();
   }, []);
+
   return (
     <CustomCard className={'mx-auto'}>
       {loading && <TopLoader />}
@@ -244,7 +286,7 @@ export default function DocumentSearch() {
           </select>
         </div>
 
-        {/* createdByUsername (dropdown static for now) */}
+        {/* createdByUsername */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Created By
@@ -357,6 +399,7 @@ export default function DocumentSearch() {
           />
         </div>
       </form>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {results.map((doc) => {
           const extension = doc.name?.split('.').pop()?.toLowerCase();
@@ -427,6 +470,12 @@ export default function DocumentSearch() {
                     handleViewFile(doc.name, doc.path, doc.id, extension, false)
                   }
                 />
+                <CustomButton
+                  text={<IconScript size={18} className="text-white" />}
+                  title="Request Physical Document"
+                  click={() => handlePhysicalDocumentRequest(doc)}
+                  disabled={actionsLoading}
+                />
               </div>
             </CustomCard>
           );
@@ -454,26 +503,82 @@ export default function DocumentSearch() {
         </div>
       )}
 
-      {/* Compare View */}
-      {/* {filesData.length === 2 && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl max-w-6xl w-full relative">
-            <button
-              className="absolute top-3 right-3 text-gray-600"
-              onClick={() => setFilesData([])}
+      {/* Physical Document Request Modal */}
+      <CustomModal
+        isOpen={open === 'physicalDocument'}
+        onClose={() => {
+          setOpen(false);
+          resetDepartment();
+        }}
+        size="md"
+      >
+        <h2 className="text-lg font-semibold mb-4">
+          Request Physical Document
+        </h2>
+
+        <form onSubmit={handleSubmitDepartment(onSubmitPhysicalRequest)} className="space-y-4">
+          {/* Department Dropdown */}
+          <div>
+            <select
+              {...registerDepartment('departmentId', {
+                required: 'Department is required',
+              })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-green-500"
             >
-              ✕
-            </button>
-            <h2 className="text-xl font-bold mb-4">Document Versioning</h2>
-            <DocumentVersioning
-              file1={filesData[0].url}
-              file2={filesData[1].url}
-              observations={[]}
+              <option value="">-- Select Department --</option>
+              {departments?.map((item) => (
+                <option key={item?.id} value={item?.id}>
+                  {item?.name}
+                </option>
+              ))}
+            </select>
+            {departmentErrors.departmentId && (
+              <p className="text-red-500 text-sm mt-1">
+                {departmentErrors.departmentId.message}
+              </p>
+            )}
+          </div>
+
+          {/* Reason Input */}
+          <div>
+            <Controller
+              name="reason"
+              control={controlDepartment}
+              rules={{ required: 'Reason is required' }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  label="Reason"
+                  placeholder="Enter Reason"
+                  error={departmentErrors.reason?.message}
+                />
+              )}
             />
           </div>
-        </div>
-      )} */}
 
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-2">
+            <CustomButton
+              type="button"
+              variant="danger"
+              disabled={actionsLoading}
+              click={() => {
+                setOpen(false);
+                resetDepartment();
+              }}
+              text="Cancel"
+            />
+            <CustomButton
+              type="submit"
+              variant="primary"
+              text={'Submit'}
+              disabled={actionsLoading}
+            />
+          </div>
+        </form>
+      </CustomModal>
+
+      {/* View File Modal */}
       {fileView && (
         <ViewFile
           docu={fileView}

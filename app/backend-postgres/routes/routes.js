@@ -152,6 +152,13 @@ import {
   getDetails,
   getWorkflowAnalysis,
 } from "../controller/dashboard-controller.js";
+import {
+  add_request_message,
+  create_physical_request,
+  get_physical_request_messages,
+  get_physical_requests,
+  update_physical_request,
+} from "../controller/doc-tracking-controller.js";
 
 const router = express.Router();
 
@@ -349,5 +356,15 @@ router.get("/searchDocuments", search_documents);
 router.post("/reopenProcess", reopen_process);
 
 router.post("/downloadWatermarkedFile/:documentId", downloadWatermarkedFile);
+
+router.post("/createPhysicalRequest", create_physical_request);
+
+router.get("/getPhysicalRequests", get_physical_requests);
+
+router.post("/updatePhysicalRequest/:id", update_physical_request);
+
+router.get("/getPhysicalRequestMessages/:id", get_physical_request_messages);
+
+router.post("/addRequestMessage/:id", add_request_message);
 
 export default router;

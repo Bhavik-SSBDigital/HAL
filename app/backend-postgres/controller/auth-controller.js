@@ -154,12 +154,23 @@ export const login = async (req, res) => {
     }
 
     // Generate an access token with all required user properties
+
+    let roles = await prisma.role.findMany({
+      where: { id: { in: user.roles.map((role) => role.roleId) } },
+    });
+
+    const isAdmin = roles.some((role) => role.isAdmin) || user.isAdmin;
+
+    const isDepartmentHead = roles.some((role) => role.isDepartmentHead);
+
     const accessToken = jwt.sign(
       {
         id: user.id,
         username: user.username,
         email: user.email,
-        roles: user.roles.map((role) => role.id),
+        roles: user.roles.map((role) => role.roleId),
+        isAdmin: isAdmin,
+        isDepartmentHead: isDepartmentHead,
       },
       process.env.SECRET_ACCESS_KEY,
       {
@@ -173,7 +184,9 @@ export const login = async (req, res) => {
       email: user.email,
       userName: user.username,
       userId: user.id,
-      roles: user.roles.map((role) => role.name),
+      roles: roles.map((role) => role.role),
+      isAdmin: isAdmin,
+      isDepartmentHead: isDepartmentHead,
     });
   } catch (error) {
     console.error("Error during login", error);

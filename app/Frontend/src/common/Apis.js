@@ -434,3 +434,11 @@ export const createPhysicalRequest = async (data) => {
 export const getPhysicalRequests = async () => {
   return apiClient.get('/getPhysicalRequests');
 };
+
+export const updatePhysicalRequest = async (id, data) => {
+  return apiClient.post(`/updatePhysicalRequest/${id}`, data);
+};
+
+export const getPhysicalRequestMessages = async (id) => {
+  return apiClient.get(`/getPhysicalRequestMessages/${id}`);
+};

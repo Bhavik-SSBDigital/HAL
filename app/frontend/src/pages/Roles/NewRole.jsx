@@ -72,7 +72,7 @@ export default function NewRole() {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
       const response = await getAllBranches();
-      setBranches(response?.data?.departments);
+      setBranches(response?.data?.departments || []);
     } catch (error) {
       console.error('Unable to fetch branches. Please try again.', error);
     }
@@ -82,9 +82,9 @@ export default function NewRole() {
     try {
       const accessToken = sessionStorage.getItem('accessToken');
       const { data } = await GetRoles();
-      setRoles(data.roles);
+      setRoles(data.roles || []);
     } catch (error) {
-      console.error('Error', error);
+      console.error('Error fetching roles', error);
     }
   };
 
@@ -93,7 +93,13 @@ export default function NewRole() {
     try {
       const res = await GetRoleDetailsById(id);
       const data = res.data.role;
-      reset(data);
+      reset({
+        ...data,
+        isAdmin: data.isAdmin === true || data.isAdmin === 'true',
+        isDepartmentHead: data.isDepartmentHead === true || data.isDepartmentHead === 'true',
+        isRootLevel: data.isRootLevel || false,
+        parentRoleId: data.parentRoleId || '',
+      });
       setSelection({
         selectedView: data.selectedView || [],
         selectedDownload: data.selectedDownload || [],
@@ -114,6 +120,8 @@ export default function NewRole() {
         ...data,
         ...selection,
         isRootLevel: data.isRootLevel || false,
+        isAdmin: data.isAdmin || false,
+        isDepartmentHead: data.isDepartmentHead || false,
         parentRoleId: data.parentRoleId || null,
       };
       const response = await (id
@@ -129,7 +137,7 @@ export default function NewRole() {
         fullAccess: [],
       });
     } catch (error) {
-      toast.error(error?.response?.data?.message);
+      toast.error(error?.response?.data?.message || 'Failed to save role');
     }
   };
 
@@ -141,14 +149,19 @@ export default function NewRole() {
     getRoles();
   }, [id]);
 
-  const [isRootLevel] = watch(['isRootLevel']);
+  const isRootLevel = watch('isRootLevel');
   const isSuperAdmin =
-    sessionStorage.getItem('isRootLevel') == 'true' &&
-    sessionStorage.getItem('isAdmin') == 'true';
+    sessionStorage.getItem('isRootLevel') === 'true' &&
+    sessionStorage.getItem('isAdmin') === 'true';
 
   useEffect(() => {
-    setValue('department', '');
-  }, [isRootLevel]);
+    if (isRootLevel) {
+      setValue('department', '');
+      setValue('isAdmin', false);
+      setValue('isDepartmentHead', false);
+    }
+  }, [isRootLevel, setValue]);
+
   return (
     <>
       {isSubmitting ? <TopLoader /> : null}
@@ -173,17 +186,16 @@ export default function NewRole() {
                 name="isRootLevel"
                 control={control}
                 render={({ field }) => (
-                  <select
-                    {...field}
-                    onChange={(e) =>
-                      setValue('isRootLevel', e.target.value === 'Yes')
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        {...field}
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                      />
                     }
-                    value={field.value ? 'Yse' : 'No'}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                    label="Root Level"
+                  />
                 )}
               />
             </div>
@@ -197,17 +209,16 @@ export default function NewRole() {
                   name="isAdmin"
                   control={control}
                   render={({ field }) => (
-                    <select
-                      onChange={(e) =>
-                        setValue('isAdmin', e.target.value === 'Yes')
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                        />
                       }
-                      value={field.value ? 'yes' : 'No'}
-                      {...field}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value={'Yes'}>Yes</option>
-                      <option value={'No'}>No</option>
-                    </select>
+                      label="Admin"
+                    />
                   )}
                 />
               </div>
@@ -217,17 +228,16 @@ export default function NewRole() {
                   name="isDepartmentHead"
                   control={control}
                   render={({ field }) => (
-                    <select
-                      onChange={(e) =>
-                        setValue('isDepartmentHead', e.target.value === 'Yes')
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                        />
                       }
-                      value={field.value ? 'yes' : 'No'}
-                      {...field}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value={'Yes'}>Yes</option>
-                      <option value={'No'}>No</option>
-                    </select>
+                      label="Department Head"
+                    />
                   )}
                 />
               </div>

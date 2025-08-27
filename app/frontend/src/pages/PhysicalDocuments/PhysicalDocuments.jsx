@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import CustomButton from '../../CustomComponents/CustomButton';
 import TopLoader from '../../common/Loader/TopLoader';
-import { getPhysicalRequests } from '../../common/Apis';
+import { IconEye } from '@tabler/icons-react';
+import { getPhysicalRequests, updatePhysicalRequest, getPhysicalRequestMessages, ViewDocument } from '../../common/Apis';
+import ViewFile from '../view/View';
 
 const PhysicalDocuments = () => {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [action, setAction] = useState('');
+  const [message, setMessage] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState([]);
+  const [fileView, setFileView] = useState(null);
+  const isAdmin = sessionStorage.getItem('isAdmin');
+  const isDepartmentHead = sessionStorage.getItem('isDepartmentHead');
 
   const statuses = [
     'PENDING_ADMIN_APPROVAL',
@@ -21,52 +36,21 @@ const PhysicalDocuments = () => {
     'DOC_SCRAPPED',
   ];
 
-  // Static API response data
-  const staticData = {
-    approved: [
-      {
-        id: 1,
-        document: { id: 1, name: 'Audit Report 2025' },
-        department: { id: 2, name: 'Finance' },
-        reason: 'Need physical copy for audit',
-        status: 'ADMIN_APPROVED',
-        messages: [
-          {
-            id: 1,
-            message: 'Approved by admin',
-            user: { id: 102, name: 'Admin User' },
-            createdAt: '2025-08-26T13:15:00Z',
-          },
-        ],
-      },
-    ],
-    rejected: [
-      {
-        id: 2,
-        document: { id: 3, name: 'Contract X' },
-        department: { id: 2, name: 'Finance' },
-        reason: 'For client meeting',
-        status: 'HOD_REJECTED',
-        messages: [
-          {
-            id: 2,
-            message: 'Rejected: Not necessary',
-            user: { id: 103, name: 'HOD User' },
-            createdAt: '2025-08-26T13:20:00Z',
-          },
-        ],
-      },
-    ],
-    pendingHod: [
-      {
-        id: 3,
-        document: { id: 4, name: 'Policy Doc' },
-        department: { id: 2, name: 'Finance' },
-        reason: 'For training',
-        status: 'PENDING_HOD_APPROVAL',
-        messages: [],
-      },
-    ],
+  const actionOptions = {
+    admin: {
+      PENDING_ADMIN_APPROVAL: ['approve', 'reject', 'sendToHod', 'queryUser'],
+      ADMIN_APPROVED: [],
+      HOD_APPROVED: ['approve', 'reject'],
+    },
+    hod: {
+      PENDING_HOD_APPROVAL: ['approve', 'reject', 'queryUser'],
+    },
+    user: {
+      PENDING_USER_RESPONSE: ['respond'],
+      ADMIN_APPROVED: ['returnDoc', 'scrapDoc'],
+      DOC_RETURNED: ['respond'],
+      DOC_SCRAPPED: ['respond'],  
+    },
   };
 
   const fetchRequests = async () => {
@@ -75,8 +59,24 @@ const PhysicalDocuments = () => {
       const response = await getPhysicalRequests();
       setRequests(response?.data);
       setFilteredRequests(response?.data);
+      toast.success('Requests fetched successfully');
     } catch (err) {
       console.error(err);
+      toast.error('Failed to fetch requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewFile = async (name, path, fileId, type) => {
+    setLoading(true);
+    try {
+      const fileData = await ViewDocument(name, path, type, fileId);
+      console.log("file data", fileData)
+      setFileView(fileData);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setLoading(false);
     }
@@ -84,6 +84,14 @@ const PhysicalDocuments = () => {
 
   useEffect(() => {
     fetchRequests();
+    // Set initial status filter based on role
+    if (isAdmin === "true") {
+      setStatusFilter('PENDING_ADMIN_APPROVAL');
+    } else if (isDepartmentHead === "true") {
+      setStatusFilter('PENDING_HOD_APPROVAL');
+    } else {
+      setStatusFilter('ADMIN_APPROVED');
+    }
   }, []);
 
   useEffect(() => {
@@ -96,18 +104,93 @@ const PhysicalDocuments = () => {
     }
   }, [statusFilter, requests]);
 
+  const openModal = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+    setAction('');
+    setMessage('');
+    setError('');
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+    setAction('');
+    setMessage('');
+    setError('');
+  };
+
+  const openHistoryModal = async (request) => {
+    setSelectedRequest(request);
+    setIsHistoryModalOpen(true);
+    setSelectedMessages([]);
+    try {
+      const response = await getPhysicalRequestMessages(request.id);
+      setSelectedMessages(response.data);
+      toast.success('Message history fetched successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to fetch message history');
+    }
+  };
+
+  const closeHistoryModal = () => {
+    setIsHistoryModalOpen(false);
+    setSelectedRequest(null);
+    setSelectedMessages([]);
+  };
+
+  const handleUpdateRequest = async () => {
+    if (!action) {
+      setError('Please select an action');
+      toast.error('Please select an action');
+      return;
+    }
+
+    setModalLoading(true);
+    try {
+      const response = await updatePhysicalRequest(selectedRequest.id, JSON.stringify({ action, message: message.trim() || undefined }));
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update request');
+      }
+
+      setRequests((prev) =>
+        prev.map((req) => (req.id === data.id ? data : req)),
+      );
+      setFilteredRequests((prev) =>
+        prev.map((req) => (req.id === data.id ? data : req)),
+      );
+      toast.success('Request updated successfully');
+      closeModal();
+    } catch (err) {
+      setError(err.message || 'An error occurred');
+      toast.error(err.message || 'An error occurred');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const getAvailableActions = (status) => {
+    const userRole = isAdmin === "true" ? "admin" : isDepartmentHead === "true" ? "hod" : "user";
+    return actionOptions[userRole]?.[status] || [];
+  };
+
   if (loading) {
     return <TopLoader />;
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
+      
       {/* Filter */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm">
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border rounded-lg px-3 py-2 focus:ring focus:ring-green-500"
+          className="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 bg-white shadow-sm flex-1"
         >
           <option value="">All Status</option>
           {statuses.map((status) => (
@@ -130,39 +213,193 @@ const PhysicalDocuments = () => {
           filteredRequests.map((req) => (
             <div
               key={req.id}
-              className="p-4 border rounded-lg shadow-sm bg-white flex justify-between items-center"
+              className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 ease-in-out flex justify-between items-center"
             >
-              <div>
-                <p className="font-semibold">{req.document?.name}</p>
-                <p className="text-sm text-gray-600">
-                  {req.reason} -{' '}
-                  <span className="font-medium">{req.department?.name}</span>
+              <div className="flex-1 pr-4">
+                <p className="font-semibold text-lg text-gray-900 truncate">{req.document?.name}</p>
+                <p className="text-sm text-gray-600 line-clamp-2 mt-1">{req.reason}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Department Name: <span className="font-medium">{req.document?.department?.name}</span>
                 </p>
-                {req.messages?.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Last message:{' '}
-                    {req.messages[req.messages.length - 1].message} (
-                    {req.messages[req.messages.length - 1].user.name})
+                {req.lastMessage && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Recent Message: <span className="font-medium">{req.lastMessage}</span>
                   </p>
                 )}
               </div>
-              <span
-                className={`px-3 py-1 text-xs rounded-full border ${
-                  req.status.includes('APPROVED')
-                    ? 'bg-green-100 text-green-700'
-                    : req.status.includes('REJECTED')
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                }`}
-              >
-                {req.status}
-              </span>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`px-3 py-1 text-xs rounded-full font-medium border ${
+                    req.status.includes('APPROVED')
+                      ? 'bg-green-100 text-green-700 border-green-200'
+                      : req.status.includes('REJECTED')
+                      ? 'bg-red-100 text-red-700 border-red-200'
+                      : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                  }`}
+                >
+                  {req.status.replace('_', ' ')}
+                </span>
+                <CustomButton
+                  text={<IconEye size={18} className="text-white" />}
+                  title="View Document"
+                  click={() => handleViewFile(
+                    req.document?.name, 
+                    req.document?.path.substring(0, req.document?.path.lastIndexOf("/")), 
+                    req.document?.id, 
+                    req.document?.name?.split('.').pop()?.toLowerCase()
+                  )}
+                  variant="primary"
+                />
+                <button
+                  onClick={() => openHistoryModal(req)}
+                  className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 text-sm font-medium"
+                >
+                  History
+                </button>
+                {getAvailableActions(req.status).length > 0 && (
+                  <button
+                    onClick={() => openModal(req)}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                  >
+                    Update
+                  </button>
+                )}
+              </div>
             </div>
           ))
         ) : (
-          <p className="text-gray-500">No requests found.</p>
+          <p className="text-gray-500 text-center py-4">No requests found.</p>
         )}
       </div>
+
+      {/* Update Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              Update Request: {selectedRequest?.document?.name}
+            </h2>
+            {error && (
+              <p className="text-red-500 text-sm mb-4">{error}</p>
+            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Action
+              </label>
+              <select
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Select Action</option>
+                {getAvailableActions(selectedRequest?.status).map((act) => (
+                  <option key={act} value={act}>
+                    {act.charAt(0).toUpperCase() + act.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Message (Optional)
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white"
+                rows="4"
+                placeholder="Enter a message..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                disabled={modalLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateRequest}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                disabled={modalLoading}
+              >
+                {modalLoading ? 'Updating...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              Message History: {selectedRequest?.document?.name}
+            </h2>
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700">Query Reason:</p>
+              <p className="text-sm text-gray-600">{selectedRequest?.reason}</p>
+            </div>
+            <div className="mb-6 space-y-4 max-h-96 overflow-y-auto">
+              {selectedMessages.length > 0 ? (
+                selectedMessages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className="p-4 border rounded-lg bg-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-semibold text-sm text-gray-800">
+                        {msg.user.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(msg.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="mb-2">
+                      <p className="text-sm font-medium text-gray-700">Message:</p>
+                      <p className="text-sm text-gray-600">{msg.message}</p>
+                    </div>
+                    {msg.previousStatus && msg.newStatus && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Status Update:</p>
+                        <p className="text-xs text-gray-600">
+                          Changed from{' '}
+                          <span className="font-semibold text-red-600">{msg.previousStatus}</span>{' '}
+                          to{' '}
+                          <span className="font-semibold text-green-600">{msg.newStatus}</span>{' '}
+                          by{' '}
+                          <span className="font-semibold text-blue-600">{msg.changerRole}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No messages found.</p>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={closeHistoryModal}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View File Modal */}
+      {fileView && (
+        <ViewFile
+          docu={fileView}
+          setFileView={setFileView}
+          handleViewClose={() => setFileView(null)}
+        />
+      )}
     </div>
   );
 };

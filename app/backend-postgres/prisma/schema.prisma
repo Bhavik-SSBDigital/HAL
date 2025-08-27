@@ -8,57 +8,59 @@ datasource db {
 }
 
 model Department {
-  id                 Int       @id @default(autoincrement())
+  id                 Int                      @id @default(autoincrement())
   type               String
-  code               String    @unique
-  name               String    @unique
+  code               String                   @unique
+  name               String                   @unique
   status             String
   headId             Int?
   adminId            Int?
   parentDepartmentId Int?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime? @updatedAt
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime?                @updatedAt
   createdById        Int
-  head               User?     @relation("HeadOfDepartment", fields: [headId], references: [id], onDelete: Cascade)
-  admin              User?     @relation("AdminOfDepartment", fields: [adminId], references: [id], onDelete: Cascade)
-  parentDepartment   Department? @relation("ParentDepartment", fields: [parentDepartmentId], references: [id], onDelete: Cascade)
-  subDepartments     Department[] @relation("ParentDepartment")
+  head               User?                    @relation("HeadOfDepartment", fields: [headId], references: [id], onDelete: Cascade)
+  admin              User?                    @relation("AdminOfDepartment", fields: [adminId], references: [id], onDelete: Cascade)
+  parentDepartment   Department?              @relation("ParentDepartment", fields: [parentDepartmentId], references: [id], onDelete: Cascade)
+  subDepartments     Department[]             @relation("ParentDepartment")
   documents          Document[]
-  roles              Role[]    @relation("BranchRoles")
-  users              User[]    @relation("BranchUsers")
+  roles              Role[]                   @relation("BranchRoles")
+  users              User[]                   @relation("BranchUsers")
   DepartmentRoleAssignment DepartmentRoleAssignment[]
   departmentStepProgresses DepartmentStepProgress[] @relation()
-  documentAccesses   DocumentAccess[] @relation()
+  documentAccesses   DocumentAccess[]         @relation()
+  physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
 }
 
 model Document {
-  id                    Int       @id @default(autoincrement())
+  id                    Int                      @id @default(autoincrement())
   name                  String
   type                  String
-  path                  String    @unique
+  path                  String                   @unique
   createdById           Int
-  createdBy             User?     @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
-  createdOn             DateTime  @default(now())
-  lastUpdatedOn         DateTime  @updatedAt
-  isArchived            Boolean   @default(false)
-  inBin                 Boolean   @default(false)
+  createdBy             User?                    @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
+  createdOn             DateTime                 @default(now())
+  lastUpdatedOn         DateTime                 @updatedAt
+  isArchived            Boolean                  @default(false)
+  inBin                 Boolean                  @default(false)
   parentId              Int?
-  departmentId           Int?
+  departmentId          Int?
   isProject             Boolean?
-  isInvolvedInProcess   Boolean   @default(false)
+  isInvolvedInProcess   Boolean                  @default(false)
   minimumSignsOnFirstPage Int?
-  isRejected            Boolean   @default(false)
-  tags                  String[]  @default([])
-  isRecord              Boolean   @default(true)
-  children              Document[] @relation("DocumentChildren")
-  parent                Document? @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  department            Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  processDocuments      ProcessDocument[] @relation("ProcessDocumentRelation")
-  documentAccesses      DocumentAccess[] @relation("DocumentAccesses")
-  documentHistory       DocumentHistory[] @relation("DocumentHistory")
-  replacedByProcessDocuments ProcessDocument[] @relation("ReplacedDocument")
-  replacedByDocumentHistory DocumentHistory[] @relation("ReplacedDocumentHistory")
-  workflows             Workflow[] @relation("WorkflowTemplates", name: "WorkflowTemplates") 
+  isRejected            Boolean                  @default(false)
+  tags                  String[]                 @default([])
+  isRecord              Boolean                  @default(true)
+  children              Document[]               @relation("DocumentChildren")
+  parent                Document?                @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  department            Department?              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  processDocuments      ProcessDocument[]        @relation("ProcessDocumentRelation")
+  documentAccesses      DocumentAccess[]         @relation("DocumentAccesses")
+  documentHistory       DocumentHistory[]        @relation("DocumentHistory")
+  replacedByProcessDocuments ProcessDocument[]   @relation("ReplacedDocument")
+  replacedByDocumentHistory DocumentHistory[]    @relation("ReplacedDocumentHistory")
+  workflows             Workflow[]               @relation("WorkflowTemplates", name: "WorkflowTemplates")
+  physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
 }
 
 model Role {
@@ -82,44 +84,46 @@ model Role {
 }
 
 model User {
-  id                    Int       @id @default(autoincrement())
-  username              String    @unique
+  id                    Int                      @id @default(autoincrement())
+  username              String                   @unique
   email                 String
   password              String
   name                  String?
-  specialUser           Boolean   @default(false)
-  createdAt             DateTime  @default(now())
+  specialUser           Boolean                  @default(false)
+  createdAt             DateTime                 @default(now())
   isRootLevel           Boolean?
   isAdmin               Boolean?
-  updatedAt             DateTime? @updatedAt
+  updatedAt             DateTime?                @updatedAt
   createdById           Int?
   signaturePicFileName  String?
   profilePicFileName    String?
   dscFileName           String?
-  createdBy             User?     @relation("CreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
-  createdUsers          User[]    @relation("CreatedByRelation")
+  createdBy             User?                    @relation("CreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
+  createdUsers          User[]                   @relation("CreatedByRelation")
   tokens                Token[]
   roles                 UserRole[]
-  branches              Department[] @relation("BranchUsers")
-  headOfDepartments     Department[] @relation("HeadOfDepartment")
-  adminOfDepartments    Department[] @relation("AdminOfDepartment")
+  branches              Department[]             @relation("BranchUsers")
+  headOfDepartments     Department[]             @relation("HeadOfDepartment")
+  adminOfDepartments    Department[]             @relation("AdminOfDepartment")
   workflowsCreated      Workflow[]
   initiatedProcesses    ProcessInstance[]
   qaInitiations         ProcessQA[]
-  processNotifications  ProcessNotification[] @relation("UserNotifications")
-  processClaims         ProcessClaim[] @relation("UserClaims")
-  systemLogs            SystemLog[] @relation("UserSystemLogs")
-  pickedProcessSteps    ProcessStepInstance[] @relation("UserPickedSteps")
-  rejectedProcessDocuments ProcessDocument[] @relation("RejectedByUser")
-  signatures            DocumentSignature[] @relation("UserSignatures")
-  rejections            DocumentRejection[] @relation("UserRejections")
-  signCoordinates       SignCoordinate[] @relation()
-  documentAccesses      DocumentAccess[] @relation()
-  grantedDocumentAccesses DocumentAccess[] @relation("GrantedByUser")
-  documentHistory       DocumentHistory[] @relation("DocumentHistoryByUser")
-  initiatedRecommendations Recommendation[] @relation("RecommendationInitiator")
-  recommendedRecommendations Recommendation[] @relation("RecommendationRecommender")
-  createdDocuments      Document[] @relation("DocumentCreatedByRelation") // Add this line
+  processNotifications  ProcessNotification[]    @relation("UserNotifications")
+  processClaims         ProcessClaim[]           @relation("UserClaims")
+  systemLogs            SystemLog[]              @relation("UserSystemLogs")
+  pickedProcessSteps    ProcessStepInstance[]    @relation("UserPickedSteps")
+  rejectedProcessDocuments ProcessDocument[]      @relation("RejectedByUser")
+  signatures            DocumentSignature[]      @relation("UserSignatures")
+  rejections            DocumentRejection[]      @relation("UserRejections")
+  signCoordinates       SignCoordinate[]         @relation()
+  documentAccesses      DocumentAccess[]         @relation()
+  grantedDocumentAccesses DocumentAccess[]       @relation("GrantedByUser")
+  documentHistory       DocumentHistory[]        @relation("DocumentHistoryByUser")
+  initiatedRecommendations Recommendation[]      @relation("RecommendationInitiator")
+  recommendedRecommendations Recommendation[]   @relation("RecommendationRecommender")
+  createdDocuments      Document[]               @relation("DocumentCreatedByRelation")
+  physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
+  physicalRequestMessages PhysicalRequestMessage[] @relation() // Added relation
 }
 
 model Token {
@@ -611,4 +615,44 @@ enum DocumentActionType {
   REJECTED
   SIGNED
   FEEDBACK
+}
+
+enum PhysicalRequestStatus {
+  PENDING_ADMIN_APPROVAL
+  ADMIN_APPROVED
+  ADMIN_REJECTED
+  PENDING_HOD_APPROVAL
+  HOD_APPROVED
+  HOD_REJECTED
+  PENDING_USER_RESPONSE
+  DOC_RETURNED
+  DOC_SCRAPPED
+}
+
+model PhysicalDocumentRequest {
+  id                 Int                      @id @default(autoincrement())
+  documentId         Int
+  departmentId       Int
+  requestingUserId   Int
+  reason             String
+  status             PhysicalRequestStatus    @default(PENDING_ADMIN_APPROVAL)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  document           Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  department         Department               @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  requestingUser     User                     @relation(fields: [requestingUserId], references: [id], onDelete: Cascade)
+  messages           PhysicalRequestMessage[]
+}
+
+model PhysicalRequestMessage {
+  id                 Int                      @id @default(autoincrement())
+  requestId          Int
+  userId             Int
+  message            String
+  createdAt          DateTime                 @default(now())
+  previousStatus     PhysicalRequestStatus?
+  newStatus          PhysicalRequestStatus?
+  changerRole        String?
+  request            PhysicalDocumentRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

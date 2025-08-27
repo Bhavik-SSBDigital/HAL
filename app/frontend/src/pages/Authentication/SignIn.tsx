@@ -60,6 +60,8 @@ const SignIn: React.FC = () => {
         sessionStorage.setItem('accessToken', res.data['accessToken']);
         sessionStorage.setItem('refreshToken', res.data['refreshToken']);
         sessionStorage.setItem('specialUser', res.data['specialUser']);
+        sessionStorage.setItem('isAdmin', res.data['isAdmin']);
+        sessionStorage.setItem('isDepartmentHead', res.data['isDepartmentHead']);
         const checking = await connect_socket();
         console.log(checking);
         navigate('/');
