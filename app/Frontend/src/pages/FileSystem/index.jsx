@@ -391,6 +391,7 @@ export default function FileSysten() {
     try {
       // data has { departmentId, reason }
       await createPhysicalRequest({ ...data, documentId: selectedItem?.id });
+      toast.success('Physical document request sent.');
       resetDepartment(); // clear form after submit
       setOpen(false);
     } catch (err) {
