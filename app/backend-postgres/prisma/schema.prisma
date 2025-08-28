@@ -123,6 +123,7 @@ model User {
   initiatedProcesses    ProcessInstance[]
   qaInitiations         ProcessQA[]
   processNotifications  ProcessNotification[]    @relation("UserNotifications")
+  searchHistories        SearchHistory[]          @relation() // Add this line
   processClaims         ProcessClaim[]           @relation("UserClaims")
   systemLogs            SystemLog[]              @relation("UserSystemLogs")
   bookmarks Bookmark[]
