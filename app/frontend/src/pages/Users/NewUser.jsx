@@ -60,7 +60,6 @@ export default function NewUser() {
       setActionsLoading(true);
       try {
         const response = await GetUser(id);
-        console.log(response);
         reset(response?.data?.data);
       } catch (error) {
         console.log(error?.response?.data?.message || error?.message);

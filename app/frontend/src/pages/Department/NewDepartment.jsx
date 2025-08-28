@@ -153,7 +153,7 @@ export default function NewDepartment() {
             />
             <CustomButton
               type="button"
-              variant={'info'}
+              variant={'secondary'}
               className={'w-full'}
               click={() => navigate('/roles/createNew')}
               disabled={isSubmitting || loading}

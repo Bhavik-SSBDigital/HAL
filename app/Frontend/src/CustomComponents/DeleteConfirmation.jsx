@@ -11,7 +11,7 @@ export default function DeleteConfirmationModal({
 
   return (
     <CustomModal isOpen={isOpen} className={'!p-2'} onClose={onClose}>
-      <div className="bg-gray-800 bg-white p-6 rounded-lg w-96">
+      <div className="bg-gray-800 bg-white p-6 rounded-lg w-full">
         <p className="text-lg font-semibold">Confirm Deletion</p>
         <p className="text-gray-300 mt-2">
           Are you sure you want to delete this item?

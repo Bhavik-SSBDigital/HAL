@@ -78,7 +78,7 @@ export default function WorkflowVisualizer() {
       }
     } catch (error) {
       console.error('Error deleting branch:', error);
-      toast.error(error?.response?.data?.message || error?.message);
+      toast.error(error?.response?.data?.error || error?.message);
     }
     setDeleteItemId(null);
     setDeleteLoading(false);
