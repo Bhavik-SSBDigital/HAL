@@ -14,6 +14,8 @@ import { verifyUser } from "../utility/verifyUser.js";
 import archiver from "archiver";
 import { promisify } from "util";
 import { pipeline } from "stream";
+import SearchIndexService from "../services/seach-index-service.js";
+
 // import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import dotnev from "dotenv";
 
@@ -31,6 +33,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const COLLABORA_URL = process.env.WOPI_SERVER_URL;
+import { exec } from "child_process";
+const execPromise = promisify(exec);
 
 function getContentTypeFromExtension(extension) {
   const mimeTypes = {
@@ -63,6 +67,37 @@ function getContentTypeFromExtension(extension) {
 }
 
 const STORAGE_PATH = process.env.STORAGE_PATH;
+
+async function executeTextExtractionScript(filePath) {
+  const pythonEnvPath = path.join(__dirname, "../../support/venv/bin/python");
+  const pythonScriptPath = path.join(
+    __dirname,
+    "../../support/text_extraction.py"
+  );
+
+  const command = `${pythonEnvPath} ${pythonScriptPath} "${filePath}"`;
+
+  try {
+    const { stdout, stderr } = await execPromise(command);
+
+    if (stderr) {
+      console.error(`Python script stderr: ${stderr}`);
+    }
+
+    const result = JSON.parse(stdout);
+
+    console.log("result", result);
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`Error executing text extraction script: ${error.message}`);
+    throw error;
+  }
+}
 
 export const file_upload = async (req, res) => {
   try {
@@ -174,6 +209,78 @@ export const file_upload = async (req, res) => {
 
           await storeChildIdInParentDocument(extra, newDocument.id);
 
+          // In the setTimeout block
+          setTimeout(async () => {
+            try {
+              const absolutePath = path.join(
+                __dirname,
+                STORAGE_PATH,
+                newDocument.path
+              );
+
+              // Check if file exists
+              try {
+                await fs.access(absolutePath);
+                console.log(`File exists: ${absolutePath}`);
+              } catch (err) {
+                console.error(`File not found: ${absolutePath}`, err);
+                return;
+              }
+
+              // Check file size
+              const stats = await fs.stat(absolutePath);
+              if (stats.size === 0) {
+                console.warn(`File is empty: ${absolutePath}`);
+                return;
+              }
+
+              const ext = path.extname(absolutePath).toLowerCase();
+              console.log(
+                `Processing document ${newDocument.id} (${newDocument.name}) with extension: ${ext}, size: ${stats.size} bytes`
+              );
+
+              // Use Python for text extraction
+              let content = "";
+              try {
+                const extractionResult = await executeTextExtractionScript(
+                  absolutePath
+                );
+
+                if (extractionResult.success) {
+                  content = extractionResult.text;
+                  console.log(
+                    `Content extracted for document ${newDocument.id}: ${content.length} characters`
+                  );
+                  console.log(`Preview: ${content.substring(0, 200)}...`);
+                } else {
+                  console.warn(
+                    `No content extracted for document ${newDocument.id} (${newDocument.name}), extension: ${ext}`
+                  );
+                }
+              } catch (error) {
+                console.error(`Python extraction failed: ${error.message}`);
+              }
+
+              // Index the content (even if empty to avoid re-processing)
+              await SearchIndexService.indexDocumentContent(
+                newDocument.id,
+                content
+              );
+
+              if (content.trim().length > 0) {
+                console.log(`Successfully indexed document ${newDocument.id}`);
+              } else {
+                console.log(
+                  `Indexed document ${newDocument.id} with empty content`
+                );
+              }
+            } catch (error) {
+              console.error(
+                `Content indexing failed for document ${newDocument.id}:`,
+                error
+              );
+            }
+          }, 1000);
           return res.status(200).json({
             message: "File upload completed.",
             documentId: newDocument.id,
@@ -910,20 +1017,20 @@ export const file_delete = async (req, res) => {
       });
     }
 
-    let documentPath = process.env.STORAGE_PATH + req.body.path.substring(2);
+    // Find the document in the database by its path
+    const document = await prisma.document.findUnique({
+      where: { id: req.body.documentId },
+      // include: { history: true, highlights: true }, // Include related data if needed
+    });
+
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + req.body.path.substring(2)
+      process.env.STORAGE_PATH,
+      document.path
     );
 
     // Check if file exists in the filesystem
     await fs.access(absolutePath);
-
-    // Find the document in the database by its path
-    const document = await prisma.document.findUnique({
-      where: { path: documentPath },
-      include: { history: true, highlights: true }, // Include related data if needed
-    });
 
     if (!document) {
       return res.status(404).json({

@@ -98,6 +98,7 @@ export default function DocumentSearch() {
       }
     };
 
+    check('content', 'Content', doc.content);
     check('processName', 'Process Name', doc.processName);
     check('processId', 'Process ID', doc.processId);
     check('description', 'Description', doc.description);
@@ -231,6 +232,18 @@ export default function DocumentSearch() {
           <input
             {...register('name')}
             placeholder="Enter document name"
+            className="w-full border p-2 rounded"
+          />
+        </div>
+
+        {/* content */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Content
+          </label>
+          <input
+            {...register('content')}
+            placeholder="Search document content"
             className="w-full border p-2 rounded"
           />
         </div>

@@ -105,6 +105,9 @@ export const get_department = async (req, res) => {
       where: { id: parseInt(id) },
     });
 
+    console.log("department", department);
+
+    department["department"] = department.name || "";
     if (!department) {
       return res.status(404).json({ error: "Department not found." });
     }

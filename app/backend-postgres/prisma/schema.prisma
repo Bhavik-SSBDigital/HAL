@@ -52,6 +52,7 @@ model Document {
   tags                  String[]                 @default([])
   isRecord              Boolean                  @default(true)
   children              Document[]               @relation("DocumentChildren")
+  documentContent DocumentContent?
   parent                Document?                @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
   department            Department?              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   processDocuments      ProcessDocument[]        @relation("ProcessDocumentRelation")
@@ -61,6 +62,18 @@ model Document {
   replacedByDocumentHistory DocumentHistory[]    @relation("ReplacedDocumentHistory")
   workflows             Workflow[]               @relation("WorkflowTemplates", name: "WorkflowTemplates")
   physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
+}
+
+model DocumentContent {
+  id               Int      @id @default(autoincrement())
+  documentId       Int      @unique
+  content          String   @db.Text
+  indexedAt        DateTime @default(now())
+  content_tsvector Unsupported("tsvector")?
+
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([indexedAt])
 }
 
 model Role {

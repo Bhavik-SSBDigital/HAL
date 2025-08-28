@@ -9,6 +9,8 @@ import {
   getParents,
 } from "../utility/accessFunction.js";
 
+import SearchIndexService from "../services/seach-index-service.js";
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -666,14 +668,69 @@ export const search_documents = async (req, res) => {
       description,
       preApproved,
       superseding,
+      content,
       page = "1",
       pageSize = "10",
     } = req.query;
 
-    // Convert string parameters to appropriate types
+    // Convert string parameters to appropriate types at the start
     const parsedPartNumber = partNumber ? parseInt(partNumber, 10) : undefined;
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
+
+    // Handle content search - this now uses the Python-extracted content
+    if (content) {
+      try {
+        const contentResults = await SearchIndexService.searchContent(content, {
+          page: parsedPage,
+          pageSize: parsedPageSize,
+        });
+
+        // Format the results to match the structure of regular search
+        const formattedResults = contentResults.results.map((result) => ({
+          id: result.id,
+          path: result.path.split("/").slice(0, -1).join("/"),
+          tags: result.tags,
+          name: result.name,
+          isArchived: result.isArchived,
+          inBin: result.inBin,
+          createdByUsername: result.createdByUsername,
+          partNumber: result.partNumber,
+          processId: result.processId,
+          processName: result.processName,
+          description: result.description,
+          preApproved: result.preApproved,
+          superseding: result.superseding,
+          contentSnippet: result.contentSnippet, // Add content snippet for content search
+          searchScore: result.rank, // Add search relevance score
+        }));
+
+        return res.status(200).json({
+          data: serializeBigInt(formattedResults),
+          pagination: {
+            page: parsedPage,
+            pageSize: parsedPageSize,
+            totalCount: contentResults.totalCount,
+            totalPages: contentResults.totalPages,
+          },
+          searchType: "content",
+          searchQuery: content,
+        });
+      } catch (error) {
+        console.error("Error in content search:", error);
+
+        // If content search fails, fall back to metadata search with content in name/description
+        console.log("Falling back to metadata search for content:", content);
+
+        // Continue with regular search but include content in name/description search
+        req.query.name = content;
+        req.query.description = content;
+        delete req.query.content;
+
+        // Recursively call itself without content parameter
+        return search_documents(req, res);
+      }
+    }
 
     // Validate inputs
     if (partNumber && isNaN(parsedPartNumber)) {
@@ -717,36 +774,37 @@ export const search_documents = async (req, res) => {
     };
 
     // Add ProcessDocument-related conditions
-    if (
-      parsedPartNumber ||
-      processId ||
-      processName ||
-      description ||
-      preApproved !== undefined ||
-      superseding !== undefined
-    ) {
+    const processDocumentConditions = [];
+
+    if (parsedPartNumber) {
+      processDocumentConditions.push({ partNumber: parsedPartNumber });
+    }
+    if (processId) {
+      processDocumentConditions.push({ processId });
+    }
+    if (processName) {
+      processDocumentConditions.push({
+        process: {
+          name: { contains: processName, mode: "insensitive" },
+        },
+      });
+    }
+    if (description) {
+      processDocumentConditions.push({
+        description: { contains: description, mode: "insensitive" },
+      });
+    }
+    if (preApproved !== undefined) {
+      processDocumentConditions.push({ preApproved: preApproved === "true" });
+    }
+    if (superseding !== undefined) {
+      processDocumentConditions.push({ superseding: superseding === "true" });
+    }
+
+    if (processDocumentConditions.length > 0) {
       where.processDocuments = {
         some: {
-          AND: [
-            parsedPartNumber ? { partNumber: parsedPartNumber } : {},
-            processId ? { processId } : {},
-            processName
-              ? {
-                  process: {
-                    name: { contains: processName, mode: "insensitive" },
-                  },
-                }
-              : {},
-            description
-              ? { description: { contains: description, mode: "insensitive" } }
-              : {},
-            preApproved !== undefined
-              ? { preApproved: preApproved === "true" }
-              : {},
-            superseding !== undefined
-              ? { superseding: superseding === "true" }
-              : {},
-          ],
+          AND: processDocumentConditions,
         },
       };
     }
@@ -783,6 +841,12 @@ export const search_documents = async (req, res) => {
             },
           },
         },
+        documentContent: {
+          select: {
+            content: true,
+            indexedAt: true,
+          },
+        },
       },
       skip: (parsedPage - 1) * parsedPageSize,
       take: parsedPageSize,
@@ -797,13 +861,15 @@ export const search_documents = async (req, res) => {
       name: doc.name,
       isArchived: doc.isArchived,
       inBin: doc.inBin,
-      createdByUsername: doc.createdBy?.username || null, // Fixed typo: cr -> createdBy
+      createdByUsername: doc.createdBy?.username || null,
       partNumber: doc.processDocuments[0]?.partNumber || null,
       processId: doc.processDocuments[0]?.processId || null,
       processName: doc.processDocuments[0]?.process?.name || null,
       description: doc.processDocuments[0]?.description || null,
       preApproved: doc.processDocuments[0]?.preApproved || null,
       superseding: doc.processDocuments[0]?.superseding || null,
+      hasContent: !!doc.documentContent?.content, // Indicate if content is available
+      contentIndexedAt: doc.documentContent?.indexedAt, // When content was indexed
     }));
 
     // Get total count for pagination
@@ -817,11 +883,10 @@ export const search_documents = async (req, res) => {
         totalCount,
         totalPages: Math.ceil(totalCount / parsedPageSize),
       },
+      searchType: "metadata",
     });
   } catch (error) {
     console.error("Error searching documents:", error);
     res.status(500).json({ error: "Internal server error" });
-  } finally {
-    await prisma.$disconnect();
   }
 };
