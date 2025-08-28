@@ -65,12 +65,12 @@ export default function WorkflowForm({
   const handleAssignmentSubmit = (assignment) => {
     const updatedSteps = [...stepFields];
     const stepName = getValues(`steps.${currentStepIndex}.stepName`);
-  
+
     // If assigneeType is DEPARTMENT, set the direction from selectedNodes
     if (assignment.assigneeType === 'DEPARTMENT' && selectedNodes.length > 0) {
       assignment.direction = selectedNodes[0]?.direction || null; // Use the direction from selectedNodes
     }
-  
+
     updatedSteps[currentStepIndex].assignments = [
       ...(updatedSteps[currentStepIndex].assignments || []),
       { ...assignment, selectedRoles: selectedNodes },
@@ -370,16 +370,26 @@ function AssignmentForm({
     })(data);
 
     // Build step-based output
-    const stepGroups =
-      direction === 'UPWARDS'
-        ? [
-            { step: 1, roles: leaves.map((id) => idToName[id]) },
-            { step: 2, roles: uniqueParents.map((id) => idToName[id]) },
-          ]
-        : [
-            { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
-            { step: 2, roles: leaves.map((id) => idToName[id]) },
-          ];
+    let stepGroups = [];
+
+    if (leaves.length && uniqueParents.length) {
+      stepGroups =
+        direction === 'UPWARDS'
+          ? [
+              { step: 1, roles: leaves.map((id) => idToName[id]) },
+              { step: 2, roles: uniqueParents.map((id) => idToName[id]) },
+            ]
+          : [
+              { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
+              { step: 2, roles: leaves.map((id) => idToName[id]) },
+            ];
+    } else if (leaves.length) {
+      stepGroups = [{ step: 1, roles: leaves.map((id) => idToName[id]) }];
+    } else if (uniqueParents.length) {
+      stepGroups = [
+        { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
+      ];
+    }
 
     // Return JSX UI
     return (
@@ -444,7 +454,7 @@ function AssignmentForm({
   const [hierarchyData, setHierarchyData] = useState({});
   const [loading, setLoading] = useState(false);
   const selectedDepartments = departmentList.filter((dep) =>
-    assigneeIds?.map((item) => item?.id == dep?.id),
+    assigneeIds?.some((item) => item?.id == dep?.id),
   );
 
   const currentDepartment = selectedDepartments?.[currentPage];
