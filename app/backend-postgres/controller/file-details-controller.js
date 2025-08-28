@@ -24,6 +24,7 @@ function removeDuplicates(array) {
 
 import dotenv from "dotenv";
 import { serializeBigInt } from "./process-controller.js";
+import { isDocumentBookmarked } from "./file-controller.js";
 
 dotenv.config();
 
@@ -200,6 +201,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
 
             return {
               id: child.id,
+              isDocumentBookmarked: isDocumentBookmarked(userData.id, child.id),
               path: `${child.path.slice(0, -child.name.length - 1)}`,
               name: child.name,
               type: child.type,
@@ -273,6 +275,10 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               return {
                 id: child.id,
                 path: `${child.path.slice(0, -child.name.length - 1)}`,
+                isDocumentBookmarked: isDocumentBookmarked(
+                  userData.id,
+                  child.id
+                ),
                 name: child.name,
                 isArchived: child.isArchived ?? false,
                 inBin: child.inBin ?? false,

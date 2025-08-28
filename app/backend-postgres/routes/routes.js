@@ -97,6 +97,9 @@ import {
   wopiUnlock,
   wopiRefreshLock,
   downloadWatermarkedFile,
+  bookmark_document,
+  get_bookmarked_documents,
+  remove_bookmark_document,
 } from "../controller/file-controller.js";
 
 import {
@@ -245,6 +248,7 @@ router.get("/getUserProcesses", get_user_processes);
 router.post("/changePassword", change_password);
 
 router.post("/signDocument", sign_document);
+
 router.post("/revokeSign", revoke_sign);
 router.post("/rejectDocument", reject_document);
 router.post("/revokeRejection", revoke_rejection);
@@ -265,6 +269,10 @@ router.post("/recommendations/signDocument", signAsRecommender);
 router.post("/recommendations/respond", submitRecommendationResponse);
 router.get("/recommendations/getRecommendations", get_recommendations);
 router.get("/recommendations/:recommendationId", get_recommendation);
+
+router.post("/bookmarkDocument", bookmark_document);
+router.get("/getBookmarkedDocuments", get_bookmarked_documents);
+router.delete("/removeBookmark", remove_bookmark_document);
 // router.get("/queries/process/:processId", getProcessQueries);
 // router.post("/queries/respond/:queryId", respondToQuery);
 // router.post("/queries/documents/approve/:documentId", approveQueryDocument);

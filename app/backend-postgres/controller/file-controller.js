@@ -2166,3 +2166,166 @@ export const downloadWatermarkedFile = async (req, res) => {
     }
   }
 };
+
+export const bookmark_document = async (req, res) => {
+  const accessToken = req.headers["authorization"].substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({
+      message: "Unauthorized request",
+    });
+  }
+
+  const userId = userData.id;
+  const documentId = req.body.documentId; // Assuming userId and documentId are sent in request body
+  if (!userId || !documentId) {
+    return res.status(400).json({ error: "Missing userId or documentId" });
+  }
+  try {
+    const existingBookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_documentId: {
+          userId: parseInt(userId),
+          documentId: parseInt(documentId),
+        },
+      },
+    });
+    if (existingBookmark) {
+      return res
+        .status(400)
+        .json({ error: "Document already bookmarked by this user" });
+    }
+    const newBookmark = await prisma.bookmark.create({
+      data: {
+        userId: parseInt(userId),
+        documentId: parseInt(documentId),
+      },
+    });
+    res.status(201).json({
+      message: "Document bookmarked successfully",
+      bookmark: newBookmark,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to bookmark document" });
+  }
+};
+
+export const get_bookmarked_documents = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  if (!accessToken) {
+    return res.status(401).json({ message: "No authorization token provided" });
+  }
+
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({ message: "Unauthorized request" });
+  }
+
+  const userId = userData.id;
+  if (!userId) {
+    return res.status(400).json({ error: "Missing userId" });
+  }
+
+  try {
+    const bookmarks = await prisma.bookmark.findMany({
+      where: {
+        userId: parseInt(userId),
+      },
+      include: {
+        document: {
+          select: {
+            id: true,
+            documentName: true,
+            documentPath: true,
+          },
+        },
+      },
+    });
+
+    const bookmarkedDocuments = bookmarks.map((bookmark) => ({
+      documentId: bookmark.document.id,
+      documentName: bookmark.document.documentName,
+      documentPath: bookmark.document.documentPath
+        .split("/")
+        .slice(0, -1)
+        .join("/"),
+    }));
+
+    res.status(200).json({
+      message: "Bookmarked documents retrieved successfully",
+      documents: bookmarkedDocuments,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to retrieve bookmarked documents" });
+  }
+};
+
+export const isDocumentBookmarked = async (userId, documentId) => {
+  try {
+    const bookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_documentId: {
+          userId: parseInt(userId),
+          documentId: parseInt(documentId),
+        },
+      },
+    });
+
+    return !!bookmark;
+  } catch (error) {
+    console.error(error);
+    throw new Error("Failed to check bookmark status");
+  }
+};
+
+export const remove_bookmark_document = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  if (!accessToken) {
+    return res.status(401).json({ message: "No authorization token provided" });
+  }
+
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({ message: "Unauthorized request" });
+  }
+
+  const userId = userData.id;
+  const { documentId } = req.body;
+
+  if (!userId || !documentId) {
+    return res.status(400).json({ error: "Missing userId or documentId" });
+  }
+
+  try {
+    const existingBookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_documentId: {
+          userId: parseInt(userId),
+          documentId: parseInt(documentId),
+        },
+      },
+    });
+
+    if (!existingBookmark) {
+      return res.status(404).json({ error: "Bookmark not found" });
+    }
+
+    await prisma.bookmark.delete({
+      where: {
+        userId_documentId: {
+          userId: parseInt(userId),
+          documentId: parseInt(documentId),
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Bookmark removed successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to remove bookmark" });
+  }
+};

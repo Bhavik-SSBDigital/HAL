@@ -51,6 +51,7 @@ model Document {
   isRejected            Boolean                  @default(false)
   tags                  String[]                 @default([])
   isRecord              Boolean                  @default(true)
+  bookmarks Bookmark[]
   children              Document[]               @relation("DocumentChildren")
   documentContent DocumentContent?
   parent                Document?                @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
@@ -124,6 +125,7 @@ model User {
   processNotifications  ProcessNotification[]    @relation("UserNotifications")
   processClaims         ProcessClaim[]           @relation("UserClaims")
   systemLogs            SystemLog[]              @relation("UserSystemLogs")
+  bookmarks Bookmark[]
   pickedProcessSteps    ProcessStepInstance[]    @relation("UserPickedSteps")
   rejectedProcessDocuments ProcessDocument[]      @relation("RejectedByUser")
   signatures            DocumentSignature[]      @relation("UserSignatures")
@@ -668,4 +670,14 @@ model PhysicalRequestMessage {
   changerRole        String?
   request            PhysicalDocumentRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  documentId Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([userId, documentId])
 }
