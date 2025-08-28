@@ -20,6 +20,7 @@ import {
   IconArchive,
   IconSearch,
   IconScript,
+  IconBookmark,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -121,6 +122,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       label: 'Archive Files',
       icon: <IconArchive size={26} />,
       active: pathname == '/archive',
+    },
+    {
+      path: '/bookmark',
+      label: 'Bookmarked Files',
+      icon: <IconBookmark size={26} />,
+      active: pathname == '/bookmark',
     },
     // {
     //   path: '/Search',

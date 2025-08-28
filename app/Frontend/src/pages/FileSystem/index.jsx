@@ -5,6 +5,7 @@ import { Await, useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
 import {
   ArchiveFile,
+  BookmarkDocument,
   CopyPaste,
   CreateFolder,
   createPhysicalRequest,
@@ -16,6 +17,7 @@ import {
   getDepartments,
   GetFolderData,
   GetRootFolders,
+  RemoveBookmark,
   ViewDocument,
 } from '../../common/Apis';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
@@ -34,6 +36,8 @@ import {
   IconArchive,
   IconTrash,
   IconScript,
+  IconBookmark,
+  IconBookmarkFilled,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
@@ -322,6 +326,49 @@ export default function FileSysten() {
       setIsMenuOpen(false);
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+
+  // handler to bookmark
+  const handleBookMark = async (id) => {
+    try {
+      const response = await BookmarkDocument(id);
+      setData((prev) =>
+        prev.map((item) => {
+          return item.id == id
+            ? {
+                ...item,
+                isDocumentBookmarked: true,
+              }
+            : item;
+        }),
+      );
+      setSelectedItem((prev) => ({ ...prev, isDocumentBookmarked: true }));
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.message);
+    }
+  };
+
+  // handler to remove bookmark
+  const handleBookMarkRemove = async (id) => {
+    try {
+      const response = await RemoveBookmark(id);
+      setData((prev) =>
+        prev.map((item) => {
+          return item.id == id
+            ? {
+                ...item,
+                isDocumentBookmarked: false,
+              }
+            : item;
+        }),
+      );
+      setSelectedItem((prev) => ({ ...prev, isDocumentBookmarked: false }));
+
+      toast.success(response?.data?.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.message);
     }
   };
 
@@ -749,6 +796,27 @@ export default function FileSysten() {
                   className="w-full flex items-center gap-2"
                   click={() =>
                     handleDownload(selectedItem.name, selectedItem.path)
+                  }
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    !selectedItem.isDocumentBookmarked ? (
+                      <>
+                        <IconBookmark size={18} /> Bookmark
+                      </>
+                    ) : (
+                      <>
+                        <IconBookmarkFilled size={18} /> Remove Bookmark
+                      </>
+                    )
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() =>
+                    selectedItem.isDocumentBookmarked
+                      ? handleBookMarkRemove(selectedItem.id)
+                      : handleBookMark(selectedItem.id)
                   }
                   disabled={actionsLoading}
                 />

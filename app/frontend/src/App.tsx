@@ -37,6 +37,7 @@ import TimelinePage from './pages/Timeline/TimelinePage';
 import Archive from './pages/Archive';
 import Templates from './pages/Templates';
 import CompletedProcesses from './pages/Processes/CompletedProcesses';
+import Bookmark from './pages/Bookmark';
 
 function App() {
   const dispatch = useDispatch();
@@ -146,6 +147,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Archive Files" />
               <Archive />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/bookmark"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Bookmarked Files" />
+              <Bookmark />
             </DefaultLayout>
           }
         />
