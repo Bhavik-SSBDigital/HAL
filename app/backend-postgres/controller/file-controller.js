@@ -2238,15 +2238,17 @@ export const get_bookmarked_documents = async (req, res) => {
             id: true,
             name: true,
             path: true,
+            type: true,
           },
         },
       },
     });
 
     const bookmarkedDocuments = bookmarks.map((bookmark) => ({
-      documentId: bookmark.document.id,
-      documentName: bookmark.document.name,
-      documentPath: bookmark.document.path.split("/").slice(0, -1).join("/"),
+      id: bookmark.document.id,
+      name: bookmark.document.name,
+      path: bookmark.document.path.split("/").slice(0, -1).join("/"),
+      type: bookmark.document.type,
     }));
 
     res.status(200).json({
