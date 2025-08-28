@@ -9,16 +9,16 @@ export default function CustomModal({
   size = '3xl',
 }) {
   const sizeClasses = {
-    xs: 'max-w-xs min-w-[16rem]',
-    sm: 'max-w-sm min-w-[20rem]',
-    md: 'max-w-md min-w-[24rem]',
-    lg: 'max-w-lg min-w-[28rem]',
-    xl: 'max-w-xl min-w-[32rem]',
-    '2xl': 'max-w-2xl min-w-[36rem]',
-    '3xl': 'max-w-3xl min-w-[40rem]',
-    '4xl': 'max-w-4xl min-w-[48rem]',
-    '5xl': 'max-w-5xl min-w-[56rem]',
-    '6xl': 'max-w-6xl min-w-[64rem]',
+    xs: 'max-w-xs w-full',
+    sm: 'max-w-sm w-full',
+    md: 'max-w-md w-full',
+    lg: 'max-w-lg w-full',
+    xl: 'max-w-xl w-full',
+    '2xl': 'max-w-2xl w-full',
+    '3xl': 'max-w-3xl w-full',
+    '4xl': 'max-w-4xl w-full',
+    '5xl': 'max-w-5xl w-full',
+    '6xl': 'max-w-6xl w-full',
     full: 'w-full h-full',
   };
 
