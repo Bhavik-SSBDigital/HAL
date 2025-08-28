@@ -243,6 +243,17 @@ export const GenerateDocumentName = async (
 export const GetDocumentsVersionWise = async (version, processId) => {
   return apiClient.get(`/processDocuments/${processId}/${version}`);
 };
+export const BookmarkDocument = async (documentId) => {
+  return apiClient.post('/bookmarkDocument', { documentId });
+};
+export const GetBookmarkedDocuments = async () => {
+  return apiClient.get('/getBookmarkedDocuments');
+};
+export const RemoveBookmark = async (documentId) => {
+  return apiClient.delete('/removeBookmark', {
+    data: { documentId },
+  });
+};
 
 // processes endpoints
 export const ProcessInitiate = async (data) => {
@@ -420,6 +431,12 @@ export const useTemplateDocument = async (formData) => {
 // searching
 export const deepSearch = async (queryParams) => {
   return apiClient.get(`/searchDocuments?${queryParams}`);
+};
+export const getSearches = async () => {
+  return apiClient.get(`/get_searches`);
+};
+export const deleteSearch = async (id) => {
+  return apiClient.delete(`/delete_search/${id}`);
 };
 
 // physical document

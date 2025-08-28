@@ -17,6 +17,8 @@ import {
   ViewDocument,
   getDepartments,
   createPhysicalRequest,
+  getSearches,
+  deleteSearch,
 } from '../../common/Apis';
 
 export default function DocumentSearch() {
@@ -33,12 +35,16 @@ export default function DocumentSearch() {
   const [open, setOpen] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionsLoading, setActionsLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
 
   // Form for physical document request
   const {
     register: registerDepartment,
     handleSubmit: handleSubmitDepartment,
-    formState: { errors: departmentErrors, isSubmitting: isSubmittingDepartment },
+    formState: {
+      errors: departmentErrors,
+      isSubmitting: isSubmittingDepartment,
+    },
     control: controlDepartment,
     reset: resetDepartment,
   } = useForm({
@@ -49,6 +55,23 @@ export default function DocumentSearch() {
   });
 
   // Handlers
+
+  const handleSearchAgain = (query) => {
+    // directly reuse your onSubmit logic
+    setLastQuery(query);
+    fetchDocuments(query, true);
+  };
+
+  const handleRemoveSearch = async (id) => {
+    try {
+      const response = await deleteSearch(id);
+      toast.success(response?.data?.message);
+      setRecentSearches((prev) => prev.filter((s) => s.id !== id));
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.message);
+    }
+  };
+
   const fetchDocuments = async (data, showToast) => {
     setLoading(true);
     try {
@@ -80,8 +103,19 @@ export default function DocumentSearch() {
       }
       return acc;
     }, {});
+
     setLastQuery(usedFilters);
     fetchDocuments(usedFilters, true);
+
+    // Add to recent searches
+    const newEntry = {
+      id: Date.now(), // or use uuid
+      searchQuery: usedFilters,
+      searchType: 'metadata', // you can adjust dynamically
+      searchedAt: new Date().toISOString(),
+    };
+
+    setRecentSearches((prev) => [newEntry, ...prev].slice(0, 10)); // keep max 10
   };
 
   const getMatchedFields = (doc) => {
@@ -210,395 +244,462 @@ export default function DocumentSearch() {
     }
   };
 
+  const getRecentSearches = async () => {
+    try {
+      const response = await getSearches();
+      setRecentSearches(response?.data?.data || []);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   useEffect(() => {
+    getRecentSearches();
     getUsers();
     getDepartmentList();
   }, []);
 
   return (
-    <CustomCard className={'mx-auto'}>
-      {loading && <TopLoader />}
-      <Title text={'Deep Document Search'} />
-
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4"
-      >
-        {/* name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Document Name
-          </label>
-          <input
-            {...register('name')}
-            placeholder="Enter document name"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* content */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Content
-          </label>
-          <input
-            {...register('content')}
-            placeholder="Search document content"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* tags */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tags
-          </label>
-          <input
-            {...register('tags')}
-            placeholder="Comma-separated tags"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* partNumber */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Part Number
-          </label>
-          <input
-            {...register('partNumber')}
-            placeholder="Enter part number"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* isArchived */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Archived
-          </label>
-          <select
-            {...register('isArchived')}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-
-        {/* inBin */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            In Bin
-          </label>
-          <select {...register('inBin')} className="w-full border p-2 rounded">
-            <option value="">Select</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-
-        {/* createdByUsername */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Created By
-          </label>
-          <select
-            {...register('createdByUsername')}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select</option>
-            {users?.map((user, index) => {
-              const roles = user.roles?.join(', ') || 'No Roles';
-              const departments = user.departments?.length
-                ? `(${user.departments.join(', ')})`
-                : '';
-
-              return (
-                <option key={user.id} value={user.username}>
-                  {`${user.username} - ${roles} ${departments}`}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-
-        {/* processName */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Process Name
-          </label>
-          <input
-            {...register('processName')}
-            placeholder="Enter process name"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* processId */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Process ID
-          </label>
-          <input
-            {...register('processId')}
-            placeholder="Enter process ID"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <input
-            {...register('description')}
-            placeholder="Enter description"
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* preApproved */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pre-Approved
-          </label>
-          <select
-            {...register('preApproved')}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-
-        {/* superseding */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Superseding
-          </label>
-          <select
-            {...register('superseding')}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-
-        {/* Buttons */}
-        <div className="md:col-span-2 flex justify-end gap-4 mt-2">
-          <CustomButton disabled={loading} type="submit" text="Search" />
-          <CustomButton
-            text="Clear"
-            type="button"
-            variant="none"
-            disabled={loading}
-            click={() => {
-              reset();
-              setResults([]);
-              setLastQuery(null);
-              setPagination({
-                page: 1,
-                pageSize: 10,
-                totalCount: 0,
-                totalPages: 1,
-              });
-            }}
-          />
-        </div>
-      </form>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-        {results.map((doc) => {
-          const extension = doc.name?.split('.').pop()?.toLowerCase();
-          const matchedFields = getMatchedFields(doc);
-
-          return (
-            <CustomCard
-              key={doc.id}
-              className="relative flex flex-col justify-between"
+    <div className="space-y-2">
+      {/* Recent Searches Section */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">
+          Recent Searches
+        </h3>
+        <div className="space-y-3">
+          {recentSearches.map((search) => (
+            <div
+              key={search.id}
+              className="flex items-center justify-between border p-3 rounded shadow-sm bg-white"
             >
-              {/* Status Badge */}
-              <div className="absolute top-0 right-1">
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${
-                    doc.inBin
-                      ? 'bg-red-100 text-red-800'
-                      : doc?.isArchived
-                        ? 'bg-orange-100 text-orange-800'
-                        : 'bg-green-100 text-green-800'
-                  }`}
-                >
-                  {doc.isArchived
-                    ? 'Archived'
-                    : doc.inBin
-                      ? 'Deleted'
-                      : 'Active'}
-                </span>
+              {/* Search Query Preview */}
+              <div className="text-sm text-gray-700">
+                <p className="font-medium">Type: {search.searchType}</p>
+                <p className="text-xs text-gray-500">
+                  {Object.entries(search.searchQuery)
+                    .map(([key, val]) => `${key}: ${val}`)
+                    .join(', ')}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {new Date(search.searchedAt).toLocaleString()}
+                </p>
               </div>
-
-              {/* Header */}
-              <div className="flex gap-3 items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  <img
-                    width={28}
-                    src={ImageConfig[extension] || ImageConfig['default']}
-                    alt="icon"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold break-words">
-                    {highlightMatch('name', doc.name)}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Type: {highlightMatch('partNumber', extension)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Matched Info */}
-              {matchedFields.length > 0 && (
-                <div className="mt-4 text-sm bg-gray-50 border rounded p-2 space-y-1">
-                  <p className="font-medium text-gray-700">Matched Info:</p>
-                  {matchedFields.map((field, i) => (
-                    <p key={i} className="text-gray-600">
-                      <span className="font-medium">{field.label}:</span>{' '}
-                      {field.value}
-                    </p>
-                  ))}
-                </div>
-              )}
 
               {/* Actions */}
-              <div className="mt-4 flex justify-end gap-2">
+              <div className="flex space-x-2">
                 <CustomButton
-                  text={<IconEye size={18} className="text-white" />}
-                  title="View (Updated)"
-                  click={() =>
-                    handleViewFile(doc.name, doc.path, doc.id, extension, false)
-                  }
+                  text="Search Again"
+                  disabled={actionsLoading}
+                  click={() => handleSearchAgain(search.searchQuery)}
                 />
                 <CustomButton
-                  text={<IconScript size={18} className="text-white" />}
-                  title="Request Physical Document"
-                  click={() => handlePhysicalDocumentRequest(doc)}
+                  text="Remove"
                   disabled={actionsLoading}
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                  click={() => handleRemoveSearch(search.id)}
                 />
               </div>
-            </CustomCard>
-          );
-        })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Pagination Controls */}
-      {pagination.totalPages > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <CustomButton
-            text="Previous"
-            disabled={pagination.page === 1}
-            type={'button'}
-            click={() => handlePagination('prev')}
-          />
-          <span>
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <CustomButton
-            text="Next"
-            type={'button'}
-            disabled={pagination.page === pagination.totalPages}
-            click={() => handlePagination('next')}
-          />
-        </div>
-      )}
+      <CustomCard className={'mx-auto'}>
+        {loading && <TopLoader />}
+        <Title text={'Deep Document Search'} />
 
-      {/* Physical Document Request Modal */}
-      <CustomModal
-        isOpen={open === 'physicalDocument'}
-        onClose={() => {
-          setOpen(false);
-          resetDepartment();
-        }}
-        size="md"
-      >
-        <h2 className="text-lg font-semibold mb-4">
-          Request Physical Document
-        </h2>
-
-        <form onSubmit={handleSubmitDepartment(onSubmitPhysicalRequest)} className="space-y-4">
-          {/* Department Dropdown */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          {/* name */}
           <div>
-            <select
-              {...registerDepartment('departmentId', {
-                required: 'Department is required',
-              })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-green-500"
-            >
-              <option value="">-- Select Department --</option>
-              {departments?.map((item) => (
-                <option key={item?.id} value={item?.id}>
-                  {item?.name}
-                </option>
-              ))}
-            </select>
-            {departmentErrors.departmentId && (
-              <p className="text-red-500 text-sm mt-1">
-                {departmentErrors.departmentId.message}
-              </p>
-            )}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Document Name
+            </label>
+            <input
+              {...register('name')}
+              placeholder="Enter document name"
+              className="w-full border p-2 rounded"
+            />
           </div>
 
-          {/* Reason Input */}
+          {/* content */}
           <div>
-            <Controller
-              name="reason"
-              control={controlDepartment}
-              rules={{ required: 'Reason is required' }}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  label="Reason"
-                  placeholder="Enter Reason"
-                  error={departmentErrors.reason?.message}
-                />
-              )}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Content
+            </label>
+            <input
+              {...register('content')}
+              placeholder="Search document content"
+              className="w-full border p-2 rounded"
             />
+          </div>
+
+          {/* tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tags
+            </label>
+            <input
+              {...register('tags')}
+              placeholder="Comma-separated tags"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+
+          {/* partNumber */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Part Number
+            </label>
+            <input
+              {...register('partNumber')}
+              placeholder="Enter part number"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+
+          {/* isArchived */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Archived
+            </label>
+            <select
+              {...register('isArchived')}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+
+          {/* inBin */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              In Bin
+            </label>
+            <select
+              {...register('inBin')}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+
+          {/* createdByUsername */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Created By
+            </label>
+            <select
+              {...register('createdByUsername')}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select</option>
+              {users?.map((user, index) => {
+                const roles = user.roles?.join(', ') || 'No Roles';
+                const departments = user.departments?.length
+                  ? `(${user.departments.join(', ')})`
+                  : '';
+
+                return (
+                  <option key={user.id} value={user.username}>
+                    {`${user.username} - ${roles} ${departments}`}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* processName */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Process Name
+            </label>
+            <input
+              {...register('processName')}
+              placeholder="Enter process name"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+
+          {/* processId */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Process ID
+            </label>
+            <input
+              {...register('processId')}
+              placeholder="Enter process ID"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+
+          {/* description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <input
+              {...register('description')}
+              placeholder="Enter description"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+
+          {/* preApproved */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Pre-Approved
+            </label>
+            <select
+              {...register('preApproved')}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+
+          {/* superseding */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Superseding
+            </label>
+            <select
+              {...register('superseding')}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="md:col-span-2 flex justify-end gap-4 mt-2">
+            <CustomButton disabled={loading} type="submit" text="Search" />
             <CustomButton
+              text="Clear"
               type="button"
-              variant="danger"
-              disabled={actionsLoading}
+              variant="none"
+              disabled={loading}
               click={() => {
-                setOpen(false);
-                resetDepartment();
+                reset();
+                setResults([]);
+                setLastQuery(null);
+                setPagination({
+                  page: 1,
+                  pageSize: 10,
+                  totalCount: 0,
+                  totalPages: 1,
+                });
               }}
-              text="Cancel"
-            />
-            <CustomButton
-              type="submit"
-              variant="primary"
-              text={'Submit'}
-              disabled={actionsLoading}
             />
           </div>
         </form>
-      </CustomModal>
 
-      {/* View File Modal */}
-      {fileView && (
-        <ViewFile
-          docu={fileView}
-          setFileView={setFileView}
-          handleViewClose={() => setFileView(null)}
-        />
-      )}
-    </CustomCard>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+          {results.map((doc) => {
+            const extension = doc.name?.split('.').pop()?.toLowerCase();
+            const matchedFields = getMatchedFields(doc);
+
+            return (
+              <CustomCard
+                key={doc.id}
+                className="relative flex flex-col justify-between"
+              >
+                {/* Status Badge */}
+                <div className="absolute top-0 right-1">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${
+                      doc.inBin
+                        ? 'bg-red-100 text-red-800'
+                        : doc?.isArchived
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {doc.isArchived
+                      ? 'Archived'
+                      : doc.inBin
+                        ? 'Deleted'
+                        : 'Active'}
+                  </span>
+                </div>
+
+                {/* Header */}
+                <div className="flex gap-3 items-center">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                    <img
+                      width={28}
+                      src={ImageConfig[extension] || ImageConfig['default']}
+                      alt="icon"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold break-words">
+                      {highlightMatch('name', doc.name)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Type: {highlightMatch('partNumber', extension)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Matched Info */}
+                {matchedFields.length > 0 && (
+                  <div className="mt-4 text-sm bg-gray-50 border rounded p-2 space-y-1">
+                    <p className="font-medium text-gray-700">Matched Info:</p>
+                    {matchedFields.map((field, i) => (
+                      <p key={i} className="text-gray-600">
+                        <span className="font-medium">{field.label}:</span>{' '}
+                        {field.value}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="mt-4 flex justify-end gap-2">
+                  <CustomButton
+                    text={<IconEye size={18} className="text-white" />}
+                    title="View (Updated)"
+                    click={() =>
+                      handleViewFile(
+                        doc.name,
+                        doc.path,
+                        doc.id,
+                        extension,
+                        false,
+                      )
+                    }
+                  />
+                  <CustomButton
+                    text={<IconScript size={18} className="text-white" />}
+                    title="Request Physical Document"
+                    click={() => handlePhysicalDocumentRequest(doc)}
+                    disabled={actionsLoading}
+                  />
+                </div>
+              </CustomCard>
+            );
+          })}
+        </div>
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-between items-center mt-6">
+            <CustomButton
+              text="Previous"
+              disabled={pagination.page === 1}
+              type={'button'}
+              click={() => handlePagination('prev')}
+            />
+            <span>
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <CustomButton
+              text="Next"
+              type={'button'}
+              disabled={pagination.page === pagination.totalPages}
+              click={() => handlePagination('next')}
+            />
+          </div>
+        )}
+
+        {/* Physical Document Request Modal */}
+        <CustomModal
+          isOpen={open === 'physicalDocument'}
+          onClose={() => {
+            setOpen(false);
+            resetDepartment();
+          }}
+          size="md"
+        >
+          <h2 className="text-lg font-semibold mb-4">
+            Request Physical Document
+          </h2>
+
+          <form
+            onSubmit={handleSubmitDepartment(onSubmitPhysicalRequest)}
+            className="space-y-4"
+          >
+            {/* Department Dropdown */}
+            <div>
+              <select
+                {...registerDepartment('departmentId', {
+                  required: 'Department is required',
+                })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-green-500"
+              >
+                <option value="">-- Select Department --</option>
+                {departments?.map((item) => (
+                  <option key={item?.id} value={item?.id}>
+                    {item?.name}
+                  </option>
+                ))}
+              </select>
+              {departmentErrors.departmentId && (
+                <p className="text-red-500 text-sm mt-1">
+                  {departmentErrors.departmentId.message}
+                </p>
+              )}
+            </div>
+
+            {/* Reason Input */}
+            <div>
+              <Controller
+                name="reason"
+                control={controlDepartment}
+                rules={{ required: 'Reason is required' }}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    label="Reason"
+                    placeholder="Enter Reason"
+                    error={departmentErrors.reason?.message}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-3 pt-2">
+              <CustomButton
+                type="button"
+                variant="danger"
+                disabled={actionsLoading}
+                click={() => {
+                  setOpen(false);
+                  resetDepartment();
+                }}
+                text="Cancel"
+              />
+              <CustomButton
+                type="submit"
+                variant="primary"
+                text={'Submit'}
+                disabled={actionsLoading}
+              />
+            </div>
+          </form>
+        </CustomModal>
+
+        {/* View File Modal */}
+        {fileView && (
+          <ViewFile
+            docu={fileView}
+            setFileView={setFileView}
+            handleViewClose={() => setFileView(null)}
+          />
+        )}
+      </CustomCard>
+    </div>
   );
 }
