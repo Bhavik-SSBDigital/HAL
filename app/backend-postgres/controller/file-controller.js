@@ -2236,8 +2236,8 @@ export const get_bookmarked_documents = async (req, res) => {
         document: {
           select: {
             id: true,
-            documentName: true,
-            documentPath: true,
+            name: true,
+            path: true,
           },
         },
       },
@@ -2245,11 +2245,8 @@ export const get_bookmarked_documents = async (req, res) => {
 
     const bookmarkedDocuments = bookmarks.map((bookmark) => ({
       documentId: bookmark.document.id,
-      documentName: bookmark.document.documentName,
-      documentPath: bookmark.document.documentPath
-        .split("/")
-        .slice(0, -1)
-        .join("/"),
+      documentName: bookmark.document.name,
+      documentPath: bookmark.document.path.split("/").slice(0, -1).join("/"),
     }));
 
     res.status(200).json({
