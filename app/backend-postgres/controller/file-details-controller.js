@@ -199,9 +199,14 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               ? await fs.stat(fileAbsolutePath)
               : null;
 
+            const isDocumentBookmarked_ = await isDocumentBookmarked(
+              userData.id,
+              child.id
+            );
+
             return {
               id: child.id,
-              isDocumentBookmarked: isDocumentBookmarked(userData.id, child.id),
+              isDocumentBookmarked: isDocumentBookmarked_,
               path: `${child.path.slice(0, -child.name.length - 1)}`,
               name: child.name,
               type: child.type,
@@ -220,6 +225,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               onlyMetaData: child.onlyMetaData,
             };
           } catch (error) {
+            console.log("error", error);
             return null;
           }
         })
@@ -272,13 +278,14 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   parents.includes(access.documentId)
               );
 
+              const isDocumentBookmarked_ = await isDocumentBookmarked(
+                userData.id,
+                child.id
+              );
               return {
                 id: child.id,
                 path: `${child.path.slice(0, -child.name.length - 1)}`,
-                isDocumentBookmarked: isDocumentBookmarked(
-                  userData.id,
-                  child.id
-                ),
+                isDocumentBookmarked: isDocumentBookmarked_,
                 name: child.name,
                 isArchived: child.isArchived ?? false,
                 inBin: child.inBin ?? false,
@@ -298,6 +305,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 onlyMetaData: child.onlyMetaData,
               };
             } catch (error) {
+              console.log("error", error);
               return null;
             }
           })
@@ -661,6 +669,12 @@ export const getDocumentDetailsForAdmin = async (req, res) => {
 };
 
 export const search_documents = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({ message: "Unauthorized request" });
+  }
+
   try {
     const {
       name,
@@ -679,64 +693,10 @@ export const search_documents = async (req, res) => {
       pageSize = "10",
     } = req.query;
 
-    // Convert string parameters to appropriate types at the start
+    // Convert string parameters to appropriate types
     const parsedPartNumber = partNumber ? parseInt(partNumber, 10) : undefined;
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
-
-    // Handle content search - this now uses the Python-extracted content
-    if (content) {
-      try {
-        const contentResults = await SearchIndexService.searchContent(content, {
-          page: parsedPage,
-          pageSize: parsedPageSize,
-        });
-
-        // Format the results to match the structure of regular search
-        const formattedResults = contentResults.results.map((result) => ({
-          id: result.id,
-          path: result.path.split("/").slice(0, -1).join("/"),
-          tags: result.tags,
-          name: result.name,
-          isArchived: result.isArchived,
-          inBin: result.inBin,
-          createdByUsername: result.createdByUsername,
-          partNumber: result.partNumber,
-          processId: result.processId,
-          processName: result.processName,
-          description: result.description,
-          preApproved: result.preApproved,
-          superseding: result.superseding,
-          contentSnippet: result.contentSnippet, // Add content snippet for content search
-          searchScore: result.rank, // Add search relevance score
-        }));
-
-        return res.status(200).json({
-          data: serializeBigInt(formattedResults),
-          pagination: {
-            page: parsedPage,
-            pageSize: parsedPageSize,
-            totalCount: contentResults.totalCount,
-            totalPages: contentResults.totalPages,
-          },
-          searchType: "content",
-          searchQuery: content,
-        });
-      } catch (error) {
-        console.error("Error in content search:", error);
-
-        // If content search fails, fall back to metadata search with content in name/description
-        console.log("Falling back to metadata search for content:", content);
-
-        // Continue with regular search but include content in name/description search
-        req.query.name = content;
-        req.query.description = content;
-        delete req.query.content;
-
-        // Recursively call itself without content parameter
-        return search_documents(req, res);
-      }
-    }
 
     // Validate inputs
     if (partNumber && isNaN(parsedPartNumber)) {
@@ -762,137 +722,440 @@ export const search_documents = async (req, res) => {
       }
     }
 
-    // Build the where clause
-    const where = {
-      AND: [
-        name ? { name: { contains: name, mode: "insensitive" } } : {},
-        parsedTags.length > 0 ? { tags: { hasSome: parsedTags } } : {},
-        isArchived !== undefined ? { isArchived: isArchived === "true" } : {},
-        inBin !== undefined ? { inBin: inBin === "true" } : {},
-        createdByUsername
-          ? {
-              createdBy: {
-                username: { contains: createdByUsername, mode: "insensitive" },
+    // Determine search types
+    const hasContentSearch = !!content;
+    const hasMetadataSearch = !!(
+      name ||
+      parsedTags.length > 0 ||
+      parsedPartNumber ||
+      isArchived !== undefined ||
+      inBin !== undefined ||
+      createdByUsername ||
+      processName ||
+      processId ||
+      description ||
+      preApproved !== undefined ||
+      superseding !== undefined
+    );
+    const searchTypes = [];
+    if (hasContentSearch) searchTypes.push("content");
+    if (hasMetadataSearch) searchTypes.push("metadata");
+
+    let formattedResults = [];
+    let totalCount = 0;
+    let totalPages = 0;
+    let searchTypeResponse = searchTypes.join(",");
+    let searchQueryResponse = content || "";
+
+    // Handle combined or individual searches
+    if (hasContentSearch && hasMetadataSearch) {
+      // Combined search: Run both content and metadata searches
+      try {
+        // Content search
+        const contentResults = await SearchIndexService.searchContent(content, {
+          page: parsedPage,
+          pageSize: parsedPageSize,
+        });
+
+        // Metadata search
+        const where = {
+          AND: [
+            name ? { name: { contains: name, mode: "insensitive" } } : {},
+            parsedTags.length > 0 ? { tags: { hasSome: parsedTags } } : {},
+            isArchived !== undefined
+              ? { isArchived: isArchived === "true" }
+              : {},
+            inBin !== undefined ? { inBin: inBin === "true" } : {},
+            createdByUsername
+              ? {
+                  createdBy: {
+                    username: {
+                      contains: createdByUsername,
+                      mode: "insensitive",
+                    },
+                  },
+                }
+              : {},
+          ],
+        };
+
+        const processDocumentConditions = [];
+        if (parsedPartNumber)
+          processDocumentConditions.push({ partNumber: parsedPartNumber });
+        if (processId) processDocumentConditions.push({ processId });
+        if (processName)
+          processDocumentConditions.push({
+            process: { name: { contains: processName, mode: "insensitive" } },
+          });
+        if (description)
+          processDocumentConditions.push({
+            description: { contains: description, mode: "insensitive" },
+          });
+        if (preApproved !== undefined)
+          processDocumentConditions.push({
+            preApproved: preApproved === "true",
+          });
+        if (superseding !== undefined)
+          processDocumentConditions.push({
+            superseding: superseding === "true",
+          });
+        if (processDocumentConditions.length > 0) {
+          where.processDocuments = { some: { AND: processDocumentConditions } };
+        }
+
+        const documents = await prisma.document.findMany({
+          where,
+          select: {
+            id: true,
+            path: true,
+            tags: true,
+            name: true,
+            isArchived: true,
+            inBin: true,
+            createdBy: { select: { username: true } },
+            processDocuments: {
+              select: {
+                partNumber: true,
+                processId: true,
+                description: true,
+                preApproved: true,
+                superseding: true,
+                process: { select: { name: true } },
               },
-            }
-          : {},
-      ],
-    };
+            },
+            documentContent: { select: { content: true, indexedAt: true } },
+          },
+          skip: (parsedPage - 1) * parsedPageSize,
+          take: parsedPageSize,
+          orderBy: { createdOn: "desc" },
+        });
 
-    // Add ProcessDocument-related conditions
-    const processDocumentConditions = [];
+        // Format content search results
+        const contentFormatted = contentResults.results.map((result) => ({
+          id: result.id,
+          path: result.path.split("/").slice(0, -1).join("/"),
+          tags: result.tags,
+          name: result.name,
+          isArchived: result.isArchived,
+          inBin: result.inBin,
+          createdByUsername: result.createdByUsername,
+          partNumber: result.partNumber,
+          processId: result.processId,
+          processName: result.processName,
+          description: result.description,
+          preApproved: result.preApproved,
+          superseding: result.superseding,
+          contentSnippet: result.contentSnippet,
+          searchScore: result.rank,
+        }));
 
-    if (parsedPartNumber) {
-      processDocumentConditions.push({ partNumber: parsedPartNumber });
-    }
-    if (processId) {
-      processDocumentConditions.push({ processId });
-    }
-    if (processName) {
-      processDocumentConditions.push({
-        process: {
-          name: { contains: processName, mode: "insensitive" },
-        },
-      });
-    }
-    if (description) {
-      processDocumentConditions.push({
-        description: { contains: description, mode: "insensitive" },
-      });
-    }
-    if (preApproved !== undefined) {
-      processDocumentConditions.push({ preApproved: preApproved === "true" });
-    }
-    if (superseding !== undefined) {
-      processDocumentConditions.push({ superseding: superseding === "true" });
-    }
+        // Format metadata search results
+        const metadataFormatted = documents.map((doc) => ({
+          id: doc.id,
+          path: doc.path.split("/").slice(0, -1).join("/"),
+          tags: doc.tags,
+          name: doc.name,
+          isArchived: doc.isArchived,
+          inBin: doc.inBin,
+          createdByUsername: doc.createdBy?.username || null,
+          partNumber: doc.processDocuments[0]?.partNumber || null,
+          processId: doc.processDocuments[0]?.processId || null,
+          processName: doc.processDocuments[0]?.process?.name || null,
+          description: doc.processDocuments[0]?.description || null,
+          preApproved: doc.processDocuments[0]?.preApproved || null,
+          superseding: doc.processDocuments[0]?.superseding || null,
+          hasContent: !!doc.documentContent?.content,
+          contentIndexedAt: doc.documentContent?.indexedAt,
+        }));
 
-    if (processDocumentConditions.length > 0) {
-      where.processDocuments = {
-        some: {
-          AND: processDocumentConditions,
-        },
+        // Merge results, removing duplicates by id
+        const uniqueResults = [];
+        const seenIds = new Set();
+        [...contentFormatted, ...metadataFormatted].forEach((doc) => {
+          if (!seenIds.has(doc.id)) {
+            uniqueResults.push(doc);
+            seenIds.add(doc.id);
+          }
+        });
+
+        // Sort by id or score if available (simplified sorting)
+        formattedResults = uniqueResults.sort(
+          (a, b) => (b.searchScore || 0) - (a.searchScore || 0)
+        );
+        totalCount = uniqueResults.length; // Approximate, as combining counts is complex
+        totalPages = Math.ceil(totalCount / parsedPageSize);
+
+        // Log search history
+        await prisma.searchHistory.create({
+          data: {
+            userId: userData.id,
+            searchQuery: req.query,
+            searchType: "content,metadata",
+          },
+        });
+
+        return res.status(200).json({
+          data: serializeBigInt(formattedResults),
+          pagination: {
+            page: parsedPage,
+            pageSize: parsedPageSize,
+            totalCount,
+            totalPages,
+          },
+          searchType: "content,metadata",
+          searchQuery: content,
+        });
+      } catch (error) {
+        console.error("Error in combined search:", error);
+        // Fallback to metadata search if content search fails
+        req.query.name = content;
+        req.query.description = content;
+        delete req.query.content;
+        return search_documents(req, res);
+      }
+    } else if (hasContentSearch) {
+      // Content-only search
+      try {
+        const contentResults = await SearchIndexService.searchContent(content, {
+          page: parsedPage,
+          pageSize: parsedPageSize,
+        });
+
+        formattedResults = contentResults.results.map((result) => ({
+          id: result.id,
+          path: result.path.split("/").slice(0, -1).join("/"),
+          tags: result.tags,
+          name: result.name,
+          isArchived: result.isArchived,
+          inBin: result.inBin,
+          createdByUsername: result.createdByUsername,
+          partNumber: result.partNumber,
+          processId: result.processId,
+          processName: result.processName,
+          description: result.description,
+          preApproved: result.preApproved,
+          superseding: result.superseding,
+          contentSnippet: result.contentSnippet,
+          searchScore: result.rank,
+        }));
+
+        await prisma.searchHistory.create({
+          data: {
+            userId: userData.id,
+            searchQuery: { content },
+            searchType: "content",
+          },
+        });
+
+        return res.status(200).json({
+          data: serializeBigInt(formattedResults),
+          pagination: {
+            page: parsedPage,
+            pageSize: parsedPageSize,
+            totalCount: contentResults.totalCount,
+            totalPages: contentResults.totalPages,
+          },
+          searchType: "content",
+          searchQuery: content,
+        });
+      } catch (error) {
+        console.error("Error in content search:", error);
+        req.query.name = content;
+        req.query.description = content;
+        delete req.query.content;
+        return search_documents(req, res);
+      }
+    } else if (hasMetadataSearch) {
+      // Metadata-only search
+      const where = {
+        AND: [
+          name ? { name: { contains: name, mode: "insensitive" } } : {},
+          parsedTags.length > 0 ? { tags: { hasSome: parsedTags } } : {},
+          isArchived !== undefined ? { isArchived: isArchived === "true" } : {},
+          inBin !== undefined ? { inBin: inBin === "true" } : {},
+          createdByUsername
+            ? {
+                createdBy: {
+                  username: {
+                    contains: createdByUsername,
+                    mode: "insensitive",
+                  },
+                },
+              }
+            : {},
+        ],
       };
+
+      const processDocumentConditions = [];
+      if (parsedPartNumber)
+        processDocumentConditions.push({ partNumber: parsedPartNumber });
+      if (processId) processDocumentConditions.push({ processId });
+      if (processName)
+        processDocumentConditions.push({
+          process: { name: { contains: processName, mode: "insensitive" } },
+        });
+      if (description)
+        processDocumentConditions.push({
+          description: { contains: description, mode: "insensitive" },
+        });
+      if (preApproved !== undefined)
+        processDocumentConditions.push({ preApproved: preApproved === "true" });
+      if (superseding !== undefined)
+        processDocumentConditions.push({ superseding: superseding === "true" });
+      if (processDocumentConditions.length > 0) {
+        where.processDocuments = { some: { AND: processDocumentConditions } };
+      }
+
+      console.log("Where clause:", JSON.stringify(where, null, 2));
+
+      const documents = await prisma.document.findMany({
+        where,
+        select: {
+          id: true,
+          path: true,
+          tags: true,
+          name: true,
+          isArchived: true,
+          inBin: true,
+          createdBy: { select: { username: true } },
+          processDocuments: {
+            select: {
+              partNumber: true,
+              processId: true,
+              description: true,
+              preApproved: true,
+              superseding: true,
+              process: { select: { name: true } },
+            },
+          },
+          documentContent: { select: { content: true, indexedAt: true } },
+        },
+        skip: (parsedPage - 1) * parsedPageSize,
+        take: parsedPageSize,
+        orderBy: { createdOn: "desc" },
+      });
+
+      formattedResults = documents.map((doc) => ({
+        id: doc.id,
+        path: doc.path.split("/").slice(0, -1).join("/"),
+        tags: doc.tags,
+        name: doc.name,
+        isArchived: doc.isArchived,
+        inBin: doc.inBin,
+        createdByUsername: doc.createdBy?.username || null,
+        partNumber: doc.processDocuments[0]?.partNumber || null,
+        processId: doc.processDocuments[0]?.processId || null,
+        processName: doc.processDocuments[0]?.process?.name || null,
+        description: doc.processDocuments[0]?.description || null,
+        preApproved: doc.processDocuments[0]?.preApproved || null,
+        superseding: doc.processDocuments[0]?.superseding || null,
+        hasContent: !!doc.documentContent?.content,
+        contentIndexedAt: doc.documentContent?.indexedAt,
+      }));
+
+      totalCount = await prisma.document.count({ where });
+      totalPages = Math.ceil(totalCount / parsedPageSize);
+
+      await prisma.searchHistory.create({
+        data: {
+          userId: userData.id,
+          searchQuery: req.query,
+          searchType: "metadata",
+        },
+      });
+
+      res.status(200).json({
+        data: serializeBigInt(formattedResults),
+        pagination: {
+          page: parsedPage,
+          pageSize: parsedPageSize,
+          totalCount,
+          totalPages,
+        },
+        searchType: "metadata",
+      });
+    } else {
+      // No valid search parameters provided
+      return res
+        .status(400)
+        .json({ error: "At least one search parameter is required" });
+    }
+  } catch (error) {
+    console.error("Error searching documents:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const get_searches = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({ message: "Unauthorized request" });
+  }
+
+  try {
+    const { searchType } = req.query;
+
+    const where = {
+      userId: userData.id,
+    };
+    if (searchType) {
+      // Support filtering by single or multiple types (e.g., "content", "metadata", "content,metadata")
+      where.searchType = { contains: searchType };
     }
 
-    // Log the where clause for debugging
-    console.log("Where clause:", JSON.stringify(where, null, 2));
-
-    // Execute the query
-    const documents = await prisma.document.findMany({
+    const searches = await prisma.searchHistory.findMany({
       where,
       select: {
         id: true,
-        path: true,
-        tags: true,
-        name: true,
-        isArchived: true,
-        inBin: true,
-        createdBy: {
-          select: {
-            username: true,
-          },
-        },
-        processDocuments: {
-          select: {
-            partNumber: true,
-            processId: true,
-            description: true,
-            preApproved: true,
-            superseding: true,
-            process: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        documentContent: {
-          select: {
-            content: true,
-            indexedAt: true,
-          },
-        },
+        searchQuery: true,
+        searchType: true,
+        searchedAt: true,
       },
-      skip: (parsedPage - 1) * parsedPageSize,
-      take: parsedPageSize,
-      orderBy: { createdOn: "desc" },
+      orderBy: { searchedAt: "desc" },
     });
-
-    // Transform the response
-    const formattedDocuments = documents.map((doc) => ({
-      id: doc.id,
-      path: doc.path.split("/").slice(0, -1).join("/"),
-      tags: doc.tags,
-      name: doc.name,
-      isArchived: doc.isArchived,
-      inBin: doc.inBin,
-      createdByUsername: doc.createdBy?.username || null,
-      partNumber: doc.processDocuments[0]?.partNumber || null,
-      processId: doc.processDocuments[0]?.processId || null,
-      processName: doc.processDocuments[0]?.process?.name || null,
-      description: doc.processDocuments[0]?.description || null,
-      preApproved: doc.processDocuments[0]?.preApproved || null,
-      superseding: doc.processDocuments[0]?.superseding || null,
-      hasContent: !!doc.documentContent?.content, // Indicate if content is available
-      contentIndexedAt: doc.documentContent?.indexedAt, // When content was indexed
-    }));
-
-    // Get total count for pagination
-    const totalCount = await prisma.document.count({ where });
 
     res.status(200).json({
-      data: serializeBigInt(formattedDocuments),
-      pagination: {
-        page: parsedPage,
-        pageSize: parsedPageSize,
-        totalCount,
-        totalPages: Math.ceil(totalCount / parsedPageSize),
-      },
-      searchType: "metadata",
+      data: serializeBigInt(searches),
     });
   } catch (error) {
-    console.error("Error searching documents:", error);
+    console.error("Error getting searches:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const delete_search = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized") {
+    return res.status(401).json({ message: "Unauthorized request" });
+  }
+
+  try {
+    const { id } = req.params; // Assume /delete_search/:id route
+    const parsedId = parseInt(id, 10);
+
+    if (isNaN(parsedId)) {
+      return res.status(400).json({ error: "Invalid search ID" });
+    }
+
+    const search = await prisma.searchHistory.findUnique({
+      where: { id: parsedId },
+    });
+
+    if (!search || search.userId !== userData.id) {
+      return res
+        .status(404)
+        .json({ error: "Search not found or not owned by user" });
+    }
+
+    await prisma.searchHistory.delete({
+      where: { id: parsedId },
+    });
+
+    res.status(200).json({ message: "Search deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting search:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

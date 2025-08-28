@@ -681,3 +681,14 @@ model Bookmark {
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   @@unique([userId, documentId])
 }
+
+model SearchHistory {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  searchQuery Json     // Stores the entire req.query as JSON
+  searchType  String   // e.g., "content", "metadata", or "content,metadata"
+  searchedAt  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, searchedAt])
+}

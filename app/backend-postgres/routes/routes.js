@@ -62,6 +62,8 @@ import {
   getDocumentDetailsOnTheBasisOfPathForEdit,
   getDocumentChildren,
   search_documents,
+  get_searches,
+  delete_search,
 } from "../controller/file-details-controller.js";
 
 import {
@@ -273,6 +275,9 @@ router.get("/recommendations/:recommendationId", get_recommendation);
 router.post("/bookmarkDocument", bookmark_document);
 router.get("/getBookmarkedDocuments", get_bookmarked_documents);
 router.delete("/removeBookmark", remove_bookmark_document);
+
+router.get("/get_searches", get_searches);
+router.delete("/delete_search/:id", delete_search);
 // router.get("/queries/process/:processId", getProcessQueries);
 // router.post("/queries/respond/:queryId", respondToQuery);
 // router.post("/queries/documents/approve/:documentId", approveQueryDocument);
