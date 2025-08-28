@@ -216,12 +216,12 @@ const ViewRecommendation = () => {
             <div className="flex-grow border-t border-slate-400"></div>
           </div>
 
-          <CustomButton
+          {/* <CustomButton
             disabled={selectedDocs.length === 0}
             className={'ml-auto block'}
             text={`View All Selected (${selectedDocs.length})`}
             click={handleViewAllSelectedFiles}
-          />
+          /> */}
 
           <div className="mt-2 space-y-2">
             {data?.documentSummaries?.map((doc) => {
@@ -240,12 +240,12 @@ const ViewRecommendation = () => {
                   className="flex items-center justify-between p-4 gap-5 flex-wrap"
                 >
                   <div className="flex gap-4 flex-wrap">
-                    <input
+                    {/* <input
                       type="checkbox"
                       className="h-10 w-4"
                       checked={isSelected}
                       onChange={toggleSelect}
-                    />
+                    /> */}
 
                     <div className="min-w-fit">
                       <p className="text-gray-900 font-semibold">

@@ -148,7 +148,7 @@ export default function AskRecommend({
                       {...register(`documentSummaries.${index}.documentId`)}
                     />
                   </td>
-                  {/* <td className="border p-2">
+                  <td className="border p-2 hidden">
                     <label className="inline-flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -159,7 +159,7 @@ export default function AskRecommend({
                       />
                       <span className="text-sm">Yes</span>
                     </label>
-                  </td> */}
+                  </td>
                 </tr>
               ))}
             </tbody>
