@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  IconTrash,
-  IconRestore,
-  IconDownload,
   IconSquareLetterX,
   IconDotsVertical,
   IconSettings,
   IconArchiveOff,
+  IconSearch,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomCard from '../../CustomComponents/CustomCard';
@@ -20,18 +18,19 @@ import moment from 'moment';
 import {
   GetArchiveFolderData,
   GetArchiveRootFolders,
-  GetBinFolderData,
-  GetBinRootFolders,
   UnArchiveFile,
   ViewDocument,
 } from '../../common/Apis';
 import { toast } from 'react-toastify';
 import PathBar from '../../components/path/PathBar';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import CustomTextField from '../../CustomComponents/CustomTextField';
 
 const Archive = () => {
   const [loading, setLoading] = useState(false);
   const [archiveFiles, setArchiveFiles] = useState([]);
+  const [filteredFiles, setFilteredFiles] = useState([]); // new state
+  const [searchTerm, setSearchTerm] = useState(''); // new state
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -53,10 +52,11 @@ const Archive = () => {
       sessionStorage.setItem('archivePath', `${newPath}/${item.name}`);
     }
   };
+
   const unArchiveFile = async (item) => {
     setActionsLoading(true);
     try {
-      const response = await UnArchiveFile(item.id);
+      await UnArchiveFile(item.id);
       setArchiveFiles(archiveFiles.filter((file) => file.id !== item.id));
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -64,6 +64,7 @@ const Archive = () => {
       setActionsLoading(false);
     }
   };
+
   // Handler view file
   const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
@@ -93,9 +94,23 @@ const Archive = () => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
+
+  // Filter files on search term
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setFilteredFiles(
+        archiveFiles.filter((file) =>
+          file.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        ),
+      );
+    } else {
+      setFilteredFiles(archiveFiles);
+    }
+  }, [searchTerm, archiveFiles]);
 
   if (loading) return <ComponentLoader />;
 
@@ -108,20 +123,30 @@ const Archive = () => {
         state={'archivePath'}
       />
 
+      {/* Search bar */}
+      <div className="flex items-center gap-2 mt-3 mb-2">
+        <CustomTextField
+          type="text"
+          placeholder="Search files or folders..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full outline-none text-sm"
+        />
+      </div>
+
       {/* file and folders */}
       <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto mt-2">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-          {archiveFiles.length > 0 ? (
-            archiveFiles.map((item) => (
+          {filteredFiles.length > 0 ? (
+            filteredFiles.map((item) => (
               <div key={item.id} className="relative">
                 <CustomCard
-                  // title={item.name}
                   className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
                   click={() =>
-                    item.type == 'folder' ? handleFolderClick(item) : null
+                    item.type === 'folder' ? handleFolderClick(item) : null
                   }
                   onDoubleClick={() =>
-                    item.type == 'folder'
+                    item.type === 'folder'
                       ? null
                       : handleViewFile(
                           item?.name,
@@ -171,22 +196,20 @@ const Archive = () => {
           <h3 className="font-semibold mb-3">{selectedItem.name}</h3>
           <div className="flex flex-col gap-2">
             {selectedItem.type !== 'folder' && (
-              <>
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconArchiveOff size={18} /> Un-Archive
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => {
-                    setIsMenuOpen(false);
-                    unArchiveFile(selectedItem);
-                  }}
-                  disabled={actionsLoading}
-                />
-              </>
+              <CustomButton
+                variant="none"
+                text={
+                  <>
+                    <IconArchiveOff size={18} /> Un-Archive
+                  </>
+                }
+                className="w-full flex items-center gap-2"
+                click={() => {
+                  setIsMenuOpen(false);
+                  unArchiveFile(selectedItem);
+                }}
+                disabled={actionsLoading}
+              />
             )}
             <CustomButton
               variant="none"
@@ -198,7 +221,7 @@ const Archive = () => {
               className="w-full flex items-center gap-2"
               click={() => {
                 setIsMenuOpen(false);
-                setShowProperties(true); // Open properties modal
+                setShowProperties(true);
               }}
               disabled={actionsLoading}
             />

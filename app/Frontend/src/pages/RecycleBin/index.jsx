@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   IconTrash,
   IconRestore,
-  IconDownload,
   IconSquareLetterX,
   IconDotsVertical,
   IconSettings,
@@ -25,6 +24,7 @@ import {
 import { toast } from 'react-toastify';
 import PathBar from '../../components/path/PathBar';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
+import CustomTextField from '../../CustomComponents/CustomTextField';
 
 const RecycleBin = () => {
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,7 @@ const RecycleBin = () => {
     sessionStorage.getItem('recyclePath') || '..',
   );
   const [fileView, setFileView] = useState();
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Handlers
   const handleFolderClick = (item) => {
@@ -50,7 +51,7 @@ const RecycleBin = () => {
       sessionStorage.setItem('recyclePath', `${newPath}/${item.name}`);
     }
   };
-  // Handler view file
+
   const handleViewFile = async (name, path, fileId, type, isEditing) => {
     setActionsLoading(true);
     try {
@@ -63,7 +64,7 @@ const RecycleBin = () => {
       setActionsLoading(false);
     }
   };
-  // network
+
   const restoreFile = async (item) => {
     setActionsLoading(true);
     try {
@@ -77,7 +78,7 @@ const RecycleBin = () => {
       setIsMenuOpen(false);
     }
   };
-  // Fetch data
+
   const getData = async (updatedPath) => {
     setLoading(true);
     try {
@@ -92,10 +93,15 @@ const RecycleBin = () => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
-  console.log(currentPath);
+
+  // Filter files/folders by search
+  const filteredFiles = deletedFiles.filter((item) =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   if (loading) return <ComponentLoader />;
 
@@ -108,20 +114,30 @@ const RecycleBin = () => {
         state={'recyclePath'}
       />
 
+      {/* Search bar */}
+      <div className="flex items-center gap-2 mt-3 mb-2">
+        <CustomTextField
+          type="text"
+          placeholder="Search files or folders..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full outline-none text-sm"
+        />
+      </div>
+
       {/* file and folders */}
       <div className="flex-1 max-h-[calc(100vh-160px)] overflow-auto mt-2">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-          {deletedFiles.length > 0 ? (
-            deletedFiles.map((item) => (
+          {filteredFiles.length > 0 ? (
+            filteredFiles.map((item) => (
               <div key={item.id} className="relative">
                 <CustomCard
-                  // title={item.name}
                   className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
                   click={() =>
-                    item.type == 'folder' ? handleFolderClick(item) : null
+                    item.type === 'folder' ? handleFolderClick(item) : null
                   }
                   onDoubleClick={() =>
-                    item.type == 'folder'
+                    item.type === 'folder'
                       ? null
                       : handleViewFile(item.name, item.path, item.id, item.type)
                   }
@@ -130,7 +146,7 @@ const RecycleBin = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedItem(item);
-                      setIsMenuOpen(true); // Open action menu
+                      setIsMenuOpen(true);
                     }}
                     className="absolute top-1 right-0 hover:bg-blue-50 p-1 rounded-[50%] z-9"
                   >
@@ -159,7 +175,7 @@ const RecycleBin = () => {
         </div>
       </div>
 
-      {/* actions */}
+      {/* actions modal */}
       {selectedItem && (
         <CustomModal isOpen={isMenuOpen}>
           <h3 className="font-semibold mb-3">{selectedItem.name}</h3>
@@ -198,7 +214,7 @@ const RecycleBin = () => {
               className="w-full flex items-center gap-2"
               click={() => {
                 setIsMenuOpen(false);
-                setShowProperties(true); // Open properties modal
+                setShowProperties(true);
               }}
               disabled={actionsLoading}
             />
@@ -216,7 +232,7 @@ const RecycleBin = () => {
         </CustomModal>
       )}
 
-      {/* show properties */}
+      {/* show properties modal */}
       <CustomModal isOpen={showProperties}>
         <div className="flex justify-between items-center border-b pb-2 mb-4 gap-3">
           <h2 className="text-lg font-semibold">
