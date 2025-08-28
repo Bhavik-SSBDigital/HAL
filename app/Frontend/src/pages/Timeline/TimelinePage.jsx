@@ -70,6 +70,8 @@ export default function TimelinePage() {
         activities={data?.process?.activities}
         setActionsLoading={setActionsLoading}
         workflow={data?.process?.workflow?.steps}
+        print={true}
+        id={id}
       />
     </div>
   );

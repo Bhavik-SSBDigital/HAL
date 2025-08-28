@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import html2pdf from 'html2pdf.js';
 import {
   IconCheck,
   IconX,
@@ -15,6 +16,7 @@ import {
   IconUpload,
   IconChevronUp,
   IconChevronDown,
+  IconFileArrowRight,
 } from '@tabler/icons-react';
 import TimelineLegend from './TimelineLegend';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -44,6 +46,8 @@ const Timeline = ({
   setActionsLoading,
   actionsLoading,
   workflow,
+  print,
+  id,
 }) => {
   // handlers
   const handleViewAllSelectedFiles = async (documents) => {
@@ -786,6 +790,20 @@ const Timeline = ({
     }
   };
 
+  const exportDivToPDF = () => {
+    setActionsLoading(true);
+    const element = document.getElementById('reportDiv');
+    const opt = {
+      margin: 0.5,
+      filename: `${id}imeline.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+    };
+    html2pdf().from(element).set(opt).save();
+    setActionsLoading(false);
+  };
+
   //   states
   const [fileView, setFileView] = useState(null);
   const [expanded, setExpanded] = useState(false);
@@ -829,41 +847,54 @@ const Timeline = ({
             <Show steps={workflow} />
           </div>
         </CustomCard>
-        <h2 className="text-2xl text-center font-bold underline text-gray-900">
-          Timeline
-        </h2>
 
-        {activities.map((activity, idx) => {
-          const Icon = iconMap[activity.actionType] || (
-            <IconClock size={20} className="text-gray-400" />
-          );
-          return (
-            <div key={idx} className="flex items-start space-x-4">
-              {/* Timeline Icon */}
-              <div className="relative flex flex-col items-center">
-                <div className="z-10 bg-white border-2 border-gray-300 rounded-full p-2">
-                  {Icon}
+        <div id="reportDiv" className="space-y-4">
+          <div className="flex justify-center gap-3 align-middle">
+            <h2 className="text-2xl text-center font-bold underline text-gray-900">
+              Timeline
+            </h2>
+            {print ? (
+              <CustomButton
+                disabled={actionsLoading}
+                variant={'none'}
+                text={<IconFileArrowRight />}
+                click={exportDivToPDF}
+                title={'Export Timeline'}
+              />
+            ) : null}
+          </div>
+          {activities.map((activity, idx) => {
+            const Icon = iconMap[activity.actionType] || (
+              <IconClock size={20} className="text-gray-400" />
+            );
+            return (
+              <div key={idx} className="flex items-start space-x-4">
+                {/* Timeline Icon */}
+                <div className="relative flex flex-col items-center">
+                  <div className="z-10 bg-white border-2 border-gray-300 rounded-full p-2">
+                    {Icon}
+                  </div>
+                  {idx !== activities.length - 1 && (
+                    <div className="w-px bg-gray-300 flex-1 mt-1" />
+                  )}
                 </div>
-                {idx !== activities.length - 1 && (
-                  <div className="w-px bg-gray-300 flex-1 mt-1" />
-                )}
+
+                {/* Content */}
+                <CustomCard className="flex-1">
+                  <div className="flex text-black justify-between items-center mb-1">
+                    <p className="text-sm font-bold font-mono">
+                      {new Date(activity.createdAt).toLocaleString()}
+                    </p>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {activity.description}
+                    </span>
+                  </div>
+                  <div>{renderDetails(activity)}</div>
+                </CustomCard>
               </div>
-
-              {/* Content */}
-              <CustomCard className="flex-1">
-                <div className="flex text-black justify-between items-center mb-1">
-                  <p className="text-sm font-bold font-mono">
-                    {new Date(activity.createdAt).toLocaleString()}
-                  </p>
-                  <span className="text-sm font-semibold text-gray-700">
-                    {activity.description}
-                  </span>
-                </div>
-                <div>{renderDetails(activity)}</div>
-              </CustomCard>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
       {/* View File Modal */}
       {fileView && (
