@@ -266,7 +266,7 @@ export default function DocumentSearch() {
         <h3 className="text-lg font-semibold text-gray-800 mb-3">
           Recent Searches
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-auto max-h-[25vh]">
           {recentSearches.map((search) => (
             <div
               key={search.id}
