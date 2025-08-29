@@ -847,7 +847,7 @@ export default function FileSysten() {
                   click={() => handleCopy(selectedItem.name, selectedItem.path)}
                   disabled={actionsLoading}
                 />
-                <CustomButton
+                {/* <CustomButton
                   variant="none"
                   text={
                     <>
@@ -857,7 +857,7 @@ export default function FileSysten() {
                   className="w-full flex items-center gap-2"
                   click={() => handleCut(selectedItem.name, selectedItem.path)}
                   disabled={actionsLoading}
-                />
+                /> */}
                 <CustomButton
                   variant="none"
                   text={

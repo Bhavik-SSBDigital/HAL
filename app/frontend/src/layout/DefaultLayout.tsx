@@ -11,6 +11,8 @@ import {
   DialogTitle,
   Typography,
 } from '@mui/material';
+import { toast } from 'react-toastify';
+import { LogOut } from '../common/Apis';
 const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -32,9 +34,15 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   //   return '';
   // };
 
-  const handleRedirect = () => {
-    sessionStorage.clear();
-    navigate('/auth/signin');
+  const handleRedirect = async () => {
+    try {
+      const response = await LogOut();
+      sessionStorage.clear();
+      toast.success(response?.data?.message);
+      navigate('/auth/signin');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.message);
+    }
   };
   return (
     <div className="dark:bg-boxdark-2 dark:text-bodydark">
@@ -61,7 +69,10 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         {/* <!-- ===== Content Area End ===== --> */}
       </div>
       {/* <!-- ===== Page Wrapper End ===== --> */}
-      <Dialog open={idle} sx={{ backgroundFilter: 'blur(3px)', zIndex: 99999999 }}>
+      <Dialog
+        open={idle}
+        sx={{ backgroundFilter: 'blur(3px)', zIndex: 99999999 }}
+      >
         <DialogTitle>
           <Typography variant="h5">Session timeout!</Typography>
         </DialogTitle>

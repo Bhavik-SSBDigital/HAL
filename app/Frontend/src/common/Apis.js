@@ -29,8 +29,25 @@ export const LogOut = async () => {
 };
 
 // reports
-export const downloadLoginLogoutReport = async () => {
-  return apiClient.get('/downloadLoginLogs');
+export const downloadLoginLogoutReport = async (fromDate, toDate) => {
+  return apiClient.get('/downloadLoginLogs', {
+    responseType: 'blob',
+    params: {
+      fromDate, // optional, only sent if provided
+      toDate, // optional, only sent if provided
+    },
+  });
+};
+
+export const exportFileLogs = async (fromDate, toDate) => {
+  console.log(fromDate);
+  return apiClient.get('/exportFileLogs', {
+    responseType: 'blob',
+    params: {
+      fromDate,
+      toDate,
+    },
+  });
 };
 
 // department endpoints
