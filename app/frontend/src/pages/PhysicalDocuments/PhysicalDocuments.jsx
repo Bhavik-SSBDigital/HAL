@@ -11,6 +11,7 @@ import {
 } from '../../common/Apis';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
+import CustomCard from '../../CustomComponents/CustomCard';
 
 const PhysicalDocuments = () => {
   const [requests, setRequests] = useState([]);
@@ -195,11 +196,11 @@ const PhysicalDocuments = () => {
     <>
       <div className="p-6 bg-gray-100 min-h-screen">
         {/* Filter */}
-        <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-4 mb-6 rounded-lg">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 bg-white shadow-sm flex-1"
+            className="border rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 bg-white shadow-sm flex-1"
           >
             <option value="">All Status</option>
             {statuses.map((status) => (
@@ -220,9 +221,8 @@ const PhysicalDocuments = () => {
         <div className="space-y-3">
           {filteredRequests.length > 0 ? (
             filteredRequests.map((req) => (
-              <div
+              <CustomCard
                 key={req.id}
-                className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 ease-in-out flex justify-between items-center flex-wrap gap-2"
               >
                 <div className="flex-1 pr-4">
                   <p className="font-semibold text-lg text-gray-900 truncate">
@@ -285,7 +285,7 @@ const PhysicalDocuments = () => {
                     </button>
                   )}
                 </div>
-              </div>
+              </CustomCard>
             ))
           ) : (
             <p className="text-gray-500 text-center py-4">No requests found.</p>
