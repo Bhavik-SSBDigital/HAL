@@ -20,7 +20,6 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const onIdle = () => {
     setIdle(true);
-    sessionStorage.clear();
   };
   const time = 10 * 60 * 1000;
   useIdleTimer({

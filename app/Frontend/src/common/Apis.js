@@ -51,8 +51,10 @@ export const exportFileLogs = async (fromDate, toDate) => {
 };
 
 // department endpoints
-export const getDepartments = async () => {
-  return apiClient.get('/getdepartments', { params: { type: 'department' } });
+export const getDepartments = async (fromAdmin) => {
+  return apiClient.get('/getdepartments', {
+    params: { type: 'department', fromAdmin: fromAdmin },
+  });
 };
 export const getRolesHierarchyInDepartment = async (id) => {
   return apiClient.get(`/getRolesHierarchyInDepartment/${id}`);
@@ -77,8 +79,8 @@ export const deleteDepartment = async (id) => {
 export const getUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: false } });
 };
-export const getAllUsers = async () => {
-  return apiClient.get('/getUsers');
+export const getAllUsers = async (fromAdmin) => {
+  return apiClient.get('/getUsers', { params: { fromAdmin: fromAdmin } });
 };
 export const getRootLevelUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: true } });
@@ -100,8 +102,10 @@ export const GetUsersWithDetails = async () => {
 };
 
 // roles endpoints
-export const GetRoles = async () => {
-  return apiClient.get('/getRoles', { params: { isRootLevel: false } });
+export const GetRoles = async (fromAdmin) => {
+  return apiClient.get('/getRoles', {
+    params: { isRootLevel: false, fromAdmin: fromAdmin },
+  });
 };
 export const GetAllRoles = async () => {
   return apiClient.get('/getRoles', { params: { isRootLevel: false } });
@@ -129,8 +133,10 @@ export const CreateWorkflow = async (data) => {
 export const EditWorkflow = async (id, data) => {
   return apiClient.put(`/workflows/editWorkflow/${id}`, data);
 };
-export const GetWorkflows = async () => {
-  return apiClient.get('/workflows/getWorkflows');
+export const GetWorkflows = async (fromAdmin) => {
+  return apiClient.get('/workflows/getWorkflows', {
+    params: { fromAdmin: fromAdmin },
+  });
 };
 export const deleteWorkflow = async (id) => {
   return apiClient.delete(`/workflows/deleteWorkflow/${id}`);

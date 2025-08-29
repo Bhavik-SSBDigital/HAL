@@ -30,7 +30,7 @@ const UsersList = () => {
 
   const fetchData = async () => {
     try {
-      const { data } = await getAllUsers();
+      const { data } = await getAllUsers(true);
       // Normalize data to handle both id and _id
       const normalizedData = data.data.map((item) => ({
         ...item,

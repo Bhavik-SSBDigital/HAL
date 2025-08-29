@@ -24,7 +24,7 @@ const RolesList = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data } = await GetRoles();
+        const { data } = await GetRoles(true);
         setRoles(data.roles);
       } catch (error) {
         toast.error('Failed to fetch roles');

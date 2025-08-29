@@ -48,7 +48,7 @@ export default function List() {
 
   const fetchDepartments = async () => {
     try {
-      const response = await getDepartments();
+      const response = await getDepartments(true);
       setDepartments(response.data.departments);
     } catch (error) {
       toast.error('Failed to load departments');

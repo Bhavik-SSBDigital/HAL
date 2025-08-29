@@ -32,7 +32,7 @@ export default function WorkflowVisualizer() {
   const navigate = useNavigate();
   const getList = async () => {
     try {
-      const res = await GetWorkflows();
+      const res = await GetWorkflows(true);
       setWorkflows(res?.data?.workflows || []);
     } catch (error) {
       console.error('Error fetching workflows:', error);
