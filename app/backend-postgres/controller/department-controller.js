@@ -135,26 +135,22 @@ export const get_departments = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
-
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
-
-    const { status, type, adminId } = req.query;
-
-    // Build filters dynamically
+    const { status, type, adminId, fromAdmin } = req.query;
+    console.log("from admin", fromAdmin);
     const filters = {};
     if (status) filters.status = status;
     if (type) filters.type = type;
     if (adminId) filters.adminId = parseInt(adminId);
-
+    if (!fromAdmin) {
+      filters.status = "Active";
+    }
     const departments = await prisma.department.findMany({
       where: filters,
       orderBy: { createdAt: "desc" },
     });
-
     res.status(200).json({ departments });
   } catch (error) {
     console.error("Error fetching departments:", error);

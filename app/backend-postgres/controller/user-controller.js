@@ -33,11 +33,16 @@ const prisma = new PrismaClient();
  */
 export const get_users = async (req, res) => {
   try {
-    const { isRootLevel } = req.query;
-
-    // Fetch users with their roles and associated departments
+    const { isRootLevel, fromAdmin } = req.query;
+    const whereClause = {};
+    if (isRootLevel) {
+      whereClause.isRootLevel = true;
+    }
+    if (fromAdmin !== "true") {
+      whereClause.status = "Active";
+    }
     const users = await prisma.user.findMany({
-      where: isRootLevel ? { isRootLevel: true } : {},
+      where: whereClause,
       select: {
         id: true,
         username: true,
@@ -66,8 +71,6 @@ export const get_users = async (req, res) => {
         },
       },
     });
-
-    // Transform the data to simplify the structure and deduplicate departments
     const transformedUsers = users.map((user) => {
       const seenDepartments = new Set();
       return {
@@ -76,7 +79,6 @@ export const get_users = async (req, res) => {
         email: user.email,
         status: user.status || "UNKNOWN",
         roles: user.roles.map((userRole) => {
-          // Deduplicate departments by id
           const uniqueDepartments = [];
           userRole.role.departmentRoleAssignment.forEach((dra) => {
             const deptKey = `${dra.department.id}-${dra.department.name}`;
@@ -97,8 +99,6 @@ export const get_users = async (req, res) => {
         }),
       };
     });
-
-    // Send response
     res.status(200).json({
       success: true,
       data: transformedUsers,

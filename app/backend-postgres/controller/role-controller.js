@@ -148,33 +148,26 @@ export const add_role = async (req, res) => {
 */
 export const get_roles = async (req, res) => {
   try {
-    const { isRootLevel, departmentName } = req.query;
-
-    // Define query filters
+    const { isRootLevel, departmentName, fromAdmin } = req.query;
     const filters = {};
-
-    // If isRootLevel is specified, filter roles by it
     if (typeof isRootLevel !== "undefined") {
       filters.isRootLevel = isRootLevel === "true";
     }
-
-    // If departmentName is specified, find the department ID and filter roles
     if (departmentName) {
       const department = await prisma.department.findUnique({
         where: { name: departmentName },
         select: { id: true },
       });
-
       if (!department) {
         return res
           .status(400)
           .json({ message: "The specified department does not exist." });
       }
-
       filters.departmentId = department.id;
     }
-
-    // Fetch roles based on filters
+    if (!fromAdmin) {
+      filters.status = "Active";
+    }
     const roles = await prisma.role.findMany({
       where: filters,
       select: {
@@ -189,13 +182,11 @@ export const get_roles = async (req, res) => {
         status: true,
         branch: {
           select: {
-            name: true, // Fetch department name
+            name: true,
           },
         },
       },
     });
-
-    // Format the response to include department name directly
     const formattedRoles = roles.map((role) => ({
       id: role.id,
       role: role.role,
@@ -207,7 +198,6 @@ export const get_roles = async (req, res) => {
       updatedAt: role.updatedAt,
       status: role.status,
     }));
-
     res.status(200).json({
       message: "Roles fetched successfully.",
       roles: formattedRoles,
