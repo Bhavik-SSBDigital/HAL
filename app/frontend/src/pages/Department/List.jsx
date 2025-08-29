@@ -61,7 +61,13 @@ export default function List() {
     try {
       const response = await deleteDepartment(id);
       if (response.status === 200) {
-        setDepartments((prev) => prev.filter((item) => item._id !== id));
+        setDepartments((prev) =>
+          prev.map((item) =>
+            (item.id || item._id) === id
+              ? { ...item, status: 'Inactive' }
+              : item,
+          ),
+        );
         toast.success(response.data.message);
       }
     } catch (error) {
@@ -122,7 +128,7 @@ export default function List() {
               setDeleteItemId(params.id);
               setModalOpen(true);
             }}
-            disabled={actionsLoading}
+            disabled={actionsLoading || params.row.status == 'Inactive'}
             text={<IconTrash color="white" />}
           />
         </div>
@@ -196,6 +202,11 @@ export default function List() {
                   columns={columns}
                   pageSize={5}
                   autoHeight
+                  getRowClassName={(params) =>
+                    params.row.status === 'Inactive'
+                      ? 'bg-red-100 text-gray-500'
+                      : ''
+                  }
                 />
               </div>
             </div>
@@ -203,7 +214,10 @@ export default function List() {
         </CustomCard>
       )}
       {/* Modal */}
-      <CustomModal className={'w-11/12 overflow-y-auto'} isOpen={isHierarchyModalOpen}>
+      <CustomModal
+        className={'w-11/12 overflow-y-auto'}
+        isOpen={isHierarchyModalOpen}
+      >
         <div className="flex justify-end mb-2">
           <button
             onClick={() => setHierarchyModalOpen(false)}
@@ -221,6 +235,7 @@ export default function List() {
         onClose={() => setModalOpen(false)}
         onConfirm={() => handleDepDelete(deleteItemId)}
         isLoading={actionsLoading}
+        deactive={true}
       />
     </>
   );

@@ -142,6 +142,7 @@ const Archive = () => {
               <div key={item.id} className="relative">
                 <CustomCard
                   className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
+                  title={item.name}
                   click={() =>
                     item.type === 'folder' ? handleFolderClick(item) : null
                   }

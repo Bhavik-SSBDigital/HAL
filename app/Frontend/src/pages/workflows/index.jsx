@@ -73,7 +73,14 @@ export default function WorkflowVisualizer() {
       const response = await deleteWorkflow(id);
 
       if (response.status === 200) {
-        setWorkflows((prev) => prev.filter((item) => item._id !== id));
+        setWorkflows((prev) =>
+          prev.map((item) =>
+            (item.id || item._id) === id
+              ? { ...item, status: 'Inactive' }
+              : item,
+          ),
+        );
+
         toast.success(response?.data?.message);
       }
     } catch (error) {
@@ -131,7 +138,7 @@ export default function WorkflowVisualizer() {
           return (
             <motion.div
               key={workflow.name}
-              className="bg-white rounded-xl shadow-lg p-6 mb-3 border border-slate-400 relative"
+              className={`bg-white rounded-xl shadow-lg p-6 mb-3 border border-slate-400 relative ${selectedVersion?.status == 'Inactive' ? 'bg-red-100' : ''}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -147,6 +154,7 @@ export default function WorkflowVisualizer() {
                     click={() => setDeleteItemId(selectedVersion?.id)}
                     text={<IconTrash size={20} />}
                     title={'Delete'}
+                    disabled={selectedVersion?.status == "Inactive"}
                     variant={'danger'}
                   />
                   <CustomButton
@@ -246,6 +254,7 @@ export default function WorkflowVisualizer() {
         onClose={() => setDeleteItemId(null)}
         onConfirm={() => handleDelete(deleteItemId)}
         isLoading={deleteLoading}
+        deactive={true}
       />
     </div>
   );

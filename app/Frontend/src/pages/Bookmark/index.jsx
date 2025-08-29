@@ -5,6 +5,7 @@ import {
   IconSettings,
   IconArchiveOff,
   IconBookmarkFilled,
+  IconEye,
 } from '@tabler/icons-react';
 import ViewFile from '../view/View';
 import CustomCard from '../../CustomComponents/CustomCard';
@@ -121,6 +122,7 @@ const Bookmark = () => {
               <div key={item.id} className="relative">
                 <CustomCard
                   className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
+                  title={item.name}
                   onDoubleClick={() =>
                     handleViewFile(
                       item?.name,
@@ -170,20 +172,41 @@ const Bookmark = () => {
           <h3 className="font-semibold mb-3">{selectedItem.name}</h3>
           <div className="flex flex-col gap-2">
             {selectedItem.type !== 'folder' && (
-              <CustomButton
-                variant="none"
-                text={
-                  <>
-                    <IconBookmarkFilled size={18} /> Remove Bookmark
-                  </>
-                }
-                className="w-full flex items-center gap-2"
-                click={() => {
-                  setIsMenuOpen(false);
-                  removeBookmark(selectedItem);
-                }}
-                disabled={actionsLoading}
-              />
+              <>
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconEye size={18} /> View File
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => {
+                    handleViewFile(
+                      selectedItem?.name,
+                      selectedItem?.path,
+                      selectedItem?.id,
+                      selectedItem?.type,
+                      false,
+                    );
+                  }}
+                  disabled={actionsLoading}
+                />
+                <CustomButton
+                  variant="none"
+                  text={
+                    <>
+                      <IconBookmarkFilled size={18} /> Remove Bookmark
+                    </>
+                  }
+                  className="w-full flex items-center gap-2"
+                  click={() => {
+                    setIsMenuOpen(false);
+                    removeBookmark(selectedItem);
+                  }}
+                  disabled={actionsLoading}
+                />
+              </>
             )}
             <CustomButton
               variant="none"

@@ -40,7 +40,13 @@ const RolesList = () => {
     try {
       const response = await deleteRole(id);
       if (response?.status === 200) {
-        setRoles((prev) => prev.filter((item) => item._id !== id));
+        setRoles((prev) =>
+          prev.map((item) =>
+            (item.id || item._id) === id
+              ? { ...item, status: 'Inactive' }
+              : item,
+          ),
+        );
         toast.success(response?.data?.message);
       }
     } catch (error) {
@@ -113,7 +119,7 @@ const RolesList = () => {
               setDeleteItemId(params.row.id);
               setModalOpen(true);
             }}
-            disabled={actionsLoading}
+            disabled={actionsLoading || params.row.status == 'Inactive'}
             text={<IconTrash color="white" />}
           />
         </div>
@@ -153,6 +159,7 @@ const RolesList = () => {
         onClose={() => setModalOpen(false)}
         onConfirm={() => handleDelete(deleteItemId)}
         isLoading={actionsLoading}
+        deactive={true}
       />
     </CustomCard>
   );
