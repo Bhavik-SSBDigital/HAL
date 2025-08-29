@@ -174,7 +174,7 @@ const Editor = ({
         const params = new URLSearchParams({
           access_token: wopiToken,
           lang: 'en-US',
-          closebutton: '1',
+          closebutton: '0',
           revisionhistory: '1',
           ...(readOnly && { IsReadOnly: '1' }),
         });
