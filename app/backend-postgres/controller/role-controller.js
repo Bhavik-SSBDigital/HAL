@@ -186,6 +186,7 @@ export const get_roles = async (req, res) => {
         isDepartmentHead: true,
         createdAt: true,
         updatedAt: true,
+        status: true,
         branch: {
           select: {
             name: true, // Fetch department name
@@ -204,6 +205,7 @@ export const get_roles = async (req, res) => {
       departmentName: role.branch?.name || null,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
+      status: role.status,
     }));
 
     res.status(200).json({
