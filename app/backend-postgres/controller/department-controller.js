@@ -32,7 +32,7 @@ export const add_department = async (req, res) => {
     }
 
     console.log("User data", userData); // Full user details logged here
-    const { code, type } = req.body;
+    const { code, type, status } = req.body;
 
     const parentDepartmentId =
       req.body.parentDepartmentId !== ""
@@ -48,6 +48,8 @@ export const add_department = async (req, res) => {
       return res.status(400).json({ error: "Name and type are required." });
     }
 
+    const departmentStatus = status || "Active";
+
     // Create department in the database
     const newDepartment = await prisma.department.create({
       data: {
@@ -56,7 +58,7 @@ export const add_department = async (req, res) => {
         type,
         parentDepartmentId,
         adminId,
-        status: "Active",
+        status: departmentStatus,
         createdById: userData.id,
       },
     });
@@ -213,5 +215,34 @@ export const add_workflow = async (req, res) => {
     return res.status(500).json({
       message: "Error adding workflow",
     });
+  }
+};
+
+export const deactivate_department = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { id } = req.params;
+
+    const department = await prisma.department.update({
+      where: { id: parseInt(id) },
+      data: { status: "Inactive" },
+    });
+
+    if (!department) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Department deactivated successfully" });
+  } catch (error) {
+    console.error("Error deactivating department:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

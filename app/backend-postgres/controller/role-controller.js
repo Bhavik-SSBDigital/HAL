@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
+import { verifyUser } from "../utility/verifyUser.js";
 const prisma = new PrismaClient();
 
 // Utility function to remove duplicates
@@ -34,6 +35,7 @@ export const add_role = async (req, res) => {
       isRootLevel,
       isAdmin,
       isDepartmentHead,
+      status,
     } = req.body;
 
     // Check if department is required and exists
@@ -93,12 +95,14 @@ export const add_role = async (req, res) => {
     processStandardAccess(selectedDownload, ["READ", "DOWNLOAD"]);
     processStandardAccess(selectedUpload, ["READ", "EDIT"]);
 
+    const roleStatus = status || "Active";
+
     // Create the role and its document accesses in a transaction
     const [newRole] = await prisma.$transaction([
       prisma.role.create({
         data: {
           role,
-          status: "Active",
+          status: roleStatus,
           departmentId: departmentObj?.id || null,
           isRootLevel: Boolean(isRootLevel),
           isAdmin: Boolean(isAdmin),
@@ -571,5 +575,32 @@ export const getRolesHierarchyInDepartment = async (req, res) => {
   } catch (error) {
     console.error("Error fetching department roles:", error);
     res.status(500).json({ error: "An error occurred while fetching roles." });
+  }
+};
+
+export const deactivate_role = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { id } = req.params;
+
+    const role = await prisma.role.update({
+      where: { id: parseInt(id) },
+      data: { isActive: false },
+    });
+
+    if (!role) {
+      return res.status(404).json({ message: "Role not found" });
+    }
+
+    return res.status(200).json({ message: "Role deactivated successfully" });
+  } catch (error) {
+    console.error("Error deactivating role:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

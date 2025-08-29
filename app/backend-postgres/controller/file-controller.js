@@ -5,6 +5,7 @@ import { dirname, join, normalize, extname, basename } from "path";
 import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import fsCB from "fs";
 import sharp from "sharp";
+import logger from "./logger.js";
 import path from "path";
 import axios from "axios";
 import { Transform } from "stream";
@@ -100,14 +101,26 @@ async function executeTextExtractionScript(filePath) {
 }
 
 export const file_upload = async (req, res) => {
+  const accessToken = req.headers["x-authorization"].substring(7);
+  const userData = await verifyUser(accessToken);
   try {
-    const accessToken = req.headers["x-authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    logger.info({
+      action: "FILE_UPLOAD_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        fileName: decodeURIComponent(req.headers["x-file-name"]),
+        chunkNumber: req.headers["x-current-chunk"],
+        totalChunks: req.headers["x-total-chunks"],
+      },
+    });
 
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
+      logger.warn({
+        action: "FILE_UPLOAD_UNAUTHORIZED",
+        details: { accessToken },
       });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
@@ -115,14 +128,9 @@ export const file_upload = async (req, res) => {
     const totalChunks = parseInt(req.headers["x-total-chunks"]);
     const chunkSize = parseInt(req.headers["x-chunk-size"]);
     let isInvolvedInProcess = Boolean(req.headers["x-involved-in-process"]);
-    let tags = req.headers["x-tags"];
-    tags = tags ? tags.split(",") : [];
+    let tags = req.headers["x-tags"] ? req.headers["x-tags"].split(",") : [];
     let departmentName = req.headers["x-department-name"];
-    let workName = req.headers["x-work-name"];
-    let cabinetNo = req.headers["x-cabinet-no"];
-    let year = req.headers["x-year"];
     let documentId = req.headers["x-file-id"];
-
     isInvolvedInProcess =
       isInvolvedInProcess === "undefined" || undefined
         ? false
@@ -130,18 +138,12 @@ export const file_upload = async (req, res) => {
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-
     const fileExtension = fileName.split(".").pop();
-    let extra = req.headers["x-file-path"];
-    extra = extra.substring(2);
-    let relativePath = process.env.STORAGE_PATH + extra;
-
+    let extra = req.headers["x-file-path"].substring(2);
+    let relativePath = STORAGE_PATH + extra;
     let document;
 
-    console.log("doc id", documentId);
-
     if (documentId && documentId !== "undefined" && documentId !== undefined) {
-      console.log("wrong");
       document = await prisma.document.findUnique({
         where: { id: parseInt(documentId) },
       });
@@ -155,20 +157,24 @@ export const file_upload = async (req, res) => {
 
     try {
       if (chunkNumber === 0) {
-        await fs.promises.access(saveTo);
-        return res.status(409).json({
-          message: "File already exists at the given path",
+        await fs.access(saveTo);
+        logger.warn({
+          action: "FILE_UPLOAD_EXISTS",
+          userId: userData.id,
+          details: { fileName, path: saveTo },
         });
+        return res
+          .status(409)
+          .json({ message: "File already exists at the given path" });
       }
     } catch (err) {
-      // File does not exist; continue with upload
+      // File does not exist; continue
     }
 
     const writableStream = fsCB.createWriteStream(saveTo, {
-      flags: "a+", // Append mode
+      flags: "a+",
       start: chunkNumber * chunkSize,
     });
-
     req.pipe(writableStream);
 
     writableStream.on("finish", async () => {
@@ -179,12 +185,16 @@ export const file_upload = async (req, res) => {
             documentId !== undefined &&
             documentId
           ) {
-            console.log("lo");
-            return res.status(200).json({
-              message: "File upload completed.",
-              documentId: documentId,
+            logger.info({
+              action: "FILE_UPLOAD_COMPLETED",
+              userId: userData.id,
+              details: { documentId, fileName, username: userData.username },
             });
+            return res
+              .status(200)
+              .json({ message: "File upload completed.", documentId });
           }
+
           const newDocument = await prisma.document.create({
             data: {
               name: fileName,
@@ -195,21 +205,14 @@ export const file_upload = async (req, res) => {
               tags: tags,
               isRecord: isInvolvedInProcess ? false : true,
               department: departmentName
-                ? {
-                    connect: { name: departmentName },
-                  }
+                ? { connect: { name: departmentName } }
                 : undefined,
-              // highlights: { create: [] },
             },
           });
 
-          console.log("new doc", newDocument);
-
           await createUserPermissions(newDocument.id, userData.username, true);
-
           await storeChildIdInParentDocument(extra, newDocument.id);
 
-          // In the setTimeout block
           setTimeout(async () => {
             try {
               const absolutePath = path.join(
@@ -217,94 +220,121 @@ export const file_upload = async (req, res) => {
                 STORAGE_PATH,
                 newDocument.path
               );
-
-              // Check if file exists
               try {
                 await fs.access(absolutePath);
-                console.log(`File exists: ${absolutePath}`);
               } catch (err) {
-                console.error(`File not found: ${absolutePath}`, err);
+                logger.error({
+                  action: "FILE_UPLOAD_ACCESS_ERROR",
+                  userId: userData.id,
+                  details: { error: err.message, path: absolutePath },
+                });
                 return;
               }
 
-              // Check file size
               const stats = await fs.stat(absolutePath);
               if (stats.size === 0) {
-                console.warn(`File is empty: ${absolutePath}`);
+                logger.warn({
+                  action: "FILE_UPLOAD_EMPTY",
+                  userId: userData.id,
+                  details: { path: absolutePath },
+                });
                 return;
               }
 
               const ext = path.extname(absolutePath).toLowerCase();
-              console.log(
-                `Processing document ${newDocument.id} (${newDocument.name}) with extension: ${ext}, size: ${stats.size} bytes`
-              );
-
-              // Use Python for text extraction
               let content = "";
               try {
                 const extractionResult = await executeTextExtractionScript(
                   absolutePath
                 );
-
                 if (extractionResult.success) {
                   content = extractionResult.text;
-                  console.log(
-                    `Content extracted for document ${newDocument.id}: ${content.length} characters`
-                  );
-                  console.log(`Preview: ${content.substring(0, 200)}...`);
-                } else {
-                  console.warn(
-                    `No content extracted for document ${newDocument.id} (${newDocument.name}), extension: ${ext}`
-                  );
                 }
               } catch (error) {
-                console.error(`Python extraction failed: ${error.message}`);
+                logger.error({
+                  action: "FILE_UPLOAD_EXTRACTION_ERROR",
+                  userId: userData.id,
+                  details: { error: error.message, path: absolutePath },
+                });
               }
 
-              // Index the content (even if empty to avoid re-processing)
               await SearchIndexService.indexDocumentContent(
                 newDocument.id,
                 content
               );
 
-              if (content.trim().length > 0) {
-                console.log(`Successfully indexed document ${newDocument.id}`);
-              } else {
-                console.log(
-                  `Indexed document ${newDocument.id} with empty content`
-                );
-              }
+              logger.info({
+                action: "FILE_UPLOAD_INDEXED",
+                userId: userData.id,
+                details: {
+                  documentId: newDocument.id,
+                  fileName,
+                  contentLength: content.length,
+                  username: userData.username,
+                },
+              });
             } catch (error) {
-              console.error(
-                `Content indexing failed for document ${newDocument.id}:`,
-                error
-              );
+              logger.error({
+                action: "FILE_UPLOAD_INDEXING_ERROR",
+                userId: userData.id,
+                details: { error: error.message, documentId: newDocument.id },
+              });
             }
           }, 1000);
+
+          logger.info({
+            action: "FILE_UPLOAD_SUCCESS",
+            userId: userData.id,
+            details: {
+              documentId: newDocument.id,
+              fileName,
+              path: relativePath,
+              username: userData.username,
+            },
+          });
+
           return res.status(200).json({
             message: "File upload completed.",
             documentId: newDocument.id,
           });
         } catch (err) {
-          console.error("Error storing document details:", err);
+          logger.error({
+            action: "FILE_UPLOAD_DB_ERROR",
+            userId: userData.id,
+            details: { error: err.message, fileName },
+          });
           return res
             .status(500)
             .json({ message: "Error storing document details." });
         }
       } else {
-        return res.status(200).json({
-          message: "Chunk received successfully.",
+        logger.info({
+          action: "FILE_UPLOAD_CHUNK",
+          userId: userData.id,
+          details: { fileName, chunkNumber, totalChunks },
         });
+        return res
+          .status(200)
+          .json({ message: "Chunk received successfully." });
       }
     });
 
     writableStream.on("error", (err) => {
-      console.error("Error writing the file:", err);
+      logger.error({
+        action: "FILE_UPLOAD_WRITE_ERROR",
+        userId: userData.id,
+        details: { error: err.message, fileName },
+      });
       res.status(500).send("Error writing the file.");
     });
   } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).send("Error.");
+    console.log("Error uploading file", error);
+    logger.error({
+      action: "FILE_UPLOAD_ERROR",
+      userId: userData?.id,
+      details: { error: error.message },
+    });
+    return res.status(500).send("Error uploading file");
   }
 };
 
@@ -313,22 +343,50 @@ export const create_folder = async (req, res) => {
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
 
+    logger.info({
+      action: "CREATE_FOLDER_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        path: req.body.path,
+        isProject: req.body.isProject,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "CREATE_FOLDER_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
     const { isProject, path: path_ } = req.body;
-    const statusCode = await createFolder(isProject, path_, userData);
+    const statusCode = await createFolder(isProject, path_, userData); // Assume createFolder is defined
 
     if (statusCode === 409) {
+      logger.warn({
+        action: "CREATE_FOLDER_EXISTS",
+        userId: userData.id,
+        details: { path: path_ },
+      });
       return res.status(409).json({ message: "Folder already exists" });
     }
 
     if (statusCode === 200) {
+      logger.info({
+        action: "CREATE_FOLDER_SUCCESS",
+        userId: userData.id,
+        details: { path: path_, username: userData.username, isProject },
+      });
       return res.status(200).json({ message: "Folder created successfully" });
     }
   } catch (error) {
-    console.error(error);
+    logger.error({
+      action: "CREATE_FOLDER_ERROR",
+      userId: userData?.id,
+      details: { error: error.message, path: req.body.path },
+    });
     res.status(500).json({ message: "Error creating folder" });
   }
 };
@@ -496,21 +554,31 @@ export const file_copy = async (req, res) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
 
+    logger.info({
+      action: "FILE_COPY_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        sourcePath: req.body.sourcePath,
+        destinationPath: req.body.destinationPath,
+        name: req.body.name,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "FILE_COPY_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
     const bufferSize = 1024 * 1024; // 1 MB buffer size
-
     const sourcePath = req.body.sourcePath.substring(2);
-
     const destinationPathParent = req.body.destinationPath.substring(2);
-
     const name = req.body.name;
     const destinationPath = destinationPathParent + `/${name}`;
-
     const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
-
     const absoluteDestinationPath = path.join(
       __dirname,
       STORAGE_PATH,
@@ -525,12 +593,23 @@ export const file_copy = async (req, res) => {
     });
 
     sourceStream.on("error", (error) => {
-      console.error("Source Stream Error:", error);
+      logger.error({
+        action: "FILE_COPY_SOURCE_ERROR",
+        userId: userData.id,
+        details: { error: error.message, sourcePath: absoluteSourcePath },
+      });
       return res.status(500).json({ message: "Error reading source file" });
     });
 
     destinationStream.on("error", (error) => {
-      console.error("Destination Stream Error:", error);
+      logger.error({
+        action: "FILE_COPY_DESTINATION_ERROR",
+        userId: userData.id,
+        details: {
+          error: error.message,
+          destinationPath: absoluteDestinationPath,
+        },
+      });
       return res
         .status(500)
         .json({ message: "Error writing destination file" });
@@ -538,7 +617,6 @@ export const file_copy = async (req, res) => {
 
     destinationStream.on("finish", async () => {
       try {
-        // Store document details in the database
         const newDocument = await prisma.document.create({
           data: {
             name: name,
@@ -561,11 +639,10 @@ export const file_copy = async (req, res) => {
             accessLevel: "STANDARD",
             docAccessThrough: "SELF",
             grantedAt: new Date(),
-            grantedBy: { connect: { id: userData.id } }, // Assuming the system admin is granting this
+            grantedBy: { connect: { id: userData.id } },
           },
         });
 
-        // Update parent document (if it's nested under another document)
         if (req.body.destinationPath) {
           const parentDocument = await prisma.document.findUnique({
             where: { path: destinationPathParent },
@@ -581,19 +658,38 @@ export const file_copy = async (req, res) => {
           }
         }
 
+        logger.info({
+          action: "FILE_COPY_SUCCESS",
+          userId: userData.id,
+          details: {
+            documentId: newDocument.id,
+            sourcePath: absoluteSourcePath,
+            destinationPath: absoluteDestinationPath,
+            username: userData.username,
+          },
+        });
+
         res.status(200).json({
           message: `File copied successfully`,
           documentId: newDocument.id,
         });
       } catch (error) {
-        console.error("Database Error:", error);
+        logger.error({
+          action: "FILE_COPY_DB_ERROR",
+          userId: userData.id,
+          details: { error: error.message, sourcePath, destinationPath },
+        });
         res.status(500).json({ message: "Error storing document details" });
       }
     });
 
     sourceStream.pipe(destinationStream);
   } catch (error) {
-    console.error("Error copying file:", error);
+    logger.error({
+      action: "FILE_COPY_ERROR",
+      userId: userData?.id,
+      details: { error: error.message },
+    });
     res.status(500).json({ message: "Error copying file" });
   }
 };
@@ -603,17 +699,30 @@ export const file_cut = async (req, res) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
 
+    logger.info({
+      action: "FILE_CUT_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        sourcePath: req.body.sourcePath,
+        destinationPath: req.body.destinationPath,
+        name: req.body.name,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "FILE_CUT_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const bufferSize = 1024 * 1024; // 1 MB buffer size
-
+    const bufferSize = 1024 * 1024;
     const sourcePath = req.body.sourcePath.substring(2);
     const destinationPathParent = req.body.destinationPath.substring(2);
     const name = req.body.name;
     const destinationPath = destinationPathParent + `/${name}`;
-
     const absoluteSourcePath = path.join(__dirname, STORAGE_PATH, sourcePath);
     const absoluteDestinationPath = path.join(
       __dirname,
@@ -629,12 +738,23 @@ export const file_cut = async (req, res) => {
     });
 
     sourceStream.on("error", (error) => {
-      console.error("Source Stream Error:", error);
+      logger.error({
+        action: "FILE_CUT_SOURCE_ERROR",
+        userId: userData.id,
+        details: { error: error.message, sourcePath: absoluteSourcePath },
+      });
       return res.status(500).json({ message: "Error reading source file" });
     });
 
     destinationStream.on("error", (error) => {
-      console.error("Destination Stream Error:", error);
+      logger.error({
+        action: "FILE_CUT_DESTINATION_ERROR",
+        userId: userData.id,
+        details: {
+          error: error.message,
+          destinationPath: absoluteDestinationPath,
+        },
+      });
       return res
         .status(500)
         .json({ message: "Error writing destination file" });
@@ -642,7 +762,6 @@ export const file_cut = async (req, res) => {
 
     destinationStream.on("finish", async () => {
       try {
-        // Create new document record
         const newDocument = await prisma.document.create({
           data: {
             name: name,
@@ -654,7 +773,6 @@ export const file_cut = async (req, res) => {
           },
         });
 
-        // Create document access for the user
         const accessTypes = ["READ", "EDIT"];
         await prisma.documentAccess.create({
           data: {
@@ -668,7 +786,6 @@ export const file_cut = async (req, res) => {
           },
         });
 
-        // Connect to parent document if exists
         if (req.body.destinationPath) {
           const parentDocument = await prisma.document.findUnique({
             where: { path: destinationPathParent },
@@ -684,16 +801,19 @@ export const file_cut = async (req, res) => {
           }
         }
 
-        // Find and clean up the old document
         const oldDocument = await prisma.document.findUnique({
           where: { path: sourcePath },
         });
 
         if (!oldDocument) {
+          logger.warn({
+            action: "FILE_CUT_SOURCE_NOT_FOUND",
+            userId: userData.id,
+            details: { sourcePath },
+          });
           return res.status(404).json({ message: "Source document not found" });
         }
 
-        // Disconnect from all parent documents
         await prisma.document.updateMany({
           where: { children: { some: { id: oldDocument.id } } },
           data: {
@@ -702,23 +822,38 @@ export const file_cut = async (req, res) => {
         });
 
         await cleanUpDocumentDetails(oldDocument.id);
-
-        // Delete the source file
         await fs.unlink(absoluteSourcePath);
-
-        // Delete the old document record
         await prisma.document.delete({ where: { id: oldDocument.id } });
+
+        logger.info({
+          action: "FILE_CUT_SUCCESS",
+          userId: userData.id,
+          details: {
+            documentId: newDocument.id,
+            sourcePath: absoluteSourcePath,
+            destinationPath: absoluteDestinationPath,
+            username: userData.username,
+          },
+        });
 
         res.status(200).json({ message: "File cut successfully" });
       } catch (error) {
-        console.error("Database Error:", error);
+        logger.error({
+          action: "FILE_CUT_DB_ERROR",
+          userId: userData.id,
+          details: { error: error.message, sourcePath, destinationPath },
+        });
         res.status(500).json({ message: "Error during file cut operation" });
       }
     });
 
     sourceStream.pipe(destinationStream);
   } catch (error) {
-    console.error("Error cutting file:", error);
+    logger.error({
+      action: "FILE_CUT_ERROR",
+      userId: userData?.id,
+      details: { error: error.message },
+    });
     res.status(500).json({ message: "Error cutting file" });
   }
 };
@@ -942,68 +1077,82 @@ export const folder_download = async (req, res) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
 
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
-
-    // Get department or process related to the folder if applicable
-    const departmentId = req.body.departmentId; // Assuming you're passing a departmentId
-    const folderName = req.body.folderName; // Name of the folder you want to zip
-
-    // Retrieve the department to get the associated documents
-    const department = await prisma.department.findUnique({
-      where: { id: departmentId },
-      include: {
-        documents: true, // Fetch documents associated with the department
+    logger.info({
+      action: "FOLDER_DOWNLOAD_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        departmentId: req.body.departmentId,
+        folderName: req.body.folderName,
       },
     });
 
-    if (!department) {
-      return res.status(404).json({
-        message: "Department not found",
+    if (userData === "Unauthorized") {
+      logger.warn({
+        action: "FOLDER_DOWNLOAD_UNAUTHORIZED",
+        details: { accessToken },
       });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    // Construct the folder path
-    let folderPath =
-      process.env.STORAGE_PATH +
-      `/departments/${department.code}/${folderName}`; // Modify as needed based on your structure
-    folderPath = path.join(__dirname, folderPath);
+    const departmentId = req.body.departmentId;
+    const folderName = req.body.folderName;
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId },
+      include: { documents: true },
+    });
 
+    if (!department) {
+      logger.warn({
+        action: "FOLDER_DOWNLOAD_DEPT_NOT_FOUND",
+        userId: userData.id,
+        details: { departmentId },
+      });
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    let folderPath =
+      STORAGE_PATH + `/departments/${department.code}/${folderName}`;
+    folderPath = path.join(__dirname, folderPath);
     const zipFileName = `${folderName}.zip`;
 
-    // Set response headers for downloading
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${zipFileName}"`
     );
 
-    // Create a zip archive and pipe it directly to the response
-    const archive = archiver("zip", {
-      zlib: { level: 9 }, // Set compression level (optional)
-    });
-
+    const archive = archiver("zip", { zlib: { level: 9 } });
     archive.pipe(res);
+    archive.directory(folderPath, false);
 
-    // Add the entire folder to the archive
-    archive.directory(folderPath, false); // 'false' to include all files and subfolders
-
-    // Add documents related to the department to the zip if needed
     department.documents.forEach((doc) => {
-      const documentPath = path.join(__dirname, doc.path); // Path to the document file
+      const documentPath = path.join(__dirname, doc.path);
       archive.file(documentPath, { name: doc.name });
     });
 
-    // Finalize the archive
     await archive.finalize();
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({
-      message: "Error downloading folder",
+
+    logger.info({
+      action: "FOLDER_DOWNLOAD_SUCCESS",
+      userId: userData.id,
+      details: {
+        departmentId,
+        folderName,
+        username: userData.username,
+      },
     });
+  } catch (error) {
+    logger.error({
+      action: "FOLDER_DOWNLOAD_ERROR",
+      userId: userData?.id,
+      details: {
+        error: error.message,
+        departmentId: req.body.departmentId,
+        folderName: req.body.folderName,
+      },
+    });
+    res.status(500).json({ message: "Error downloading folder" });
   }
 };
 
@@ -1069,40 +1218,59 @@ export const file_though_url = async (req, res) => {
   try {
     let filePath = "/" + req.params.filePath;
 
+    logger.info({
+      action: "FILE_THROUGH_URL_START",
+      details: { filePath },
+    });
+
     if (!filePath) {
+      logger.warn({
+        action: "FILE_THROUGH_URL_NO_PATH",
+        details: { filePath },
+      });
       return res.status(400).json({ message: "File path is missing" });
     }
 
-    // Fetch the document from the database using the filePath (assuming filePath matches the Document's path)
     const document = await prisma.document.findUnique({
       where: { path: filePath },
     });
 
     if (!document) {
+      logger.warn({
+        action: "FILE_THROUGH_URL_NOT_FOUND",
+        details: { filePath },
+      });
       return res.status(404).json({ message: "File not found in database" });
     }
 
-    // Resolve relative path to absolute path
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
+    const absoluteFilePath = path.join(__dirname, STORAGE_PATH, document.path);
 
-    const absoluteFilePath = path.join(
-      __dirname,
-      process.env.STORAGE_PATH,
-      document.path
-    );
-
-    // Check if the file exists
     try {
       await fs.access(absoluteFilePath);
     } catch {
+      logger.error({
+        action: "FILE_THROUGH_URL_ACCESS_ERROR",
+        details: { filePath: absoluteFilePath },
+      });
       return res.status(404).json({ message: "File not found in storage" });
     }
 
-    // Serve the file
+    logger.info({
+      action: "FILE_THROUGH_URL_SUCCESS",
+      details: {
+        documentId: document.id,
+        filePath: absoluteFilePath,
+      },
+    });
+
     return res.sendFile(absoluteFilePath);
   } catch (error) {
-    console.error("Error serving file:", error);
+    logger.error({
+      action: "FILE_THROUGH_URL_ERROR",
+      details: { error: error.message, filePath: req.params.filePath },
+    });
     return res.status(500).json({ message: "Error serving file" });
   }
 };
@@ -1330,55 +1498,76 @@ export const delete_file = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
+
+    logger.info({
+      action: "FILE_DELETE_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        documentId: req.body.documentId,
+      },
+    });
+
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
+      logger.warn({
+        action: "FILE_DELETE_UNAUTHORIZED",
+        details: { accessToken },
       });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const documentId = req.body.documentId;
     const document = await prisma.document.findUnique({
-      where: { id: documentId }, // Include related data if needed
+      where: { id: documentId },
     });
 
     if (!document) {
-      return res.status(404).json({
-        message: "Document not found",
+      logger.warn({
+        action: "FILE_DELETE_NOT_FOUND",
+        userId: userData.id,
+        details: { documentId },
       });
+      return res.status(404).json({ message: "Document not found" });
     }
 
-    let absolutePath = path.join(
-      __dirname,
-      process.env.STORAGE_PATH + document.path
-    );
+    const absolutePath = path.join(__dirname, STORAGE_PATH, document.path);
 
-    // Check if file exists in the filesystem
     try {
       await fs.access(absolutePath);
     } catch (error) {
-      console.error("File not found:", error);
-      return res.status(404).json({
-        message: "File not found",
+      logger.error({
+        action: "FILE_DELETE_ACCESS_ERROR",
+        userId: userData.id,
+        details: { error: error.message, path: absolutePath },
       });
+      return res.status(404).json({ message: "File not found" });
     }
-
-    // Find the document in the database by its path
 
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
       data: { inBin: true },
     });
 
-    res.status(200).json({
-      message: "File moved to recycle bin successfully",
+    logger.info({
+      action: "FILE_DELETE_SUCCESS",
+      userId: userData.id,
+      details: {
+        documentId,
+        path: document.path,
+        username: userData.username,
+      },
     });
+
+    res.status(200).json({ message: "File moved to recycle bin successfully" });
   } catch (error) {
-    console.error("Error moving file to recycle bin:", error);
-    res.status(500).json({
-      message: "Error moving file to recycle bin",
+    logger.error({
+      action: "FILE_DELETE_ERROR",
+      userId: userData?.id,
+      details: { error: error.message, documentId: req.body.documentId },
     });
+    res.status(500).json({ message: "Error moving file to recycle bin" });
   } finally {
-    await prisma.$disconnect(); // Disconnect Prisma client
+    await prisma.$disconnect();
   }
 };
 
@@ -1832,65 +2021,63 @@ export const downloadWatermarkedFile = async (req, res) => {
   let tempImagePath = null;
   try {
     const documentId = req.params.documentId;
-    console.log("Document ID:", documentId);
     const { password, watermarkText = "HAL KORWA" } = req.body;
-    console.log("Password:", password ? "Provided" : "Missing");
+
+    logger.info({
+      action: "DOWNLOAD_WATERMARKED_START",
+      details: { documentId, watermarkText },
+    });
 
     if (!password) {
+      logger.warn({
+        action: "DOWNLOAD_WATERMARKED_NO_PASSWORD",
+        details: { documentId },
+      });
       return res.status(400).json({ message: "Password is required" });
     }
 
-    // Fetch the document from the database
     const document = await prisma.document.findUnique({
       where: { id: parseInt(documentId) },
     });
 
     if (!document) {
+      logger.warn({
+        action: "DOWNLOAD_WATERMARKED_NOT_FOUND",
+        details: { documentId },
+      });
       return res.status(404).json({ message: "File not found in database" });
     }
 
-    // Resolve absolute file path
-    const STORAGE_PATH = process.env.STORAGE_PATH;
     const absoluteFilePath = path.join(__dirname, STORAGE_PATH, document.path);
-    console.log("Absolute file path:", absoluteFilePath);
 
-    // Check if the file exists
     try {
       await fs.access(absoluteFilePath, fs.constants.R_OK);
-      console.log("Input file accessible:", absoluteFilePath);
     } catch (error) {
-      console.error("File access error:", error);
+      logger.error({
+        action: "DOWNLOAD_WATERMARKED_ACCESS_ERROR",
+        details: { error: error.message, path: absoluteFilePath },
+      });
       return res.status(404).json({ message: "File not found in storage" });
     }
 
-    // Get file stats and extension
     const stats = await fs.stat(absoluteFilePath);
     const ext = path.extname(absoluteFilePath).toLowerCase();
-    console.log("File extension:", ext);
     const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".tiff"];
-
-    // Determine MIME type (always PDF for allowed extensions due to encryption)
     const contentType = getContentTypeFromExtension(ext.slice(1));
 
-    // Create temporary file paths
     tempFilePath = path.join(
       __dirname,
       STORAGE_PATH,
       `temp_${Date.now()}_${path.basename(absoluteFilePath, ext)}.pdf`
     );
-    console.log("Temporary file path:", tempFilePath);
 
-    // Apply watermark and password protection based on file type
     if (allowedExtensions.includes(ext)) {
       if (ext === ".pdf") {
-        // PDF watermarking
         const pdfBytes = await fs.readFile(absoluteFilePath);
-        console.log("Input PDF size:", pdfBytes.length, "bytes");
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
         const pages = pdfDoc.getPages();
-        console.log("Number of pages:", pages.length);
+
         for (const page of pages) {
           const { width, height } = page.getSize();
           const fontSize = Math.max(Math.min(width, height) * 0.07, 20);
@@ -1898,7 +2085,6 @@ export const downloadWatermarkedFile = async (req, res) => {
             watermarkText,
             fontSize
           );
-
           page.drawText(watermarkText, {
             x: width / 2 - textWidth / 2,
             y: height / 2,
@@ -1910,32 +2096,16 @@ export const downloadWatermarkedFile = async (req, res) => {
           });
         }
 
-        // Save watermarked PDF without encryption
         const watermarkedPdfBytes = await pdfDoc.save();
         watermarkedFilePath = path.join(
           __dirname,
           STORAGE_PATH,
           `watermarked_${Date.now()}_${path.basename(absoluteFilePath)}`
         );
-        try {
-          await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
-          console.log("Watermarked PDF saved at:", watermarkedFilePath);
-          await fs.access(
-            watermarkedFilePath,
-            fs.constants.R_OK | fs.constants.W_OK
-          );
-          console.log("Watermarked PDF verified:", watermarkedFilePath);
-        } catch (error) {
-          console.error("Failed to write/verify watermarked PDF:", error);
-          throw new Error("Failed to write watermarked PDF");
-        }
+        await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
       } else {
-        // Image watermarking and conversion to PDF
         const image = sharp(absoluteFilePath, { failOn: "none" });
         const metadata = await image.metadata();
-        console.log("Image dimensions:", metadata.width, "x", metadata.height);
-
-        // Create SVG watermark
         const fontSize = Math.max(
           Math.min(metadata.width || 0, metadata.height || 0) * 0.07,
           20
@@ -1944,34 +2114,16 @@ export const downloadWatermarkedFile = async (req, res) => {
           <svg width="${metadata.width}" height="${
           metadata.height
         }" xmlns="http://www.w3.org/2000/svg">
-            <text 
-              x="50%" y="50%"
-              font-family="Helvetica"
-              font-size="${fontSize}"
-              fill="#808080"
-              fill-opacity="0.5"
-              text-anchor="middle"
-              dominant-baseline="middle"
-              transform="rotate(-45, ${metadata.width / 2}, ${
-          metadata.height / 2
-        })"
-            >${watermarkText}</text>
+            <text x="50%" y="50%" font-family="Helvetica" font-size="${fontSize}" fill="#808080" fill-opacity="0.5" text-anchor="middle" dominant-baseline="middle" transform="rotate(-45, ${
+          metadata.width / 2
+        }, ${metadata.height / 2})">${watermarkText}</text>
           </svg>
         `;
-
         const svgBuffer = Buffer.from(svg);
-
-        // Apply watermark with sharp
         let outputImage = image
-          .composite([
-            {
-              input: svgBuffer,
-              blend: "over",
-            },
-          ])
+          .composite([{ input: svgBuffer, blend: "over" }])
           .withMetadata();
 
-        // Format-specific options
         if (ext === ".jpg" || ext === ".jpeg") {
           outputImage = outputImage.jpeg({ quality: 100, mozjpeg: true });
         } else if (ext === ".png") {
@@ -1986,23 +2138,13 @@ export const downloadWatermarkedFile = async (req, res) => {
           });
         }
 
-        // Save watermarked image temporarily
         tempImagePath = path.join(
           __dirname,
           STORAGE_PATH,
           `temp_image_${Date.now()}${ext}`
         );
-        try {
-          await outputImage.toFile(tempImagePath);
-          console.log("Watermarked image saved at:", tempImagePath);
-          await fs.access(tempImagePath, fs.constants.R_OK);
-          console.log("Watermarked image verified:", tempImagePath);
-        } catch (error) {
-          console.error("Failed to write/verify watermarked image:", error);
-          throw new Error("Failed to write watermarked image");
-        }
+        await outputImage.toFile(tempImagePath);
 
-        // Convert image to PDF
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage([metadata.width, metadata.height]);
         let imageObj;
@@ -2021,7 +2163,6 @@ export const downloadWatermarkedFile = async (req, res) => {
           height: metadata.height,
         });
 
-        // Save PDF without encryption
         const pdfBytes = await pdfDoc.save();
         watermarkedFilePath = path.join(
           __dirname,
@@ -2031,71 +2172,17 @@ export const downloadWatermarkedFile = async (req, res) => {
             ext
           )}.pdf`
         );
-        try {
-          await fs.writeFile(watermarkedFilePath, pdfBytes);
-          console.log(
-            "Watermarked PDF from image saved at:",
-            watermarkedFilePath
-          );
-          await fs.access(
-            watermarkedFilePath,
-            fs.constants.R_OK | fs.constants.W_OK
-          );
-          console.log("Watermarked PDF verified:", watermarkedFilePath);
-        } catch (error) {
-          console.error("Failed to write/verify watermarked PDF:", error);
-          throw new Error("Failed to write watermarked PDF from image");
-        }
+        await fs.writeFile(watermarkedFilePath, pdfBytes);
       }
 
-      // Apply password protection with qpdf
-      try {
-        console.log("Executing qpdf command...");
-        await execSync(
-          `qpdf --encrypt "${password}" "${password}" 256 -- "${watermarkedFilePath}" "${tempFilePath}"`
-        );
-        console.log("qpdf encryption applied successfully");
-        await fs.access(tempFilePath, fs.constants.R_OK);
-        console.log("Encrypted PDF verified:", tempFilePath);
-      } catch (error) {
-        console.error("qpdf encryption failed:", error);
-        throw new Error(
-          "Failed to apply password protection with qpdf: " + error.message
-        );
-      }
-
-      // Debugging: Save a copy to inspect password protection
-      const debugFilePath = path.join(
-        __dirname,
-        STORAGE_PATH,
-        `debug_${Date.now()}.pdf`
+      await execSync(
+        `qpdf --encrypt "${password}" "${password}" 256 -- "${watermarkedFilePath}" "${tempFilePath}"`
       );
-      try {
-        await fs.copyFile(tempFilePath, debugFilePath);
-        console.log(`Debug PDF saved at: ${debugFilePath}`);
-      } catch (error) {
-        console.error("Failed to save debug PDF:", error);
-        throw new Error("Failed to save debug PDF");
-      }
     } else {
-      // Copy unsupported file types as-is
-      console.log("Unsupported file type, copying as-is:", ext);
       await fs.copyFile(absoluteFilePath, tempFilePath);
     }
 
-    // Verify temporary file exists
-    try {
-      await fs.access(tempFilePath, fs.constants.R_OK);
-      console.log("Final temporary file verified:", tempFilePath);
-    } catch (error) {
-      console.error("Temporary file not created:", error);
-      throw new Error("Failed to create temporary file");
-    }
-
-    // Set headers for file delivery
     const tempStats = await fs.stat(tempFilePath);
-    console.log(`Temporary file size: ${tempStats.size} bytes`);
-    console.log("Output format: PDF (password-protected)");
     res.set({
       "Content-Type": contentType,
       "Content-Length": tempStats.size,
@@ -2109,58 +2196,74 @@ export const downloadWatermarkedFile = async (req, res) => {
       "Content-Security-Policy": "default-src 'none'",
     });
 
-    // Stream the temporary file
     const fileStream = createReadStream(tempFilePath);
     fileStream.on("error", (err) => {
-      console.error("File stream error:", err);
+      logger.error({
+        action: "DOWNLOAD_WATERMARKED_STREAM_ERROR",
+        details: { error: err.message, documentId },
+      });
       if (!res.headersSent) {
         res.status(500).json({ message: "Error streaming file" });
       }
     });
 
     await pipelineAsync(fileStream, res);
-    console.log("File streamed successfully");
+
+    logger.info({
+      action: "DOWNLOAD_WATERMARKED_SUCCESS",
+      details: {
+        documentId,
+        filePath: absoluteFilePath,
+        watermarkText,
+      },
+    });
   } catch (error) {
-    console.error("Error processing file:", error);
+    logger.error({
+      action: "DOWNLOAD_WATERMARKED_ERROR",
+      details: { error: error.message, documentId: req.params.documentId },
+    });
     if (!res.headersSent) {
       res
         .status(500)
         .json({ message: "Error processing file: " + error.message });
     }
   } finally {
-    // Clean up the temporary file if it exists
     if (tempFilePath) {
       try {
         await fs.access(tempFilePath);
         await fs.unlink(tempFilePath);
-        console.log("Temporary file deleted:", tempFilePath);
       } catch (err) {
         if (err.code !== "ENOENT") {
-          console.error("Error deleting temp file:", err);
+          logger.error({
+            action: "DOWNLOAD_WATERMARKED_CLEANUP_ERROR",
+            details: { error: err.message, path: tempFilePath },
+          });
         }
       }
     }
-    // Clean up the watermarked file if it exists
     if (watermarkedFilePath) {
       try {
         await fs.access(watermarkedFilePath);
         await fs.unlink(watermarkedFilePath);
-        console.log("Watermarked file deleted:", watermarkedFilePath);
       } catch (err) {
         if (err.code !== "ENOENT") {
-          console.error("Error deleting watermarked file:", err);
+          logger.error({
+            action: "DOWNLOAD_WATERMARKED_CLEANUP_ERROR",
+            details: { error: err.message, path: watermarkedFilePath },
+          });
         }
       }
     }
-    // Clean up the temporary image file if it exists
     if (tempImagePath) {
       try {
         await fs.access(tempImagePath);
         await fs.unlink(tempImagePath);
-        console.log("Temporary image deleted:", tempImagePath);
       } catch (err) {
         if (err.code !== "ENOENT") {
-          console.error("Error deleting temp image:", err);
+          logger.error({
+            action: "DOWNLOAD_WATERMARKED_CLEANUP_ERROR",
+            details: { error: err.message, path: tempImagePath },
+          });
         }
       }
     }

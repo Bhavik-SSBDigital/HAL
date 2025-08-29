@@ -318,9 +318,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     ///1. isArchived, 2. inBin 3. isArchived & inBin
     console.log("section type", req.body.sectionType);
     if (req.body.sectionType) {
-      result = result.filter(
-        (item) => item[`${req.body.sectionType}`] === true
-      );
+      result = result.filter((item) => {
+        return (
+          item[`${req.body.sectionType}`] === true || item.type === "folder"
+        );
+      });
     } else {
       result = result.filter(
         (item) =>
@@ -477,6 +479,8 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
 
       let result = await Promise.all(children);
       result = result.filter((item) => item !== null);
+
+      console.log("result", result);
 
       res.status(200).json({
         children: result,

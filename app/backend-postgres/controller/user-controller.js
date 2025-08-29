@@ -33,25 +33,75 @@ const prisma = new PrismaClient();
  */
 export const get_users = async (req, res) => {
   try {
-    const { isRootLevel } = req.query; // Extract isRootUser from query params
+    const { isRootLevel } = req.query;
 
-    // Convert `isRootUser` to boolean (optional if using a strict frontend)
-    // const isRoot = isRootUser === "true";
-
-    // Fetch users from the database
+    // Fetch users with their roles and associated departments
     const users = await prisma.user.findMany({
-      where: isRootLevel ? { isRootLevel: true } : {}, // Filter only root users if `isRootUser` is true
+      where: isRootLevel ? { isRootLevel: true } : {},
       select: {
         id: true,
         username: true,
         email: true,
+        status: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                id: true,
+                role: true,
+                isRootLevel: true,
+                departmentRoleAssignment: {
+                  select: {
+                    department: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
+    });
+
+    // Transform the data to simplify the structure and deduplicate departments
+    const transformedUsers = users.map((user) => {
+      const seenDepartments = new Set();
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        status: user.status || "UNKNOWN",
+        roles: user.roles.map((userRole) => {
+          // Deduplicate departments by id
+          const uniqueDepartments = [];
+          userRole.role.departmentRoleAssignment.forEach((dra) => {
+            const deptKey = `${dra.department.id}-${dra.department.name}`;
+            if (!seenDepartments.has(deptKey)) {
+              seenDepartments.add(deptKey);
+              uniqueDepartments.push({
+                id: dra.department.id,
+                name: dra.department.name,
+              });
+            }
+          });
+          return {
+            id: userRole.role.id,
+            role: userRole.role.role,
+            isRootLevel: userRole.role.isRootLevel,
+            departments: uniqueDepartments,
+          };
+        }),
+      };
     });
 
     // Send response
     res.status(200).json({
       success: true,
-      data: users,
+      data: transformedUsers,
     });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -210,18 +260,22 @@ export const get_user = async (req, res) => {
       isAdmin: user.isAdmin,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      status: user.status,
       permissions: {
         writable: user.writable,
         readable: user.readable,
         downloadable: user.downloadable,
         uploadable: user.uploadable,
       },
-      roles: user.roles.map((userRole) => ({
-        id: userRole.role.id,
-        name: userRole.role.role,
-        departmentId: userRole.role.departmentId,
-        isActive: userRole.role.isActive,
-      })),
+      roles: user.roles.map(
+        (userRole) =>
+          // {
+          userRole.role.id
+        // name: userRole.role.role,
+        // departmentId: userRole.role.departmentId,
+        // isActive: userRole.role.isActive,
+        // }
+      ),
       departments: {
         member: user.branches.map((dept) => ({
           id: dept.id,
@@ -262,6 +316,7 @@ export const edit_user = async (req, res) => {
       isAdmin,
       roles,
       permissions,
+      status,
     } = req.body;
 
     // Check if the user exists
@@ -313,6 +368,7 @@ export const edit_user = async (req, res) => {
       ...(username && { username }),
       ...(email && { email }),
       ...(name && { name }),
+      ...(status && { status }),
       ...(typeof specialUser === "boolean" && { specialUser }),
       ...(typeof isRootLevel === "boolean" && { isRootLevel }),
       ...(typeof isAdmin === "boolean" && { isAdmin }),
@@ -470,5 +526,32 @@ export const get_user_dsc = async (req, res, next) => {
   } catch (error) {
     console.error("Error getting DSC:", error);
     res.status(500).json({ message: "Error retrieving DSC" });
+  }
+};
+
+export const deactivate_user = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { id } = req.params;
+
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { status: "Inactive" },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({ message: "User deactivated successfully" });
+  } catch (error) {
+    console.error("Error deactivating user:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

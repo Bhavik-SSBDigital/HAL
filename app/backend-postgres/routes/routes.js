@@ -8,10 +8,13 @@ import {
   login,
   create_admin,
   change_password,
+  logout,
+  download_login_logs,
 } from "../controller/auth-controller.js";
 
 import {
   add_department,
+  deactivate_department,
   get_department,
   get_departments,
   getDepartmentsHierarchy,
@@ -115,9 +118,11 @@ import {
   edit_role,
   get_roles,
   getRolesHierarchyInDepartment,
+  deactivate_role,
 } from "../controller/role-controller.js";
 
 import {
+  deactivate_user,
   edit_user,
   get_user,
   get_user_dsc,
@@ -164,6 +169,7 @@ import {
   get_physical_requests,
   update_physical_request,
 } from "../controller/doc-tracking-controller.js";
+import { export_file_logs } from "../controller/file-operation-handler.js";
 
 const router = express.Router();
 
@@ -187,7 +193,6 @@ router.post("/upload", file_upload);
 router.post("/download", file_download);
 router.post("/copyFile", file_copy);
 router.post("/cutFile", file_cut);
-router.post("/deleteFile", file_delete);
 router.post("/createFolder", create_folder);
 router.post("/downloadFolder", folder_download);
 router.get("/files/:filePath(*)", file_though_url);
@@ -381,5 +386,17 @@ router.post("/updatePhysicalRequest/:id", update_physical_request);
 router.get("/getPhysicalRequestMessages/:id", get_physical_request_messages);
 
 router.post("/addRequestMessage/:id", add_request_message);
+
+router.post("/deleteUser/:id", deactivate_user);
+
+router.delete("/deleteRole/:id", deactivate_role);
+
+router.delete("/deleteDepartment/:id", deactivate_department);
+
+router.post("/logout", logout);
+
+router.get("/downloadLoginLogs", download_login_logs);
+
+router.get("/exportFileLogs", export_file_logs);
 
 export default router;

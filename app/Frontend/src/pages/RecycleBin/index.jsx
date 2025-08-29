@@ -68,7 +68,7 @@ const RecycleBin = () => {
   const restoreFile = async (item) => {
     setActionsLoading(true);
     try {
-      const response = await RecoverDeletedFile(item.path);
+      const response = await RecoverDeletedFile(item.id);
       toast.success(response?.data?.message);
       setDeletedFiles(deletedFiles.filter((file) => file.id !== item.id));
     } catch (error) {

@@ -8,79 +8,98 @@ const formatDate = (date) => {
 };
 
 // Helper function to get assignment details for a process step instance
-const getAssignmentDetails = async (processStepInstanceId, processId) => {
+async function getAssignmentDetails(stepInstanceId, processId) {
   try {
-    if (!processStepInstanceId || typeof processStepInstanceId !== "string") {
-      return {
-        workflow: "Unknown",
-        assignmentType: "Unknown",
-        role: "N/A",
-        department: "N/A",
-      };
-    }
-
-    const stepInstance = await prisma.processStepInstance.findUnique({
-      where: { id: processStepInstanceId },
+    // Fetch the ProcessInstance to get the workflow
+    const process = await prisma.processInstance.findUnique({
+      where: { id: processId },
       include: {
-        workflowStep: {
-          include: {
-            workflow: true,
-          },
-        },
-        process: true,
-        workflowAssignment: {
-          include: {
-            departmentRoles: {
-              include: {
-                department: true,
-                role: true,
-              },
-            },
-          },
-        },
+        workflow: { select: { name: true } },
       },
     });
 
-    if (!stepInstance)
+    if (!process) {
       return {
         workflow: "Unknown",
         assignmentType: "Unknown",
         role: "N/A",
         department: "N/A",
       };
+    }
 
-    const workflowName = stepInstance.workflowStep?.workflow?.name || "Unknown";
-    const assignmentType =
-      stepInstance.workflowAssignment?.assigneeType || "Unknown";
-    let roleName = "N/A";
-    let departmentName = "N/A";
+    let assignmentType = "Unknown";
+    let role = "N/A";
+    let department = "N/A";
 
-    if (stepInstance.workflowAssignment?.departmentRoles?.length > 0) {
-      const deptRole = stepInstance.workflowAssignment.departmentRoles[0];
-      roleName = deptRole.role?.role || "N/A";
-      departmentName = deptRole.department?.name || "N/A";
-    } else if (stepInstance.roleId) {
-      const role = await prisma.role.findUnique({
-        where: { id: stepInstance.roleId },
-        select: { role: true },
+    let stepInstance = null;
+    if (stepInstanceId) {
+      stepInstance = await prisma.processStepInstance.findUnique({
+        where: { id: stepInstanceId },
+        include: {
+          workflowAssignment: {
+            include: {
+              departmentRoles: {
+                include: {
+                  department: { select: { name: true } },
+                  role: { select: { role: true } },
+                },
+              },
+            },
+          },
+          workflowStep: { select: { stepName: true } },
+        },
       });
-      roleName = role?.role || "N/A";
-    } else if (stepInstance.departmentId) {
-      const department = await prisma.department.findUnique({
-        where: { id: stepInstance.departmentId },
-        select: { name: true },
+
+      console.log("step instance", stepInstance);
+    } else {
+      // Find the earliest ProcessStepInstance for the process
+      stepInstance = await prisma.processStepInstance.findFirst({
+        where: { processId },
+        include: {
+          workflowAssignment: {
+            include: {
+              departmentRoles: {
+                include: {
+                  department: { select: { name: true } },
+                  role: { select: { role: true } },
+                },
+              },
+            },
+          },
+          workflowStep: { select: { stepName: true } },
+        },
+        orderBy: { createdAt: "asc" },
       });
-      departmentName = department?.name || "N/A";
+    }
+
+    if (stepInstance?.workflowAssignment) {
+      assignmentType = stepInstance.workflowAssignment.assigneeType;
+      if (assignmentType === "DEPARTMENT") {
+        department =
+          stepInstance.workflowAssignment.departmentRoles[0]?.department
+            ?.name || "N/A";
+      } else if (assignmentType === "ROLE") {
+        role =
+          stepInstance.workflowAssignment.departmentRoles[0]?.role?.role ||
+          "N/A";
+      } else if (assignmentType === "USER") {
+        const user = await prisma.user.findUnique({
+          where: { id: stepInstance.assignedTo },
+          select: { username: true },
+        });
+        console.log("user", user);
+        role = user?.username || "N/A";
+      }
     }
 
     return {
-      workflow: workflowName,
+      workflow: process.workflow?.name || "Unknown",
       assignmentType,
-      role: roleName,
-      department: departmentName,
+      role,
+      department,
     };
   } catch (error) {
-    console.error("Error fetching assignment details:", error);
+    console.error("Error in getAssignmentDetails:", error);
     return {
       workflow: "Unknown",
       assignmentType: "Unknown",
@@ -88,14 +107,14 @@ const getAssignmentDetails = async (processStepInstanceId, processId) => {
       department: "N/A",
     };
   }
-};
+}
 
 // Helper function to get user details
 const getUserDetails = async (userId) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { username: true, name: true },
+      select: { id: true, username: true, name: true },
     });
     return user
       ? `${user.name || user.username} (${user.username})`
@@ -319,7 +338,7 @@ export const get_user_activity_log = async (req, res) => {
         },
       });
 
-      if (!stepInstance || stepInstance.processId !== processId) {
+      if (!stepInstance || stepInstance.process.id !== processId) {
         return res.status(404).json({
           success: false,
           error: {
@@ -375,6 +394,51 @@ export const get_user_activity_log = async (req, res) => {
         },
       });
     }
+
+    const allStepInstances = await prisma.processStepInstance.findMany({
+      where: { processId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        createdAt: true,
+        decisionAt: true,
+        assignedTo: true,
+        workflowStep: {
+          select: {
+            stepName: true,
+            stepNumber: true,
+          },
+        },
+      },
+    });
+
+    const findStepForTime = (timestamp, userData) => {
+      const time = new Date(timestamp);
+      for (let i = 0; i < allStepInstances.length; i++) {
+        const step = allStepInstances[i];
+        const start = step.createdAt;
+        const nextStart = allStepInstances[i + 1]
+          ? allStepInstances[i + 1].createdAt
+          : new Date();
+        const end = step.decisionAt || nextStart;
+        if (
+          (start <= time && time <= end) ||
+          allStepInstances.filter((item) => item.assignedTo === userData.id)
+        ) {
+          console.log("reached step", step);
+          return {
+            stepInstanceId: step.id,
+            stepName: step.workflowStep.stepName,
+            stepNumber: step.workflowStep.stepNumber,
+          };
+        }
+      }
+      return {
+        stepInstanceId: null,
+        stepName: "N/A",
+        stepNumber: null,
+      };
+    };
 
     const userStepInstances = await prisma.processStepInstance.findMany({
       where: {
@@ -550,6 +614,9 @@ export const get_user_activity_log = async (req, res) => {
                 assignmentType: "N/A",
                 role: "N/A",
                 department: "N/A",
+                stepInstanceId: null,
+                stepName: "N/A",
+                stepNumber: null,
               },
             },
           ]
@@ -557,13 +624,16 @@ export const get_user_activity_log = async (req, res) => {
       ...(await Promise.all(
         processDocuments.map(async (pd) => {
           const documentDetails = await getDocumentDetails(pd.documentId);
+          console.log("all", allStepInstances);
+          const stepInfo = await findStepForTime(
+            pd.document.createdOn,
+            userData
+          );
+          console.log("step info", stepInfo);
           const assignmentDetails = await getAssignmentDetails(
-            pd.stepInstanceId,
+            stepInfo.stepInstanceId,
             pd.processId
           );
-          const stepInstance = pd.stepInstanceId
-            ? await getStepInstanceDetails(pd.stepInstanceId)
-            : null;
           return {
             actionType: "DOCUMENT_UPLOADED",
             description: `Uploaded document "${documentDetails.name}"`,
@@ -575,8 +645,9 @@ export const get_user_activity_log = async (req, res) => {
               path: make_path(documentDetails.path),
               tags: documentDetails.tags,
               uploadedBy: await getUserDetails(pd.document.createdById),
-              stepInstanceId: pd.stepInstanceId || null,
-              stepName: stepInstance?.workflowStep?.stepName || "N/A",
+              stepInstanceId: stepInfo.stepInstanceId,
+              stepName: stepInfo.stepName,
+              stepNumber: stepInfo.stepNumber,
               workflow: assignmentDetails.workflow,
               assignmentType: assignmentDetails.assignmentType,
               role: assignmentDetails.role,
@@ -612,6 +683,8 @@ export const get_user_activity_log = async (req, res) => {
               stepInstanceId: sig.processStepInstanceId || null,
               stepName:
                 sig.processStepInstance?.workflowStep?.stepName || "N/A",
+              stepNumber:
+                sig.processStepInstance?.workflowStep?.stepNumber || null,
               workflow: assignmentDetails.workflow,
               assignmentType: assignmentDetails.assignmentType,
               role: assignmentDetails.role,
@@ -646,6 +719,8 @@ export const get_user_activity_log = async (req, res) => {
               isAttachedWithRecommendation: dr.isAttachedWithRecommendation,
               stepInstanceId: dr.processStepInstanceId || null,
               stepName: dr.processStepInstance?.workflowStep?.stepName || "N/A",
+              stepNumber:
+                dr.processStepInstance?.workflowStep?.stepNumber || null,
               workflow: assignmentDetails.workflow,
               assignmentType: assignmentDetails.assignmentType,
               role: assignmentDetails.role,
@@ -1058,10 +1133,14 @@ export const get_user_activity_logs = async (req, res) => {
           documentCount > 0 ||
           queryCount > 0 ||
           recommendationCount > 0 ||
-          initiated;
+          initiated ||
+          userSteps.length > 0;
 
         if (!hasActivity) return null;
 
+        console.log("userrr steps", userSteps);
+
+        // Ensure steps is an empty array if no steps are found, rather than null
         const steps = userSteps.length
           ? await Promise.all(
               userSteps.map(async (s) => {
@@ -1069,19 +1148,22 @@ export const get_user_activity_logs = async (req, res) => {
                   s.id,
                   processId
                 );
+                console.log("s", s);
                 return {
                   stepInstanceId: s.id,
                   stepName: s.workflowStep?.stepName || "Unknown Step",
-                  stepNumber: s.workflowStep?.stepNumber || null,
+                  stepNumber: s.workflowStep?.stepNumber || 0,
                   recirculationCycle: s.recirculationCycle || 0,
-                  workflow: assignmentDetails.workflow,
-                  assignmentType: assignmentDetails.assignmentType,
-                  role: assignmentDetails.role,
-                  department: assignmentDetails.department,
+                  workflow: assignmentDetails.workflow || "Unknown Workflow",
+                  assignmentType: assignmentDetails.assignmentType || "Unknown",
+                  role: assignmentDetails.role || "Unknown",
+                  department: assignmentDetails.department || "Unknown",
                 };
               })
             )
-          : null;
+          : [];
+
+        console.log("steps", steps);
 
         const lastActivities = await Promise.all([
           prisma.documentSignature.findFirst({
@@ -1105,7 +1187,7 @@ export const get_user_activity_logs = async (req, res) => {
               processId,
               document: { createdById: userData.id },
             },
-            orderBy: { document: { createdOn: "desc" } }, // Use document.createdOn
+            orderBy: { document: { createdOn: "desc" } },
             select: { document: { select: { createdOn: true } } },
           }),
           prisma.processQA.findFirst({
@@ -1160,8 +1242,7 @@ export const get_user_activity_logs = async (req, res) => {
         return {
           processId: process.id,
           processName: process.name,
-          // initiatorName: await getUserDetails(process.initiator),
-          initiatorName: process.initiator.username,
+          initiatorName: process.initiator.username || "Unknown",
           createdAt: process.createdAt.toISOString(),
           steps,
           actionSummary: {
@@ -1178,8 +1259,16 @@ export const get_user_activity_logs = async (req, res) => {
     );
 
     const validLogs = logs
-      .filter((log) => log)
+      .filter((log) => log !== null)
       .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+
+    if (validLogs.length === 0) {
+      return res.status(200).json({
+        success: true,
+        logs: [],
+        message: "No activity logs found for the user",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -1391,6 +1480,7 @@ export const get_process_activity_logs = async (req, res) => {
       timeEnd = stepInstance.decisionAt || new Date();
     }
 
+    // Re-enable access check
     const hasAccess = await prisma.documentAccess.findFirst({
       where: {
         processId,
@@ -1418,16 +1508,16 @@ export const get_process_activity_logs = async (req, res) => {
       },
     });
 
-    // if (!hasAccess && process.initiatorId !== userData.id) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: {
-    //       message: "Forbidden",
-    //       details: "User has no access to this process.",
-    //       code: "FORBIDDEN",
-    //     },
-    //   });
-    // }
+    if (!hasAccess && process.initiatorId !== userData.id) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: "Forbidden",
+          details: "User has no access to this process.",
+          code: "FORBIDDEN",
+        },
+      });
+    }
 
     const userStepInstances = await prisma.processStepInstance.findMany({
       where: { processId },
@@ -1469,6 +1559,11 @@ export const get_process_activity_logs = async (req, res) => {
             },
           },
           user: { select: { id: true, username: true } },
+          processStepInstance: {
+            include: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
         },
       }),
       prisma.documentRejection.findMany({
@@ -1491,6 +1586,11 @@ export const get_process_activity_logs = async (req, res) => {
             },
           },
           user: { select: { id: true, username: true } },
+          processStepInstance: {
+            include: {
+              workflowStep: { select: { stepName: true, stepNumber: true } },
+            },
+          },
         },
       }),
       prisma.processDocument.findMany({
@@ -1553,6 +1653,20 @@ export const get_process_activity_logs = async (req, res) => {
         },
       }),
     ]);
+
+    // Log missing data
+    if (documentSignatures.length === 0) {
+      console.warn(`No document signatures found for processId: ${processId}`);
+    }
+    if (documentRejections.length === 0) {
+      console.warn(`No document rejections found for processId: ${processId}`);
+    }
+    if (processQAs.length === 0) {
+      console.warn(`No process QAs found for processId: ${processId}`);
+    }
+    if (recommendations.length === 0) {
+      console.warn(`No recommendations found for processId: ${processId}`);
+    }
 
     const activities = await Promise.all([
       ...(processInstance
@@ -1914,7 +2028,7 @@ export const get_process_activity_logs = async (req, res) => {
         processId,
         processName: process.name,
         processStepInstanceId: stepInstanceId || null,
-        stepName: stepInstance?.workflowStep?.stepName || null,
+        stepName: stepInstance?.workflowStep?.stepName || "All Steps",
         recirculationCycle: stepInstance?.recirculationCycle || 0,
         workflow: enrichedWorkflow,
         activities: allActivities,

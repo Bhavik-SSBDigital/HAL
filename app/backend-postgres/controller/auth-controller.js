@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { send_mail_for_sign_up } from "./email-handler.js";
 import { PrismaClient } from "@prisma/client";
+import { verifyUser } from "../utility/verifyUser.js";
+import ExcelJS from "exceljs";
 
 const prisma = new PrismaClient();
 
@@ -30,6 +32,11 @@ function generateRandomPassword(length) {
 */
 export const sign_up = async (req, res) => {
   try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
     const {
       username,
       email,
@@ -38,6 +45,7 @@ export const sign_up = async (req, res) => {
       readable,
       downloadable,
       uploadable,
+      status,
     } = req.body;
 
     // Generate a random password
@@ -81,6 +89,8 @@ export const sign_up = async (req, res) => {
         readable,
         downloadable,
         uploadable,
+        status,
+        createdById: userData.id,
       },
     });
 
@@ -130,12 +140,34 @@ export const login = async (req, res) => {
     });
 
     if (!user) {
+      await prisma.loginLog.create({
+        data: {
+          username: username,
+          action: "LOGIN",
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get("User-Agent"),
+          success: false,
+          error: "User not found",
+        },
+      });
       return res.status(404).json({ message: "User not found" });
     }
 
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
+      await prisma.loginLog.create({
+        data: {
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          action: "LOGIN",
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get("User-Agent"),
+          success: false,
+          error: "Password does not match",
+        },
+      });
       return res.status(400).json({ message: "Password does not match" });
     }
 
@@ -178,6 +210,17 @@ export const login = async (req, res) => {
       }
     );
 
+    await prisma.loginLog.create({
+      data: {
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+        action: "LOGIN",
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get("User-Agent"),
+        success: true,
+      },
+    });
     res.status(200).json({
       accessToken,
       refreshToken,
@@ -190,7 +233,77 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.error("Error during login", error);
+    await prisma.loginLog.create({
+      data: {
+        username: req.body.username,
+        action: "LOGIN",
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get("User-Agent"),
+        success: false,
+        error: error.message,
+      },
+    });
     return res.status(500).json({ message: "Error during login" });
+  }
+};
+
+export const logout = async (req, res) => {
+  const accessToken = req.headers["authorization"]?.substring(7);
+  const userData = await verifyUser(accessToken);
+  if (userData === "Unauthorized" || !userData?.id) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        message: "Unauthorized request",
+        details: "Invalid or missing authorization token.",
+        code: "UNAUTHORIZED",
+      },
+    });
+  }
+  try {
+    const userId = userData.id;
+
+    // Delete the refresh token from database
+    await prisma.token.deleteMany({
+      where: {
+        userId: userId,
+      },
+    });
+
+    // Log the logout action
+    await prisma.loginLog.create({
+      data: {
+        userId: userId,
+        username: userData.username,
+        email: userData.email,
+        action: "LOGOUT",
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get("User-Agent"),
+        success: true,
+      },
+    });
+
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Error during logout", error);
+
+    // Log failed logout attempt if user info is available
+    if (req.user) {
+      await prisma.loginLog.create({
+        data: {
+          userId: userData.id,
+          username: userData.username,
+          email: userData.email,
+          action: "LOGOUT",
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get("User-Agent"),
+          success: false,
+          error: error.message,
+        },
+      });
+    }
+
+    return res.status(500).json({ message: "Error during logout" });
   }
 };
 
@@ -270,5 +383,103 @@ export const change_password = async (req, res) => {
   } catch (error) {
     console.error("Error changing password:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const download_login_logs = async (req, res) => {
+  try {
+    const { fromDate, toDate, action } = req.query;
+
+    // Build where clause
+    const where = {};
+
+    if (fromDate && toDate) {
+      where.createdAt = {
+        gte: new Date(fromDate),
+        lte: new Date(toDate),
+      };
+    }
+
+    if (action) {
+      where.action = action;
+    }
+
+    // Get login logs
+    const logs = await prisma.loginLog.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Login Logs");
+
+    // Define columns
+    worksheet.columns = [
+      { header: "ID", key: "id", width: 10 },
+      { header: "User ID", key: "userId", width: 15 },
+      { header: "Username", key: "username", width: 20 },
+      { header: "Name", key: "name", width: 25 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Action", key: "action", width: 15 },
+      { header: "IP Address", key: "ipAddress", width: 20 },
+      { header: "Success", key: "success", width: 15 },
+      { header: "Error", key: "error", width: 30 },
+      { header: "Timestamp", key: "createdAt", width: 25 },
+    ];
+
+    // Add data
+    logs.forEach((log) => {
+      worksheet.addRow({
+        id: log.id,
+        userId: log.userId,
+        username: log.username,
+        name: log.user?.name || "N/A",
+        email: log.email,
+        action: log.action,
+        ipAddress: log.ipAddress,
+        success: log.success ? "Yes" : "No",
+        error: log.error || "None",
+        createdAt: log.createdAt.toLocaleString(),
+      });
+    });
+
+    // Style header row
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFE0E0E0" },
+      };
+    });
+
+    // Set response headers
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=login-logs-${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`
+    );
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Error generating login logs report:", error);
+    return res.status(500).json({ message: "Error generating report" });
   }
 };

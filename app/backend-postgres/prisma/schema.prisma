@@ -103,6 +103,8 @@ model User {
   email                 String
   password              String
   name                  String?
+  loginLogs             LoginLog[]               @relation()
+  status                String?
   specialUser           Boolean                  @default(false)
   createdAt             DateTime                 @default(now())
   isRootLevel           Boolean?
@@ -692,4 +694,22 @@ model SearchHistory {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, searchedAt])
+}
+
+model LoginLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  username    String
+  email       String
+  action      String   // 'LOGIN' or 'LOGOUT'
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean  @default(true)
+  error       String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
