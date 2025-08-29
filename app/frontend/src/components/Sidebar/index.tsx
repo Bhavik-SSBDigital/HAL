@@ -21,6 +21,7 @@ import {
   IconSearch,
   IconScript,
   IconBookmark,
+  IconFile,
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
@@ -165,46 +166,46 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       icon: <IconDatabaseCog size={26} />,
       active: pathname == '/meta-data',
     },
-    show && {
-      path: '/department',
-      label: 'Departments',
-      icon: <IconBuildingEstate size={26} />,
-      dropdown: [
-        { path: '/departments/list', label: 'List Departments' },
-        { path: '/departments/createNew', label: 'Create Department' },
-      ],
-      active: pathname.includes('departments'),
-    },
-    // show && {
-    //   path: '/branches',
-    //   label: 'Branches',
-    //   icon: <IconSitemap size={26} />,
-    //   dropdown: [
-    //     { path: '/branches/list', label: 'List Branches' },
-    //     { path: '/branches/createNew', label: 'Create Branch' },
-    //   ],
-    //   active: pathname.includes('branches'),
-    // },
-    show && {
-      path: '/roles',
-      label: 'Roles',
-      icon: <IconUserSquareRounded size={26} />,
-      dropdown: [
-        { path: '/roles/list', label: 'List Roles' },
-        { path: '/roles/createNew', label: 'Create Role' },
-      ],
-      active: pathname.includes('roles'),
-    },
-    show && {
-      path: '/users',
-      label: 'Users',
-      icon: <IconUser size={26} />,
-      dropdown: [
-        { path: '/users/list', label: 'List Users' },
-        { path: '/users/createNew', label: 'Create User' },
-      ],
-      active: pathname.includes('users'),
-    },
+    ...(show
+      ? [
+          {
+            path: '/department',
+            label: 'Departments',
+            icon: <IconBuildingEstate size={26} />,
+            dropdown: [
+              { path: '/departments/list', label: 'List Departments' },
+              { path: '/departments/createNew', label: 'Create Department' },
+            ],
+            active: pathname.includes('departments'),
+          },
+          {
+            path: '/roles',
+            label: 'Roles',
+            icon: <IconUserSquareRounded size={26} />,
+            dropdown: [
+              { path: '/roles/list', label: 'List Roles' },
+              { path: '/roles/createNew', label: 'Create Role' },
+            ],
+            active: pathname.includes('roles'),
+          },
+          {
+            path: '/users',
+            label: 'Users',
+            icon: <IconUser size={26} />,
+            dropdown: [
+              { path: '/users/list', label: 'List Users' },
+              { path: '/users/createNew', label: 'Create User' },
+            ],
+            active: pathname.includes('users'),
+          },
+          {
+            path: '/reports',
+            label: 'Reports',
+            icon: <IconFile size={26} />,
+            active: pathname.includes('reports'),
+          },
+        ]
+      : []),
     {
       path: '/processes',
       label: 'Processes',

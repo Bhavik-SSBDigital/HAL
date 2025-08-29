@@ -6,6 +6,8 @@ import { useDispatch } from 'react-redux';
 import sessionData from '../../Store';
 import axios from 'axios';
 import { Stack } from '@mui/material';
+import { toast } from 'react-toastify';
+import { LogOut } from '../../common/Apis';
 
 const DropdownUser = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -43,16 +45,22 @@ const DropdownUser = () => {
   const resetStore = sessionData((state) => state.reset);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const handleLogout = () => {
-    resetStore();
-    setNotifications([]);
-    setAlerts([]);
-    setProfileImage('');
-    // setWork('');
-    dispatch(setPath('..'));
-    dispatch(backButtonPath('..'));
-    navigate('/auth/signin');
-    sessionStorage.clear();
+  const handleLogout = async () => {
+    try {
+      const response = await LogOut();
+      toast.success(response?.data?.message);
+      resetStore();
+      setNotifications([]);
+      setAlerts([]);
+      setProfileImage('');
+      // setWork('');
+      dispatch(setPath('..'));
+      dispatch(backButtonPath('..'));
+      navigate('/auth/signin');
+      sessionStorage.clear();
+    } catch (error) {
+      toast?.error(error?.response?.data?.error || error?.message);
+    }
   };
   const fetchProfilePic = async () => {
     try {

@@ -23,6 +23,16 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// general
+export const LogOut = async () => {
+  return apiClient.post('/logout');
+};
+
+// reports
+export const downloadLoginLogoutReport = async () => {
+  return apiClient.get('/downloadLoginLogs');
+};
+
 // department endpoints
 export const getDepartments = async () => {
   return apiClient.get('/getdepartments', { params: { type: 'department' } });

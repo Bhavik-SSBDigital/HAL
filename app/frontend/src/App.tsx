@@ -38,6 +38,7 @@ import Archive from './pages/Archive';
 import Templates from './pages/Templates';
 import CompletedProcesses from './pages/Processes/CompletedProcesses';
 import Bookmark from './pages/Bookmark';
+import AdminReportsPage from './pages/Reports';
 
 function App() {
   const dispatch = useDispatch();
@@ -165,6 +166,15 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Search Document" />
               <SearchDocument />
+            </DefaultLayout>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Reports" />
+              <AdminReportsPage />
             </DefaultLayout>
           }
         />

@@ -96,7 +96,8 @@ export default function NewRole() {
       reset({
         ...data,
         isAdmin: data.isAdmin === true || data.isAdmin === 'true',
-        isDepartmentHead: data.isDepartmentHead === true || data.isDepartmentHead === 'true',
+        isDepartmentHead:
+          data.isDepartmentHead === true || data.isDepartmentHead === 'true',
         isRootLevel: data.isRootLevel || false,
         parentRoleId: data.parentRoleId || '',
       });
@@ -159,6 +160,7 @@ export default function NewRole() {
       setValue('department', '');
       setValue('isAdmin', false);
       setValue('isDepartmentHead', false);
+      setValue('parentRoleId', '');
     }
   }, [isRootLevel, setValue]);
 
@@ -259,26 +261,26 @@ export default function NewRole() {
                   )}
                 />
               </div>
+
+              <div>
+                <label className="block mb-1">Parent Role</label>
+                <Controller
+                  name="parentRoleId"
+                  control={control}
+                  render={({ field }) => (
+                    <select {...field} className="w-full p-2 border rounded">
+                      <option value="">Select</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.role}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+              </div>
             </>
           )}
-
-          <div>
-            <label className="block mb-1">Parent Role</label>
-            <Controller
-              name="parentRoleId"
-              control={control}
-              render={({ field }) => (
-                <select {...field} className="w-full p-2 border rounded">
-                  <option value="">Select</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.role}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-          </div>
 
           <div className="p-3 max-h-56 overflow-auto border border-black rounded">
             <Filefolders
