@@ -2021,7 +2021,8 @@ export const downloadWatermarkedFile = async (req, res) => {
   let tempImagePath = null;
   try {
     const documentId = req.params.documentId;
-    const { password, watermarkText = "HAL KORWA" } = req.body;
+    const { password, watermark } = req.body;
+    const watermarkText = watermark || "HAL KORWA";
 
     logger.info({
       action: "DOWNLOAD_WATERMARKED_START",

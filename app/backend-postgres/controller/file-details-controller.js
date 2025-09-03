@@ -890,7 +890,7 @@ export const search_documents = async (req, res) => {
         totalPages = Math.ceil(totalCount / parsedPageSize);
 
         // Log search history
-        await prisma.searchHistory.create({
+        const newSearch = await prisma.searchHistory.create({
           data: {
             userId: userData.id,
             searchQuery: req.query,
@@ -908,6 +908,7 @@ export const search_documents = async (req, res) => {
           },
           searchType: "content,metadata",
           searchQuery: content,
+          id: newSearch.id,
         });
       } catch (error) {
         console.error("Error in combined search:", error);
@@ -943,7 +944,7 @@ export const search_documents = async (req, res) => {
           searchScore: result.rank,
         }));
 
-        await prisma.searchHistory.create({
+        const newSearch = await prisma.searchHistory.create({
           data: {
             userId: userData.id,
             searchQuery: { content },
@@ -961,6 +962,7 @@ export const search_documents = async (req, res) => {
           },
           searchType: "content",
           searchQuery: content,
+          id: newSearch.id,
         });
       } catch (error) {
         console.error("Error in content search:", error);
@@ -1060,7 +1062,7 @@ export const search_documents = async (req, res) => {
       totalCount = await prisma.document.count({ where });
       totalPages = Math.ceil(totalCount / parsedPageSize);
 
-      await prisma.searchHistory.create({
+      const newSearch = await prisma.searchHistory.create({
         data: {
           userId: userData.id,
           searchQuery: req.query,
@@ -1077,6 +1079,7 @@ export const search_documents = async (req, res) => {
           totalPages,
         },
         searchType: "metadata",
+        id: newSearch.id,
       });
     } else {
       // No valid search parameters provided
