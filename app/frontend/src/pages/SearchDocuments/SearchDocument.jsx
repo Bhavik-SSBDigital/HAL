@@ -89,6 +89,7 @@ export default function DocumentSearch() {
         totalCount: response?.data?.pagination?.totalCount || 0,
         totalPages: response?.data?.pagination?.totalPages || 1,
       }));
+      return response?.data?.id;
     } catch (err) {
       toast.error('Failed to fetch documents');
     } finally {
@@ -96,7 +97,7 @@ export default function DocumentSearch() {
     }
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     const usedFilters = Object.entries(data).reduce((acc, [key, value]) => {
       if (value !== '' && value !== null && value !== undefined) {
         acc[key] = value;
@@ -105,11 +106,11 @@ export default function DocumentSearch() {
     }, {});
 
     setLastQuery(usedFilters);
-    fetchDocuments(usedFilters, true);
+    const id = await fetchDocuments(usedFilters, true);
 
     // Add to recent searches
     const newEntry = {
-      id: Date.now(), // or use uuid
+      id: id, // or use uuid
       searchQuery: usedFilters,
       searchType: 'metadata', // you can adjust dynamically
       searchedAt: new Date().toISOString(),
@@ -305,7 +306,7 @@ export default function DocumentSearch() {
       </div>
 
       <CustomCard className={'mx-auto'}>
-        {loading && <TopLoader />}
+        {(loading || actionsLoading) && <TopLoader />}
         <Title text={'Deep Document Search'} />
 
         <form

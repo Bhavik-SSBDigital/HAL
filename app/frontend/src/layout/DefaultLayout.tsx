@@ -13,9 +13,11 @@ import {
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import { LogOut } from '../common/Apis';
+import TopLoader from '../common/Loader/TopLoader';
 const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [idle, setIdle] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
   const onIdle = () => {
@@ -34,57 +36,67 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   // };
 
   const handleRedirect = async () => {
+    setLoading(true);
     try {
       const response = await LogOut();
       sessionStorage.clear();
       toast.success(response?.data?.message);
+      setLoading(false);
       navigate('/auth/signin');
     } catch (error) {
       toast.error(error?.response?.data?.error || error?.message);
     }
   };
   return (
-    <div className="dark:bg-boxdark-2 dark:text-bodydark">
-      {/* <!-- ===== Page Wrapper Start ===== --> */}
-      <div className="flex h-screen overflow-hidden">
-        {/* <!-- ===== Sidebar Start ===== --> */}
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-        {/* <!-- ===== Sidebar End ===== --> */}
+    <>
+      {loading && <TopLoader />}
+      <div className="dark:bg-boxdark-2 dark:text-bodydark">
+        {/* <!-- ===== Page Wrapper Start ===== --> */}
+        <div className="flex h-screen overflow-hidden">
+          {/* <!-- ===== Sidebar Start ===== --> */}
+          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+          {/* <!-- ===== Sidebar End ===== --> */}
 
-        {/* <!-- ===== Content Area Start ===== --> */}
-        <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
-          {/* <!-- ===== Header Start ===== --> */}
-          <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-          {/* <!-- ===== Header End ===== --> */}
+          {/* <!-- ===== Content Area Start ===== --> */}
+          <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+            {/* <!-- ===== Header Start ===== --> */}
+            <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            {/* <!-- ===== Header End ===== --> */}
 
-          {/* <!-- ===== Main Content Start ===== --> */}
-          <main>
-            <div className="mx-auto max-w-screen-2xl p-2 md:p-3">
-              {children}
-            </div>
-          </main>
-          {/* <!-- ===== Main Content End ===== --> */}
+            {/* <!-- ===== Main Content Start ===== --> */}
+            <main>
+              <div className="mx-auto max-w-screen-2xl p-2 md:p-3">
+                {children}
+              </div>
+            </main>
+            {/* <!-- ===== Main Content End ===== --> */}
+          </div>
+          {/* <!-- ===== Content Area End ===== --> */}
         </div>
-        {/* <!-- ===== Content Area End ===== --> */}
+        {/* <!-- ===== Page Wrapper End ===== --> */}
+        <Dialog
+          open={idle}
+          sx={{ backgroundFilter: 'blur(3px)', zIndex: 99999999 }}
+        >
+          <DialogTitle>
+            <Typography variant="h5">Session timeout!</Typography>
+          </DialogTitle>
+          <DialogContent>
+            Your session time is out, Please re-login to system.
+          </DialogContent>
+          <DialogActions>
+            <Button
+              disabled={loading}
+              variant="contained"
+              color="success"
+              onClick={handleRedirect}
+            >
+              Ok
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
-      {/* <!-- ===== Page Wrapper End ===== --> */}
-      <Dialog
-        open={idle}
-        sx={{ backgroundFilter: 'blur(3px)', zIndex: 99999999 }}
-      >
-        <DialogTitle>
-          <Typography variant="h5">Session timeout!</Typography>
-        </DialogTitle>
-        <DialogContent>
-          Your session time is out, Please re-login to system.
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" color="success" onClick={handleRedirect}>
-            Ok
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+    </>
   );
 };
 
