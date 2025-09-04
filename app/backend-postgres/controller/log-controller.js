@@ -384,16 +384,16 @@ export const get_user_activity_log = async (req, res) => {
       where: { id: processId, initiatorId: userData.id },
     });
 
-    if (!isAssignee && !isRecommender && !isQueryInvolved && !isInitiator) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: "Forbidden",
-          details: "User has no involvement in this process.",
-          code: "FORBIDDEN",
-        },
-      });
-    }
+    // if (!isAssignee && !isRecommender && !isQueryInvolved && !isInitiator) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: {
+    //       message: "Forbidden",
+    //       details: "User has no involvement in this process.",
+    //       code: "FORBIDDEN",
+    //     },
+    //   });
+    // }
 
     const allStepInstances = await prisma.processStepInstance.findMany({
       where: { processId },
@@ -1508,16 +1508,16 @@ export const get_process_activity_logs = async (req, res) => {
       },
     });
 
-    if (!hasAccess && process.initiatorId !== userData.id) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          message: "Forbidden",
-          details: "User has no access to this process.",
-          code: "FORBIDDEN",
-        },
-      });
-    }
+    // if (!hasAccess && process.initiatorId !== userData.id) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: {
+    //       message: "Forbidden",
+    //       details: "User has no access to this process.",
+    //       code: "FORBIDDEN",
+    //     },
+    //   });
+    // }
 
     const userStepInstances = await prisma.processStepInstance.findMany({
       where: { processId },

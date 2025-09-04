@@ -318,7 +318,6 @@ export const initiate_process = async (req, res, next) => {
             );
           });
 
-          // Store documentId if copy was successful
           if (copyResult.documentId) {
             copiedDocumentIds.push(copyResult.documentId);
           }
@@ -341,7 +340,6 @@ export const initiate_process = async (req, res, next) => {
           });
         } catch (error) {
           console.error(`Error processing document ${documentId}:`, error);
-          // Continue with the next document even if one fails
         }
       }
     }
@@ -357,7 +355,6 @@ export const initiate_process = async (req, res, next) => {
     const initiatorId = userData.id;
 
     const process = await prisma.$transaction(async (tx) => {
-      // 1. Create Process Instance
       const process_ = await tx.processInstance.create({
         data: {
           workflowId,
@@ -370,23 +367,21 @@ export const initiate_process = async (req, res, next) => {
         },
       });
 
-      // 2. Link documents with reopenCycle
       const processDocumentData =
         req.body.documents?.map((item, index) => ({
           processId: process_.id,
-          documentId: documentIds[index], // Use the updated documentId
+          documentId: documentIds[index],
           reopenCycle: 0,
-          preApproved: item.preApproved || false, // Include preApproved, default to false if not provided
-          tags: item.tags || [], // Include tags, default to empty array if not provided
-          partNumber: parseInt(item.partNumber) || null, // Include partNumber, default to null if not provided
-          description: item.description || null, // Include description, default to null if not provided
+          preApproved: item.preApproved || false,
+          tags: item.tags || [],
+          partNumber: parseInt(item.partNumber) || null,
+          description: item.description || null,
         })) || [];
 
       await tx.processDocument.createMany({
         data: processDocumentData,
       });
 
-      // 3. Get Workflow Steps
       const workflow = await tx.workflow.findUnique({
         where: { id: workflowId },
         include: { steps: { include: { assignments: true } } },
@@ -396,7 +391,6 @@ export const initiate_process = async (req, res, next) => {
         throw new Error("Workflow or steps not found");
       }
 
-      // 4. Process First Step
       const step = workflow.steps[0];
 
       for (const assignment of step.assignments) {
@@ -412,7 +406,6 @@ export const initiate_process = async (req, res, next) => {
         );
       }
 
-      // 5. Set first step as current
       await tx.processInstance.update({
         where: { id: process_.id },
         data: { currentStepId: step.id, status: "IN_PROGRESS" },
@@ -528,15 +521,13 @@ async function processAssignment(
   fromInitiator,
   workflowId
 ) {
-  // Check if assignmentProgress already exists
-
   let foundProgress = await tx.assignmentProgress.findFirst({
     where: {
       processId: process_.id,
       assignmentId: assignment.id,
     },
   });
-  // If progress exists, use it; otherwise, create a new one
+
   const progress = foundProgress
     ? foundProgress
     : await tx.assignmentProgress.create({
@@ -589,9 +580,10 @@ async function processAssignment(
       );
       break;
   }
+
+  return progress;
 }
 
-// Department Assignment Handler
 async function handleDepartmentAssignment(
   tx,
   assignment,
@@ -601,52 +593,18 @@ async function handleDepartmentAssignment(
   fromInitiator,
   workflowId
 ) {
-  let departmentProgresses = [];
+  const hierarchy = await buildRoleHierarchyForAssignment(
+    assignment.direction,
+    assignment.allowParallel,
+    assignment.selectedRoles
+  );
 
-  // Process each assignment in the step
-  for (const assignment of step.assignments) {
-    const hierarchy = await buildRoleHierarchyForAssignment(
-      assignment.direction,
-      assignment.allowParallel,
-      assignment.selectedRoles
-    );
-
-    const stepInstances = await tx.processStepInstance.findFirst({
-      where: {
-        processId: progress.processId,
-        assignmentId: assignment.id,
-      },
-    });
-
-    let currentLevel;
-    // if (progress.currentLevel && stepInstances) {
-    //   currentLevel = 0;
-    // }
-    // Determine current level and roles based on assignment properties
-    currentLevel = assignment.allowParallel ? 0 : progress.currentLevel || 0;
-    let currentRoles;
-
-    if (assignment.allowParallel) {
-      // If allowParallel is true, use all selected roles
-      currentRoles = assignment.selectedRoles || [];
-    } else {
-      // If allowParallel is false, use hierarchy based on direction
-      if (assignment.direction === "UPWARDS") {
-        // Get highest level roles
-        currentRoles = hierarchy.length > 0 ? hierarchy[0] || [] : [];
-      } else {
-        // Get lowest level roles (DOWNWARDS)
-        currentRoles =
-          hierarchy.length > 0 ? hierarchy[hierarchy.length - 1] || [] : [];
-      }
-    }
-
-    // Create or update DepartmentStepProgress for this assignment
+  for (const departmentId of assignment.assigneeIds) {
     let departmentProgress = await tx.departmentStepProgress.findFirst({
       where: {
         processId: progress.processId,
         stepId: step.id,
-        departmentId: { in: assignment.assigneeIds },
+        departmentId: departmentId,
       },
     });
 
@@ -655,9 +613,9 @@ async function handleDepartmentAssignment(
         data: {
           processId: progress.processId,
           stepId: step.id,
-          departmentId: assignment.assigneeIds[0], // Single department for simplicity
+          departmentId: departmentId,
           roleLevels: JSON.stringify(hierarchy),
-          currentLevel,
+          currentLevel: 0,
           direction: assignment.direction || "DOWNWARDS",
           requiredRoles: assignment.selectedRoles,
           completedRoles: [],
@@ -666,19 +624,17 @@ async function handleDepartmentAssignment(
       });
     }
 
-    if (departmentProgress.currentLevel !== currentLevel) {
-      return;
-    }
-
-    departmentProgresses.push(departmentProgress);
-
-    // Fetch users for the current roles within the department
+    const currentLevel = departmentProgress.currentLevel;
+    const roleLevels = JSON.parse(departmentProgress.roleLevels);
+    const currentRoles = assignment.allowParallel
+      ? assignment.selectedRoles
+      : roleLevels[currentLevel] || [];
 
     const users = await tx.userRole.findMany({
       where: {
         roleId: { in: currentRoles },
         role: {
-          departmentId: { in: assignment.assigneeIds },
+          departmentId: departmentId,
         },
       },
       select: {
@@ -687,10 +643,15 @@ async function handleDepartmentAssignment(
         role: {
           select: { departmentId: true },
         },
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
       },
     });
 
-    // Group users by role to ensure one user per role
     const usersByRole = new Map();
     users.forEach((user) => {
       if (!usersByRole.has(user.roleId)) {
@@ -699,12 +660,10 @@ async function handleDepartmentAssignment(
       usersByRole.get(user.roleId).push(user);
     });
 
-    // Create ProcessStepInstance for each user in each role
     for (const roleId of currentRoles) {
       const roleUsers = usersByRole.get(roleId) || [];
       if (roleUsers.length === 0) continue;
 
-      // Create a ProcessStepInstance for each user in the role
       for (const user of roleUsers) {
         const stepInstance = fromInitiator
           ? await tx.processStepInstance.create({
@@ -714,7 +673,7 @@ async function handleDepartmentAssignment(
                 progressId: progress.id,
                 assignedTo: user.userId,
                 roleId: roleId,
-                departmentId: user.role.departmentId,
+                departmentId: departmentId,
                 status: "APPROVED",
                 stepId: step.id,
               },
@@ -726,13 +685,12 @@ async function handleDepartmentAssignment(
                 progressId: progress.id,
                 assignedTo: user.userId,
                 roleId: roleId,
-                departmentId: user.role.departmentId,
+                departmentId: departmentId,
                 status: "IN_PROGRESS",
                 stepId: step.id,
               },
             });
 
-        // Ensure document access for the assigned user
         for (const docId of documentIds) {
           await ensureDocumentAccessWithParents(tx, {
             documentId: docId,
@@ -741,18 +699,21 @@ async function handleDepartmentAssignment(
             processId: progress.processId,
             assignmentId: assignment.id,
             roleId: roleId,
-            departmentId: user.role.departmentId,
+            departmentId: departmentId,
           });
         }
 
-        // Create notification if not from initiator
         if (!fromInitiator) {
           await tx.processNotification.create({
             data: {
-              stepId: stepInstance.id,
-              userId: user.userId,
+              stepInstance: {
+                connect: { id: stepInstance.id },
+              },
+              user: {
+                connect: { id: user.userId },
+              },
               status: "ACTIVE",
-              type: "STEP_ASSIGNMENT",
+              type: NotificationType.STEP_ASSIGNMENT,
             },
           });
         }
@@ -770,13 +731,13 @@ async function handleDepartmentAssignment(
       include: { steps: { include: { assignments: true } } },
     });
 
-    const step = workflow.steps[1];
-    for (const assignment of step.assignments) {
+    const nextStep = workflow.steps[1];
+    for (const nextAssignment of nextStep.assignments) {
       await processAssignment(
         tx,
         process,
-        step,
-        assignment,
+        nextStep,
+        nextAssignment,
         documentIds,
         false,
         false,
@@ -784,13 +745,11 @@ async function handleDepartmentAssignment(
       );
     }
 
-    const updatedProcess = await tx.processInstance.update({
+    await tx.processInstance.update({
       where: { id: process.id },
-      data: { currentStepId: step.id, status: "IN_PROGRESS" },
+      data: { currentStepId: nextStep.id, status: "IN_PROGRESS" },
     });
   }
-
-  return departmentProgresses;
 }
 
 async function handleUserAssignment(
@@ -850,6 +809,7 @@ async function handleUserAssignment(
       });
     }
   }
+
   if (fromInitiator) {
     const process = await tx.processInstance.findUnique({
       where: { id: progress.processId },
@@ -860,13 +820,13 @@ async function handleUserAssignment(
       include: { steps: { include: { assignments: true } } },
     });
 
-    const step = workflow.steps[1];
-    for (const assignment of step.assignments) {
+    const nextStep = workflow.steps[1];
+    for (const nextAssignment of nextStep.assignments) {
       await processAssignment(
         tx,
         process,
-        step,
-        assignment,
+        nextStep,
+        nextAssignment,
         documentIds,
         false,
         false,
@@ -874,13 +834,12 @@ async function handleUserAssignment(
       );
     }
 
-    const updatedProcess = await tx.processInstance.update({
+    await tx.processInstance.update({
       where: { id: process.id },
-      data: { currentStepId: step.id, status: "IN_PROGRESS" },
+      data: { currentStepId: nextStep.id, status: "IN_PROGRESS" },
     });
   }
 }
-
 async function handleRoleAssignment(
   tx,
   assignment,
@@ -890,15 +849,6 @@ async function handleRoleAssignment(
   fromInitiator,
   workflowId
 ) {
-  // const currentLevel = assignment.allowParallel
-  //   ? 0
-  //   : progress.currentLevel || 0;
-  // const hierarchy = JSON.parse(progress.roleHierarchy || "[]");
-  // const currentRoles = assignment.allowParallel
-  //   ? assignment.assigneeIds
-  //   : hierarchy[currentLevel] || [];
-
-  // Fetch users for the current roles, including departmentId from the Role model
   const users = await tx.userRole.findMany({
     where: {
       roleId: { in: assignment.assigneeIds },
@@ -915,18 +865,31 @@ async function handleRoleAssignment(
   });
 
   for (const user of users) {
-    const stepInstance = await tx.processStepInstance.create({
-      data: {
-        processId: progress.processId,
-        assignmentId: assignment.id,
-        progressId: progress.id,
-        assignedTo: user.userId,
-        roleId: user.roleId,
-        departmentId: user.role.departmentId, // Access departmentId from the role relation
-        status: "IN_PROGRESS",
-        stepId: step.id,
-      },
-    });
+    const stepInstance = fromInitiator
+      ? await tx.processStepInstance.create({
+          data: {
+            processId: progress.processId,
+            assignmentId: assignment.id,
+            progressId: progress.id,
+            assignedTo: user.userId,
+            roleId: user.roleId,
+            departmentId: user.role.departmentId,
+            status: "APPROVED",
+            stepId: step.id,
+          },
+        })
+      : await tx.processStepInstance.create({
+          data: {
+            processId: progress.processId,
+            assignmentId: assignment.id,
+            progressId: progress.id,
+            assignedTo: user.userId,
+            roleId: user.roleId,
+            departmentId: user.role.departmentId,
+            status: "IN_PROGRESS",
+            stepId: step.id,
+          },
+        });
 
     for (const docId of documentIds) {
       await ensureDocumentAccessWithParents(tx, {
@@ -936,7 +899,7 @@ async function handleRoleAssignment(
         processId: progress.processId,
         assignmentId: assignment.id,
         roleId: user.roleId,
-        departmentId: user.role.departmentId, // Access departmentId from the role relation
+        departmentId: user.role.departmentId,
       });
     }
 
@@ -951,6 +914,7 @@ async function handleRoleAssignment(
       });
     }
   }
+
   if (fromInitiator) {
     const process = await tx.processInstance.findUnique({
       where: { id: progress.processId },
@@ -961,13 +925,13 @@ async function handleRoleAssignment(
       include: { steps: { include: { assignments: true } } },
     });
 
-    const step = workflow.steps[1];
-    for (const assignment of step.assignments) {
+    const nextStep = workflow.steps[1];
+    for (const nextAssignment of nextStep.assignments) {
       await processAssignment(
         tx,
         process,
-        step,
-        assignment,
+        nextStep,
+        nextAssignment,
         documentIds,
         false,
         false,
@@ -975,9 +939,9 @@ async function handleRoleAssignment(
       );
     }
 
-    const updatedProcess = await tx.processInstance.update({
+    await tx.processInstance.update({
       where: { id: process.id },
-      data: { currentStepId: step.id, status: "IN_PROGRESS" },
+      data: { currentStepId: nextStep.id, status: "IN_PROGRESS" },
     });
   }
 }
@@ -1077,13 +1041,12 @@ export const view_process = async (req, res) => {
       })
     );
 
-    console.log("1080");
-
     // Fetch stepInstances separately
     const stepInstances = await retry(() =>
       prisma.processStepInstance.findMany({
         where: {
           processId: process.id,
+          assignedTo: userData.id,
           status: {
             in: [
               "IN_PROGRESS",
@@ -1134,8 +1097,6 @@ export const view_process = async (req, res) => {
         },
       })
     );
-
-    console.log("1138");
 
     process.documents = documents;
     process.stepInstances = stepInstances;
@@ -1188,8 +1149,6 @@ export const view_process = async (req, res) => {
       return [...new Set(assigneeIds)]; // Remove duplicates
     };
 
-    console.log("1191");
-
     const assigneeIds = await getAssigneeUserIds(process, prisma);
 
     const assignees = await prisma.user.findMany({
@@ -1206,8 +1165,6 @@ export const view_process = async (req, res) => {
       map[user.id] = user;
       return map;
     }, {});
-
-    console.log("1210");
 
     // Deduplicate steps and include username in stepName
 
@@ -1258,8 +1215,6 @@ export const view_process = async (req, res) => {
       ];
     })();
 
-    console.log("1261");
-
     const processDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
       include: {
@@ -1281,7 +1236,6 @@ export const view_process = async (req, res) => {
       },
     });
 
-    console.log("1285");
     // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
       processDocuments
@@ -1289,14 +1243,12 @@ export const view_process = async (req, res) => {
         .map((pd) => pd.replacedDocumentId)
     );
 
-    console.log("1292");
     const supersededDocumentIds = new Set(
       processDocuments
         .filter((pd) => pd.superseding)
         .map((pd) => pd.replacedDocumentId)
     );
 
-    console.log("1299");
     // Find the latest document (neither replaced nor superseded)
     let latestDocument = processDocuments.find(
       (pd) =>
@@ -1310,8 +1262,6 @@ export const view_process = async (req, res) => {
         .filter((pd) => !replacedDocumentIds.has(pd.documentId))
         .sort((a, b) => b.document.id - a.document.id)[0];
     }
-
-    console.log("1314");
 
     // Build documentVersioning
     const documentVersioning = [];
@@ -1336,8 +1286,6 @@ export const view_process = async (req, res) => {
       },
     });
 
-    console.log("1339");
-
     // Create maps for quick lookups
     const docIdToProcessDoc = new Map(
       allProcessDocuments.map((d) => [d.documentId, d])
@@ -1348,29 +1296,19 @@ export const view_process = async (req, res) => {
         .map((d) => [d.replacedDocumentId, d.documentId])
     );
 
-    console.log("1351");
-
     // Find all terminal documents (not replaced by any other)
     const terminalDocumentIds = allProcessDocuments
       .filter((d) => !replacedToReplacer.has(d.documentId))
       .map((d) => d.documentId);
 
-    console.log("1359");
-
-    console.log("terminal document ids", terminalDocumentIds);
     // For each terminal document, build its complete chain
-    console.log("terminal document ids", terminalDocumentIds);
 
     for (const terminalDocId of terminalDocumentIds) {
       const versions = [];
       let currentDocId = terminalDocId;
       const visitedDocIds = new Set(); // Track visited document IDs to detect cycles
 
-      console.log("Processing terminalDocId:", terminalDocId);
-
       while (currentDocId) {
-        console.log("Current docId:", currentDocId);
-
         // Check for cycle
         if (visitedDocIds.has(currentDocId)) {
           console.warn(
@@ -1381,7 +1319,7 @@ export const view_process = async (req, res) => {
         visitedDocIds.add(currentDocId);
 
         const processDoc = docIdToProcessDoc.get(currentDocId);
-        console.log("processDoc:", processDoc);
+
         if (!processDoc) {
           console.log("No processDoc found for docId:", currentDocId);
           break;
@@ -1403,29 +1341,19 @@ export const view_process = async (req, res) => {
           reopenCycle: processDoc.reopenCycle,
         });
 
-        console.log("Added version for docId:", currentDocId);
         currentDocId = processDoc.replacedDocumentId;
-        console.log("Next docId:", currentDocId);
       }
 
-      console.log("Versions for terminalDocId", terminalDocId, ":", versions);
       if (versions.length > 0) {
         documentVersioning.push({
           latestDocumentId: terminalDocId,
           versions: versions,
-        });
-        console.log("Pushed to documentVersioning:", {
-          latestDocumentId: terminalDocId,
-          versions,
         });
       } else {
         console.log("No versions added for terminalDocId:", terminalDocId);
       }
     }
 
-    console.log("1391");
-
-    console.log("1391");
     // Handle any documents not included in chains
     const includedDocIds = new Set(
       documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
@@ -1457,7 +1385,6 @@ export const view_process = async (req, res) => {
       });
     }
 
-    console.log("1423");
     // Build sededDocuments
     const sededDocuments = [];
 
@@ -2024,177 +1951,113 @@ async function handleProcessClaim(userId, stepInstanceId) {
 }
 
 async function updateDepartmentProgress(tx, stepInstance, workflowId) {
-  const assignmentProgress = await tx.assignmentProgress.findUnique({
-    where: { id: stepInstance.progressId },
-    include: { departmentStepProgress: true },
+  const departmentProgress = await tx.departmentStepProgress.findFirst({
+    where: {
+      processId: stepInstance.processId,
+      stepId: stepInstance.stepId,
+      departmentId: stepInstance.departmentId,
+      assignmentProgressId: stepInstance.progressId,
+    },
   });
 
-  if (!assignmentProgress) {
-    throw new Error("Assignment progress not found");
-  }
-
-  const departmentProgress = assignmentProgress.departmentStepProgress;
   if (!departmentProgress) {
     throw new Error("Department step progress not found");
   }
 
-  let { roleLevels, currentLevel, completedRoles, requiredRoles } =
-    departmentProgress;
-
-  // Ensure roleLevels is an array
+  let roleLevels = departmentProgress.roleLevels;
   if (typeof roleLevels === "string") {
-    try {
-      roleLevels = JSON.parse(roleLevels);
-    } catch (e) {
-      throw new Error("Invalid roleLevels format: " + e.message);
-    }
+    roleLevels = JSON.parse(roleLevels);
   }
 
-  if (!Array.isArray(roleLevels)) {
-    throw new Error("roleLevels must be an array of arrays");
-  }
-
-  // Update completed roles
   const updatedCompletedRoles = [
-    ...new Set([...completedRoles, stepInstance.roleId]),
+    ...new Set([...departmentProgress.completedRoles, stepInstance.roleId]),
   ];
 
-  // Get current level roles
-  const currentLevelRoles = roleLevels[currentLevel] || [];
-  if (!Array.isArray(currentLevelRoles)) {
-    throw new Error(`roleLevels[${currentLevel}] is not an array`);
-  }
+  const currentLevelRoles = roleLevels[departmentProgress.currentLevel] || [];
 
-  // Check if current level is complete
   const currentLevelComplete = currentLevelRoles.every((roleId) =>
     updatedCompletedRoles.includes(roleId)
   );
 
-  if (currentLevelComplete && !assignmentProgress.completed) {
-    // Advance to next level if available
-    if (currentLevel + 1 < roleLevels.length) {
-      const nextLevel = currentLevel + 1;
+  await tx.departmentStepProgress.update({
+    where: { id: departmentProgress.id },
+    data: { completedRoles: updatedCompletedRoles },
+  });
+
+  if (currentLevelComplete) {
+    if (departmentProgress.currentLevel + 1 < roleLevels.length) {
+      const nextLevel = departmentProgress.currentLevel + 1;
       const nextLevelRoles = roleLevels[nextLevel];
 
-      if (!Array.isArray(nextLevelRoles)) {
-        throw new Error(`roleLevels[${nextLevel}] is not an array`);
-      }
-
-      // Fetch process and documents
       const process = await tx.processInstance.findUnique({
         where: { id: stepInstance.processId },
         include: { documents: true },
       });
-      if (!process) {
-        throw new Error(`Process with ID ${stepInstance.processId} not found`);
-      }
+
       const documentIds = process.documents.map((doc) => doc.documentId);
 
-      // Fetch workflow step and assignment
-      const workflowStep = await tx.workflowStep.findUnique({
-        where: { id: stepInstance.stepId },
-        include: { assignments: true },
-      });
-      if (!workflowStep) {
-        throw new Error(
-          `Workflow step with ID ${stepInstance.stepId} not found`
-        );
-      }
-      const assignment = workflowStep.assignments.find(
-        (a) => a.id === stepInstance.assignmentId
-      );
-      if (!assignment) {
-        throw new Error(
-          `Assignment with ID ${stepInstance.assignmentId} not found`
-        );
-      }
-
-      // Create step instances for next level roles
       for (const roleId of nextLevelRoles) {
-        // Find users with the role in the department via UserRole
         const userRoles = await tx.userRole.findMany({
           where: {
             roleId: roleId,
-            // user: {
-            //   branches: {
-            //     some: {
-            //       id: stepInstance.departmentId,
-            //     },
-            //   },
-            // },
+            role: {
+              departmentId: stepInstance.departmentId,
+            },
           },
           include: {
             user: true,
           },
         });
 
-        if (userRoles.length === 0) {
-          throw new Error(
-            `No users found for role ${roleId} in department ${stepInstance.departmentId}`
-          );
+        if (userRoles.length > 0) {
+          const user = userRoles[0].user;
+
+          const newStepInstance = await tx.processStepInstance.create({
+            data: {
+              processId: stepInstance.processId,
+              stepId: stepInstance.stepId,
+              assignmentId: stepInstance.assignmentId,
+              progressId: stepInstance.progressId,
+              departmentId: stepInstance.departmentId,
+              roleId: roleId,
+              assignedTo: user.id,
+              status: "IN_PROGRESS",
+            },
+          });
+
+          for (const docId of documentIds) {
+            await ensureDocumentAccessWithParents(tx, {
+              documentId: docId,
+              userId: user.id,
+              stepInstanceId: newStepInstance.id,
+              processId: stepInstance.processId,
+              assignmentId: stepInstance.assignmentId,
+              roleId: roleId,
+              departmentId: stepInstance.departmentId,
+            });
+          }
         }
-
-        const user = userRoles[0].user; // Select first user
-
-        const newStepInstance = await tx.processStepInstance.create({
-          data: {
-            processId: stepInstance.processId,
-            stepId: stepInstance.stepId,
-            workflowAssignmentId: stepInstance.workflowAssignmentId,
-            progressId: assignmentProgress.id,
-            departmentId: stepInstance.departmentId,
-            roleId: roleId,
-            assignedTo: user.id,
-            status: "IN_PROGRESS",
-            // documentIds,
-          },
-        });
-
-        await tx.processNotification.create({
-          data: {
-            stepId: newStepInstance.id, // Correct field name
-            userId: user.id,
-            type: "STEP_ASSIGNMENT",
-            status: "ACTIVE",
-            metadata: { processId: stepInstance.processId },
-          },
-        });
       }
 
-      // Update department progress to next level
-      const updated = await tx.departmentStepProgress.update({
-        where: { id: departmentProgress.id },
-        data: {
-          currentLevel: nextLevel,
-          completedRoles: updatedCompletedRoles,
-        },
-      });
-
-      await tx.assignmentProgress.update({
-        where: { id: assignmentProgress.id },
-        data: { currentLevel: nextLevel },
-      });
-    } else {
-      // No more levels, mark assignment as complete
       await tx.departmentStepProgress.update({
         where: { id: departmentProgress.id },
         data: {
-          completedRoles: updatedCompletedRoles,
+          currentLevel: nextLevel,
+        },
+      });
+    } else {
+      await tx.departmentStepProgress.update({
+        where: { id: departmentProgress.id },
+        data: {
           isCompleted: true,
         },
       });
 
       await tx.assignmentProgress.update({
-        where: { id: assignmentProgress.id },
-        data: { completed: true },
+        where: { id: stepInstance.progressId },
+        data: { completed: true, completedAt: new Date() },
       });
     }
-  } else {
-    // Update completed roles without advancing level
-    await tx.departmentStepProgress.update({
-      where: { id: departmentProgress.id },
-      data: { completedRoles: updatedCompletedRoles },
-    });
   }
 }
 
@@ -2204,85 +2067,23 @@ async function checkAssignmentCompletion(tx, progressId, stepInstanceId) {
     include: { workflowAssignment: true },
   });
 
-  if (!progress) return;
+  if (!progress) return false;
 
-  if (progress.workflowAssignment.assigneeType === "ROLE") {
-    const pending = await tx.processStepInstance.count({
-      where: {
-        progressId,
-        id: { not: stepInstanceId },
-        status: "IN_PROGRESS",
-      },
-    });
+  if (progress.completed) {
+    return true;
+  }
 
-    const pending2 = await tx.processStepInstance.findMany({
-      where: {
-        progressId,
-        id: { not: stepInstanceId },
-        status: "IN_PROGRESS",
-      },
-    });
-
-    if (pending === 0) {
-      await tx.assignmentProgress.update({
-        where: { id: progressId },
-        data: { completed: true, completedAt: new Date() },
-      });
-      return true;
-    }
-  } else if (progress.workflowAssignment.assigneeType === "DEPARTMENT") {
-    const departmentProgress = await tx.departmentStepProgress.findFirst({
+  if (progress.workflowAssignment.assigneeType === "DEPARTMENT") {
+    const departmentProgresses = await tx.departmentStepProgress.findMany({
       where: { assignmentProgressId: progressId },
     });
 
-    if (!departmentProgress) return;
-
-    if (progress.workflowAssignment.allowParallel) {
-      const allCompleted = departmentProgress.requiredRoles.every((roleId) =>
-        departmentProgress.completedRoles.includes(roleId)
-      );
-
-      if (allCompleted) {
-        await tx.assignmentProgress.update({
-          where: { id: progressId },
-          data: { completed: true, completedAt: new Date() },
-        });
-        await tx.departmentStepProgress.update({
-          where: { id: departmentProgress.id },
-          data: { isCompleted: true },
-        });
-      }
-
-      return allCompleted;
-    } else {
-      const pendingSteps = await tx.processStepInstance.count({
-        where: {
-          progressId,
-          id: { not: stepInstanceId },
-          status: "IN_PROGRESS",
-        },
-      });
-
-      if (pendingSteps === 0) {
-        const hierarchy = JSON.parse(departmentProgress.roleLevels || "[]");
-        if (departmentProgress.currentLevel + 1 >= hierarchy.length) {
-          await tx.assignmentProgress.update({
-            where: { id: progressId },
-            data: { completed: true, completedAt: new Date() },
-          });
-          await tx.departmentStepProgress.update({
-            where: { id: departmentProgress.id },
-            data: { isCompleted: true },
-          });
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        return false;
-      }
-    }
+    return departmentProgresses.every(
+      (deptProgress) => deptProgress.isCompleted
+    );
   }
+
+  return false;
 }
 
 async function checkProcessProgress(tx, processId) {
@@ -2328,50 +2129,27 @@ async function checkProcessProgress(tx, processId) {
   }
 }
 
-async function advanceToNextStep(
-  tx,
-  processId,
-  currentStepId,
-  workflowId,
-  hasIncompleteAssignment
-) {
-  // 1. Fetch current step
+async function advanceToNextStep(tx, processId, currentStepId) {
   const currentStep = await tx.workflowStep.findUnique({
     where: { id: currentStepId },
-    select: { id: true, stepNumber: true },
+    select: { id: true, stepNumber: true, workflowId: true },
   });
 
   if (!currentStep) {
     throw new Error(`Current step with ID ${currentStepId} not found`);
   }
 
-  // 2. Check if current step's assignments are complete
-  // const incompleteAssignments = await tx.assignmentProgress.findMany({
-  //   where: {
-  //     processId,
-  //     workflowAssignment: { stepId: currentStepId },
-  //     completed: false,
-  //   },
-  // });
-
-  if (hasIncompleteAssignment) {
-    return {
-      status: "WAITING_ASSIGNMENTS",
-      incompleteAssignmentsCount: incompleteAssignments.length,
-    };
-  }
-
-  // 3. Fetch next step
   const nextStep = await tx.workflowStep.findFirst({
     where: {
-      workflowId,
+      workflowId: currentStep.workflowId,
       stepNumber: currentStep.stepNumber + 1,
     },
     orderBy: { stepNumber: "asc" },
     include: { assignments: true },
   });
 
-  // 4. Check for open queries
+  console.log("next step in advance fun", JSON.stringify(nextStep));
+
   const openQueries = await tx.processQA.findMany({
     where: {
       processId,
@@ -2388,63 +2166,6 @@ async function advanceToNextStep(
   }
 
   if (nextStep) {
-    // 5. Check for incomplete preceding steps
-    const incompleteSteps = await tx.processStepInstance.findMany({
-      where: {
-        processId,
-        workflowStep: {
-          stepNumber: { lt: nextStep.stepNumber },
-        },
-        status: { not: "APPROVED" },
-        OR: [
-          { pickedById: { not: null } },
-          { claimedAt: { not: null } },
-          {
-            status: {
-              in: ["IN_PROGRESS", "FOR_RECIRCULATION", "FOR_RECOMMENDATION"],
-            },
-          },
-        ],
-      },
-    });
-
-    if (hasIncompleteAssignment) {
-      return {
-        status: "WAITING_PRECEDING_STEPS",
-        incompleteStepsCount: incompleteSteps.length,
-      };
-    }
-
-    // 6. Handle recirculation steps
-    const forRecirculationSteps = await tx.processStepInstance.findMany({
-      where: {
-        processId,
-        stepId: nextStep.id,
-        status: "FOR_RECIRCULATION",
-      },
-    });
-
-    for (const recircStep of forRecirculationSteps) {
-      await tx.processStepInstance.update({
-        where: { id: recircStep.id },
-        data: {
-          status: "IN_PROGRESS",
-          recirculationReason: null,
-        },
-      });
-
-      await tx.processNotification.create({
-        data: {
-          stepInstanceId: recircStep.id,
-          userId: recircStep.assignedTo,
-          type: "STEP_ASSIGNMENT",
-          status: "ACTIVE",
-          metadata: { processId },
-        },
-      });
-    }
-
-    // 7. Fetch process and documents
     const process = await tx.processInstance.findUnique({
       where: { id: processId },
       include: { documents: true },
@@ -2456,23 +2177,19 @@ async function advanceToNextStep(
 
     const documentIds = process.documents.map((doc) => doc.documentId);
 
-    // 8. Process assignments for the next step if no recirculation
-    if (forRecirculationSteps.length === 0) {
-      for (const assignment of nextStep.assignments) {
-        await processAssignment(
-          tx,
-          process,
-          nextStep,
-          assignment,
-          documentIds,
-          false,
-          false,
-          workflowId
-        );
-      }
+    for (const assignment of nextStep.assignments) {
+      await processAssignment(
+        tx,
+        process,
+        nextStep,
+        assignment,
+        documentIds,
+        false,
+        false,
+        currentStep.workflowId
+      );
     }
 
-    // 9. Update process to next step
     await tx.processInstance.update({
       where: { id: processId },
       data: { currentStepId: nextStep.id },
@@ -2480,7 +2197,6 @@ async function advanceToNextStep(
 
     return { status: "ADVANCED", nextStepId: nextStep.id };
   } else {
-    // 10. Complete process if no next step
     await tx.processInstance.update({
       where: { id: processId },
       data: { status: "COMPLETED", currentStepId: null },
@@ -2545,21 +2261,15 @@ export async function buildRoleHierarchyForAssignment(
   allowParallel,
   selectedRoles
 ) {
-  // const { allowParallel, direction } = assignment;
-  // const selectedRoles = step.selectedRoles; // Use selectedRoles from WorkflowStep
-
-  // If allowParallel is true, return all selected roles as a single level
   if (allowParallel) {
     return [selectedRoles];
   }
 
-  // Fetch roles with their parent-child relationships
   const roles = await prisma.role.findMany({
     where: { id: { in: selectedRoles } },
     include: { parentRole: true, childRoles: true },
   });
 
-  // Build a map of roles by parent ID
   const roleMap = new Map();
   roles.forEach((role) => {
     const key = role.parentRoleId || "root";
@@ -2569,12 +2279,10 @@ export async function buildRoleHierarchyForAssignment(
     roleMap.get(key).push(role.id);
   });
 
-  // Collect levels based on hierarchy
   const levels = [];
   let currentLevel = roleMap.get("root") || [];
 
   while (currentLevel.length > 0) {
-    // Only include roles that are in selectedRoles
     const validRoles = currentLevel.filter((roleId) =>
       selectedRoles.includes(roleId)
     );
@@ -2591,7 +2299,6 @@ export async function buildRoleHierarchyForAssignment(
     currentLevel = nextLevel;
   }
 
-  // Return levels in the specified direction
   return direction === "UPWARDS" ? levels.reverse() : levels;
 }
 
@@ -2670,6 +2377,7 @@ export const get_user_processes = async (req, res, next) => {
         currentStepAssignedAt: assignedAt,
         assignmentId: step.assignmentId,
         deadline: step.deadline,
+        stepInstanceId: step.id,
         // queries: step.process.queries.map((q) => ({
         //   id: q.id,
         //   queryText: q.queryText,
@@ -2692,6 +2400,27 @@ export const get_user_processes = async (req, res, next) => {
   }
 };
 
+async function checkAllAssignmentsCompleted(tx, processId, stepId) {
+  const assignments = await tx.workflowAssignment.findMany({
+    where: { stepId },
+  });
+
+  for (const assignment of assignments) {
+    const assignmentProgress = await tx.assignmentProgress.findFirst({
+      where: {
+        processId,
+        assignmentId: assignment.id,
+      },
+    });
+
+    if (!assignmentProgress || !assignmentProgress.completed) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const complete_process_step = async (req, res) => {
   try {
     const { stepInstanceId } = req.body;
@@ -2702,11 +2431,10 @@ export const complete_process_step = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch step instance
       const stepInstance = await tx.processStepInstance.findUnique({
         where: {
           id: stepInstanceId,
-          // assignedTo: userData.id,
+          assignedTo: userData.id,
           status: "IN_PROGRESS",
         },
         include: {
@@ -2725,15 +2453,11 @@ export const complete_process_step = async (req, res) => {
                   id: true,
                   workflowId: true,
                   stepNumber: true,
-                  allowParallel: true,
-                  selectedRoles: true,
                 },
               },
             },
           },
-          assignmentProgress: {
-            include: { departmentStepProgress: true },
-          },
+          assignmentProgress: true,
         },
       });
 
@@ -2749,15 +2473,8 @@ export const complete_process_step = async (req, res) => {
         throw new Error("Cannot complete step until recirculation is resolved");
       }
 
-      // 2. Get workflowId
-      const workflowId =
-        stepInstance.process.workflowId ||
-        stepInstance.workflowAssignment?.step?.workflowId;
-      if (!workflowId) {
-        throw new Error("Workflow ID not found");
-      }
+      const workflowId = stepInstance.process.workflowId;
 
-      // 3. Mark step as APPROVED
       await tx.processStepInstance.update({
         where: { id: stepInstanceId },
         data: {
@@ -2768,52 +2485,36 @@ export const complete_process_step = async (req, res) => {
         },
       });
 
-      // 4. Update department progress
       if (stepInstance.workflowAssignment?.assigneeType === "DEPARTMENT") {
         await updateDepartmentProgress(tx, stepInstance, workflowId);
       }
 
-      await tx.processStepInstance.deleteMany({
-        where: {
-          processId: stepInstance.processId,
-          stepId: stepInstance.stepId,
-          assignmentId: stepInstance.assignmentId,
-          id: { not: stepInstanceId },
-          status: "IN_PROGRESS",
-        },
-      });
+      if (stepInstance.workflowAssignment?.assigneeType === "ROLE") {
+        await tx.processStepInstance.deleteMany({
+          where: {
+            processId: stepInstance.processId,
+            stepId: stepInstance.stepId,
+            assignmentId: stepInstance.assignmentId,
+            id: { not: stepInstanceId },
+            status: "IN_PROGRESS",
+          },
+        });
 
-      let isCompleted;
-      // 5. Check assignment completion
-      if (stepInstance.assignmentProgress) {
-        isCompleted = await checkAssignmentCompletion(
-          tx,
-          stepInstance.assignmentProgress.id,
-          stepInstance.id
-        );
+        await tx.assignmentProgress.update({
+          where: { id: stepInstance.assignmentProgress.id },
+          data: { completed: true, completedAt: new Date() },
+        });
       }
 
-      // 6. Check incomplete assignments
-      const incompleteAssignments = await tx.processStepInstance.findMany({
-        where: {
-          processId: stepInstance.processId,
-          stepId: stepInstance.stepId,
-          id: { not: stepInstanceId },
-          assignmentId: { not: stepInstance.assignmentId },
-          status: { not: "APPROVED" },
-          // OR: [
-          //   { pickedById: { not: null } },
-          //   { claimedAt: { not: null } },
-          //   {
-          //     status: {
-          //       in: ["IN_PROGRESS", "FOR_RECIRCULATION", "FOR_RECOMMENDATION"],
-          //     },
-          //   },
-          // ],
-        },
-      });
+      const assignmentCompleted =
+        stepInstance.workflowAssignment?.assigneeType !== "USER"
+          ? await checkAssignmentCompletion(
+              tx,
+              stepInstance.assignmentProgress.id,
+              stepInstance.id
+            )
+          : true;
 
-      // 7. Check open queries
       const openQueries = await tx.processQA.findMany({
         where: {
           processId: stepInstance.processId,
@@ -2830,29 +2531,64 @@ export const complete_process_step = async (req, res) => {
         };
       }
 
-      // 8. Advance to next step
+      console.log("assignment completed", assignmentCompleted);
 
-      if (incompleteAssignments.length === 0) {
-        const advanceResult = await advanceToNextStep(
-          tx,
-          stepInstance.processId,
-          stepInstance.stepId,
-          workflowId
-        );
+      if (assignmentCompleted) {
+        const allAssignmentsCompleted =
+          stepInstance.workflowAssignment?.assigneeType !== "USER"
+            ? await checkAllAssignmentsCompleted(
+                tx,
+                stepInstance.processId,
+                stepInstance.stepId
+              )
+            : true;
+
+        const currentStep = await tx.workflowStep.findUnique({
+          where: { id: stepInstance.stepId },
+          select: { id: true, stepNumber: true, workflowId: true },
+        });
+
+        if (!currentStep) {
+          throw new Error(
+            `Current step with ID ${stepInstance.stepId} not found`
+          );
+        }
+
+        const nextStep = await tx.workflowStep.findFirst({
+          where: {
+            workflowId: currentStep.workflowId,
+            stepNumber: currentStep.stepNumber + 1,
+          },
+          orderBy: { stepNumber: "asc" },
+          include: { assignments: true },
+        });
+
+        console.log("next step", nextStep);
+
+        if (allAssignmentsCompleted && nextStep) {
+          const advanceResult = await advanceToNextStep(
+            tx,
+            stepInstance.processId,
+            stepInstance.stepId,
+            workflowId
+          );
+
+          return {
+            message: "Step completed successfully and process advanced",
+            advanceStatus: advanceResult.status,
+          };
+        } else {
+          await tx.processInstance.update({
+            where: {
+              id: stepInstance.processId,
+            },
+            data: { status: "COMPLETED" },
+          });
+        }
       }
-
-      // if (advanceResult.status === "WAITING_ASSIGNMENTS") {
-      //   return {
-      //     message:
-      //       "Step completed, but waiting for other assignments in the same step",
-      //     incompleteAssignmentsCount: advanceResult.incompleteAssignmentsCount,
-      //   };
-      // }
 
       return {
         message: "Step completed successfully",
-        // advanceStatus: advanceResult.status,
-        // nextStepId: advanceResult.nextStepId || null,
       };
     });
 
@@ -3936,7 +3672,6 @@ export const get_recommendation = async (req, res) => {
     });
   }
 };
-
 export const reopen_process = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -3959,11 +3694,18 @@ export const reopen_process = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate process and initiator
       const process = await tx.processInstance.findUnique({
         where: { id: processId, initiatorId: userData.id, status: "COMPLETED" },
         include: {
-          workflow: { include: { steps: { include: { assignments: true } } } },
+          workflow: {
+            include: {
+              steps: {
+                include: {
+                  assignments: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -3973,7 +3715,6 @@ export const reopen_process = async (req, res) => {
         );
       }
 
-      // 2. Increment reopenCycle
       const updatedProcess = await tx.processInstance.update({
         where: { id: processId },
         data: {
@@ -3984,8 +3725,7 @@ export const reopen_process = async (req, res) => {
         },
       });
 
-      // 3. Handle superseded documents
-      const documentHistoryEntries = [];
+      const documentIds = [];
       for (let {
         oldDocumentId,
         newDocumentId,
@@ -4004,57 +3744,42 @@ export const reopen_process = async (req, res) => {
           );
         }
 
-        const oldDocProcessDoc = await tx.processDocument.findUnique({
-          where: {
-            documentId_processId: {
-              documentId: parseInt(oldDocumentId),
-              processId: processId,
-            },
-          },
-        });
-
-        // Create ProcessDocument entry for superseded document
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
-            documentId: newDocumentId,
+            documentId: parseInt(newDocumentId),
             isReplacement: true,
             preApproved: false,
             reasonOfSupersed: reasonOfSupersed || "No reason provided",
-            tags: oldDocProcessDoc?.tags || [],
-            description:
-              oldDocProcessDoc?.description || "No description was provided",
             superseding: true,
-            replacedDocumentId: oldDocumentId,
+            replacedDocumentId: parseInt(oldDocumentId),
             reopenCycle: updatedProcess.reopenCycle,
           },
         });
 
-        // Create DocumentHistory entry
-        const history = await tx.documentHistory.create({
+        await tx.documentHistory.create({
           data: {
-            documentId: newDocumentId,
+            documentId: parseInt(newDocumentId),
             processId,
             userId: userData.id,
             actionType: "REPLACED",
             actionDetails: {
               isReplacement: true,
               superseding: true,
-              originalDocumentId: oldDocumentId,
+              originalDocumentId: parseInt(oldDocumentId),
               reopenCycle: updatedProcess.reopenCycle,
             },
             isRecirculationTrigger: true,
             createdAt: new Date(),
             processDocumentId: processDocument.id,
-            replacedDocumentId: oldDocumentId,
+            replacedDocumentId: parseInt(oldDocumentId),
           },
         });
 
-        documentHistoryEntries.push(history);
+        documentIds.push(parseInt(newDocumentId));
 
-        // Ensure document access for the initiator
         await ensureDocumentAccessWithParents(tx, {
-          documentId: newDocumentId,
+          documentId: parseInt(newDocumentId),
           userId: userData.id,
           processId,
           assignmentId: null,
@@ -4064,83 +3789,32 @@ export const reopen_process = async (req, res) => {
 
         if (oldDoc) {
           await ensureDocumentAccessWithParents(tx, {
-            documentId: oldDocumentId,
+            documentId: parseInt(oldDocumentId),
             userId: userData.id,
             processId,
             assignmentId: null,
             roleId: null,
             departmentId: null,
           });
-
-          const oldDocPath = path.join(__dirname, STORAGE_PATH, oldDoc.path);
-
-          const ext = path.extname(oldDocPath).toLowerCase();
-          const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".tiff", ".png"];
-          if (allowedExtensions.includes(ext)) {
-            await watermarkDocument(oldDocPath, oldDocPath, "SUPERSEDED");
-          }
         }
       }
 
-      // 4. Reset first step instances for previously engaged assignees
-      const firstStep = process.workflow.steps[1];
+      const firstStep = process.workflow.steps[0];
 
-      const engagedStepInstances = await tx.processStepInstance.findMany({
-        where: {
-          processId,
-          stepId: firstStep.id,
-          OR: [
-            { pickedById: { not: null } },
-            { claimedAt: { not: null } },
-            { status: { in: ["APPROVED", "IN_PROGRESS"] } },
-          ],
-        },
-      });
-
-      for (const instance of engagedStepInstances) {
-        const updatedInstance = await tx.processStepInstance.update({
-          where: { id: instance.id },
-          data: {
-            status: "IN_PROGRESS",
-            isRecirculated: true,
-            recirculationReason: "Process reopened with superseded documents",
-            claimedAt: null,
-            pickedById: null,
-            recirculationCycle: { increment: 1 },
-          },
-        });
-
-        await tx.processNotification.create({
-          data: {
-            stepId: updatedInstance.id, // Changed from stepInstanceId to stepId
-            userId: instance.assignedTo,
-            type: "STEP_ASSIGNMENT",
-            status: "ACTIVE",
-            metadata: { processId, reason: "Process reopened" },
-          },
-        });
-      }
-
-      // 5. Create new step instances for first step assignments if no engaged instances exist
-      if (engagedStepInstances.length === 0) {
-        const documentIds = supersededDocuments.map((doc) =>
-          parseInt(doc.newDocumentId)
+      for (const assignment of firstStep.assignments) {
+        await processAssignment(
+          tx,
+          updatedProcess,
+          firstStep,
+          assignment,
+          documentIds,
+          true,
+          false,
+          process.workflow.id
         );
-        for (const assignment of firstStep.assignments) {
-          await processAssignment(
-            tx,
-            updatedProcess,
-            firstStep,
-            assignment,
-            documentIds,
-            true,
-            false,
-            process.workflowId
-          );
-        }
       }
 
-      return { process: updatedProcess, documentHistoryEntries };
+      return { process: updatedProcess };
     });
 
     return res.status(200).json({

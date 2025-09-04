@@ -595,6 +595,7 @@ enum ActionType {
   APPROVAL
   REVIEW
   NOTIFICATION
+  VIEW
 }
 
 enum ProcessStatus {
