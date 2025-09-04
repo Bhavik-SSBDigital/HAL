@@ -30,7 +30,7 @@ import {
   storeSignCoordinates,
 } from '../../common/Apis';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = '/worker.js';
 
 function PdfContainer({
   url,
@@ -482,6 +482,10 @@ function PdfContainer({
       <Document
         file={url}
         onLoadSuccess={onDocumentLoadSuccess}
+        onLoadError={(error) => {
+          console.error('PDF Load Error:', error);
+          toast.error(`Failed to load PDF: ${error.message}`);
+        }}
         loading={
           <div className="flex justify-center items-center h-[70vh]">
             <div className="animate-spin rounded-full border-t-4 border-blue-500 w-12 h-12"></div>
