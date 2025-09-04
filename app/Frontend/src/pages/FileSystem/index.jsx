@@ -195,11 +195,12 @@ export default function FileSysten() {
     }
   };
 
-  const handleDownloadWithWatermark = async (password) => {
+  const handleDownloadWithWatermark = async (data) => {
     try {
       const response = await DownloadFileWithWaterMark(
         selectedItem.id,
-        password,
+        data.fieldValue,
+        data.watermark,
       );
 
       // Create a blob from the response data
@@ -449,11 +450,17 @@ export default function FileSysten() {
   };
 
   // function to create metadata of newly uploaded file
-  const createUploadedFileMetadata = (file, uploadPath, createdBy, fileExt) => {
+  const createUploadedFileMetadata = (
+    file,
+    uploadPath,
+    createdBy,
+    fileExt,
+    id,
+  ) => {
     const now = new Date().toISOString();
 
     return {
-      id: Date.now(), // or from backend if available
+      id: id, // or from backend if available
       path: uploadPath,
       name: file.name,
       type: fileExt,
@@ -483,6 +490,7 @@ export default function FileSysten() {
         `${fileName}.${fileExt}`, // Final file name
         false, // Overwrite = true
       );
+      console.log(uploadResult[0]);
       setUploadFileModal(false);
       toast.success('File Uploaded');
       const newFileData = createUploadedFileMetadata(
@@ -490,6 +498,7 @@ export default function FileSysten() {
         currentPath,
         username,
         fileExt,
+        uploadResult[0],
       );
 
       // Update your state (e.g., file list, folder contents)

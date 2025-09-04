@@ -237,10 +237,14 @@ export const DownloadFile = async (name, path) => {
     toast.error(error?.response?.data?.message || error?.messsage);
   }
 };
-export const DownloadFileWithWaterMark = async (documentId, password) => {
+export const DownloadFileWithWaterMark = async (
+  documentId,
+  password,
+  watermark,
+) => {
   return apiClient.post(
     `/downloadWatermarkedFile/${documentId}`,
-    { password },
+    { password, watermark },
     { responseType: 'blob' },
   );
 };
