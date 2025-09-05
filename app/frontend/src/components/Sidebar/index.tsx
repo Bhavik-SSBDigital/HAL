@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { defaultPath } from '../../Slices/PathSlice';
 import { useDispatch } from 'react-redux';
+import { getRecommendations } from '../../common/Apis';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -33,7 +34,8 @@ interface SidebarProps {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [open, setOpen] = useState<string>('');
-  const { show } = sessionData();
+  const { show, recommendationsLength, setRecommendationsLength } =
+    sessionData();
   const location = useLocation();
   const { pathname } = location;
   const username = sessionStorage.getItem('username');
@@ -275,6 +277,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     },
   ].filter(Boolean); // Filter out any false values
 
+  useEffect(() => {
+    const getRecommendationLength = async () => {
+      try {
+        const response = await getRecommendations();
+        console.log(response);
+        setRecommendationsLength(response?.data?.recommendations?.length);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    getRecommendationLength();
+  }, []);
   return (
     <aside
       ref={sidebar}
@@ -336,9 +350,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                           }}
                         >
                           {route.icon}
-                          <span className="duration-300 ease-in-out transform group-hover:scale-105">
-                            {route.label}
-                          </span>
+                          {route.label}
+
                           <IconCaretDown
                             size={18}
                             className={`absolute right-4 top-1/2 -translate-y-1/2 transform fill-current duration-300 ease-in-out ${
@@ -388,6 +401,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   <span className="duration-300 ease-in-out transform group-hover:scale-105">
                     {route.label}
                   </span>
+                  {route.path === '/recommendations' &&
+                    recommendationsLength > 0 && (
+                      <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                        {recommendationsLength}
+                        {console.log(recommendationsLength)}
+                      </span>
+                    )}
                 </NavLink>
               );
             })}

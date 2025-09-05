@@ -11,10 +11,12 @@ import {
 } from '../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomModal from '../../CustomComponents/CustomModal';
+import sessionData from '../../Store';
 
 export default function Recommendations() {
   // variables
   const [data, setData] = useState([]);
+  const { setRecommendationsLength } = sessionData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,7 @@ export default function Recommendations() {
     try {
       const res = await getRecommendations();
       setData(res?.data?.recommendations || []);
+      setRecommendationsLength(res?.data?.recommendations?.length);
     } catch (error) {
       console.error(error?.response?.data?.message || error?.message);
     } finally {

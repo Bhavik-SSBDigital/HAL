@@ -5,6 +5,7 @@ const sessionData = create(
   persist(
     (set) => ({
       work: '',
+      recommendationsLength: 0,
       profileImage: '',
       notifications: [],
       alerts: [],
@@ -17,6 +18,7 @@ const sessionData = create(
       setSocketConnection: (connection) => {
         set({ socketConnection: connection });
       },
+      setRecommendationsLength: (recommendationsLength) => set({ recommendationsLength }),
       setShow: (show) => set({ show }),
       setDashDepartment: (dashDepartment) => set({ dashDepartment }),
       setDashId: (dashId) => set({ dashId }),
