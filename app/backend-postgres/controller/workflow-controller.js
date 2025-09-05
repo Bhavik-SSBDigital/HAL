@@ -831,6 +831,7 @@ export const get_workflows = async (req, res) => {
             assignment.assigneeType === "DEPARTMENT"
               ? [
                   {
+                    direction: assignment.direction,
                     department: assignment.assigneeIds[0], // Assuming single department per assignment
                     roles: Array.isArray(assignment.selectedRoles)
                       ? assignment.selectedRoles.map((roleId) => ({
@@ -881,7 +882,6 @@ export const get_workflows = async (req, res) => {
               direction: a.direction,
               allowParallel: a.allowParallel,
               selectedRoles: a.selectedRoles,
-              direction: a.direction,
             })),
           })),
         })),

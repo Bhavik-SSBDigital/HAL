@@ -17,6 +17,7 @@ const Editor = ({
   const backend_url = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
+    console.log("called righhttt")
     const fetchEditorUrl = async () => {
       try {
         console.log('Editor.jsx: Starting fetchEditorUrl', {
@@ -67,7 +68,7 @@ const Editor = ({
           `${backend_url}/hosting/discovery`,
           {
             headers: {
-              Origin: 'http://localhost:3000',
+              Origin: `${backend_url}`,
               'Access-Control-Request-Method': 'GET',
               'Access-Control-Request-Headers': 'content-type',
             },

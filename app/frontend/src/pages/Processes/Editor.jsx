@@ -6,6 +6,7 @@ const Editor = ({ documentId, fileType, accessToken, onError, readOnly = false }
   const [editorUrl, setEditorUrl] = useState('');
 
   useEffect(() => {
+    console.log("calllelddd")
     const fetchEditorUrl = async () => {
       try {
         console.log('Editor.jsx: Fetching WOPI token:', { documentId, fileType, readOnly });

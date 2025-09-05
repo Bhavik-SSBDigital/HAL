@@ -41,11 +41,11 @@ const ViewLog = () => {
 
   // initials
   const logDetails = [
-    { label: 'Step Name', value: data?.stepName || '--' },
+    // { label: 'Step Name', value: data?.stepName || '--' },
     { label: 'Process ID', value: data?.processId || '--' },
     { label: 'Process Name', value: data?.processName || '--' },
-    { label: 'Recirculation Cycle', value: data?.recirculationCycle || '--' },
-    { label: 'Step Instance ID', value: data?.processStepInstanceId || '--' },
+    // { label: 'Recirculation Cycle', value: data?.recirculationCycle || '--' },
+    // { label: 'Step Instance ID', value: data?.processStepInstanceId || '--' },
   ];
   if (loading) return <ComponentLoader />;
   if (error)

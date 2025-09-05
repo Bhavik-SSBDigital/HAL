@@ -87,15 +87,15 @@ const Timeline = ({
               <p>
                 <strong>Workflow:</strong> {details?.workflow || 'N/A'}
               </p>
-              <p>
+              {/* <p>
                 <strong>Step:</strong> {details?.stepName || 'N/A'}
-              </p>
-              <p>
+              </p> */}
+              {/* <p>
                 <strong>Tags:</strong>{' '}
                 {details?.tags && details?.tags.length > 0
                   ? details?.tags.join(', ')
                   : 'N/A'}
-              </p>
+              </p> */}
               <p>
                 <strong>Document:</strong> {details?.name || 'N/A'}{' '}
                 {details?.name && details?.path && (

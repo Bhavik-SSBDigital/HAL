@@ -9,75 +9,132 @@ export const pick_process_step = async (req, res, next) => {
     const userData = await verifyUser(accessToken);
     const { stepInstanceId } = req.body;
 
+    if (!stepInstanceId) {
+      return res.status(400).json({ message: "stepInstanceId is required" });
+    }
+
+    // Execute all operations in a single transaction
     const result = await prisma.$transaction(async (tx) => {
-      const step = await tx.processStepInstance.update({
-        where: {
-          id: stepInstanceId,
-          status: "IN_PROGRESS",
-          assignedTo: userData.id,
-        },
-        data: {
-          status: "IN_PROGRESS",
-          pickedBy: userData.id,
-          claimedAt: new Date(),
-        },
+      // Get the step instance with related workflow assignment and assignee type
+      const stepInstance = await tx.processStepInstance.findUnique({
+        where: { id: stepInstanceId },
         include: {
           workflowAssignment: {
-            include: {
-              departmentRoles: true,
+            select: {
+              assigneeType: true,
+              id: true,
             },
           },
-          assignmentProgress: {
-            include: {
-              departmentStepProgress: true,
-              stepInstances: true,
+          process: {
+            select: {
+              id: true,
+            },
+          },
+          workflowStep: {
+            select: {
+              id: true,
             },
           },
         },
       });
 
-      if (!step) throw new Error("Step not available for pickup");
+      if (!stepInstance) {
+        throw new Error("Step instance not found");
+      }
 
-      switch (step.workflowAssignment.assigneeType) {
-        case "ROLE":
-          await handleRolePickup(tx, step);
-          break;
+      const assigneeType = stepInstance.workflowAssignment?.assigneeType;
 
-        case "DEPARTMENT":
-          await handleDepartmentPickup(tx, step);
-          break;
+      if (!assigneeType) {
+        throw new Error("Assignee type not found for this step");
+      }
 
-        case "USER":
-          const otherSteps = await tx.processStepInstance.findMany({
+      // Update the step instance with the current user's ID
+      const updatedStepInstance = await tx.processStepInstance.update({
+        where: { id: stepInstanceId },
+        data: {
+          pickedById: userData.id,
+          claimedAt: new Date(),
+          status: "IN_PROGRESS",
+        },
+      });
+
+      // If assigneeType is USER, just return success
+      if (assigneeType === "USER") {
+        return { message: "Process picked successfully", assigneeType };
+      }
+
+      // If assigneeType is ROLE or DEPARTMENT, handle the logic
+      if (assigneeType === "ROLE" || assigneeType === "DEPARTMENT") {
+        // Get the roleId from the step instance
+        if (!stepInstance.roleId) {
+          throw new Error("Role ID not found for this step instance");
+        }
+
+        // Get all users with the same role (excluding current user)
+        const usersWithSameRole = await tx.userRole.findMany({
+          where: {
+            roleId: stepInstance.roleId,
+            userId: {
+              not: userData.id, // Exclude current user
+            },
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+        const userIdsToDelete = usersWithSameRole.map((ur) => ur.userId);
+
+        if (userIdsToDelete.length > 0) {
+          // Delete process step instances for other users with the same criteria
+          const deleteResult = await tx.processStepInstance.deleteMany({
             where: {
-              assignmentId: step.assignmentId,
-              status: "IN_PROGRESS",
-              NOT: { id: step.id },
+              AND: [
+                { processId: stepInstance.processId },
+                { assignedTo: { in: userIdsToDelete } },
+                { roleId: stepInstance.roleId },
+                { assignmentId: stepInstance.assignmentId }, // Use assignmentId instead of workflowAssignmentId
+                { stepId: stepInstance.stepId }, // Match the same step
+                { id: { not: stepInstanceId } }, // Exclude the current step instance
+                { status: "IN_PROGRESS" }, // Only delete pending steps
+              ],
             },
           });
 
-          const otherStepIds = otherSteps.map((s) => s.id);
+          return {
+            message:
+              "Process picked successfully and other users' step instances removed",
+            assigneeType,
+            deletedCount: deleteResult.count,
+          };
+        }
 
-          await tx.processNotification.deleteMany({
-            where: { stepId: { in: otherStepIds } },
-          });
-
-          await tx.processStepInstance.deleteMany({
-            where: { id: { in: otherStepIds } },
-          });
-          break;
+        return {
+          message: "Process picked successfully",
+          assigneeType,
+          deletedCount: 0,
+        };
       }
 
-      //   await updateDocumentAccess(tx, step);
-      await cleanupNotifications(tx, step);
-
-      return step;
+      throw new Error("Unsupported assignee type");
     });
 
-    res.json({ message: "Process step claimed successfully" });
+    return res.status(200).json(result);
   } catch (error) {
-    console.log("Error picking process step", error);
-    res.status(500).json({ message: "Error picking process step" });
+    console.error("Error claiming step:", error);
+
+    if (error.message === "Step instance not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    if (
+      error.message === "Assignee type not found for this step" ||
+      error.message === "Role ID not found for this step instance" ||
+      error.message === "Unsupported assignee type"
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Error claiming step" });
   }
 };
 

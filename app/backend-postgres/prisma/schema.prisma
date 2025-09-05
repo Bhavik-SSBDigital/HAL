@@ -298,6 +298,7 @@ model ProcessInstance {
   id               String    @id @default(uuid())
   name             String
   workflowId       String
+  description      String?
   initiatorId      Int
   currentStepId    String?
   status           ProcessStatus @default(PENDING)

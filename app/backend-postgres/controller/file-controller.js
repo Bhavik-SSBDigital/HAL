@@ -87,8 +87,6 @@ async function executeTextExtractionScript(filePath) {
 
     const result = JSON.parse(stdout);
 
-    console.log("result", result);
-
     if (result.error) {
       throw new Error(result.error);
     }
@@ -155,24 +153,52 @@ export const file_upload = async (req, res) => {
         : path.join(__dirname, relativePath, fileName);
     relativePath = relativePath + `/${fileName}`;
 
-    try {
-      if (chunkNumber === 0) {
+    // Check if file exists and this is the first chunk
+    let existingDocument = null;
+    let fileReplaced = false;
+    if (chunkNumber === 0) {
+      try {
         await fs.access(saveTo);
-        logger.warn({
-          action: "FILE_UPLOAD_EXISTS",
+        // File exists, check if there's a document record for it
+        const documentPath = extra + "/" + fileName;
+        existingDocument = await prisma.document.findUnique({
+          where: { path: documentPath },
+        });
+
+        if (existingDocument) {
+          // Delete existing document from database
+          await prisma.document.delete({
+            where: { id: existingDocument.id },
+          });
+
+          // Remove from search index
+          await SearchIndexService.removeDocumentFromIndex(existingDocument.id);
+
+          logger.info({
+            action: "FILE_UPLOAD_DELETE_EXISTING",
+            userId: userData.id,
+            details: {
+              fileName,
+              path: saveTo,
+              deletedDocumentId: existingDocument.id,
+            },
+          });
+        }
+
+        fileReplaced = true;
+        logger.info({
+          action: "FILE_UPLOAD_REPLACE",
           userId: userData.id,
           details: { fileName, path: saveTo },
         });
-        return res
-          .status(409)
-          .json({ message: "File already exists at the given path" });
+      } catch (err) {
+        // File does not exist; continue normally
+        fileReplaced = false;
       }
-    } catch (err) {
-      // File does not exist; continue
     }
 
     const writableStream = fsCB.createWriteStream(saveTo, {
-      flags: "a+",
+      flags: fileReplaced && chunkNumber === 0 ? "w" : "a+",
       start: chunkNumber * chunkSize,
     });
     req.pipe(writableStream);
@@ -190,11 +216,15 @@ export const file_upload = async (req, res) => {
               userId: userData.id,
               details: { documentId, fileName, username: userData.username },
             });
-            return res
-              .status(200)
-              .json({ message: "File upload completed.", documentId });
+            return res.status(200).json({
+              message: fileReplaced
+                ? "File has been replaced."
+                : "File upload completed.",
+              documentId,
+            });
           }
 
+          // Create new document entry
           const newDocument = await prisma.document.create({
             data: {
               name: fileName,
@@ -288,14 +318,18 @@ export const file_upload = async (req, res) => {
             details: {
               documentId: newDocument.id,
               fileName,
-              path: relativePath,
+              path: saveTo,
               username: userData.username,
+              replaced: fileReplaced,
             },
           });
 
           return res.status(200).json({
-            message: "File upload completed.",
+            message: fileReplaced
+              ? "File has been replaced."
+              : "File upload completed.",
             documentId: newDocument.id,
+            replaced: fileReplaced,
           });
         } catch (err) {
           logger.error({
@@ -1219,13 +1253,13 @@ export const file_though_url = async (req, res) => {
     let filePath = "/" + req.params.filePath;
 
     logger.info({
-      action: "FILE_THROUGH_URL_START",
-      details: { filePath },
+      action: "FILE_VIEW_ATTEMPT",
+      details: { filePath: filePath },
     });
 
     if (!filePath) {
       logger.warn({
-        action: "FILE_THROUGH_URL_NO_PATH",
+        action: "FILE_NOT_FOUND_FOR_VIEW",
         details: { filePath },
       });
       return res.status(400).json({ message: "File path is missing" });
@@ -1237,8 +1271,8 @@ export const file_though_url = async (req, res) => {
 
     if (!document) {
       logger.warn({
-        action: "FILE_THROUGH_URL_NOT_FOUND",
-        details: { filePath },
+        action: "FILE_NOT_FOUND_FOR_VIEW",
+        details: { filePath, userId: userData.id },
       });
       return res.status(404).json({ message: "File not found in database" });
     }
@@ -1251,14 +1285,14 @@ export const file_though_url = async (req, res) => {
       await fs.access(absoluteFilePath);
     } catch {
       logger.error({
-        action: "FILE_THROUGH_URL_ACCESS_ERROR",
+        action: "FILE_NOT_FOUND_FOR_VIEW",
         details: { filePath: absoluteFilePath },
       });
       return res.status(404).json({ message: "File not found in storage" });
     }
 
     logger.info({
-      action: "FILE_THROUGH_URL_SUCCESS",
+      action: "FILE_VIEW_SUCCESS",
       details: {
         documentId: document.id,
         filePath: absoluteFilePath,
@@ -1267,8 +1301,9 @@ export const file_though_url = async (req, res) => {
 
     return res.sendFile(absoluteFilePath);
   } catch (error) {
+    console.log("error", error);
     logger.error({
-      action: "FILE_THROUGH_URL_ERROR",
+      action: "FILE_VIEW_SERVER_ERROR",
       details: { error: error.message, filePath: req.params.filePath },
     });
     return res.status(500).json({ message: "Error serving file" });
@@ -1276,34 +1311,67 @@ export const file_though_url = async (req, res) => {
 };
 
 export const file_download = async (req, res) => {
+  let userData;
   try {
     const accessToken = req.headers["x-authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    userData = await verifyUser(accessToken);
+
+    logger.info({
+      action: "REQ_FOR_VIEW_OR_EXPORT_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        filePath: req.headers["x-file-path"],
+        fileName: req.headers["x-file-name"],
+      },
+    });
 
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "REQ_FOR_VIEW_OR_EXPORT_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
     let extra = decodeURIComponent(req.headers["x-file-path"]);
-
-    // let relativePath = process.env.STORAGE_PATH + extra.substring(2);
     let relativePath = extra.substring(1);
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const fileName = decodeURIComponent(req.headers["x-file-name"]);
-    const filePath = join(relativePath, fileName); // Replace with your file path
+    const filePath = join(relativePath, fileName);
 
     const fileExt = extname(fileName).slice(1).toLowerCase();
     const fileURL = process.env.FILE_URL;
+
+    logger.info({
+      action: "REQ_FOR_VIEW_OR_EXPORT_SUCCESS",
+      userId: userData.id,
+      details: {
+        filePath,
+        fileName,
+        fileType: fileExt,
+        username: userData.username,
+      },
+    });
+
     return res.status(200).json({
       data: `${fileURL}${filePath}`,
       fileType: fileExt,
     });
   } catch (error) {
-    // console.log("error", error);
+    logger.error({
+      action: "REQ_FOR_VIEW_OR_EXPORT_ERROR",
+      userId: userData?.id,
+      details: {
+        error: error.message,
+        filePath: req.headers["x-file-path"],
+        fileName: req.headers["x-file-name"],
+      },
+    });
     res.status(500).json({
       message: "error downloading file",
     });
@@ -1362,21 +1430,29 @@ export const file_download = async (req, res) => {
 export const get_file_data = async (req, res) => {
   try {
     const accessToken = req.headers["x-authorization"]?.substring(7);
+    const extra = decodeURIComponent(req.headers["x-file-path"]);
+    const fileName = decodeURIComponent(req.headers["x-file-name"]);
+
+    logger.info({
+      action: "FILE_EXPORT_ATTEMPT",
+      details: { filePath: extra, fileName },
+    });
 
     const userData = await verifyUser(accessToken);
 
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "FILE_EXPORT_UNAUTHORIZED",
+        details: { filePath: extra, fileName },
+      });
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
-    const extra = decodeURIComponent(req.headers["x-file-path"]);
     const relativePath = process.env.STORAGE_PATH + "/" + extra.substring(1);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const fileName = decodeURIComponent(req.headers["x-file-name"]);
-
     const filePath = join(__dirname, relativePath, fileName);
 
     // Fetch document metadata from PostgreSQL using Prisma
@@ -1386,6 +1462,10 @@ export const get_file_data = async (req, res) => {
     });
 
     if (!document) {
+      logger.warn({
+        action: "FILE_EXPORT_NOT_FOUND_IN_DB",
+        details: { filePath: extra, fileName },
+      });
       return res
         .status(404)
         .json({ message: "File not found in the database." });
@@ -1401,11 +1481,31 @@ export const get_file_data = async (req, res) => {
       },
     });
 
+    // Verify file existence
+    try {
+      await fs.access(filePath);
+    } catch {
+      logger.error({
+        action: "FILE_EXPORT_NOT_FOUND_IN_STORAGE",
+        details: { filePath },
+      });
+      return res.status(404).json({ message: "File not found in storage" });
+    }
+
     // Get file stats
     const stat = await fs.stat(filePath);
     const fileSize = stat.size;
     const range = req.headers.range;
     const fileExtension = fileName.split(".").pop();
+
+    logger.info({
+      action: "FILE_EXPORT_SUCCESS",
+      details: {
+        documentId: document.id,
+        filePath,
+        fileSize,
+      },
+    });
 
     if (range === "bytes=0-0") {
       res.setHeader("content-type", getContentTypeFromExtension(fileExtension));
@@ -1431,29 +1531,56 @@ export const get_file_data = async (req, res) => {
       fsCB.createReadStream(filePath).pipe(res);
     }
   } catch (error) {
-    // console.log("Error while processing file data:", error);
-    res.status(500).json({
+    logger.error({
+      action: "FILE_EXPORT_SERVER_ERROR",
+      details: {
+        error: error.message,
+        filePath: req.headers["x-file-path"],
+        fileName: req.headers["x-file-name"],
+      },
+    });
+    return res.status(500).json({
       message: "Error downloading file",
     });
   }
 };
 
 export const archive_file = async (req, res) => {
+  let userData;
   try {
     const accessToken = req.headers["authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    userData = await verifyUser(accessToken);
+
+    logger.info({
+      action: "ARCHIVE_FILE_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        documentId: req.body.documentId,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "ARCHIVE_FILE_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
-    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const documentId = req.body.documentId;
     const document = await prisma.document.findUnique({
-      where: { id: documentId }, // Include related data if needed
+      where: { id: documentId },
     });
 
     if (!document) {
+      logger.warn({
+        action: "ARCHIVE_FILE_DOC_NOT_FOUND",
+        userId: userData.id,
+        details: { documentId },
+      });
       return res.status(404).json({
         message: "Document not found",
       });
@@ -1468,29 +1595,52 @@ export const archive_file = async (req, res) => {
     try {
       await fs.access(absolutePath);
     } catch (error) {
-      console.error("File not found:", error);
+      logger.warn({
+        action: "ARCHIVE_FILE_NOT_FOUND",
+        userId: userData.id,
+        details: {
+          documentId,
+          path: absolutePath,
+          error: error.message,
+        },
+      });
       return res.status(404).json({
         message: "File not found",
       });
     }
-
-    // Find the document in the database by its path
 
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
       data: { isArchived: true },
     });
 
+    logger.info({
+      action: "ARCHIVE_FILE_SUCCESS",
+      userId: userData.id,
+      details: {
+        documentId,
+        username: userData.username,
+      },
+    });
+
     res.status(200).json({
       message: "File archived successfully",
     });
   } catch (error) {
+    logger.error({
+      action: "ARCHIVE_FILE_ERROR",
+      userId: userData?.id,
+      details: {
+        error: error.message,
+        documentId: req.body.documentId,
+      },
+    });
     console.error("Error archiving file:", error);
     res.status(500).json({
       message: "Error archiving file",
     });
   } finally {
-    await prisma.$disconnect(); // Disconnect Prisma client
+    await prisma.$disconnect();
   }
 };
 
@@ -1572,21 +1722,41 @@ export const delete_file = async (req, res) => {
 };
 
 export const unarchive_file = async (req, res) => {
+  let userData;
   try {
     const accessToken = req.headers["authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    userData = await verifyUser(accessToken);
+
+    logger.info({
+      action: "UNARCHIVE_FILE_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        documentId: req.body.documentId,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "UNARCHIVE_FILE_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
-    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const documentId = req.body.documentId;
     const document = await prisma.document.findUnique({
-      where: { id: documentId }, // Include related data if needed
+      where: { id: documentId },
     });
 
     if (!document) {
+      logger.warn({
+        action: "UNARCHIVE_FILE_DOC_NOT_FOUND",
+        userId: userData.id,
+        details: { documentId },
+      });
       return res.status(404).json({
         message: "Document not found",
       });
@@ -1601,48 +1771,91 @@ export const unarchive_file = async (req, res) => {
     try {
       await fs.access(absolutePath);
     } catch (error) {
-      console.error("File not found:", error);
+      logger.warn({
+        action: "UNARCHIVE_FILE_NOT_FOUND",
+        userId: userData.id,
+        details: {
+          documentId,
+          path: absolutePath,
+          error: error.message,
+        },
+      });
       return res.status(404).json({
         message: "File not found",
       });
     }
-
-    // Find the document in the database by its path
 
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
       data: { isArchived: false },
     });
 
+    logger.info({
+      action: "UNARCHIVE_FILE_SUCCESS",
+      userId: userData.id,
+      details: {
+        documentId,
+        username: userData.username,
+      },
+    });
+
     res.status(200).json({
       message: "File unarchived successfully",
     });
   } catch (error) {
+    logger.error({
+      action: "UNARCHIVE_FILE_ERROR",
+      userId: userData?.id,
+      details: {
+        error: error.message,
+        documentId: req.body.documentId,
+      },
+    });
     console.error("Error unarchiving file:", error);
     res.status(500).json({
       message: "Error unarchiving file",
     });
   } finally {
-    await prisma.$disconnect(); // Disconnect Prisma client
+    await prisma.$disconnect();
   }
 };
 
 export const recover_from_recycle_bin = async (req, res) => {
+  let userData;
   try {
     const accessToken = req.headers["authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    userData = await verifyUser(accessToken);
+
+    logger.info({
+      action: "RECOVER_FROM_BIN_START",
+      userId: userData.id,
+      details: {
+        username: userData.username,
+        documentId: req.body.documentId,
+      },
+    });
+
     if (userData === "Unauthorized") {
+      logger.warn({
+        action: "RECOVER_FROM_BIN_UNAUTHORIZED",
+        details: { accessToken },
+      });
       return res.status(401).json({
         message: "Unauthorized request",
       });
     }
 
-    const documentId = req.body.documentId; // Assuming document ID is passed in the request body
+    const documentId = req.body.documentId;
     const document = await prisma.document.findUnique({
-      where: { id: documentId }, // Include related data if needed
+      where: { id: documentId },
     });
 
     if (!document) {
+      logger.warn({
+        action: "RECOVER_FROM_BIN_DOC_NOT_FOUND",
+        userId: userData.id,
+        details: { documentId },
+      });
       return res.status(404).json({
         message: "Document not found",
       });
@@ -1657,29 +1870,52 @@ export const recover_from_recycle_bin = async (req, res) => {
     try {
       await fs.access(absolutePath);
     } catch (error) {
-      console.error("File not found:", error);
+      logger.warn({
+        action: "RECOVER_FROM_BIN_FILE_NOT_FOUND",
+        userId: userData.id,
+        details: {
+          documentId,
+          path: absolutePath,
+          error: error.message,
+        },
+      });
       return res.status(404).json({
         message: "File not found",
       });
     }
-
-    // Find the document in the database by its path
 
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
       data: { inBin: false },
     });
 
+    logger.info({
+      action: "RECOVER_FROM_BIN_SUCCESS",
+      userId: userData.id,
+      details: {
+        documentId,
+        username: userData.username,
+      },
+    });
+
     res.status(200).json({
       message: "File recovered successfully",
     });
   } catch (error) {
+    logger.error({
+      action: "RECOVER_FROM_BIN_ERROR",
+      userId: userData?.id,
+      details: {
+        error: error.message,
+        documentId: req.body.documentId,
+      },
+    });
     console.error("Error recovering file:", error);
     res.status(500).json({
       message: "Error recovering file",
     });
   } finally {
-    await prisma.$disconnect(); // Disconnect Prisma client
+    await prisma.$disconnect();
   }
 };
 
