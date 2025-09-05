@@ -1,4 +1,8 @@
 import {
+  IconArrowDown,
+  IconArrowUp,
+  IconEdit,
+  IconEye,
   IconInfoCircle,
   IconPlus,
   IconSquareLetterX,
@@ -53,32 +57,53 @@ export default function WorkflowForm({
     fields: stepFields,
     append: appendStep,
     remove: removeStep,
+    move: moveStep,
   } = useFieldArray({ control, name: 'steps' });
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(null);
+  const [currentAssignmentIndex, setCurrentAssignmentIndex] = useState(null);
+  const [editingAssignment, setEditingAssignment] = useState(null);
 
   const handleAddAssignment = (stepIndex) => {
     setCurrentStepIndex(stepIndex);
     setShowAssignmentForm(true);
   };
+  const handleMoveStepUp = (index) => {
+    if (index > 0) {
+      moveStep(index, index - 1); // Move step up
+    }
+  };
 
-  const handleAssignmentSubmit = (assignment) => {
+  const handleMoveStepDown = (index) => {
+    if (index < stepFields.length - 1) {
+      moveStep(index, index + 1); // Move step down
+    }
+  };
+
+  const handleAssignmentSubmit = (assignment, assignmentIndex = null) => {
     const updatedSteps = [...stepFields];
     const stepName = getValues(`steps.${currentStepIndex}.stepName`);
 
-    // If assigneeType is DEPARTMENT, set the direction from selectedNodes
-    if (assignment.assigneeType === 'DEPARTMENT' && selectedNodes.length > 0) {
-      assignment.direction = selectedNodes[0]?.direction || null; // Use the direction from selectedNodes
+    if (assignmentIndex !== null) {
+      // Update existing assignment
+      updatedSteps[currentStepIndex].assignments[assignmentIndex] = {
+        ...assignment,
+        selectedRoles: assignment.selectedRoles || [],
+      };
+    } else {
+      // Add new assignment
+      updatedSteps[currentStepIndex].assignments = [
+        ...(updatedSteps[currentStepIndex].assignments || []),
+        { ...assignment, selectedRoles: assignment.selectedRoles || [] },
+      ];
     }
 
-    updatedSteps[currentStepIndex].assignments = [
-      ...(updatedSteps[currentStepIndex].assignments || []),
-      { ...assignment, selectedRoles: selectedNodes },
-    ];
     updatedSteps[currentStepIndex].stepName = stepName;
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
     setSelectedNodes([]);
+    setEditingAssignment(null); // Reset editing state
+    setCurrentAssignmentIndex(null); // Reset assignment index
   };
   const createWorkflow = async (data) => {
     if (!data?.steps || data.steps.length < 2) {
@@ -102,6 +127,13 @@ export default function WorkflowForm({
     } catch (error) {
       toast.error(error?.response?.data?.messaeg || error?.message);
     }
+  };
+  const handleEditAssignment = (stepIndex, assignmentIndex) => {
+    setCurrentStepIndex(stepIndex);
+    setCurrentAssignmentIndex(assignmentIndex); // Store the index of the assignment being edited
+    const assignment = stepFields[stepIndex].assignments[assignmentIndex];
+    setEditingAssignment(assignment); // Store the assignment data to edit
+    setShowAssignmentForm(true);
   };
 
   useEffect(() => {
@@ -157,14 +189,29 @@ export default function WorkflowForm({
               key={step.id}
               className="border border-black p-7 rounded-md shadow-8 mb-4 relative bg-gray-100"
             >
-              {/* Remove Step Button (Trash Icon) */}
-              <button
-                type="button"
-                onClick={() => removeStep(stepIndex)}
-                className="absolute top-2 right-2 text-gray-500 hover:text-red-500"
-              >
-                <IconTrash size={20} />
-              </button>
+              <div className="absolute top-2 right-2 flex space-x-2">
+                <CustomButton
+                  type="button"
+                  click={() => handleMoveStepUp(stepIndex)}
+                  disabled={stepIndex === 0}
+                  title="Move Step Up"
+                  text={<IconArrowUp size={20} />}
+                ></CustomButton>
+                <CustomButton
+                  type="button"
+                  click={() => handleMoveStepDown(stepIndex)}
+                  disabled={stepIndex === stepFields.length - 1}
+                  title="Move Step Down"
+                  text={<IconArrowDown size={20} />}
+                ></CustomButton>
+                <CustomButton
+                  type="button"
+                  click={() => removeStep(stepIndex)}
+                  title="Remove Step"
+                  variant={'danger'}
+                  text={<IconTrash size={20} />}
+                ></CustomButton>
+              </div>
 
               {/* Step Name */}
               <label className="block text-sm font-semibold mb-2">
@@ -238,12 +285,20 @@ export default function WorkflowForm({
                                 .filter(Boolean)
                                 .join(', ') || 'N/A'}
                             </td>
-                            <td className="p-2 text-center">
+                            <td className="p-2 text-center gap-1 flex">
                               {/* Remove Assignment Button (Trash Icon) */}
-                              <button
+                              <CustomButton
+                                type={'button'}
+                                click={() =>
+                                  handleEditAssignment(stepIndex, index)
+                                } // Add edit handler
+                                text={<IconEdit size={18} />}
+                                // click={}
+                              />
+                              <CustomButton
                                 type="button"
-                                className="text-gray-500 hover:text-red-500"
-                                onClick={() => {
+                                variant={'danger'}
+                                click={() => {
                                   const updatedSteps = [...stepFields];
                                   updatedSteps[stepIndex].assignments.splice(
                                     index,
@@ -251,9 +306,8 @@ export default function WorkflowForm({
                                   );
                                   setValue('steps', updatedSteps);
                                 }}
-                              >
-                                <IconTrash size={18} />
-                              </button>
+                                text={<IconTrash size={18} />}
+                              ></CustomButton>
                             </td>
                           </tr>
                         ))}
@@ -308,9 +362,13 @@ export default function WorkflowForm({
           onClose={() => {
             setShowAssignmentForm(false);
             setSelectedNodes([]);
+            setEditingAssignment(null); // Reset editing state
+            setCurrentAssignmentIndex(null); // Reset assignment index
           }}
           setSelectedNodes={setSelectedNodes}
           selectedNodes={selectedNodes}
+          editingAssignment={editingAssignment} // Pass the assignment to edit
+          currentAssignmentIndex={currentAssignmentIndex} // Pass the assignment index
         />
       )}
     </div>
@@ -323,7 +381,18 @@ function AssignmentForm({
   onClose,
   setSelectedNodes,
   selectedNodes,
+  editingAssignment,
+  currentAssignmentIndex,
 }) {
+  const onSubmitHandler = (data) => {
+    if (editingAssignment && currentAssignmentIndex !== null) {
+      data.selectedRoles = selectedNodes;
+      onSubmit(data, currentAssignmentIndex);
+    } else {
+      onSubmit({ ...data, selectedRoles: selectedNodes });
+    }
+    onClose();
+  };
   function sortSelectedRolesByStep(data, selectedIds, direction) {
     const selectedSet = new Set(selectedIds);
 
@@ -406,11 +475,10 @@ function AssignmentForm({
   }
 
   const { register, handleSubmit, watch, control, setValue } = useForm({
-    defaultValues: {
+    defaultValues: editingAssignment || {
       assigneeType: 'USER',
       actionType: 'APPROVAL',
       assigneeIds: [],
-      // accessTypes: [],
       direction: null,
     },
   });
@@ -438,18 +506,36 @@ function AssignmentForm({
   };
 
   useEffect(() => {
-    if (userList.length == 0 && assigneeType?.toLowerCase() == 'user') {
+    if (editingAssignment) {
+      // Pre-fill form fields
+      console.log('callded');
+      setValue('assigneeType', editingAssignment.assigneeType);
+      setValue('actionType', editingAssignment.actionType);
+      setValue('assigneeIds', editingAssignment.assigneeIds);
+      // setValue('accessTypes', editingAssignment.accessTypes || []);
+      if (
+        editingAssignment.assigneeType === 'DEPARTMENT' &&
+        editingAssignment.selectedRoles
+      ) {
+        setSelectedNodes(editingAssignment.selectedRoles); // Pre-fill selected roles
+      }
+    }
+
+    // Existing logic for fetching users, roles, or departments
+    if (userList.length === 0 && assigneeType?.toLowerCase() === 'user') {
       GetUserList();
-    } else if (roleList.length == 0 && assigneeType?.toLowerCase() == 'role') {
+    } else if (
+      roleList.length === 0 &&
+      assigneeType?.toLowerCase() === 'role'
+    ) {
       GetRoleList();
     } else if (
-      departmentList.length == 0 &&
-      assigneeType?.toLowerCase() == 'department'
+      departmentList.length === 0 &&
+      assigneeType?.toLowerCase() === 'department'
     ) {
       GetDepartmentList();
     }
-    setValue('assigneeIds', []);
-  }, [assigneeType]);
+  }, [assigneeType, editingAssignment, setValue]);
 
   // workflows
   const [currentPage, setCurrentPage] = useState(0);
@@ -494,7 +580,7 @@ function AssignmentForm({
             Add Assignment
           </h3>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmitHandler)}>
             {/* Assignee Type */}
             <label className="block text-sm font-semibold mb-2">
               Assignee Type
@@ -502,6 +588,7 @@ function AssignmentForm({
             <select
               {...register('assigneeType')}
               required
+              disabled={editingAssignment}
               className="border p-2 w-full rounded-sm mb-3"
             >
               <option value="USER">User</option>
@@ -840,7 +927,7 @@ function AssignmentForm({
                 type="submit"
                 className="bg-button-primary-default hover:bg-button-primary-hover px-4 py-2 text-white rounded-md"
               >
-                Save
+                {editingAssignment ? 'Update' : 'Save'}
               </button>
             </div>
           </form>
