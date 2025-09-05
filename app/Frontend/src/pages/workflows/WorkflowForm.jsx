@@ -699,7 +699,7 @@ function AssignmentForm({
                           <tr className="bg-gray-200 text-sm font-semibold border-b">
                             <th className="p-2 text-left">Department Code</th>
                             <th className="p-2 text-left">Flow</th>
-                            <th className="p-2 text-center">
+                            <th className="p-2 text-center hidden">
                               Allow Parallel ( Process will be sent to all roles
                               at the same time )
                             </th>
@@ -721,7 +721,7 @@ function AssignmentForm({
                                   node.direction,
                                 )}
                               </td>
-                              <td className="p-3 text-center">
+                              <td className="p-3 text-center hidden">
                                 <input
                                   type="checkbox"
                                   checked={node.allowParallel || false}
