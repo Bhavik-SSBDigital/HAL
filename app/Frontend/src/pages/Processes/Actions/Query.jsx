@@ -40,7 +40,6 @@ export default function Query({
     },
   });
   const formValues = watch();
-  console.log(formValues);
   const [selectedStep, setSelectedStep] = useState(null);
   const navigate = useNavigate();
   const {

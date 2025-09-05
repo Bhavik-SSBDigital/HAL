@@ -211,7 +211,6 @@ const ViewProcess = () => {
           return res;
         }),
       );
-      console.log(formattedDocs);
       setFileView({ multi: true, docs: formattedDocs });
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -385,8 +384,6 @@ const ViewProcess = () => {
   const DocumentsCycle = (process) => {
     // Extract cycles
     const cycles = extractDocumentsByReopenCycle(process);
-
-    console.log('cycles', cycles);
 
     // Maximum number of documents in any cycle
     const maxDocs = Math.max(...cycles?.map((cycle) => cycle.documents.length));

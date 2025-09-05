@@ -78,6 +78,7 @@ export default function WorkflowForm({
     updatedSteps[currentStepIndex].stepName = stepName;
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
+    setSelectedNodes([]);
   };
   const createWorkflow = async (data) => {
     if (!data?.steps || data.steps.length < 2) {
@@ -107,8 +108,6 @@ export default function WorkflowForm({
     if (editData) {
       reset(editData);
     }
-
-    console.log(editData);
   }, [editData]);
   return (
     <div className="mx-auto bg-white overflow-auto p-2">
@@ -306,7 +305,10 @@ export default function WorkflowForm({
       {showAssignmentForm && (
         <AssignmentForm
           onSubmit={handleAssignmentSubmit}
-          onClose={() => setShowAssignmentForm(false)}
+          onClose={() => {
+            setShowAssignmentForm(false);
+            setSelectedNodes([]);
+          }}
           setSelectedNodes={setSelectedNodes}
           selectedNodes={selectedNodes}
         />
@@ -517,7 +519,6 @@ function AssignmentForm({
                   name="assigneeIds"
                   control={control}
                   render={({ field }) => {
-                    console.log(field);
                     const allSelected =
                       field.value?.length === userList?.length; // Check if all users are selected
 
@@ -830,7 +831,6 @@ function AssignmentForm({
                 type="button"
                 onClick={() => {
                   onClose();
-                  setSelectedNodes([]);
                 }}
                 className="border px-4 py-2 rounded-md bg-button-danger-default hover:bg-button-danger-hover text-white"
               >

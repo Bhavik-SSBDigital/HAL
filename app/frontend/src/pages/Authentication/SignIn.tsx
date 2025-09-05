@@ -61,13 +61,15 @@ const SignIn: React.FC = () => {
         sessionStorage.setItem('refreshToken', res.data['refreshToken']);
         sessionStorage.setItem('specialUser', res.data['specialUser']);
         sessionStorage.setItem('isAdmin', res.data['isAdmin']);
-        sessionStorage.setItem('isDepartmentHead', res.data['isDepartmentHead']);
-        const checking = await connect_socket();
-        console.log(checking);
+        sessionStorage.setItem(
+          'isDepartmentHead',
+          res.data['isDepartmentHead'],
+        );
         navigate('/');
       }
     } catch (error) {
       console.log(error);
+      s;
       setError(error?.response?.data?.message || error.message);
     } finally {
       setLoading(false);

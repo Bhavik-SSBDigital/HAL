@@ -53,7 +53,6 @@ export default function Recommendations() {
             className="p-2 bg-button-primary-default hover:bg-button-primary-hover rounded-lg"
             onClick={() => {
               handleView(params.row.recommendationId);
-              console.log(params);
             }}
           >
             <IconEye color="white" />

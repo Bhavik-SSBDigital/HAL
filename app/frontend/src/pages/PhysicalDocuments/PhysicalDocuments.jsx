@@ -77,7 +77,6 @@ const PhysicalDocuments = () => {
     setLoading(true);
     try {
       const fileData = await ViewDocument(name, path, type, fileId);
-      console.log('file data', fileData);
       setFileView(fileData);
     } catch (error) {
       console.error('Error:', error);
@@ -221,9 +220,7 @@ const PhysicalDocuments = () => {
         <div className="space-y-3">
           {filteredRequests.length > 0 ? (
             filteredRequests.map((req) => (
-              <CustomCard
-                key={req.id}
-              >
+              <CustomCard key={req.id}>
                 <div className="flex-1 pr-4">
                   <p className="font-semibold text-lg text-gray-900 truncate">
                     {req.document?.name}

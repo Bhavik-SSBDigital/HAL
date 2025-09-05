@@ -70,7 +70,6 @@ const PhysicalDocuments = () => {
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
-      console.log('finally');
       setViewLoading(null);
     }
   };

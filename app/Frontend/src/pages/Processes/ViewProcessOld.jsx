@@ -164,7 +164,6 @@ export default function ViewProcess(props) {
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
     }
-    console.log('Uploaded File:', data.file[0]);
     alert('File uploaded successfully!');
   };
   // replace
@@ -366,7 +365,6 @@ export default function ViewProcess(props) {
           ?.find((item) => item.details._id == fileToBeOperated?.details?._id)
           ?.signedBy?.map((sign) => sign.username)
           .includes(username);
-        console.log(signed);
         setFileView({
           url: fileData.data,
           type: fileData.fileType,
@@ -1276,7 +1274,6 @@ export default function ViewProcess(props) {
   }, [pickedProcesses]);
   const redirectToTimeline = (processName) => {
     const url = `/dashboard/timeLine?data=${processName}`;
-    console.log('first');
     navigate(url);
   };
   // condition variables
@@ -1296,7 +1293,6 @@ export default function ViewProcess(props) {
     .includes(username);
 
   const disableNext = () => {
-    console.log('disabled');
     if (
       processData?.workFlow[processData?.currentStepNumber - 1]?.work !==
       'e-sign'
@@ -1481,7 +1477,6 @@ export default function ViewProcess(props) {
       setFinalBranch(formData.branch);
     }
     if (usersOnStep.length > 0) {
-      console.log(formData);
       setFormData((prev) => {
         const updatedWorkFlow = [...prev.workFlow];
 
@@ -1496,7 +1491,6 @@ export default function ViewProcess(props) {
 
           // Update step numbers for all items after the insertion point
           for (let i = flow.step; i < updatedWorkFlow.length; i++) {
-            console.log(updatedWorkFlow, i);
             updatedWorkFlow[i].step++;
           }
         }

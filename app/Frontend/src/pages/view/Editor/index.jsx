@@ -35,10 +35,6 @@ const Editor = ({
         }
 
         // Fetch WOPI token and acquire lock if not readOnly
-        console.log(
-          'Editor.jsx: Fetching WOPI token for documentId:',
-          documentId,
-        );
         const tokenResponse = await axios.post(
           `${backend_url}/wopi/token/${documentId}`,
           { readOnly }, // Send readOnly in the request body

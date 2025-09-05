@@ -21,7 +21,6 @@ const ForgotPass: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    console.log(data);
     try {
       const url = `${backendUrl}/forgetPassword`;
       const res = await axios.post(url, data);

@@ -12,7 +12,6 @@ export default function DocumentViewer({ url = [], isOpen }) {
   const [signSelectionAreas, setSignSelectionAreas] = useState([]);
   const [textSelectionAreas, setTextSelectionAreas] = useState([]);
 
-  console.log(signSelectionAreas);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const pageRefs = useRef([]);
 

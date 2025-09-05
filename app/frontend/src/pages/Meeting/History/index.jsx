@@ -86,7 +86,6 @@ export default function History({ joinMeet }) {
         url: url,
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log(res.data);
       if (res.data.isUserAnAttendee) {
         joinMeet(meetingId);
       } else {

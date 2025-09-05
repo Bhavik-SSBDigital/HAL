@@ -53,8 +53,6 @@ export default function QuerySolve({
   const handleDocumentUpload = async (file, index, replacedDocId) => {
     if (!file) return;
 
-    console.log('extension', file.name.split('.').pop());
-    console.log('storage path from query solve', storagePath);
     try {
       // 🔹 Step 1: Generate document name from backend
       const generatedName = replacedDocId

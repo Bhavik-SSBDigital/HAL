@@ -36,7 +36,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const { show } = sessionData();
   const location = useLocation();
   const { pathname } = location;
-  console.log(pathname);
   const username = sessionStorage.getItem('username');
   const isPhysicalDocumentKeeper =
     sessionStorage.getItem('isKeeperOfPhysicalDocs') === 'true';

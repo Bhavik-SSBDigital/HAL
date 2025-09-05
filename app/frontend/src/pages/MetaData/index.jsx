@@ -97,7 +97,6 @@ export default function MetaData() {
     console.log(path, foldername);
     try {
       let createPath = `${path}/${foldername}`;
-      console.log(path);
       const response = await axios.post(
         backendUrl + '/createFolder',
         {

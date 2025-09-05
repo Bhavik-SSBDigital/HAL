@@ -490,7 +490,6 @@ export default function FileSysten() {
         `${fileName}.${fileExt}`, // Final file name
         false, // Overwrite = true
       );
-      console.log(uploadResult[0]);
       setUploadFileModal(false);
       toast.success('File Uploaded');
       const newFileData = createUploadedFileMetadata(

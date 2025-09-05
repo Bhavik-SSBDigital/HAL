@@ -52,7 +52,6 @@ const ViewRecommendation = () => {
       const selected = data.documentSummaries.filter((doc) =>
         selectedDocs.includes(doc.documentId),
       );
-      console.log(selected);
       const formattedDocs = await Promise.all(
         selected.map(async (doc) => {
           const res = await ViewDocument(doc.documentName, doc.documentPath);

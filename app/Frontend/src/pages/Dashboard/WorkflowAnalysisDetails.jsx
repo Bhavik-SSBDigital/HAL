@@ -64,7 +64,6 @@ const WorkflowAnalysisDetails = ({
 
   const handleViewAllSelectedFiles = async (documents) => {
     setActionsLoading(true);
-    console.log(documents);
     try {
       const formattedDocs = await Promise.all(
         documents.map(async (doc) => {

@@ -46,16 +46,12 @@ const DropFileInput = (props) => {
 
   const onFileDrop = (e) => {
     const newFile = e.target.files[0];
-    console.log(newFile + ' new file');
     if (newFile) {
       const fileName = newFile.name;
-      console.log(fileName + ' file nameeee');
       const fileNameWithoutExtension = fileName.replace(/\.[^.]+$/, '');
-      console.log(fileNameWithoutExtension + ' Without extension');
       const hasSpecialCharacters = /^[a-zA-Z0-9_\-()\[\]\s]*$/.test(
         fileNameWithoutExtension,
       );
-      console.log(hasSpecialCharacters);
 
       if (!hasSpecialCharacters) {
         toast.warn('File name must not contain special characters');

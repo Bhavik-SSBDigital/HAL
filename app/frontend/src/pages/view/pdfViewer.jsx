@@ -125,7 +125,6 @@ function PdfContainer({
             }
           }
         }
-        console.log(isOverlapDetected);
         if (isOverlapDetected) {
           toast.info('Selected text overlaps with existing highlights.');
         } else if (newCoordinates.length > 0) {

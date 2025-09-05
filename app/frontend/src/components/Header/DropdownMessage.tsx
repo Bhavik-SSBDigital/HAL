@@ -27,7 +27,6 @@ const DropdownMessage = () => {
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
-        console.log(filtered);
         setAlerts(filtered);
       }
     } catch (error) {

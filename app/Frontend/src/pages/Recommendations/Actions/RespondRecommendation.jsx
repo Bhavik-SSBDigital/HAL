@@ -42,7 +42,6 @@ export default function RespondRecommendation({
   //   handlers
   const onSubmit = async (data) => {
     try {
-      console.log(data);
       const response = await respondRecommendation(data);
       toast.success(response?.data?.message);
       navigate('/recommendations');

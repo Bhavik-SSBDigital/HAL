@@ -12,7 +12,6 @@ import {
 import '@xyflow/react/dist/style.css';
 
 export default function Show({ steps }) {
-  console.log(steps);
   const [nodes, setNodes] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
 
