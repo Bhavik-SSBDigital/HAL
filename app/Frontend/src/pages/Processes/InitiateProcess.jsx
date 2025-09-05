@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import {
+  DeleteFile,
   GenerateDocumentName,
   GetWorkflows,
   getWorkflowTemplates,
@@ -62,6 +63,22 @@ export default function InitiateProcess() {
     append: addDocument,
     remove: removeDocument,
   } = useFieldArray({ control, name: 'documents' });
+  const handleDeleteDocument = async (index, id) => {
+    setActionsLoading(true);
+    try {
+      const response = await DeleteFile(id);
+      toast.success(response?.data?.message);
+      removeDocument(index);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message,
+      );
+    } finally {
+      setActionsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const getWorkflowsData = async () => {
@@ -333,6 +350,7 @@ export default function InitiateProcess() {
                       <CustomButton
                         type="button"
                         text="Use"
+                        disabled={actionsLoading}
                         click={() => handleUseTemplate(template)}
                         title="Use Template"
                         className="w-full sm:w-auto"
@@ -566,6 +584,7 @@ export default function InitiateProcess() {
                     <div className="flex flex-wrap justify-end gap-2">
                       <CustomButton
                         type="button"
+                        disabled={actionsLoading}
                         click={() =>
                           handleViewFile(
                             doc.name,
@@ -578,10 +597,13 @@ export default function InitiateProcess() {
                         text="View"
                         className="w-auto"
                       />
-                     
+
                       <CustomButton
                         type="button"
-                        click={() => removeDocument(index)}
+                        disabled={actionsLoading}
+                        click={() =>
+                          handleDeleteDocument(index, doc.documentId)
+                        }
                         variant="danger"
                         text="✖"
                         className="w-auto"
