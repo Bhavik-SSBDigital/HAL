@@ -529,7 +529,7 @@ const ViewProcess = () => {
             click={() => setOpenModal('re-open')}
             disabled={actionsLoading || !isCompleted || disableActions}
           />
-          <CustomButton
+          {/* <CustomButton
             variant={'primary'}
             text={'Claim'}
             className={'min-w-[150px]'}
@@ -540,7 +540,7 @@ const ViewProcess = () => {
               isCompleted ||
               process?.toBePicked === false
             }
-          />
+          /> */}
           <CustomButton
             variant={'secondary'}
             text={'Query'}
@@ -567,9 +567,7 @@ const ViewProcess = () => {
             text={'Complete'}
             click={() => handleCompleteProcess(process?.processStepInstanceId)}
             className={'min-w-[150px]'}
-            disabled={
-              actionsLoading || isCompleted || process?.toBePicked === true
-            }
+            disabled={actionsLoading || isCompleted}
           />
         </div>
         <hr className="text-slate-200 my-2" />
