@@ -128,12 +128,13 @@ export default function WorkflowForm({
       toast.error(error?.response?.data?.messaeg || error?.message);
     }
   };
-  const handleEditAssignment = (stepIndex, assignmentIndex) => {
+  const handleEditAssignment = (stepIndex, assignmentIndex, selectedRoles) => {
     setCurrentStepIndex(stepIndex);
     setCurrentAssignmentIndex(assignmentIndex); // Store the index of the assignment being edited
     const assignment = stepFields[stepIndex].assignments[assignmentIndex];
     setEditingAssignment(assignment); // Store the assignment data to edit
     setShowAssignmentForm(true);
+    setSelectedNodes(selectedRoles || []);
   };
 
   useEffect(() => {
@@ -290,7 +291,11 @@ export default function WorkflowForm({
                               <CustomButton
                                 type={'button'}
                                 click={() =>
-                                  handleEditAssignment(stepIndex, index)
+                                  handleEditAssignment(
+                                    stepIndex,
+                                    index,
+                                    assignment.selectedRoles,
+                                  )
                                 } // Add edit handler
                                 text={<IconEdit size={18} />}
                                 // click={}
