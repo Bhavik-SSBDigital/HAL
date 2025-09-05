@@ -803,7 +803,7 @@ function AssignmentForm({
               className="border p-2 w-full rounded-sm mb-3"
             >
               <option value="APPROVAL">APPROVAL</option>
-              <option value="VIEW">VIEW</option>
+              <option value="REVIEW">VIEW</option>
               {/* <option value="RECOMMENDATION">RECOMMENDATION</option> */}
             </select>
 

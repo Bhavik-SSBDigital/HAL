@@ -70,6 +70,7 @@ const ViewProcess = () => {
   const processDetails = [
     { label: 'Process ID', value: process?.processId },
     { label: 'Process Name', value: process?.processName || 'N/A' },
+    { label: 'Description', value: process?.description || 'N/A' },
     { label: 'Initiator Name', value: process?.initiatorName || 'Unknown' },
     {
       label: 'Status',
@@ -400,7 +401,7 @@ const ViewProcess = () => {
           <table className="min-w-full border border-gray-300">
             <thead className="bg-gray-100">
               <tr>
-                <th className="py-2 px-4 border">Reopen Cycle</th>
+                <th className="py-2 px-4 border">SOP</th>
                 {Array.from({ length: maxDocs }).map((_, idx) => (
                   <th key={idx} className="py-2 px-4 border">
                     Document {idx + 1}
