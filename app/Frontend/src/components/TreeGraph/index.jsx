@@ -185,7 +185,7 @@ const TreeGraph = ({
   };
 
   return (
-    <div className={styles.container}>
+    <div>
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
       ) : (
@@ -208,7 +208,7 @@ const TreeGraph = ({
           )}
           <ReactECharts
             option={getOption()}
-            style={{ height: 'calc(100vh - 240px)' }}
+            style={{ minWidth: '100%', minHeight: '100%' }}
             onEvents={
               controls
                 ? {
@@ -222,7 +222,7 @@ const TreeGraph = ({
           />
           {controls && (
             <div style={{ marginTop: '20px', textAlign: 'center' }}>
-              <strong>Selected Roles Order:</strong>{' '}
+              <strong>Selected Roles:</strong>{' '}
               {selectedHierarchy
                 .filter((dept) => dept.department === departmentId)
                 .map(

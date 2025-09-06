@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
 import CustomButton from '../../CustomComponents/CustomButton';
+import CustomModal from '../../CustomComponents/CustomModal';
 
 export default function WorkflowForm({
   handleCloseForm,
@@ -940,8 +941,8 @@ function AssignmentForm({
       </div>
 
       {openWorkflows && currentDepartment && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4">
-          <div className="bg-white p-8 rounded-md shadow-lg w-full max-w-xl relative">
+        <CustomModal isOpen={openWorkflows && currentDepartment}>
+          <div className="p-3 w-full relative">
             <button
               onClick={() => {
                 setOpenWorkflows(false);
@@ -958,7 +959,7 @@ function AssignmentForm({
               </h3>
 
               {/* Show Hierarchy if Available */}
-              <div className="mb-4 p-1">
+              <div className="mb-4">
                 {/* Show Hierarchy in TreeGraph */}
                 <TreeGraph
                   data={hierarchyData[currentDepartment.id] || []}
@@ -997,7 +998,7 @@ function AssignmentForm({
               </button>
             </div>
           </div>
-        </div>
+        </CustomModal>
       )}
     </>
   );
