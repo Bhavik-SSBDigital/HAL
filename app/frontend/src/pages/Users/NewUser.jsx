@@ -23,7 +23,7 @@ export default function NewUser() {
   } = useForm({
     defaultValues: {
       username: '',
-      email: '',
+      // email: '',
       status: '',
       roles: [],
       password: '',
@@ -100,7 +100,7 @@ export default function NewUser() {
                 </p>
               )}
             </div>
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700">
                 Email
               </label>
@@ -124,7 +124,7 @@ export default function NewUser() {
               {errors.email && (
                 <p className="text-red-500 text-sm">{errors.email.message}</p>
               )}
-            </div>
+            </div> */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Password

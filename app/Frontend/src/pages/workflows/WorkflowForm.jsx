@@ -941,7 +941,7 @@ function AssignmentForm({
       </div>
 
       {openWorkflows && currentDepartment && (
-        <CustomModal isOpen={openWorkflows && currentDepartment}>
+        <CustomModal size='full' isOpen={openWorkflows && currentDepartment}>
           <div className="p-3 w-full relative">
             <button
               onClick={() => {

@@ -165,7 +165,7 @@ const UsersList = () => {
 
     return (
       row?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      row?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      // row?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       row?.status?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       '' ||
       rolesString.includes(searchTerm.toLowerCase()) ||
@@ -189,17 +189,17 @@ const UsersList = () => {
         </span>
       ),
     },
-    {
-      field: 'email',
-      headerName: 'Email',
-      flex: 1,
-      minWidth: 180,
-      renderCell: (params) => (
-        <span className="text-gray-900 truncate" title={params.value || ''}>
-          {params.value || '--'}
-        </span>
-      ),
-    },
+    // {
+    //   field: 'email',
+    //   headerName: 'Email',
+    //   flex: 1,
+    //   minWidth: 180,
+    //   renderCell: (params) => (
+    //     <span className="text-gray-900 truncate" title={params.value || ''}>
+    //       {params.value || '--'}
+    //     </span>
+    //   ),
+    // },
     {
       field: 'status',
       headerName: 'Status',
@@ -336,7 +336,7 @@ const UsersList = () => {
               <input
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full p-2 border border-gray-300"
-                placeholder="Search by username, email, status, role, department"
+                placeholder="Search by username, status, role, department"
               />
             </div>
             <Link to="/users/createNew">
