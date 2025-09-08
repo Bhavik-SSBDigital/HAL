@@ -100,7 +100,7 @@ model Role {
 model User {
   id                    Int                      @id @default(autoincrement())
   username              String                   @unique
-  email                 String
+  email                 String?
   password              String
   name                  String?
   loginLogs             LoginLog[]               @relation()
@@ -702,7 +702,7 @@ model LoginLog {
   id          Int      @id @default(autoincrement())
   userId      Int
   username    String
-  email       String
+  email       String?
   action      String   // 'LOGIN' or 'LOGOUT'
   ipAddress   String?
   userAgent   String?
