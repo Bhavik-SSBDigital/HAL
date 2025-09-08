@@ -398,7 +398,7 @@ model ProcessDocument {
   processId        String
   description      String?
   reasonOfSupersed String?
-  partNumber       BigInt?
+  partNumber       String?
   preApproved      Boolean   @default(false)
   tags                  String[]  @default([])
   documentId       Int

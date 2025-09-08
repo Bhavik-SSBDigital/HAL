@@ -430,7 +430,7 @@ export const initiate_process = async (req, res, next) => {
           reopenCycle: 0,
           preApproved: item.preApproved || false,
           tags: item.tags || [],
-          partNumber: parseInt(item.partNumber) || null,
+          partNumber: item.partNumber || null,
           description: item.description || null,
         })) || [];
 

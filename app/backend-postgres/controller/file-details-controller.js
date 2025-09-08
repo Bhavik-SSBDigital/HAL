@@ -698,14 +698,11 @@ export const search_documents = async (req, res) => {
     } = req.query;
 
     // Convert string parameters to appropriate types
-    const parsedPartNumber = partNumber ? parseInt(partNumber, 10) : undefined;
+    const parsedPartNumber = partNumber;
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
 
     // Validate inputs
-    if (partNumber && isNaN(parsedPartNumber)) {
-      return res.status(400).json({ error: "Invalid partNumber format" });
-    }
     if (isNaN(parsedPage) || parsedPage < 1) {
       return res.status(400).json({ error: "Invalid page number" });
     }
