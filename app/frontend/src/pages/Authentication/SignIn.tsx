@@ -69,7 +69,6 @@ const SignIn: React.FC = () => {
       }
     } catch (error) {
       console.log(error);
-      s;
       setError(error?.response?.data?.message || error.message);
     } finally {
       setLoading(false);

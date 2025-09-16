@@ -104,7 +104,7 @@ export default function InitiateProcess() {
       return;
     }
 
-    if (!selectedFile || !fileDetails?.tags?.length) return;
+    if (!selectedFile) return;
 
     setActionsLoading(true);
 
@@ -459,7 +459,6 @@ export default function InitiateProcess() {
                   Part Number
                 </label>
                 <input
-                  type="number"
                   value={fileDetails.partNumber}
                   onChange={(e) =>
                     setFileDetails((prev) => ({
@@ -536,7 +535,7 @@ export default function InitiateProcess() {
               click={handleUpload}
               text={'Upload Document'}
               disabled={
-                !selectedFile || actionsLoading || !fileDetails?.tags.length
+                !selectedFile || actionsLoading
               }
               className="w-full mt-6"
             />
