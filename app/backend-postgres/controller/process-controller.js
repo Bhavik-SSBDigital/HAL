@@ -2419,52 +2419,73 @@ async function advanceToNextStep(tx, processId, currentStepId) {
 
 export async function buildRoleHierarchy(step, assignment) {
   const { allowParallel, direction } = assignment;
-  const selectedRoles = step.selectedRoles; // Use selectedRoles from WorkflowStep
+  const selectedRoles = step.selectedRoles;
 
-  // If allowParallel is true, return all selected roles as a single level
   if (allowParallel) {
     return [selectedRoles];
   }
 
-  // Fetch roles with their parent-child relationships
+  if (selectedRoles.length === 0) {
+    return [];
+  }
+
   const roles = await prisma.role.findMany({
     where: { id: { in: selectedRoles } },
     include: { parentRole: true, childRoles: true },
   });
 
-  // Build a map of roles by parent ID
+  // Create a map for quick lookup
   const roleMap = new Map();
   roles.forEach((role) => {
-    const key = role.parentRoleId || "root";
-    if (!roleMap.has(key)) {
-      roleMap.set(key, []);
-    }
-    roleMap.get(key).push(role.id);
+    roleMap.set(role.id, role);
   });
 
-  // Collect levels based on hierarchy
+  // Find root roles (roles with no parent or parent not in selected roles)
+  const rootRoles = roles.filter((role) => {
+    return !role.parentRoleId || !selectedRoles.includes(role.parentRoleId);
+  });
+
+  // If no root roles found (all roles have parents within selection),
+  // find the highest level roles (those whose parents are not in selection)
+  if (rootRoles.length === 0) {
+    const highestLevelRoles = roles.filter((role) => {
+      return !role.parentRoleId || !selectedRoles.includes(role.parentRoleId);
+    });
+
+    if (highestLevelRoles.length > 0) {
+      const result = [highestLevelRoles.map((r) => r.id)];
+      return direction === "UPWARDS" ? result.reverse() : result;
+    }
+
+    // Fallback: if somehow still no roles found, return all as single level
+    return [selectedRoles];
+  }
+
   const levels = [];
-  let currentLevel = roleMap.get("root") || [];
+  let currentLevel = rootRoles.map((role) => role.id);
 
   while (currentLevel.length > 0) {
-    // Only include roles that are in selectedRoles
+    // Only include roles that are in our selected list
     const validRoles = currentLevel.filter((roleId) =>
       selectedRoles.includes(roleId)
     );
     if (validRoles.length > 0) {
       levels.push(validRoles);
     }
+
     const nextLevel = [];
     for (const roleId of currentLevel) {
-      const childRoles = roles
-        .filter((r) => r.parentRoleId === roleId)
-        .map((r) => r.id);
-      nextLevel.push(...childRoles);
+      const role = roleMap.get(roleId);
+      if (role && role.childRoles) {
+        const childRoleIds = role.childRoles
+          .filter((child) => selectedRoles.includes(child.id))
+          .map((child) => child.id);
+        nextLevel.push(...childRoleIds);
+      }
     }
     currentLevel = nextLevel;
   }
 
-  // Return levels in the specified direction
   return direction === "UPWARDS" ? levels.reverse() : levels;
 }
 
@@ -2477,39 +2498,56 @@ export async function buildRoleHierarchyForAssignment(
     return [selectedRoles];
   }
 
+  if (selectedRoles.length === 0) {
+    return [];
+  }
+
   const roles = await prisma.role.findMany({
     where: { id: { in: selectedRoles } },
-    include: { parentRole: true, childRoles: true },
+    include: { parentRole: true },
   });
 
-  const roleMap = new Map();
-  roles.forEach((role) => {
-    const key = role.parentRoleId || "root";
-    if (!roleMap.has(key)) {
-      roleMap.set(key, []);
+  // Calculate depth for each role
+  const depthMap = new Map();
+
+  const calculateDepth = (roleId, visited = new Set()) => {
+    if (visited.has(roleId)) return 0; // Prevent cycles
+    if (depthMap.has(roleId)) return depthMap.get(roleId);
+
+    visited.add(roleId);
+    const role = roles.find((r) => r.id === roleId);
+
+    if (
+      !role ||
+      !role.parentRoleId ||
+      !selectedRoles.includes(role.parentRoleId)
+    ) {
+      depthMap.set(roleId, 0);
+      return 0;
     }
-    roleMap.get(key).push(role.id);
+
+    const depth = calculateDepth(role.parentRoleId, visited) + 1;
+    depthMap.set(roleId, depth);
+    return depth;
+  };
+
+  // Calculate depth for all selected roles
+  selectedRoles.forEach((roleId) => calculateDepth(roleId));
+
+  // Group by depth
+  const depthGroups = {};
+  selectedRoles.forEach((roleId) => {
+    const depth = depthMap.get(roleId) || 0;
+    if (!depthGroups[depth]) {
+      depthGroups[depth] = [];
+    }
+    depthGroups[depth].push(roleId);
   });
 
-  const levels = [];
-  let currentLevel = roleMap.get("root") || [];
-
-  while (currentLevel.length > 0) {
-    const validRoles = currentLevel.filter((roleId) =>
-      selectedRoles.includes(roleId)
-    );
-    if (validRoles.length > 0) {
-      levels.push(validRoles);
-    }
-    const nextLevel = [];
-    for (const roleId of currentLevel) {
-      const childRoles = roles
-        .filter((r) => r.parentRoleId === roleId)
-        .map((r) => r.id);
-      nextLevel.push(...childRoles);
-    }
-    currentLevel = nextLevel;
-  }
+  // Convert to array of levels
+  const levels = Object.keys(depthGroups)
+    .sort((a, b) => parseInt(a) - parseInt(b))
+    .map((depth) => depthGroups[depth]);
 
   return direction === "UPWARDS" ? levels.reverse() : levels;
 }
