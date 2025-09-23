@@ -16,3 +16,9 @@ coolwsd.xml.save
 migrations
 /app/backend-postgres/prisma/migrations
 *.sql
+
+
+app/frontend/node_modules/
+app/backend-postgres/node_modules/
+
+app/support/venv/
