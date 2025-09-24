@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { GetNotifications } from '../../common/Apis';
+import CustomButton from '../../CustomComponents/CustomButton';
 
 const DropdownMessage = () => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const dropdown = useRef(null);
@@ -54,23 +53,6 @@ const DropdownMessage = () => {
   //   }
   //   setDropdownOpen(false);
   // };
-
-  const handleRemoveNotification = async (id) => {
-    try {
-      const url = backendUrl + `/removeProcessNotification/${id}`;
-      const res = await axios.post(url, null, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
-      });
-      if (res.status === 200) {
-        const updated = alerts.filter((item) => item.processId !== id);
-        setAlerts(updated);
-      }
-    } catch (error) {
-      console.error('error removing notification', error);
-    }
-  };
 
   useEffect(() => {
     getNotifications();
@@ -138,38 +120,33 @@ const DropdownMessage = () => {
         </div>
         <hr style={{ color: 'lightgray' }} />
 
-        <ul className="flex h-auto flex-col overflow-y-auto">
-          {alerts.length ? (
-            alerts.map((item, index) => (
-              <li key={index}>
-                <div className="flex items-center justify-between border-t border-stroke px-4.5 py-3 hover:bg-gray-100">
-                  {/* Left side - Alert info */}
-                  <div className="flex flex-col">
-                    <p className="text-sm font-semibold text-black">
-                      {item.processName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(item.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-
-                  {/* Right side - View button */}
-                  <button
-                    className="ml-3 rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
-                    onClick={(e) => {
-                      e.stopPropagation(); // prevent parent click
-                      handleRemoveNotification(item.processId);
-                      handleView(item?.processId);
-                    }}
-                  >
-                    View
-                  </button>
+        <ul className="max-h-96 overflow-y-auto">
+          {alerts.length > 0 ? (
+            alerts.map((item) => (
+              <li
+                key={item.processId}
+                className="border-t px-4 py-3 hover:bg-gray-100"
+              >
+                <div className="text-sm font-semibold text-black">
+                  {item.processName}
                 </div>
+                <div className="text-xs text-gray-500 mb-2">
+                  {new Date(item.createdAt).toLocaleString()}
+                </div>
+                <CustomButton
+                  click={() => handleView(item.processId)}
+                  text={'View'}
+                  type={'button'}
+                  variant={'primary'}
+                  disabled={false}
+                  title={'View'}
+                  className={''}
+                />
               </li>
             ))
           ) : (
             <li className="px-4 py-3 text-center text-sm text-gray-500">
-              No old alerts (older than 15 days)
+              No Notifications
             </li>
           )}
         </ul>
