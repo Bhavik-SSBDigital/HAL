@@ -31,6 +31,7 @@ export default function InitiateProcess() {
     partNumber: '',
     preApproved: false,
     fileDescription: '',
+    issueNo: '',
   });
 
   const [newTag, setNewTag] = useState('');
@@ -42,6 +43,7 @@ export default function InitiateProcess() {
     workflowId: '',
     description: '',
     documents: [],
+    issueNo: '',
   };
 
   const {
@@ -141,6 +143,7 @@ export default function InitiateProcess() {
         description: fileDetails.fileDescription,
         partNumber: fileDetails.partNumber,
         preApproved: fileDetails.preApproved,
+        issueNo: fileDetails.issueNo,
       });
 
       // Reset form
@@ -149,6 +152,7 @@ export default function InitiateProcess() {
         partNumber: '',
         preApproved: false,
         fileDescription: '',
+        issueNo: '',
       });
 
       setNewTag('');
@@ -163,14 +167,15 @@ export default function InitiateProcess() {
   };
 
   const onSubmit = async (data) => {
-    setActionsLoading(true);
     if (data?.documents?.length === 0) {
       toast.info('Please upload documents for process');
       return;
     }
+    setActionsLoading(true);
     try {
-      const res = await ProcessInitiate(data);
-      toast.success(res?.data?.message);
+      // const res = await ProcessInitiate(data);
+      // toast.success(res?.data?.message);
+      console.log(data);
       navigate('/processes/work');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -261,6 +266,22 @@ export default function InitiateProcess() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
+                  Enter SOP Issue / Revision Number
+                </label>
+                <input
+                  {...register('issueNo')}
+                  className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter"
+                />
+                {errors.issueNo && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.issueNo.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
                   Select Workflow
                 </label>
                 <select
@@ -281,7 +302,7 @@ export default function InitiateProcess() {
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Select Version
                 </label>
@@ -456,7 +477,7 @@ export default function InitiateProcess() {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">
-                  Part Number
+                  Document Number
                 </label>
                 <input
                   value={fileDetails.partNumber}
@@ -486,6 +507,23 @@ export default function InitiateProcess() {
                   }
                   className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter file-specific description"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Issue Number / Revision Number
+                </label>
+                <input
+                  type="text"
+                  value={fileDetails.issueNo}
+                  onChange={(e) =>
+                    setFileDetails((prev) => ({
+                      ...prev,
+                      issueNo: e.target.value,
+                    }))
+                  }
+                  className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter Issue Number / Revision Number"
                 />
               </div>
               {fileDetails.preApproved ? (
@@ -534,9 +572,7 @@ export default function InitiateProcess() {
               type="button"
               click={handleUpload}
               text={'Upload Document'}
-              disabled={
-                !selectedFile || actionsLoading
-              }
+              disabled={!selectedFile || actionsLoading}
               className="w-full mt-6"
             />
           </section>
