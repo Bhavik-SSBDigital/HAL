@@ -29,12 +29,14 @@ export default function ReOpenProcessModal({
   } = useForm({
     defaultValues: {
       processId,
+      issueNo: '',
       supersededDocuments: [
         {
           oldDocumentId: '',
           newDocumentId: '',
           uploadedFileName: '',
           reasonOfSupersed: '',
+          issueNo: '',
         },
       ],
     },
@@ -98,14 +100,15 @@ export default function ReOpenProcessModal({
       toast.warning('Please select documents and upload replacements.');
       return;
     }
-
     try {
       const res = await ReOpenProcess({
         processId,
+        issueNo: data?.issueNo,
         supersededDocuments: data.supersededDocuments.map((d) => ({
           oldDocumentId: parseInt(d.oldDocumentId, 10),
           newDocumentId: d.newDocumentId,
           reasonOfSupersed: d.reasonOfSupersed,
+          issueNo: d.issueNo,
         })),
       });
 
@@ -118,9 +121,20 @@ export default function ReOpenProcessModal({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <h2 className="text-lg font-semibold text-gray-800">Reopen Process</h2>
 
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          SOPIssueNo / SOPRevisionNo
+        </label>
+        <input
+          type="text"
+          {...register(`issueNo`)}
+          className="w-full border p-2 rounded text-sm"
+          placeholder="Enter"
+        />
+      </div>
       {fields.map((field, index) => {
         const uploadedFileName = watch(
           `supersededDocuments.${index}.uploadedFileName`,
@@ -197,6 +211,17 @@ export default function ReOpenProcessModal({
                 {...register(`supersededDocuments.${index}.reasonOfSupersed`)}
                 className="w-full border p-2 rounded text-sm"
                 placeholder="Enter reason"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Issue No/Revision No
+              </label>
+              <input
+                type="text"
+                {...register(`supersededDocuments.${index}.issueNo`)}
+                className="w-full border p-2 rounded text-sm"
+                placeholder="Enter"
               />
             </div>
 

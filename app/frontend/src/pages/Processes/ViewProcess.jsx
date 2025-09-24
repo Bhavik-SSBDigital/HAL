@@ -420,7 +420,7 @@ const ViewProcess = () => {
                       <td key={idx} className="py-2 px-4 border">
                         {doc ? (
                           <div className="flex items-center space-x-2">
-                            {/* Use ImageConfig for icons */}
+                            {/* Document icon */}
                             <img
                               width={28}
                               src={
@@ -428,14 +428,20 @@ const ViewProcess = () => {
                               }
                               alt={doc.type}
                             />
-                            <span
-                              title={doc.name}
-                              className={`truncate ${
-                                doc.active ? 'font-semibold' : 'text-gray-400'
-                              }`}
-                            >
-                              {doc.name}
-                            </span>
+                            <div className="flex flex-col">
+                              {/* Document name */}
+                              <span
+                                title={doc.name}
+                                className={`truncate ${doc.active ? 'font-semibold' : 'text-gray-400'}`}
+                              >
+                                {doc.name}
+                              </span>
+                              {/* Highlight issueNo */}
+
+                              <span className="text-sm text-blue-600 font-medium">
+                                Issue No: {doc?.issueNo || '--'}
+                              </span>
+                            </div>
                             <CustomButton
                               className="px-2"
                               click={() =>
