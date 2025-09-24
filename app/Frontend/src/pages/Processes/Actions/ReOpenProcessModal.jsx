@@ -126,7 +126,7 @@ export default function ReOpenProcessModal({
 
       <div>
         <label className="block text-sm font-medium mb-1">
-          SOPIssueNo / SOPRevisionNo
+          Enter SOP Issue/Revision Number
         </label>
         <input
           type="text"
@@ -215,7 +215,7 @@ export default function ReOpenProcessModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
-                Issue No/Revision No
+                Enter Document Issue No/Revision No
               </label>
               <input
                 type="text"
