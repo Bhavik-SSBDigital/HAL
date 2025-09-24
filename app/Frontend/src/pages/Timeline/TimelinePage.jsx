@@ -34,7 +34,6 @@ export default function TimelinePage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     getData();
   }, [id]);
@@ -53,18 +52,6 @@ export default function TimelinePage() {
   return (
     <div>
       {actionsLoading && <TopLoader />}
-      <div className="flex justify-end flex-row gap-2 flex-wrap">
-        <CustomButton
-          variant={'none'}
-          text={
-            <div className="flex items-center  gap-2">
-              <IconArrowLeft size={18} /> List
-            </div>
-          }
-          click={handleBack}
-          disabled={actionsLoading}
-        />
-      </div>
       <Timeline
         actionsLoading={actionsLoading}
         activities={data?.process?.activities}
@@ -72,6 +59,7 @@ export default function TimelinePage() {
         workflow={data?.process?.workflow?.steps}
         print={true}
         id={id}
+        process={data?.process}
       />
     </div>
   );
