@@ -99,12 +99,15 @@ const Header = (props: {
           </button>
           {/* <!-- Hamburger Toggle BTN --> */}
 
-          <Link className="block flex-shrink-0" to="/">
+          <Link className="hidden md:block flex-shrink-0 flex-col" to="/">
+            <div className="flex flex-row items-center gap-2">
+              <img style={{ height: '60px' }} src={LogoIcon} alt="Logo" />{' '}
+              <h2 className="text-2xl font-bold">Digital Workflow Solution</h2>
+            </div>
+          </Link>
+          <Link className="md:hidden flex-shrink-0" to="/">
             <img style={{ height: '60px' }} src={LogoIcon} alt="Logo" />
           </Link>
-          {/* <Link className="md:hidden flex-shrink-0" to="/">
-            <img style={{ height: '40px' }} src={smallLogo} alt="Logo" />
-          </Link> */}
         </div>
 
         <div className="flex items-center gap-3 2xsm:gap-7">
