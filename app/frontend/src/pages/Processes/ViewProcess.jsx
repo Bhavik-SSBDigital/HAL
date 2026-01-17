@@ -392,12 +392,13 @@ const ViewProcess = () => {
     const maxDocs = Math.max(...cycles?.map((cycle) => cycle.documents.length));
 
     return (
-      <CustomCard className={'mt-2'}>
+      <CustomCard className="mt-2">
         <h2 className="text-xl font-semibold mb-4">
           Documents by Reopen Cycle
         </h2>
 
-        <div className="overflow-auto">
+        {/* ================= DESKTOP / TABLET VIEW ================= */}
+        <div className="hidden md:block overflow-auto">
           <table className="min-w-full border border-gray-300">
             <thead className="bg-gray-100">
               <tr>
@@ -410,6 +411,7 @@ const ViewProcess = () => {
                 ))}
               </tr>
             </thead>
+
             <tbody>
               {cycles.map((cycle, index) => {
                 const isLastRow = index === cycles.length - 1;
@@ -431,18 +433,19 @@ const ViewProcess = () => {
                       const doc = cycle.documents[idx];
 
                       return (
-                        <td key={idx} className="py-2 px-4 border text-wrap">
+                        <td key={idx} className="py-2 px-4 border">
                           {doc ? (
-                            <div className="flex items-center space-x-2 mr-4">
+                            <div className="flex items-center gap-2">
                               <img
-                                width={28}
+                                width={26}
                                 src={
                                   ImageConfig[doc.type] ||
                                   ImageConfig['default']
                                 }
                                 alt={doc.type}
                               />
-                              <div className="flex flex-col">
+
+                              <div className="flex flex-col min-w-0">
                                 <span
                                   title={doc.name}
                                   className={`truncate ${
@@ -454,7 +457,7 @@ const ViewProcess = () => {
                                   {doc.name}
                                 </span>
 
-                                <span className="text-sm text-blue-600 font-medium">
+                                <span className="text-xs text-blue-600 font-medium">
                                   Issue No: {doc?.issueNo || '--'}
                                 </span>
                               </div>
@@ -473,9 +476,10 @@ const ViewProcess = () => {
                                 disabled={actionsLoading}
                                 title="View Document"
                                 text={
-                                  <IconEye size={18} className="text-white" />
+                                  <IconEye size={16} className="text-white" />
                                 }
                               />
+
                               <CustomButton
                                 variant="info"
                                 className="px-2"
@@ -484,7 +488,7 @@ const ViewProcess = () => {
                                 title="Details"
                                 text={
                                   <IconAlignBoxCenterMiddle
-                                    size={18}
+                                    size={16}
                                     className="text-white"
                                   />
                                 }
@@ -501,6 +505,103 @@ const ViewProcess = () => {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* ================= MOBILE VIEW ================= */}
+        <div className="md:hidden space-y-4">
+          {cycles.map((cycle, index) => {
+            const isLast = index === cycles.length - 1;
+
+            return (
+              <div
+                key={cycle.reopenCycle}
+                className={`border rounded-lg p-3 space-y-3 ${
+                  isLast ? 'bg-green-50 border-green-300' : 'bg-white'
+                }`}
+              >
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-700">
+                    Reopen Cycle
+                  </span>
+                  <span className="font-bold">{cycle.reopenCycle}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="font-semibold text-gray-700">
+                    Manual SOP
+                  </span>
+                  <span className="font-medium">
+                    {cycle.SOPIssueNo || '--'}
+                  </span>
+                </div>
+
+                <div className="border-t pt-2 space-y-2 max-h-[350px] overflow-y-auto">
+                  {cycle.documents.length > 0 ? (
+                    cycle.documents.map((doc, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 border rounded-md p-2"
+                      >
+                        <img
+                          width={26}
+                          src={ImageConfig[doc.type] || ImageConfig['default']}
+                          alt={doc.type}
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm truncate ${
+                              doc.active ? 'font-semibold' : 'text-gray-400'
+                            }`}
+                          >
+                            {doc.name}
+                          </p>
+
+                          <p className="text-xs text-blue-600 font-medium">
+                            Issue No: {doc?.issueNo || '--'}
+                          </p>
+                        </div>
+
+                        <CustomButton
+                          className="px-2"
+                          click={() =>
+                            handleViewFile(
+                              doc.name,
+                              doc.path,
+                              doc.id,
+                              doc.type,
+                              false,
+                            )
+                          }
+                          disabled={actionsLoading}
+                          title="View"
+                          text={<IconEye size={16} className="text-white" />}
+                        />
+
+                        <CustomButton
+                          variant="info"
+                          className="px-2"
+                          click={() => setDocumentModalOpen(doc)}
+                          disabled={actionsLoading}
+                          title="Details"
+                          text={
+                            <IconAlignBoxCenterMiddle
+                              size={16}
+                              className="text-white"
+                            />
+                          }
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-400">
+                      No documents uploaded
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </CustomCard>
     );
