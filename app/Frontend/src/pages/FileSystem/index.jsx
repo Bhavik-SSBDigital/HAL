@@ -1096,7 +1096,7 @@ export default function FileSysten() {
             <Property
               label="Tags"
               value={
-                selectedItem?.tags?.length ? selectedItem.tags.join(', ') : '—'
+                selectedItem?.processTags?.length ? selectedItem.processTags.join(', ') : '—'
               }
             />
 
