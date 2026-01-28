@@ -510,6 +510,36 @@ export default function FileSysten() {
     }
   };
 
+  const Section = ({ title, icon, children }) => (
+    <div className="bg-white rounded-xl border shadow-sm">
+      <div className="flex items-center gap-2 px-4 py-2 border-b bg-gray-50 rounded-t-xl">
+        <span className="text-lg">{icon}</span>
+        <h3 className="font-semibold text-gray-700">{title}</h3>
+      </div>
+      <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        {children}
+      </div>
+    </div>
+  );
+
+  const Property = ({ label, value }) => (
+    <div className="flex flex-col">
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="font-medium text-gray-900 break-all">
+        {value ?? '—'}
+      </span>
+    </div>
+  );
+
+  const StatusBadge = ({ value, trueLabel = 'Yes', falseLabel = 'No' }) => (
+    <span
+      className={`px-2 py-0.5 text-xs rounded-full w-fit font-medium
+      ${value ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
+    >
+      {value ? trueLabel : falseLabel}
+    </span>
+  );
+
   useEffect(() => {
     getData(currentPath);
   }, [currentPath]);
@@ -973,47 +1003,110 @@ export default function FileSysten() {
 
       {/* Properties Modal */}
       <CustomModal isOpen={showProperties}>
-        <div className="flex justify-between items-center border-b pb-2 mb-4">
-          <h2 className="text-lg font-semibold">
-            {selectedItem?.name} Properties
-          </h2>
+        {/* HEADER */}
+        <div className="flex justify-between items-center border-b px-5 py-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              {selectedItem?.name}
+            </h2>
+            <p className="text-xs text-gray-500">{selectedItem?.path}</p>
+          </div>
           <button
             onClick={() => setShowProperties(false)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-400 hover:text-red-500"
           >
-            <IconSquareLetterX className="hover:text-red-500" />
+            <IconSquareLetterX />
           </button>
         </div>
-        <div className="space-y-2">
-          <p className="flex justify-between">
-            <span className="font-medium">Name:</span> {selectedItem?.name}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Path:</span> {selectedItem?.path}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Type:</span> {selectedItem?.type}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Size:</span> {selectedItem?.size}{' '}
-            bytes
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Created On:</span>{' '}
-            {moment(selectedItem?.createdOn).format('DD-MM-YYYY')}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Last Updated:</span>{' '}
-            {moment(selectedItem?.lastUpdated).format('DD-MM-YYYY')}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Last Accessed:</span>{' '}
-            {moment(selectedItem?.lastAccessed).format('DD-MM-YYYY')}
-          </p>
-          <p className="flex justify-between">
-            <span className="font-medium">Rejected:</span>{' '}
-            {selectedItem?.isRejected ? 'Yes' : 'No'}
-          </p>
+
+        {/* BODY */}
+        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto bg-gray-100">
+          {/* BASIC */}
+          <Section title="Basic Information" icon="📄">
+            <Property label="Name" value={selectedItem?.name} />
+            <Property label="Type" value={selectedItem?.type} />
+            <Property label="Size" value={`${selectedItem?.size} bytes`} />
+            <Property label="Created By" value={selectedItem?.createdBy} />
+          </Section>
+
+          {/* TIMELINE */}
+          <Section title="Timeline" icon="🕒">
+            <Property
+              label="Created On"
+              value={moment(selectedItem?.createdOn).format('DD MMM YYYY')}
+            />
+            <Property
+              label="Last Updated"
+              value={moment(selectedItem?.lastUpdated).format('DD MMM YYYY')}
+            />
+            <Property
+              label="Last Accessed"
+              value={moment(selectedItem?.lastAccessed).format('DD MMM YYYY')}
+            />
+          </Section>
+
+          {/* STATUS */}
+          <Section title="Document Status" icon="📌">
+            <div>
+              <span className="text-xs text-gray-500">Archived</span>
+              <StatusBadge value={selectedItem?.isArchived} />
+            </div>
+            <div>
+              <span className="text-xs text-gray-500">In Bin</span>
+              <StatusBadge value={selectedItem?.inBin} />
+            </div>
+            <div>
+              <span className="text-xs text-gray-500">Rejected</span>
+              <StatusBadge value={selectedItem?.isRejected} />
+            </div>
+            <div>
+              <span className="text-xs text-gray-500">Bookmarked</span>
+              <StatusBadge value={selectedItem?.isDocumentBookmarked} />
+            </div>
+            <div>
+              <span className="text-xs text-gray-500">Pre Approved</span>
+              <StatusBadge
+                value={selectedItem?.preApproved}
+                trueLabel="Approved"
+                falseLabel="No"
+              />
+            </div>
+          </Section>
+
+          {/* PROCESS */}
+          <Section title="Process & Workflow" icon="⚙️">
+            <Property
+              label="In Process"
+              value={selectedItem?.isInvolvedInProcess ? 'Yes' : 'No'}
+            />
+            <Property label="Process Name" value={selectedItem?.processName} />
+            <Property
+              label="Process Status"
+              value={selectedItem?.processStatus}
+            />
+            <Property label="Workflow" value={selectedItem?.workflowName} />
+          </Section>
+
+          {/* CLASSIFICATION */}
+          <Section title="Classification & Meta" icon="🏷️">
+            <Property
+              label="Department ID"
+              value={selectedItem?.departmentId}
+            />
+            <Property
+              label="Tags"
+              value={
+                selectedItem?.tags?.length ? selectedItem.tags.join(', ') : '—'
+              }
+            />
+
+            <div className="col-span-2">
+              <p className="text-xs text-gray-500 mb-1">Description</p>
+              <div className="bg-gray-50 border rounded-lg p-3 text-xs text-gray-700 min-h-[60px]">
+                {selectedItem?.description || '—'}
+              </div>
+            </div>
+          </Section>
         </div>
       </CustomModal>
 
