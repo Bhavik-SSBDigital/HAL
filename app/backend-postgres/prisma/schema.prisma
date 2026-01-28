@@ -107,6 +107,7 @@ model User {
   status                String?
   specialUser           Boolean                  @default(false)
   createdAt             DateTime                 @default(now())
+  isKeeperOfPhysicalDocs Boolean?
   isRootLevel           Boolean?
   isAdmin               Boolean?
   updatedAt             DateTime?                @updatedAt

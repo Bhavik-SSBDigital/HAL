@@ -28,6 +28,7 @@ const PhysicalDocuments = () => {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [fileView, setFileView] = useState(null);
   const isAdmin = sessionStorage.getItem('isAdmin');
+  const isKeeperOfPhysicalDocs = sessionStorage.getItem('isKeeperOfPhysicalDocs');
   const isDepartmentHead = sessionStorage.getItem('isDepartmentHead');
 
   const statuses = [
@@ -179,7 +180,7 @@ const PhysicalDocuments = () => {
 
   const getAvailableActions = (status) => {
     const userRole =
-      isAdmin === 'true'
+      (isAdmin === 'true' || isKeeperOfPhysicalDocs === 'true')
         ? 'admin'
         : isDepartmentHead === 'true'
           ? 'hod'

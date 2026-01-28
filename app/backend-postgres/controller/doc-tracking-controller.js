@@ -26,20 +26,58 @@ dotnev.config();
 
 export const checkIfUserIsAdmin = async (userData) => {
   try {
-    const roles = await prisma.role.findMany({
-      where: { id: { in: userData.roles } },
-      select: { isDepartmentHead: true, departmentId: true },
-    });
-
+    // Get user with their authorizer status
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userData.id) },
-      select: { isAdmin: true },
+      select: {
+        isAdmin: true,
+        isKeeperOfPhysicalDocs: true,
+      },
     });
 
-    const isAdmin = roles.some((role) => role.isAdmin) || user.isAdmin;
+    // Get user roles
+    const roles = await prisma.role.findMany({
+      where: { id: { in: userData.roles } },
+      select: { isAdmin: true, departmentId: true },
+    });
+
+    // User is considered admin if they have admin role, or user.isAdmin, or user.isKeeperOfPhysicalDocs
+    const isAdmin =
+      roles.some((role) => role.isAdmin) ||
+      user.isAdmin ||
+      user.isKeeperOfPhysicalDocs;
     return isAdmin;
   } catch (error) {
     console.error("Error checking if user is admin:", error);
+    return false;
+  }
+};
+
+export const checkIfUserIsAdminOrAuthorized = async (userData) => {
+  try {
+    // Get user with their authorizer status
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userData.id) },
+      select: {
+        isAdmin: true,
+        isKeeperOfPhysicalDocs: true,
+      },
+    });
+
+    // Get user roles
+    const roles = await prisma.role.findMany({
+      where: { id: { in: userData.roles } },
+      select: { isAdmin: true, departmentId: true },
+    });
+
+    // User can act as admin if they have admin role, or user.isAdmin, or user.isKeeperOfPhysicalDocs
+    const canActAsAdmin =
+      roles.some((role) => role.isAdmin) ||
+      user.isAdmin ||
+      user.isKeeperOfPhysicalDocs;
+    return canActAsAdmin;
+  } catch (error) {
+    console.error("Error checking if user is admin or authorized:", error);
     return false;
   }
 };
@@ -118,14 +156,22 @@ export const get_physical_requests = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userData.id) },
-      select: { isAdmin: true },
+      select: {
+        isAdmin: true,
+        isKeeperOfPhysicalDocs: true,
+      },
     });
 
-    const isAdmin = roles.some((role) => role.isAdmin) || user.isAdmin;
+    // Check if user can act as admin (admin or authorized user)
+    const canActAsAdmin =
+      roles.some((role) => role.isAdmin) ||
+      user.isAdmin ||
+      user.isKeeperOfPhysicalDocs;
     const isDepartmentHead = roles.some((role) => role.isDepartmentHead);
 
     const role =
-      req.query.role || (isAdmin ? "admin" : isDepartmentHead ? "hod" : "user");
+      req.query.role ||
+      (canActAsAdmin ? "admin" : isDepartmentHead ? "hod" : "user");
 
     console.log("role", role);
 
@@ -141,7 +187,7 @@ export const get_physical_requests = async (req, res) => {
         .map((r) => r.departmentId);
       whereCondition.departmentId = { in: hodDepartments };
     }
-    // For admin, no where condition needed
+    // For admin, no where condition needed - both admin and authorized users see all requests
 
     // Common include configuration
     const includeConfig = {
@@ -203,7 +249,7 @@ export const get_physical_requests = async (req, res) => {
           isAdmin: userRole.role.isAdmin,
           isDepartmentHead: userRole.role.isDepartmentHead,
           departmentId: userRole.role.departmentId,
-          department: userRole.role.branch, // Note: in schema it's called 'branch' not 'department'
+          department: userRole.role.branch,
         })),
         departments: request.requestingUser.branches,
       },
@@ -235,14 +281,34 @@ export const get_physical_request_messages = async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    const isAdmin = await checkIfUserIsAdmin(userData);
+    // Get user info to check admin/authorized status
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userData.id) },
+      select: {
+        isAdmin: true,
+        isKeeperOfPhysicalDocs: true,
+      },
+    });
+
+    // Get user roles to check admin roles
+    const roles = await prisma.role.findMany({
+      where: { id: { in: userData.roles } },
+      select: { isAdmin: true, departmentId: true },
+    });
+
+    // Check if user can act as admin (admin role, isAdmin flag, or isKeeperOfPhysicalDocs)
+    const canActAsAdmin =
+      roles.some((role) => role.isAdmin) ||
+      user.isAdmin ||
+      user.isKeeperOfPhysicalDocs;
     const isHod = await checkHodRole(userData, request.departmentId);
     const isRequestingUser = parseInt(userData.id) === request.requestingUserId;
 
-    if (!isAdmin && !isHod && !isRequestingUser) {
+    if (!canActAsAdmin && !isHod && !isRequestingUser) {
       return res.status(403).json({ message: "No access to this request" });
     }
 
+    // Get messages with original structure
     const messages = await prisma.physicalRequestMessage.findMany({
       where: { requestId: parseInt(id) },
       include: {
@@ -343,16 +409,20 @@ export const update_physical_request = async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    const isAdmin = await checkIfUserIsAdmin(userData);
+    const canActAsAdmin = await checkIfUserIsAdminOrAuthorized(userData);
     const isHod = await checkHodRole(userData, request.departmentId);
-
-    console.log("is admin", isAdmin);
-    console.log("is hod", isHod);
     const isRequestingUser = userData.id === request.requestingUserId;
+
+    console.log("can act as admin", canActAsAdmin);
+    console.log("is hod", isHod);
+    console.log("is requesting user", isRequestingUser);
 
     // Validate action permissions
     let newStatus;
-    if (isAdmin) {
+    let changerRole = null;
+
+    if (canActAsAdmin) {
+      changerRole = "ADMIN";
       if (
         request.status === "PENDING_ADMIN_APPROVAL" ||
         request.status === "HOD_APPROVED"
@@ -367,7 +437,7 @@ export const update_physical_request = async (req, res) => {
         else if (action === "queryUser") newStatus = "PENDING_USER_RESPONSE";
       }
     } else if (isHod && request.status === "PENDING_HOD_APPROVAL") {
-      console.log("reached right");
+      changerRole = "HOD";
       if (action === "approve") newStatus = "HOD_APPROVED";
       else if (action === "reject") newStatus = "HOD_REJECTED";
       else if (action === "queryUser") newStatus = "PENDING_USER_RESPONSE";
@@ -379,6 +449,7 @@ export const update_physical_request = async (req, res) => {
         request.status === "DOC_RETURNED" ||
         request.status === "DOC_SCRAPPED")
     ) {
+      changerRole = "USER";
       if (action === "respond") newStatus = "PENDING_ADMIN_APPROVAL";
       else if (action === "returnDoc") newStatus = "DOC_RETURNED";
       else if (action === "scrapDoc") newStatus = "DOC_SCRAPPED";
@@ -413,13 +484,7 @@ export const update_physical_request = async (req, res) => {
                 message,
                 previousStatus: request.status,
                 newStatus: newStatus,
-                changerRole: isAdmin
-                  ? "ADMIN"
-                  : isHod
-                    ? "HOD"
-                    : isRequestingUser
-                      ? "USER"
-                      : null,
+                changerRole: changerRole,
               },
             }),
           ]
@@ -456,11 +521,11 @@ export const add_request_message = async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    const isAdmin = userData.isAdmin;
+    const canActAsAdmin = await checkIfUserIsAdminOrAuthorized(userData);
     const isHod = await checkHodRole(userData, request.departmentId);
     const isRequestingUser = userData.id === request.requestingUserId;
 
-    if (!isAdmin && !isHod && !isRequestingUser) {
+    if (!canActAsAdmin && !isHod && !isRequestingUser) {
       return res.status(403).json({ message: "No access to this request" });
     }
 

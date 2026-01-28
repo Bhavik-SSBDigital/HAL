@@ -197,7 +197,7 @@ export const login = async (req, res) => {
       process.env.SECRET_ACCESS_KEY,
       {
         expiresIn: "365d",
-      }
+      },
     );
 
     await prisma.loginLog.create({
@@ -220,6 +220,7 @@ export const login = async (req, res) => {
       roles: roles.map((role) => role.role),
       isAdmin: isAdmin,
       isDepartmentHead: isDepartmentHead,
+      isKeeperOfPhysicalDocs: user.isKeeperOfPhysicalDocs,
     });
   } catch (error) {
     console.error("Error during login", error);
@@ -347,7 +348,7 @@ export const change_password = async (req, res) => {
     // Verify current password
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.password
+      user.password,
     );
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Current password is incorrect" });
@@ -456,13 +457,13 @@ export const download_login_logs = async (req, res) => {
     // Set response headers
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=login-logs-${
         new Date().toISOString().split("T")[0]
-      }.xlsx`
+      }.xlsx`,
     );
 
     // Write to response
