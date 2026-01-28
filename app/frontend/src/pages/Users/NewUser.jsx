@@ -28,6 +28,7 @@ export default function NewUser() {
       roles: [],
       password: '',
       confirmPassword: '',
+      isKeeperOfPhysicalDocs: 'No',
     },
   });
   const [roles, setRoles] = useState([]);
@@ -207,6 +208,31 @@ export default function NewUser() {
               />
               {errors.status && (
                 <p className="text-red-500 text-sm">{errors.status.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Physical Document Keeper
+              </label>
+              <Controller
+                name="isKeeperOfPhysicalDocs"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    required
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="">Select</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                )}
+              />
+              {errors.isKeeperOfPhysicalDocs && (
+                <p className="text-red-500 text-sm">
+                  {errors.isKeeperOfPhysicalDocs.message}
+                </p>
               )}
             </div>
             <div>

@@ -508,7 +508,7 @@ const ViewProcess = () => {
         </div> */}
 
         {/* ================= MOBILE VIEW ================= */}
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[400px] overflow-auto">
           {cycles.map((cycle, index) => {
             const isLast = index === cycles.length - 1;
 
