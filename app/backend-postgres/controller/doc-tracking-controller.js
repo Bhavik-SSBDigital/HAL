@@ -122,49 +122,94 @@ export const get_physical_requests = async (req, res) => {
     });
 
     const isAdmin = roles.some((role) => role.isAdmin) || user.isAdmin;
-
     const isDepartmentHead = roles.some((role) => role.isDepartmentHead);
 
     const role =
       req.query.role || (isAdmin ? "admin" : isDepartmentHead ? "hod" : "user");
 
     console.log("role", role);
-    let requests;
+
+    // Base where condition
+    let whereCondition = {};
 
     if (role === "user") {
-      requests = await prisma.physicalDocumentRequest.findMany({
-        where: { requestingUserId: parseInt(userData.id) },
-        include: {
-          document: { select: { id: true, name: true, path: true } },
-          department: { select: { id: true, name: true } },
-        },
-      });
-      return res.status(200).json(requests);
-    } else if (role === "admin") {
-      requests = await prisma.physicalDocumentRequest.findMany({
-        include: {
-          document: { select: { id: true, name: true, path: true } },
-          department: { select: { id: true, name: true } },
-          requestingUser: { select: { id: true, name: true } },
-        },
-      });
-      return res.status(200).json(requests);
+      whereCondition.requestingUserId = parseInt(userData.id);
     } else if (role === "hod") {
       console.log("roles", roles);
       const hodDepartments = roles
         .filter((r) => r.isDepartmentHead)
         .map((r) => r.departmentId);
-      requests = await prisma.physicalDocumentRequest.findMany({
-        where: { departmentId: { in: hodDepartments } },
-        include: {
-          document: { select: { id: true, name: true, path: true } },
-          department: { select: { id: true, name: true } },
-          requestingUser: { select: { id: true, name: true } },
-        },
-      });
-      return res.status(200).json(requests);
+      whereCondition.departmentId = { in: hodDepartments };
     }
-    return res.status(400).json({ message: "Invalid role" });
+    // For admin, no where condition needed
+
+    // Common include configuration
+    const includeConfig = {
+      document: { select: { id: true, name: true, path: true } },
+      department: { select: { id: true, name: true } },
+      requestingUser: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          roles: {
+            include: {
+              role: {
+                select: {
+                  id: true,
+                  role: true,
+                  isAdmin: true,
+                  isDepartmentHead: true,
+                  departmentId: true,
+                  branch: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          branches: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
+      },
+    };
+
+    const requests = await prisma.physicalDocumentRequest.findMany({
+      where: whereCondition,
+      include: includeConfig,
+    });
+
+    // Format the response to include user details in a structured way
+    const formattedRequests = requests.map((request) => ({
+      ...request,
+      requestingUser: {
+        id: request.requestingUser.id,
+        username: request.requestingUser.username,
+        name: request.requestingUser.name,
+        email: request.requestingUser.email,
+        roles: request.requestingUser.roles.map((userRole) => ({
+          id: userRole.role.id,
+          role: userRole.role.role,
+          isAdmin: userRole.role.isAdmin,
+          isDepartmentHead: userRole.role.isDepartmentHead,
+          departmentId: userRole.role.departmentId,
+          department: userRole.role.branch, // Note: in schema it's called 'branch' not 'department'
+        })),
+        departments: request.requestingUser.branches,
+      },
+    }));
+
+    return res.status(200).json(formattedRequests);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
@@ -192,7 +237,7 @@ export const get_physical_request_messages = async (req, res) => {
 
     const isAdmin = await checkIfUserIsAdmin(userData);
     const isHod = await checkHodRole(userData, request.departmentId);
-    const isRequestingUser = userData.id === request.requestingUserId;
+    const isRequestingUser = parseInt(userData.id) === request.requestingUserId;
 
     if (!isAdmin && !isHod && !isRequestingUser) {
       return res.status(403).json({ message: "No access to this request" });
@@ -200,11 +245,74 @@ export const get_physical_request_messages = async (req, res) => {
 
     const messages = await prisma.physicalRequestMessage.findMany({
       where: { requestId: parseInt(id) },
-      include: { user: { select: { id: true, name: true } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            roles: {
+              include: {
+                role: {
+                  select: {
+                    id: true,
+                    role: true,
+                    isAdmin: true,
+                    isDepartmentHead: true,
+                    departmentId: true,
+                    branch: {
+                      select: {
+                        id: true,
+                        name: true,
+                        code: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            branches: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "asc" },
     });
 
-    return res.status(200).json(messages);
+    // Format messages to enhance user details while keeping the same structure
+    const formattedMessages = messages.map((message) => ({
+      id: message.id,
+      requestId: message.requestId,
+      userId: message.userId,
+      message: message.message,
+      createdAt: message.createdAt,
+      previousStatus: message.previousStatus,
+      newStatus: message.newStatus,
+      changerRole: message.changerRole,
+      user: {
+        id: message.user.id,
+        name: message.user.name,
+        username: message.user.username,
+        email: message.user.email,
+        roles: message.user.roles.map((userRole) => ({
+          id: userRole.role.id,
+          role: userRole.role.role,
+          isAdmin: userRole.role.isAdmin,
+          isDepartmentHead: userRole.role.isDepartmentHead,
+          departmentId: userRole.role.departmentId,
+          department: userRole.role.branch,
+        })),
+        departments: message.user.branches,
+      },
+    }));
+
+    return res.status(200).json(formattedMessages);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
@@ -308,10 +416,10 @@ export const update_physical_request = async (req, res) => {
                 changerRole: isAdmin
                   ? "ADMIN"
                   : isHod
-                  ? "HOD"
-                  : isRequestingUser
-                  ? "USER"
-                  : null,
+                    ? "HOD"
+                    : isRequestingUser
+                      ? "USER"
+                      : null,
               },
             }),
           ]
