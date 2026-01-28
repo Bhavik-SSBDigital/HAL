@@ -12,6 +12,7 @@ import {
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
 import CustomCard from '../../CustomComponents/CustomCard';
+import moment from 'moment';
 
 const PhysicalDocuments = () => {
   const [requests, setRequests] = useState([]);
@@ -28,7 +29,9 @@ const PhysicalDocuments = () => {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [fileView, setFileView] = useState(null);
   const isAdmin = sessionStorage.getItem('isAdmin');
-  const isKeeperOfPhysicalDocs = sessionStorage.getItem('isKeeperOfPhysicalDocs');
+  const isKeeperOfPhysicalDocs = sessionStorage.getItem(
+    'isKeeperOfPhysicalDocs',
+  );
   const isDepartmentHead = sessionStorage.getItem('isDepartmentHead');
 
   const statuses = [
@@ -89,14 +92,6 @@ const PhysicalDocuments = () => {
 
   useEffect(() => {
     fetchRequests();
-    // Set initial status filter based on role
-    if (isAdmin === 'true') {
-      setStatusFilter('PENDING_ADMIN_APPROVAL');
-    } else if (isDepartmentHead === 'true') {
-      setStatusFilter('PENDING_HOD_APPROVAL');
-    } else {
-      setStatusFilter('ADMIN_APPROVED');
-    }
   }, []);
 
   useEffect(() => {
@@ -180,7 +175,7 @@ const PhysicalDocuments = () => {
 
   const getAvailableActions = (status) => {
     const userRole =
-      (isAdmin === 'true' || isKeeperOfPhysicalDocs === 'true')
+      isAdmin === 'true' || isKeeperOfPhysicalDocs === 'true'
         ? 'admin'
         : isDepartmentHead === 'true'
           ? 'hod'
@@ -194,9 +189,9 @@ const PhysicalDocuments = () => {
 
   return (
     <>
-      <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="p-2 bg-gray-100 min-h-screen">
         {/* Filter */}
-        <div className="flex items-center gap-4 mb-6 rounded-lg">
+        <div className="flex items-center gap-4 mb-2 rounded-lg">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -218,75 +213,116 @@ const PhysicalDocuments = () => {
         </div>
 
         {/* List */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredRequests.length > 0 ? (
             filteredRequests.map((req) => (
               <CustomCard key={req.id}>
-                <div className="flex-1 pr-4">
-                  <p className="font-semibold text-lg text-gray-900 truncate">
-                    {req.document?.name}
-                  </p>
-                  <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                    <b>Reason :</b> {req.reason}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    <b>Department Name : </b>
-                    <span className="font-medium">{req?.department?.name}</span>
-                  </p>
-                  {req.lastMessage && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Recent Message:{' '}
-                      <span className="font-medium">{req.lastMessage}</span>
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-wrap w-full justify-end">
-                  <span
-                    className={`px-3 py-1 text-xs rounded-full font-medium border ${
-                      req.status.includes('APPROVED')
-                        ? 'bg-green-100 text-green-700 border-green-200'
-                        : req.status.includes('REJECTED')
-                          ? 'bg-red-100 text-red-700 border-red-200'
-                          : 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                    }`}
-                  >
-                    {req.status.replace('_', ' ')}
-                  </span>
-                  <CustomButton
-                    text={<IconEye size={18} className="text-white" />}
-                    title="View Document"
-                    click={() =>
-                      handleViewFile(
-                        req.document?.name,
-                        req.document?.path.substring(
-                          0,
-                          req.document?.path.lastIndexOf('/'),
-                        ),
-                        req.document?.id,
-                        req.document?.name?.split('.').pop()?.toLowerCase(),
-                      )
-                    }
-                    variant="primary"
-                  />
-                  <button
-                    onClick={() => openHistoryModal(req)}
-                    className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 text-sm font-medium"
-                  >
-                    History
-                  </button>
-                  {getAvailableActions(req.status).length > 0 && (
-                    <button
-                      onClick={() => openModal(req)}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                <div className="flex flex-col lg:flex-row lg:items-center gap-5">
+                  {/* LEFT: DOCUMENT + REQUEST INFO */}
+                  <div className="flex-1 space-y-3">
+                    {/* Document */}
+                    <div>
+                      <p className="font-semibold text-lg text-gray-900 truncate">
+                        📄 {req.document?.name}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {req.document?.path}
+                      </p>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="bg-gray-50 border rounded-lg p-3 text-base">
+                      <span className="font-medium text-gray-700">Reason:</span>
+                      <span className="ml-1 text-gray-600">{req.reason}</span>
+                    </div>
+
+                    {/* Meta */}
+                    <div className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-gray-600">
+                      <p>
+                        <span className="font-semibold">Department:</span>{' '}
+                        {req.department?.name}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Requested By:</span>{' '}
+                        {req.requestingUser?.username}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Requested On:</span>{' '}
+                        {moment(req.createdAt).format('DD MMM YYYY, hh:mm A')}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Last Update:</span>{' '}
+                        {moment(req.updatedAt).format('DD MMM YYYY, hh:mm A')}
+                      </p>
+                    </div>
+
+                    {/* Recent message */}
+                    {req.lastMessage && (
+                      <p className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-3 py-1.5">
+                        💬 {req.lastMessage}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* RIGHT: STATUS + ACTIONS */}
+                  <div className="flex lg:flex-col justify-between lg:items-end gap-3 min-w-[230px]">
+                    {/* Status */}
+                    <span
+                      className={`px-4 py-1.5 text-sm rounded-full font-semibold border text-center w-fit
+                ${
+                  req.status.includes('APPROVED')
+                    ? 'bg-green-100 text-green-700 border-green-200'
+                    : req.status.includes('REJECTED')
+                      ? 'bg-red-100 text-red-700 border-red-200'
+                      : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                }`}
                     >
-                      Update
-                    </button>
-                  )}
+                      {req.status.replaceAll('_', ' ')}
+                    </span>
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <CustomButton
+                        text={<IconEye size={18} className="text-white" />}
+                        title="View Document"
+                        click={() =>
+                          handleViewFile(
+                            req.document?.name,
+                            req.document?.path.substring(
+                              0,
+                              req.document?.path.lastIndexOf('/'),
+                            ),
+                            req.document?.id,
+                            req.document?.name?.split('.').pop()?.toLowerCase(),
+                          )
+                        }
+                        variant="primary"
+                      />
+
+                      <button
+                        onClick={() => openHistoryModal(req)}
+                        className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition text-sm font-medium border"
+                      >
+                        History
+                      </button>
+
+                      {getAvailableActions(req.status).length > 0 && (
+                        <button
+                          onClick={() => openModal(req)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                        >
+                          Update
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CustomCard>
             ))
           ) : (
-            <p className="text-gray-500 text-center py-4">No requests found.</p>
+            <p className="text-gray-500 text-center py-10 text-base">
+              No requests found.
+            </p>
           )}
         </div>
 
@@ -401,7 +437,9 @@ const PhysicalDocuments = () => {
                         </span>{' '}
                         by{' '}
                         <span className="font-semibold text-blue-600">
-                          {msg.changerRole}
+                          {msg.changerRole == 'ADMIN'
+                            ? 'ADMIN OR AUTHORIZED_PERSON'
+                            : msg.changerRole}
                         </span>
                       </p>
                     </div>
