@@ -398,7 +398,7 @@ const ViewProcess = () => {
         </h2>
 
         {/* ================= DESKTOP / TABLET VIEW ================= */}
-        <div className="hidden md:block overflow-auto">
+        {/* <div className="hidden md:block overflow-auto">
           <table className="min-w-full border border-gray-300">
             <thead className="bg-gray-100">
               <tr>
@@ -505,10 +505,10 @@ const ViewProcess = () => {
               })}
             </tbody>
           </table>
-        </div>
+        </div> */}
 
         {/* ================= MOBILE VIEW ================= */}
-        <div className="md:hidden space-y-4">
+        <div className="space-y-4">
           {cycles.map((cycle, index) => {
             const isLast = index === cycles.length - 1;
 
