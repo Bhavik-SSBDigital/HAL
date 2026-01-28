@@ -46,6 +46,7 @@ export const sign_up = async (req, res) => {
       downloadable,
       uploadable,
       status,
+      isKeeperOfPhysicalDocs,
     } = req.body;
 
     // Generate a random password
@@ -79,6 +80,7 @@ export const sign_up = async (req, res) => {
       });
     }
 
+    const isPhysicalKeeper = isKeeperOfPhysicalDocs === "Yes" ? true : false;
     // Create the user
     const user = await prisma.user.create({
       data: {
@@ -91,6 +93,7 @@ export const sign_up = async (req, res) => {
         uploadable,
         status,
         createdById: userData.id,
+        isKeeperOfPhysicalDocs: isPhysicalKeeper,
       },
     });
 
