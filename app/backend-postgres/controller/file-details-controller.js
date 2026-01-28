@@ -69,7 +69,7 @@ export const getDocumentChildren = async (req, res, next) => {
     // Map and format the paths of the children documents
     const formattedDocuments = childDocuments.map((doc) => {
       let relativePath = `..${doc.path.substring(
-        process.env.STORAGE_PATH.length
+        process.env.STORAGE_PATH.length,
       )}`;
       return relativePath;
     });
@@ -126,11 +126,25 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     let docPath = req.body.path;
     docPath = docPath.substring(2);
 
-    // Find the document with its children
+    // Find the document with its children and include process document details
     const foundDocument = await prisma.document.findUnique({
       where: { path: docPath },
       include: {
-        children: true,
+        children: {
+          include: {
+            processDocuments: {
+              include: {
+                process: true,
+              },
+              orderBy: {
+                process: {
+                  createdAt: "desc",
+                },
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -187,7 +201,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
           const fileAbsolutePath = path.join(
             __dirname,
             STORAGE_PATH,
-            child.path
+            child.path,
           );
           const createdBy = await prisma.user.findUnique({
             where: { id: child.createdById },
@@ -201,8 +215,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
 
             const isDocumentBookmarked_ = await isDocumentBookmarked(
               userData.id,
-              child.id
+              child.id,
             );
+
+            // Get process document details
+            const processDocument = child.processDocuments?.[0] || null;
 
             return {
               id: child.id,
@@ -223,12 +240,38 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               isRejected: child.isRejected ?? false,
               children: [],
               onlyMetaData: child.onlyMetaData,
+
+              // Additional document details from Document model
+              departmentId: child.departmentId,
+              minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
+              tags: child.tags || [],
+              isRecord: child.isRecord ?? true,
+              isProject: child.isProject ?? false,
+
+              // Process document details (added at same level)
+              issueNo: processDocument?.issueNo || null,
+              processIssueNo: processDocument?.process?.issueNo || null,
+              partNumber: processDocument?.partNumber || null,
+              preApproved: processDocument?.preApproved ?? false,
+              SOPIssueNo: processDocument?.SOPIssueNo || null,
+              description: processDocument?.description || null,
+              reasonOfSupersed: processDocument?.reasonOfSupersed || null,
+              isReplacement: processDocument?.isReplacement ?? false,
+              superseding: processDocument?.superseding ?? false,
+              processTags: processDocument?.tags || [],
+              isReplaced: processDocument
+                ? !!processDocument.replacedDocumentId
+                : false,
+              processId: processDocument?.processId || null,
+              processName: processDocument?.process?.name || null,
+              processStatus: processDocument?.process?.status || null,
+              workflowName: processDocument?.process?.workflow?.name || null,
             };
           } catch (error) {
             console.log("error", error);
             return null;
           }
-        })
+        }),
       );
 
       console.log(foundDocument.children.map((item) => item.id));
@@ -245,7 +288,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                     parents.includes(userAccess.documentId))) &&
                 (userAccess.accessType.includes("READ") ||
                   userAccess.accessType.includes("DOWNLOAD") ||
-                  userAccess.accessType.includes("EDIT"))
+                  userAccess.accessType.includes("EDIT")),
             );
             return hasAccess;
           })
@@ -253,7 +296,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
             const fileAbsolutePath = path.join(
               __dirname,
               process.env.STORAGE_PATH,
-              child.path
+              child.path,
             );
 
             const createdBy = await prisma.user.findUnique({
@@ -268,20 +311,24 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
 
               // Check specific permissions for this document
               const documentAccess = userDocumentAccesses.find(
-                (access) => access.documentId === child.id
+                (access) => access.documentId === child.id,
               );
 
               // Check for inherited full access
               const hasFullAccess = userDocumentAccesses.some(
                 (access) =>
                   access.accessLevel === "FULL" &&
-                  parents.includes(access.documentId)
+                  parents.includes(access.documentId),
               );
 
               const isDocumentBookmarked_ = await isDocumentBookmarked(
                 userData.id,
-                child.id
+                child.id,
               );
+
+              // Get process document details
+              const processDocument = child.processDocuments?.[0] || null;
+
               return {
                 id: child.id,
                 path: `${child.path.slice(0, -child.name.length - 1)}`,
@@ -303,12 +350,38 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   (hasFullAccess && child.type !== "folder"),
                 children: [],
                 onlyMetaData: child.onlyMetaData,
+
+                // Additional document details from Document model
+                departmentId: child.departmentId,
+                minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
+                tags: child.tags || [],
+                isRecord: child.isRecord ?? true,
+                isProject: child.isProject ?? false,
+
+                // Process document details (added at same level)
+                issueNo: processDocument?.issueNo || null,
+                processIssueNo: processDocument?.process?.issueNo || null,
+                partNumber: processDocument?.partNumber || null,
+                preApproved: processDocument?.preApproved ?? false,
+                SOPIssueNo: processDocument?.SOPIssueNo || null,
+                description: processDocument?.description || null,
+                reasonOfSupersed: processDocument?.reasonOfSupersed || null,
+                isReplacement: processDocument?.isReplacement ?? false,
+                superseding: processDocument?.superseding ?? false,
+                processTags: processDocument?.tags || [],
+                isReplaced: processDocument
+                  ? !!processDocument.replacedDocumentId
+                  : false,
+                processId: processDocument?.processId || null,
+                processName: processDocument?.process?.name || null,
+                processStatus: processDocument?.process?.status || null,
+                workflowName: processDocument?.process?.workflow?.name || null,
               };
             } catch (error) {
               console.log("error", error);
               return null;
             }
-          })
+          }),
       );
     }
 
@@ -327,21 +400,21 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       result = result.filter(
         (item) =>
           (item.inBin === false && item.isArchived === false) ||
-          (!item.inBin && !item.isArchived)
+          (!item.inBin && !item.isArchived),
       );
     }
     // Check if user can upload to this directory
     const canUpload = isAdmin
       ? true
       : foundDocument.createdById === user.id
-      ? true
-      : userDocumentAccesses.some(
-          (access) =>
-            (access.documentId === foundDocument.id ||
-              (access.accessLevel === "FULL" &&
-                parents.includes(access.documentId))) &&
-            access.accessType.includes("EDIT")
-        );
+        ? true
+        : userDocumentAccesses.some(
+            (access) =>
+              (access.documentId === foundDocument.id ||
+                (access.accessLevel === "FULL" &&
+                  parents.includes(access.documentId))) &&
+              access.accessType.includes("EDIT"),
+          );
 
     res.status(200).json({
       children: result,
@@ -419,7 +492,7 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
               (access) =>
                 access.accessLevel === "FULL" &&
                 (access.documentId === child.id ||
-                  childParents.includes(access.documentId))
+                  childParents.includes(access.documentId)),
             );
 
             if (hasFullAccess) {
@@ -436,7 +509,7 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
             } else {
               // Check standard permissions
               const documentAccess = roleDocumentAccesses.find(
-                (access) => access.documentId === child.id
+                (access) => access.documentId === child.id,
               );
 
               if (documentAccess) {
@@ -474,7 +547,7 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
           } catch (error) {
             return null;
           }
-        })
+        }),
       );
 
       let result = await Promise.all(children);
@@ -488,7 +561,7 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
         selectedDownload: Array.from(new Set(selectedDownload)),
         selectedView: Array.from(new Set(selectedView)),
         fullAccess: Array.from(
-          new Set(fullAccess.map((obj) => JSON.stringify(obj)))
+          new Set(fullAccess.map((obj) => JSON.stringify(obj))),
         ).map((str) => JSON.parse(str)),
       });
     } else {
@@ -543,7 +616,7 @@ export const create_permissions = async (req, res) => {
               parentDocument.id,
               permissionedUsers[m],
               false,
-              "STANDARD"
+              "STANDARD",
             );
           }
         }
@@ -555,7 +628,7 @@ export const create_permissions = async (req, res) => {
           document.id,
           obj.read[j],
           false,
-          "STANDARD"
+          "STANDARD",
         );
       }
 
@@ -565,7 +638,7 @@ export const create_permissions = async (req, res) => {
           document.id,
           obj.write[k],
           true,
-          "STANDARD"
+          "STANDARD",
         );
       }
     }
@@ -585,7 +658,7 @@ const createUserPermissions = async (
   documentId,
   userId,
   isWritable,
-  accessLevel
+  accessLevel,
 ) => {
   try {
     const existingPermission = await prisma.user.findUnique({
@@ -765,7 +838,7 @@ export const search_documents = async (req, res) => {
           const hasFullAccessParent = userDocumentAccesses.some(
             (parentAccess) =>
               parentAccess.accessLevel === "FULL" &&
-              parents.includes(parentAccess.documentId)
+              parents.includes(parentAccess.documentId),
           );
 
           if (hasFullAccessParent) {
@@ -995,7 +1068,7 @@ export const search_documents = async (req, res) => {
 
         // Sort by id or score if available (simplified sorting)
         formattedResults = uniqueResults.sort(
-          (a, b) => (b.searchScore || 0) - (a.searchScore || 0)
+          (a, b) => (b.searchScore || 0) - (a.searchScore || 0),
         );
         totalCount = uniqueResults.length;
         totalPages = Math.ceil(totalCount / parsedPageSize);
