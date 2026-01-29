@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import DropdownMessage from './DropdownMessage';
 import DropdownNotification from './DropdownNotification';
 import DropdownUser from './DropdownUser';
-import LogoIcon from '../../assets/images/AIA-LOGO.png';
+import LogoIcon from '../../assets/images/ssbi-Logo.png';
 // import smallLogo from '../../assets/images/logo.png';
 import sessionData from '../../Store';
 import { useEffect } from 'react';
@@ -102,7 +102,7 @@ const Header = (props: {
           <Link className="hidden md:block flex-shrink-0 flex-col" to="/">
             <div className="flex flex-row items-center gap-2">
               <img style={{ height: '60px' }} src={LogoIcon} alt="Logo" />{' '}
-              <h2 className="text-2xl font-bold">Digital Workflow Solution</h2>
+              <h2 className="text-2xl font-bold">Document Management System</h2>
             </div>
           </Link>
           <Link className="md:hidden flex-shrink-0" to="/">
