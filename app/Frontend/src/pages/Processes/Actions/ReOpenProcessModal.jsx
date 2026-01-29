@@ -10,7 +10,12 @@ import {
 } from '../../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomButton from '../../../CustomComponents/CustomButton';
-import { IconSquarePlus, IconSquareX, IconEye, IconInfoCircle } from '@tabler/icons-react';
+import {
+  IconSquarePlus,
+  IconSquareX,
+  IconEye,
+  IconInfoCircle,
+} from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import TopLoader from '../../../common/Loader/TopLoader';
 
@@ -28,7 +33,9 @@ export default function ReOpenProcessModal({
   const [currentDraftId, setCurrentDraftId] = useState(initialDraftId || null);
   const [loading, setLoading] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
-  const [selectedOldDocumentDetails, setSelectedOldDocumentDetails] = useState({});
+  const [selectedOldDocumentDetails, setSelectedOldDocumentDetails] = useState(
+    {},
+  );
 
   const {
     control,
@@ -78,16 +85,21 @@ export default function ReOpenProcessModal({
     setLoading(true);
     try {
       const response = await GetDraftForEditing(id);
-      const { type, draftId: fetchedDraftId, formData, originalDocuments } = response.data;
+      const {
+        type,
+        draftId: fetchedDraftId,
+        formData,
+        originalDocuments,
+      } = response.data;
 
-      if (type !== "REOPEN") {
-        toast.error("This is not a reopen draft");
+      if (type !== 'REOPEN') {
+        toast.error('This is not a reopen draft');
         return;
       }
-
-      console.log("Loaded draft data:", formData.supersededDocuments);
-
-      if (formData.supersededDocuments && formData.supersededDocuments.length > 0) {
+      if (
+        formData.supersededDocuments &&
+        formData.supersededDocuments.length > 0
+      ) {
         // Replace the entire field array with draft data
         replace(formData.supersededDocuments);
       }
@@ -111,7 +123,7 @@ export default function ReOpenProcessModal({
 
       toast.success('Draft loaded successfully');
     } catch (error) {
-      console.error("Error loading draft:", error);
+      console.error('Error loading draft:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setLoading(false);
@@ -176,7 +188,7 @@ export default function ReOpenProcessModal({
   };
 
   const viewOldDocumentDetails = (documentId, index) => {
-    const document = documents.find(doc => doc.id === parseInt(documentId));
+    const document = documents.find((doc) => doc.id === parseInt(documentId));
     if (document) {
       setSelectedOldDocumentDetails({
         [index]: {
@@ -188,7 +200,7 @@ export default function ReOpenProcessModal({
           rejectionDetails: document.rejectionDetails,
           tags: document.tags || [],
           type: document.type,
-        }
+        },
       });
     }
   };
@@ -201,21 +213,19 @@ export default function ReOpenProcessModal({
         ...data,
         saveAsDraft: true,
         draftId: currentDraftId,
-        type: "REOPEN",
+        type: 'REOPEN',
         workflowId: workflowId,
         storagePath: storagePath,
       };
 
-      console.log("Saving draft payload:", payload);
-
       const res = await SaveOrUpdateDraft(payload);
-      
+
       toast.success(res?.data?.message || 'Draft saved successfully');
       setCurrentDraftId(res?.data?.draftId);
       setIsEditMode(true);
-      
+      navigate('/processes/drafted');
     } catch (error) {
-      console.error("Error saving draft:", error);
+      console.error('Error saving draft:', error);
       toast.error(error?.response?.data?.message || error?.message);
     } finally {
       setLoading(false);
@@ -225,7 +235,7 @@ export default function ReOpenProcessModal({
   // Submit draft
   const handleSubmitDraft = async () => {
     if (!currentDraftId) {
-      toast.error("No draft to submit");
+      toast.error('No draft to submit');
       return;
     }
 
@@ -233,7 +243,7 @@ export default function ReOpenProcessModal({
     try {
       const res = await SubmitDraft(currentDraftId);
       toast.success(res?.data?.message || 'Process reopened successfully');
-      
+
       close();
       if (window.location.pathname.includes('drafted')) {
         navigate('/processes/drafted');
@@ -258,7 +268,9 @@ export default function ReOpenProcessModal({
     });
 
     if (!valid) {
-      toast.warning('Please fill all required fields and upload all documents.');
+      toast.warning(
+        'Please fill all required fields and upload all documents.',
+      );
       return;
     }
 
@@ -293,10 +305,10 @@ export default function ReOpenProcessModal({
 
   const addTag = (index, tag) => {
     if (!tag.trim()) return;
-    
+
     const currentTags = watch(`supersededDocuments.${index}.tags`) || [];
     setValue(`supersededDocuments.${index}.tags`, [...currentTags, tag.trim()]);
-    setNewTags(prev => ({ ...prev, [index]: '' }));
+    setNewTags((prev) => ({ ...prev, [index]: '' }));
   };
 
   const removeTag = (index, tagIndex) => {
@@ -309,7 +321,10 @@ export default function ReOpenProcessModal({
     <>
       {loading && <TopLoader />}
       <div className="max-h-[80vh] overflow-y-auto">
-        <form onSubmit={handleSubmit(handleSubmitImmediately)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit(handleSubmitImmediately)}
+          className="space-y-4"
+        >
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold">
               {isEditMode ? 'Edit Reopen Draft' : 'Reopen Process'}
@@ -336,19 +351,36 @@ export default function ReOpenProcessModal({
 
           {fields.map((field, index) => {
             const isNew = watch(`supersededDocuments.${index}.isNewDocument`);
-            const preApproved = watch(`supersededDocuments.${index}.preApproved`);
-            const uploaded = watch(`supersededDocuments.${index}.uploadedFileName`);
+            const preApproved = watch(
+              `supersededDocuments.${index}.preApproved`,
+            );
+            const uploaded = watch(
+              `supersededDocuments.${index}.uploadedFileName`,
+            );
             const tags = watch(`supersededDocuments.${index}.tags`) || [];
-            const oldDocumentId = watch(`supersededDocuments.${index}.oldDocumentId`);
-            const reasonOfSupersed = watch(`supersededDocuments.${index}.reasonOfSupersed`);
+            const oldDocumentId = watch(
+              `supersededDocuments.${index}.oldDocumentId`,
+            );
+            const reasonOfSupersed = watch(
+              `supersededDocuments.${index}.reasonOfSupersed`,
+            );
             const partNumber = watch(`supersededDocuments.${index}.partNumber`);
-            const fileDescription = watch(`supersededDocuments.${index}.fileDescription`);
-            const documentIssueNo = watch(`supersededDocuments.${index}.issueNo`);
-            
-            const oldDocument = documents.find(doc => doc.id === parseInt(oldDocumentId));
+            const fileDescription = watch(
+              `supersededDocuments.${index}.fileDescription`,
+            );
+            const documentIssueNo = watch(
+              `supersededDocuments.${index}.issueNo`,
+            );
+
+            const oldDocument = documents.find(
+              (doc) => doc.id === parseInt(oldDocumentId),
+            );
 
             return (
-              <div key={field.id} className="border p-4 rounded-lg relative space-y-4 bg-gray-50">
+              <div
+                key={field.id}
+                className="border p-4 rounded-lg relative space-y-4 bg-gray-50"
+              >
                 {index > 0 && (
                   <button
                     type="button"
@@ -376,7 +408,9 @@ export default function ReOpenProcessModal({
                     <label className="flex gap-2 items-center">
                       <input
                         type="checkbox"
-                        {...register(`supersededDocuments.${index}.isNewDocument`)}
+                        {...register(
+                          `supersededDocuments.${index}.isNewDocument`,
+                        )}
                       />
                       New document (not replacement)
                     </label>
@@ -384,7 +418,9 @@ export default function ReOpenProcessModal({
                     <label className="flex gap-2 items-center">
                       <input
                         type="checkbox"
-                        {...register(`supersededDocuments.${index}.preApproved`)}
+                        {...register(
+                          `supersededDocuments.${index}.preApproved`,
+                        )}
                       />
                       Pre-approved document
                     </label>
@@ -396,9 +432,12 @@ export default function ReOpenProcessModal({
                         Select Document to Replace *
                       </label>
                       <select
-                        {...register(`supersededDocuments.${index}.oldDocumentId`, {
-                          required: !isNew && 'Select document to replace',
-                        })}
+                        {...register(
+                          `supersededDocuments.${index}.oldDocumentId`,
+                          {
+                            required: !isNew && 'Select document to replace',
+                          },
+                        )}
                         className="w-full border p-2 rounded"
                         onChange={(e) => {
                           if (e.target.value) {
@@ -413,12 +452,14 @@ export default function ReOpenProcessModal({
                           </option>
                         ))}
                       </select>
-                      
+
                       {oldDocument && (
                         <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-medium text-sm text-blue-700">Superseding Document:</p>
+                              <p className="font-medium text-sm text-blue-700">
+                                Superseding Document:
+                              </p>
                               <p className="text-sm">{oldDocument.name}</p>
                               {oldDocument.description && (
                                 <p className="text-xs text-gray-600 mt-1">
@@ -433,7 +474,9 @@ export default function ReOpenProcessModal({
                             </div>
                             <button
                               type="button"
-                              onClick={() => viewOldDocumentDetails(oldDocument.id, index)}
+                              onClick={() =>
+                                viewOldDocumentDetails(oldDocument.id, index)
+                              }
                               className="text-blue-600 hover:text-blue-800"
                               title="View full details"
                             >
@@ -497,55 +540,49 @@ export default function ReOpenProcessModal({
                       Reason for Superseding *
                     </label>
                     <textarea
-                      {...register(`supersededDocuments.${index}.reasonOfSupersed`, {
-                        required: 'Reason is required',
-                      })}
+                      {...register(
+                        `supersededDocuments.${index}.reasonOfSupersed`,
+                        {
+                          required: 'Reason is required',
+                        },
+                      )}
                       className="w-full border p-2 rounded"
                       placeholder="Enter detailed reason for superseding this document"
                       rows="3"
                     />
-                    {reasonOfSupersed && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Character count: {reasonOfSupersed.length}
-                      </p>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium mb-1 block">
-                        Document Description *
+                        Part Number *
                       </label>
                       <input
-                        {...register(`supersededDocuments.${index}.partNumber`, {
-                          required: 'Description is required',
-                        })}
+                        {...register(
+                          `supersededDocuments.${index}.partNumber`,
+                          {
+                            required: 'Description is required',
+                          },
+                        )}
                         className="w-full border p-2 rounded"
                         placeholder="Enter document description"
                       />
-                      {partNumber && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Description: {partNumber}
-                        </p>
-                      )}
                     </div>
 
                     <div>
                       <label className="text-sm font-medium mb-1 block">
-                        Part Number *
+                        Document Description *
                       </label>
                       <input
-                        {...register(`supersededDocuments.${index}.fileDescription`, {
-                          required: 'Part Number is required',
-                        })}
+                        {...register(
+                          `supersededDocuments.${index}.fileDescription`,
+                          {
+                            required: 'Part Number is required',
+                          },
+                        )}
                         className="w-full border p-2 rounded"
                         placeholder="Enter part number"
                       />
-                      {fileDescription && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Part No: {fileDescription}
-                        </p>
-                      )}
                     </div>
                   </div>
 
@@ -560,16 +597,6 @@ export default function ReOpenProcessModal({
                       className="w-full border p-2 rounded"
                       placeholder="Enter document issue / revision number"
                     />
-                    {documentIssueNo && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        New Issue No: {documentIssueNo}
-                        {oldDocument?.issueNo && (
-                          <span className="ml-2 text-gray-400">
-                            (Previous: {oldDocument.issueNo})
-                          </span>
-                        )}
-                      </p>
-                    )}
                   </div>
 
                   <div>
@@ -578,9 +605,12 @@ export default function ReOpenProcessModal({
                       <input
                         value={newTags[index] || ''}
                         onChange={(e) =>
-                          setNewTags(prev => ({
+                          setNewTags((prev) => ({
                             ...prev,
-                            [index]: e.target.value.replace(/[^a-zA-Z0-9 ]/g, '')
+                            [index]: e.target.value.replace(
+                              /[^a-zA-Z0-9 ]/g,
+                              '',
+                            ),
                           }))
                         }
                         placeholder="Enter tag"
@@ -650,36 +680,41 @@ export default function ReOpenProcessModal({
             }
           />
 
-          <div className="flex justify-between gap-2 pt-4 border-t">
-            <div className="flex gap-2">
-              {isEditMode && (
+          <div className="flex gap-2 pt-2 border-t overflow-auto flex-wrap">
+            {/* {isEditMode && (
+              <div>
                 <CustomButton
                   type="button"
                   variant="success"
                   click={handleSubmitDraft}
                   disabled={loading}
                   text="Submit Draft"
+                  className={'min-w-fit'}
                 />
-              )}
+              </div>
+            )} */}
+            <div>
               <CustomButton
                 type="button"
                 variant="secondary"
                 click={handleSubmit((data) => handleSaveDraft(data))}
                 disabled={loading}
-                text={isEditMode ? "Update Draft" : "Save as Draft"}
+                text={isEditMode ? 'Update Draft' : 'Save as Draft'}
               />
             </div>
-            <div className="flex gap-2">
+            <div>
               <CustomButton
                 type="button"
                 variant="danger"
                 click={close}
                 text="Cancel"
               />
+            </div>
+            <div>
               <CustomButton
                 type="submit"
                 disabled={loading || isSubmitting}
-                text={isEditMode ? "Reopen Process (Update)" : "Reopen Process"}
+                text={isEditMode ? 'Reopen Process (Update)' : 'Reopen Process'}
               />
             </div>
           </div>
@@ -706,54 +741,58 @@ export default function ReOpenProcessModal({
                 ✕
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="font-medium">Document Name:</label>
                 <p className="text-gray-700">{details.name}</p>
               </div>
-              
+
               {details.description && (
                 <div>
                   <label className="font-medium">Description:</label>
                   <p className="text-gray-700">{details.description}</p>
                 </div>
               )}
-              
+
               {details.issueNo && (
                 <div>
                   <label className="font-medium">Current Issue No:</label>
                   <p className="text-gray-700">{details.issueNo}</p>
                 </div>
               )}
-              
+
               {details.type && (
                 <div>
                   <label className="font-medium">Type:</label>
                   <p className="text-gray-700">{details.type.toUpperCase()}</p>
                 </div>
               )}
-              
+
               {details.tags && details.tags.length > 0 && (
                 <div>
                   <label className="font-medium">Tags:</label>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {details.tags.map((tag, idx) => (
-                      <span key={idx} className="bg-gray-200 text-gray-800 px-2 py-1 rounded text-sm">
+                      <span
+                        key={idx}
+                        className="bg-gray-200 text-gray-800 px-2 py-1 rounded text-sm"
+                      >
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-              
+
               {details.signedBy?.length > 0 && (
                 <div>
                   <label className="font-medium">Signatures:</label>
                   <ul className="list-disc pl-5 text-gray-700">
                     {details.signedBy.map((signature, idx) => (
                       <li key={idx}>
-                        {signature.signedBy} - {new Date(signature.signedAt).toLocaleString()}
+                        {signature.signedBy} -{' '}
+                        {new Date(signature.signedAt).toLocaleString()}
                         {signature.remarks && (
                           <span className="text-gray-500 text-sm ml-2">
                             (Remarks: {signature.remarks})
@@ -764,12 +803,14 @@ export default function ReOpenProcessModal({
                   </ul>
                 </div>
               )}
-              
+
               {details.rejectionDetails && (
                 <div className="bg-red-50 p-3 rounded">
-                  <label className="font-medium text-red-700">Rejection Details:</label>
+                  <label className="font-medium text-red-700">
+                    Rejection Details:
+                  </label>
                   <p className="text-red-600">
-                    {details.rejectionDetails.rejectionReason} 
+                    {details.rejectionDetails.rejectionReason}
                     <span className="text-sm text-red-500 ml-2">
                       (By: {details.rejectionDetails.rejectedBy})
                     </span>

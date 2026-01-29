@@ -68,7 +68,7 @@ export default function DraftedProcesses() {
   const filteredData = data.filter((d) =>
     `${d.name || ''} ${d.description || ''} ${d.type || ''}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+      .includes(searchTerm.toLowerCase()),
   );
 
   const columns = [
@@ -102,33 +102,33 @@ export default function DraftedProcesses() {
       ),
     },
     {
-      field: 'workflowProcess',
+      field: 'workflow',
       headerName: 'Workflow / Process',
       width: 260,
       valueGetter: (params) => {
-  const row = params?.row;
-  if (!row) return '—';
+        console.log(params);
+        if (!params) return '—';
 
-  return row.workflow?.name || '—';
-},
+        return params?.name || '—';
+      },
     },
     {
       field: 'documentCount',
-      headerName: 'Documents',
+      headerName: 'Drafted Documents',
       width: 120,
     },
     {
       field: 'createdAt',
       headerName: 'Created',
       width: 180,
-      valueGetter: ({ value }) =>
+      valueGetter: (value) =>
         value ? moment(value).format('DD-MMM-YYYY hh:mm A') : '—',
     },
     {
       field: 'updatedAt',
       headerName: 'Last Updated',
       width: 180,
-      valueGetter: ({ value }) =>
+      valueGetter: (value) =>
         value ? moment(value).format('DD-MMM-YYYY hh:mm A') : '—',
     },
     {
@@ -137,7 +137,7 @@ export default function DraftedProcesses() {
       width: 140,
       sortable: false,
       renderCell: ({ row }) => (
-        <div className="flex gap-2">
+        <div className="flex p-1 gap-2">
           <button
             className="p-2 bg-blue-600 hover:bg-blue-700 rounded"
             onClick={() => handleView(row)}
@@ -178,9 +178,8 @@ export default function DraftedProcesses() {
             <div>
               <h2 className="text-xl font-bold">Drafted Processes</h2>
               <p className="text-sm text-gray-600">
-                Total: {meta.total || 0} —{' '}
-                {meta.initiateDrafts || 0} Initiation,{' '}
-                {meta.reopenDrafts || 0} Reopen
+                Total: {meta.total || 0} — {meta.initiateDrafts || 0}{' '}
+                Initiation, {meta.reopenDrafts || 0} Reopen
               </p>
             </div>
 

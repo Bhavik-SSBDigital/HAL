@@ -357,7 +357,7 @@ export default function InitiateProcess() {
         <div className="flex justify-between items-center mb-6">
           <Title text={isEditMode ? 'Edit Draft' : 'Initiate Process'} />
           <div className="flex gap-2">
-            {isEditMode && (
+            {/* {isEditMode && (
               <CustomButton
                 type="button"
                 text="Submit Draft"
@@ -365,7 +365,7 @@ export default function InitiateProcess() {
                 click={handleSubmitDraft}
                 className="w-auto"
               />
-            )}
+            )} */}
             <CustomButton
               type="button"
               text="Save as Draft"
