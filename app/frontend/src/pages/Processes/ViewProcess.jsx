@@ -28,6 +28,9 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import CustomCard from '../../CustomComponents/CustomCard';
+import { useLocation } from 'react-router-dom';
+
+
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
@@ -48,7 +51,10 @@ import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isCompleted = searchParams.get('completed') === 'true';
+  const [autoOpenReopenModal, setAutoOpenReopenModal] = useState(false);
+  const [reopenDraftId, setReopenDraftId] = useState(null);
   const username = sessionStorage.getItem('username');
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef();
@@ -618,6 +624,25 @@ const ViewProcess = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+  // Check if we came from DraftedProcesses with a reopen draft
+  if (location.state?.openReopenModal && location.state?.reopenDraftId) {
+    setAutoOpenReopenModal(true);
+    setReopenDraftId(location.state.reopenDraftId);
+    
+    // Clear the state so it doesn't reopen on refresh
+    window.history.replaceState({}, document.title);
+  }
+}, [location.state]);
+
+// Add this useEffect to open the modal when process is loaded
+useEffect(() => {
+  if (autoOpenReopenModal && process && reopenDraftId) {
+    setOpenModal('re-open');
+    setAutoOpenReopenModal(false);
+  }
+}, [autoOpenReopenModal, process, reopenDraftId]);
 
   const GetRecommendations = async () => {
     try {
@@ -1634,22 +1659,27 @@ const ViewProcess = () => {
         />
       </CustomModal>
       <CustomModal
-        isOpen={openModal == 're-open'}
-        onClose={() => {
-          setOpenModal('');
-        }}
-        className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
-      >
-        <ReOpenProcessModal
-          workflowId={process?.workflow?.id}
-          processId={process.processId}
-          storagePath={process.processStoragePath}
-          close={() => {
-            setOpenModal('');
-          }}
-          documents={process.documents}
-        />
-      </CustomModal>
+  isOpen={openModal == 're-open'}
+  onClose={() => {
+    setOpenModal('');
+    setReopenDraftId(null);
+  }}
+  className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
+>
+  <ReOpenProcessModal
+    workflowId={process?.workflow?.id}
+    processId={process?.processId}
+    storagePath={process?.processStoragePath}
+    close={() => {
+      setOpenModal('');
+      setReopenDraftId(null);
+      // Refresh the page to show updated process
+      fetchProcess();
+    }}
+    documents={process?.documents || []}
+    draftId={reopenDraftId}
+  />
+</CustomModal>
       <RemarksModal
         open={remarksModalOpen.open === 'sign'}
         title="Sign Remarks"

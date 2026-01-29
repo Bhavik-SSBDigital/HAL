@@ -9,12 +9,14 @@ import {
   uploadDocumentInProcess,
   useTemplateDocument,
   ViewDocument,
+  GetDraftForEditing,
+  SaveOrUpdateDraft,
+  SubmitDraft,
 } from '../../common/Apis';
-import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import CustomButton from '../../CustomComponents/CustomButton';
 import TopLoader from '../../common/Loader/TopLoader';
 import ViewFile from '../view/View';
@@ -22,8 +24,10 @@ import CustomCard from '../../CustomComponents/CustomCard';
 import Title from '../../CustomComponents/Title';
 
 export default function InitiateProcess() {
-  console.log("called")
   const navigate = useNavigate();
+  const { draftId } = useParams();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState(null);
   const [workflowData, setWorkflowData] = useState([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -33,14 +37,16 @@ export default function InitiateProcess() {
     preApproved: false,
     fileDescription: '',
     issueNo: '',
+    name: '',
   });
 
   const [newTag, setNewTag] = useState('');
   const [templates, setTemplates] = useState([]);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [fileView, setFileView] = useState(null);
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
 
-  const defaultvalues = {
+  const defaultValues = {
     workflowId: '',
     description: '',
     documents: [],
@@ -57,7 +63,7 @@ export default function InitiateProcess() {
     reset,
     formState: { errors },
   } = useForm({
-    defaultValues: defaultvalues,
+    defaultValues: defaultValues,
   });
 
   const [workflowId] = watch(['workflowId']);
@@ -66,6 +72,71 @@ export default function InitiateProcess() {
     append: addDocument,
     remove: removeDocument,
   } = useFieldArray({ control, name: 'documents' });
+
+  // Load draft if draftId exists in URL
+  useEffect(() => {
+    if (draftId) {
+      loadDraftForEdit(draftId);
+    }
+  }, [draftId]);
+
+  const loadDraftForEdit = async (id) => {
+    setActionsLoading(true);
+    try {
+      const response = await GetDraftForEditing(id);
+      const { type, draftId: fetchedDraftId, formData, workflow } = response.data;
+
+      if (type !== "INITIATE") {
+        toast.error("This is not an initiation draft");
+        navigate('/processes/initiate');
+        return;
+      }
+
+      // Reset form with draft data
+      reset({
+        workflowId: formData.workflowId,
+        description: formData.description,
+        issueNo: formData.issueNo,
+        documents: formData.documents.map(doc => ({
+          documentId: doc.documentId,
+          name: doc.name,
+          tags: doc.tags,
+          partNumber: doc.partNumber,
+          description: doc.description,
+          issueNo: doc.issueNo,
+          preApproved: doc.preApproved,
+          documentPath: doc.documentPath,
+        })),
+      });
+
+      setCurrentDraftId(fetchedDraftId);
+      setIsEditMode(true);
+      
+      // Set selected workflow
+      if (formData.workflowId) {
+        // Get all workflows to find the matching one
+        const allWorkflows = await GetWorkflows();
+        const workflows = allWorkflows.data.workflows || [];
+        
+        // Find the workflow that has this version
+        const workflowMatch = workflows.find(wf => 
+          wf.versions?.some(ver => ver.id === formData.workflowId)
+        );
+        
+        if (workflowMatch) {
+          setSelectedWorkflow(workflowMatch);
+        }
+      }
+      
+      toast.success('Draft loaded successfully');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+      navigate('/processes/initiate');
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
   const handleDeleteDocument = async (index, id) => {
     setActionsLoading(true);
     try {
@@ -83,8 +154,8 @@ export default function InitiateProcess() {
     }
   };
 
+  // Load workflows on mount
   useEffect(() => {
-    console.log("called")
     const getWorkflowsData = async () => {
       try {
         const response = await GetWorkflows();
@@ -93,7 +164,6 @@ export default function InitiateProcess() {
         console.log(error);
       }
     };
-
     getWorkflowsData();
   }, []);
 
@@ -102,6 +172,7 @@ export default function InitiateProcess() {
   };
 
   const inputRef = useRef(null);
+  
   const handleUpload = async () => {
     if (!workflowId) {
       toast.info('Please select workflow.');
@@ -113,8 +184,6 @@ export default function InitiateProcess() {
     setActionsLoading(true);
 
     try {
-      // Generate file name from backend
-
       const generatedName = fileDetails.preApproved
         ? {
             data: {
@@ -128,14 +197,12 @@ export default function InitiateProcess() {
             selectedFile.name.split('.').pop(),
           );
 
-      // Upload file using generated name and tags
       const res = await uploadDocumentInProcess(
         [selectedFile],
         generatedName?.data?.documentName,
         fileDetails?.tags,
       );
 
-      // Success logic
       toast.success('File uploaded successfully');
 
       addDocument({
@@ -155,29 +222,77 @@ export default function InitiateProcess() {
         preApproved: false,
         fileDescription: '',
         issueNo: '',
+        name: '',
       });
 
       setNewTag('');
       setSelectedFile(null);
       if (inputRef.current) inputRef.current.value = null;
     } catch (err) {
-      // Show relevant error
       toast.error(err?.response?.data?.message || err.message);
     } finally {
       setActionsLoading(false);
     }
   };
 
-  const onSubmit = async (data) => {
+  // Handle save as draft
+  const handleSaveDraft = async (data) => {
+    setActionsLoading(true);
+    try {
+      const payload = {
+        ...data,
+        saveAsDraft: true,
+        draftId: currentDraftId,
+        type: "INITIATE",
+      };
+
+      const res = await SaveOrUpdateDraft(payload);
+      
+      toast.success(res?.data?.message || 'Draft saved successfully');
+      setCurrentDraftId(res?.data?.draftId);
+      setIsEditMode(true);
+      
+      // Update URL if this is a new draft
+      if (!draftId && res?.data?.draftId) {
+        navigate(`/processes/initiate/${res.data.draftId}`);
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
+  // Handle submit draft (convert to actual process)
+  const handleSubmitDraft = async () => {
+    if (!currentDraftId) {
+      toast.error("No draft to submit");
+      return;
+    }
+
+    setActionsLoading(true);
+    try {
+      const res = await SubmitDraft(currentDraftId);
+      toast.success(res?.data?.message || 'Process initiated successfully');
+      navigate('/processes/work');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message);
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
+  // Handle submit immediately (no draft)
+  const handleSubmitImmediately = async (data) => {
     if (data?.documents?.length === 0) {
       toast.info('Please upload documents for process');
       return;
     }
+
     setActionsLoading(true);
     try {
       const res = await ProcessInitiate(data);
-      toast.success(res?.data?.message);
-      console.log(data);
+      toast.success(res?.data?.message || 'Process initiated successfully');
       navigate('/processes/work');
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -220,6 +335,7 @@ export default function InitiateProcess() {
     }
   };
 
+  // Load templates when workflow is selected
   useEffect(() => {
     if (workflowId) {
       const getTemplates = async () => {
@@ -236,9 +352,30 @@ export default function InitiateProcess() {
 
   return (
     <>
-      {actionsLoading ? <TopLoader /> : null}
+      {actionsLoading && <TopLoader />}
       <CustomCard className="max-w-7xl mx-auto p-6">
-        <Title text={'Initiate Process'} />
+        <div className="flex justify-between items-center mb-6">
+          <Title text={isEditMode ? 'Edit Draft' : 'Initiate Process'} />
+          <div className="flex gap-2">
+            {isEditMode && (
+              <CustomButton
+                type="button"
+                text="Submit Draft"
+                variant="success"
+                click={handleSubmitDraft}
+                className="w-auto"
+              />
+            )}
+            <CustomButton
+              type="button"
+              text="Save as Draft"
+              variant="secondary"
+              click={handleSubmit((data) => handleSaveDraft(data))}
+              disabled={actionsLoading || documentFields.length === 0}
+              className="w-auto"
+            />
+          </div>
+        </div>
 
         <form className="space-y-10">
           {/* Process Info Section */}
@@ -275,11 +412,6 @@ export default function InitiateProcess() {
                   className="w-full border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter"
                 />
-                {errors.issueNo && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.issueNo.message}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -293,11 +425,13 @@ export default function InitiateProcess() {
                       (wf) => wf.name === e.target.value,
                     );
                     setSelectedWorkflow(selected);
+                    setValue('workflowId', '');
                   }}
+                  value={selectedWorkflow?.name || ''}
                 >
                   <option value="">Select a Workflow</option>
                   {workflowData.map((wf) => (
-                    <option key={wf.name} value={wf.name}>
+                    <option key={wf.id} value={wf.name}>
                       {wf.name}
                     </option>
                   ))}
@@ -319,7 +453,7 @@ export default function InitiateProcess() {
                       disabled={!selectedWorkflow}
                     >
                       <option value="">Select a Version</option>
-                      {selectedWorkflow?.versions.map((ver) => (
+                      {selectedWorkflow?.versions?.map((ver) => (
                         <option key={ver.id} value={ver.id}>
                           Version {ver.version} - {ver.description}
                         </option>
@@ -333,8 +467,8 @@ export default function InitiateProcess() {
                   </p>
                 )}
               </div>
-              {/* Show Workflow Steps */}
             </div>
+            
             {workflowId && (
               <div className="border mt-3 w-full border-gray-400 rounded-md p-4 shadow-lg">
                 <Show
@@ -348,13 +482,12 @@ export default function InitiateProcess() {
             )}
           </section>
 
-          {/* Templates */}
+          {/* Templates Section */}
           {templates?.length > 0 && (
             <section className="bg-white p-4 sm:p-6">
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
                 Templates
               </h3>
-
               <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                 {templates.map((template) => (
                   <li
@@ -385,7 +518,7 @@ export default function InitiateProcess() {
             </section>
           )}
 
-          {/* Upload File */}
+          {/* Upload File Section */}
           <section className="bg-white p-6">
             <h3 className="text-xl font-semibold text-gray-700 mb-4">
               Upload Document
@@ -475,7 +608,7 @@ export default function InitiateProcess() {
               )}
             </div>
 
-            {/* Part Number & Description */}
+            {/* Document Details */}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">
@@ -511,6 +644,7 @@ export default function InitiateProcess() {
                   placeholder="Enter file-specific description"
                 />
               </div>
+              
               <div>
                 <label className="text-sm font-medium text-gray-700">
                   Issue Number / Revision Number
@@ -528,7 +662,8 @@ export default function InitiateProcess() {
                   placeholder="Enter Issue Number / Revision Number"
                 />
               </div>
-              {fileDetails.preApproved ? (
+              
+              {fileDetails.preApproved && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">
                     Document Name
@@ -546,7 +681,7 @@ export default function InitiateProcess() {
                     placeholder="Enter Name"
                   />
                 </div>
-              ) : null}
+              )}
             </div>
 
             <div className="mt-4 flex items-center gap-2">
@@ -596,7 +731,6 @@ export default function InitiateProcess() {
                     key={doc.documentId}
                     className="p-4 bg-white border rounded-lg shadow-sm space-y-3"
                   >
-                    {/* Row 1: File details */}
                     <div className="flex items-start gap-4">
                       <div className="min-w-10 min-h-10 w-10 h-10 bg-purple-400 flex items-center justify-center rounded-full text-white text-lg">
                         📄
@@ -617,7 +751,6 @@ export default function InitiateProcess() {
                       </div>
                     </div>
 
-                    {/* Row 2: Actions */}
                     <div className="flex flex-wrap justify-end gap-2">
                       <CustomButton
                         type="button"
@@ -634,7 +767,6 @@ export default function InitiateProcess() {
                         text="View"
                         className="w-auto"
                       />
-
                       <CustomButton
                         type="button"
                         disabled={actionsLoading}
@@ -652,17 +784,20 @@ export default function InitiateProcess() {
             )}
           </section>
 
-          <CustomButton
-            type="button"
-            click={handleSubmit(onSubmit)}
-            disabled={actionsLoading}
-            text="Submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-          />
+          {/* Submit Button */}
+          <div className="flex gap-4">
+            <CustomButton
+              type="button"
+              click={handleSubmit(handleSubmitImmediately)}
+              disabled={actionsLoading}
+              text="Submit Process"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            />
+          </div>
         </form>
       </CustomCard>
 
-      {/* Section 4: File Viewer Modal */}
+      {/* File Viewer Modal */}
       {fileView && (
         <ViewFile
           docu={fileView}

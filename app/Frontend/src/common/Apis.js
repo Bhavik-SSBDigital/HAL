@@ -9,6 +9,8 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 const getAccessToken = () => sessionStorage.getItem('accessToken');
 
+const getToken = () => sessionStorage.getItem('accessToken');
+
 const apiClient = axios.create({
   baseURL: backendUrl,
   headers: {
@@ -37,6 +39,52 @@ export const downloadLoginLogoutReport = async (fromDate, toDate) => {
       toDate, // optional, only sent if provided
     },
   });
+};
+
+export const SaveProcessDraft = async (data) => {
+  return apiClient.post('/processes/drafts/save', data, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const EditProcessDraft = async (draftId) => {
+  return apiClient.get(`/processes/drafts/${draftId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const GetProcessDrafts = async () => {
+  return apiClient.get('/processes/drafts', {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const DeleteProcessDraft = async (draftId) => {
+  return apiClient.delete(`/processes/drafts/${draftId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const GetDraftForEditing = async (draftId) => {
+  return apiClient.get(`/getDraftedProcess/${draftId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const SaveOrUpdateDraft = async (data) => {
+  return apiClient.post(`/drafts/save/${data.draftId}`, data, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
+export const SubmitDraft = async (draftId, data) => {
+  return apiClient.post(
+    '/drafts/submit',
+    { draftId },
+    {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    },
+  );
 };
 
 export const exportFileLogs = async (fromDate, toDate) => {
@@ -331,6 +379,9 @@ export const removeProcessNotification = async (id) => {
 };
 export const GetCompletedProcessList = async () => {
   return apiClient.get(`/getCompletedProcesses`);
+};
+export const GetDraftedProcessList = async () => {
+  return apiClient.get(`/getDraftedProcesses`);
 };
 export const ReOpenProcess = async (data) => {
   return apiClient.post('/reopenProcess', data);

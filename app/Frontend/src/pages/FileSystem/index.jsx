@@ -1025,6 +1025,7 @@ export default function FileSysten() {
           <Section title="Basic Information" icon="📄">
             <Property label="Name" value={selectedItem?.name} />
             <Property label="Document Issue No" value={selectedItem?.issueNo} />
+            <Property label="Part Number" value={selectedItem?.partNumber} />
             <Property label="Type" value={selectedItem?.type} />
             <Property label="Size" value={`${selectedItem?.size} bytes`} />
             <Property label="Created By" value={selectedItem?.createdBy} />

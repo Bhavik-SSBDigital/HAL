@@ -146,6 +146,7 @@ import {
   get_recommendations,
   signAsRecommender,
   get_completed_initiator_processes,
+  get_drafted_processes_for_initiator,
   reopen_process,
   generateDocumentNameController,
   get_process_documents,
@@ -174,6 +175,11 @@ import {
   update_physical_request,
 } from "../controller/doc-tracking-controller.js";
 import { export_file_logs } from "../controller/file-operation-handler.js";
+import {
+  getDraftForEditing,
+  saveProcessDraft,
+  submitProcessDraft,
+} from "../controller/draft-controller.js";
 
 const router = express.Router();
 
@@ -213,7 +219,7 @@ router.post("/createPermissions", create_permissions);
 router.post("/getAllDocuments", getDocumentDetailsForAdmin);
 router.post(
   "/getDocumentDetailsOnTheBasisOfPathForEdit",
-  getDocumentDetailsOnTheBasisOfPathForEdit
+  getDocumentDetailsOnTheBasisOfPathForEdit,
 );
 router.post("/getDocumentChildren", getDocumentChildren);
 
@@ -231,7 +237,7 @@ router.get("/getRole/:id", get_role);
 router.put("/editRole/:id", edit_role);
 router.get(
   "/getRolesHierarchyInDepartment/:departmentId",
-  getRolesHierarchyInDepartment
+  getRolesHierarchyInDepartment,
 );
 
 // user-controller related routes
@@ -240,7 +246,7 @@ router.get("/getUser/:userId", get_user);
 router.put("/editUser/:userId", edit_user);
 router.get(
   "/workflows/:workflowId/getSteps",
-  get_workflow_steps_with_assignments
+  get_workflow_steps_with_assignments,
 );
 router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
 router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
@@ -365,18 +371,26 @@ router.post("/uploadSignature", upload_.single("file"), upload_signature);
 router.post(
   "/upload-template",
   upload_.single("file"),
-  upload_template_document
+  upload_template_document,
 );
 
 router.post("/useTemplateDocument", use_template_document);
 
 router.get("/getCompletedProcesses", get_completed_initiator_processes);
 
+router.get("/getDraftedProcesses", get_drafted_processes_for_initiator);
+
 router.post("/generateDocumentName", generateDocumentNameController);
+
+router.get("/getDraftedProcess/:draftId", getDraftForEditing);
+
+router.post("/drafts/save/:draftId", saveProcessDraft);
+
+router.post("/drafts/submit", submitProcessDraft);
 
 router.get(
   "/processDocuments/:processId/:versionNumber",
-  get_process_documents
+  get_process_documents,
 );
 
 router.get("/searchDocuments", search_documents);

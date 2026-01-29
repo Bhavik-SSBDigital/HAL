@@ -35,6 +35,7 @@ const __dirname = dirname(__filename);
 
 const COLLABORA_URL = process.env.WOPI_SERVER_URL;
 import { exec } from "child_process";
+import { error } from "console";
 const execPromise = promisify(exec);
 
 function getContentTypeFromExtension(extension) {
@@ -73,7 +74,7 @@ async function executeTextExtractionScript(filePath) {
   const pythonEnvPath = path.join(__dirname, "../../support/venv/bin/python");
   const pythonScriptPath = path.join(
     __dirname,
-    "../../support/text_extraction.py"
+    "../../support/text_extraction.py",
   );
 
   const command = `${pythonEnvPath} ${pythonScriptPath} "${filePath}"`;
@@ -248,7 +249,7 @@ export const file_upload = async (req, res) => {
               const absolutePath = path.join(
                 __dirname,
                 STORAGE_PATH,
-                newDocument.path
+                newDocument.path,
               );
               try {
                 await fs.access(absolutePath);
@@ -274,9 +275,8 @@ export const file_upload = async (req, res) => {
               const ext = path.extname(absolutePath).toLowerCase();
               let content = "";
               try {
-                const extractionResult = await executeTextExtractionScript(
-                  absolutePath
-                );
+                const extractionResult =
+                  await executeTextExtractionScript(absolutePath);
                 if (extractionResult.success) {
                   content = extractionResult.text;
                 }
@@ -290,7 +290,7 @@ export const file_upload = async (req, res) => {
 
               await SearchIndexService.indexDocumentContent(
                 newDocument.id,
-                content
+                content,
               );
 
               logger.info({
@@ -332,6 +332,7 @@ export const file_upload = async (req, res) => {
             replaced: fileReplaced,
           });
         } catch (err) {
+          console.log("error storing document details", error);
           logger.error({
             action: "FILE_UPLOAD_DB_ERROR",
             userId: userData.id,
@@ -483,7 +484,7 @@ export const createFolder = async (isProject, path_, userData) => {
             await createUserPermissions(
               newDocument.id,
               userData.username,
-              true
+              true,
             );
 
             const parentPath = getParentPath(path_);
@@ -588,6 +589,8 @@ export const file_copy = async (req, res) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
 
+    console.log("req body", req.body);
+
     logger.info({
       action: "FILE_COPY_START",
       userId: userData.id,
@@ -616,7 +619,7 @@ export const file_copy = async (req, res) => {
     const absoluteDestinationPath = path.join(
       __dirname,
       STORAGE_PATH,
-      destinationPath
+      destinationPath,
     );
 
     const sourceStream = createReadStream(absoluteSourcePath, {
@@ -636,6 +639,7 @@ export const file_copy = async (req, res) => {
     });
 
     destinationStream.on("error", (error) => {
+      console.log("error writing file", error);
       logger.error({
         action: "FILE_COPY_DESTINATION_ERROR",
         userId: userData.id,
@@ -651,6 +655,7 @@ export const file_copy = async (req, res) => {
 
     destinationStream.on("finish", async () => {
       try {
+        console.log("destination path", destinationPath);
         const newDocument = await prisma.document.create({
           data: {
             name: name,
@@ -708,6 +713,7 @@ export const file_copy = async (req, res) => {
           documentId: newDocument.id,
         });
       } catch (error) {
+        console.log("error storing document details", error);
         logger.error({
           action: "FILE_COPY_DB_ERROR",
           userId: userData.id,
@@ -761,7 +767,7 @@ export const file_cut = async (req, res) => {
     const absoluteDestinationPath = path.join(
       __dirname,
       STORAGE_PATH,
-      destinationPath
+      destinationPath,
     );
 
     const sourceStream = createReadStream(absoluteSourcePath, {
@@ -920,7 +926,7 @@ export const documentIdCleanUpFromDocument = async (idToRemove) => {
   }
 
   console.log(
-    `Removed document with ID ${idToRemove} from parent relationships.`
+    `Removed document with ID ${idToRemove} from parent relationships.`,
   );
 };
 
@@ -1009,7 +1015,7 @@ const storeDocumentDetailsToDatabase = async (
   cabinetNo,
   workName,
   year,
-  departmentName
+  departmentName,
 ) => {
   try {
     // Fetch the user using Prisma Client
@@ -1153,7 +1159,7 @@ export const folder_download = async (req, res) => {
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${zipFileName}"`
+      `attachment; filename="${zipFileName}"`,
     );
 
     const archive = archiver("zip", { zlib: { level: 9 } });
@@ -1209,7 +1215,7 @@ export const file_delete = async (req, res) => {
     let absolutePath = path.join(
       __dirname,
       process.env.STORAGE_PATH,
-      document.path
+      document.path,
     );
 
     // Check if file exists in the filesystem
@@ -1588,7 +1594,7 @@ export const archive_file = async (req, res) => {
 
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + document.path
+      process.env.STORAGE_PATH + document.path,
     );
 
     // Check if file exists in the filesystem
@@ -1764,7 +1770,7 @@ export const unarchive_file = async (req, res) => {
 
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + document.path
+      process.env.STORAGE_PATH + document.path,
     );
 
     // Check if file exists in the filesystem
@@ -1863,7 +1869,7 @@ export const recover_from_recycle_bin = async (req, res) => {
 
     let absolutePath = path.join(
       __dirname,
-      process.env.STORAGE_PATH + document.path
+      process.env.STORAGE_PATH + document.path,
     );
 
     // Check if file exists in the filesystem
@@ -2028,7 +2034,7 @@ export const getFileDataByDocumentId = async (req, res) => {
     const filePath = join(
       __dirname,
       process.env.STORAGE_PATH || "",
-      document.path
+      document.path,
     );
 
     const stat = await fs.stat(filePath);
@@ -2106,7 +2112,7 @@ export const wopiFiles = async (req, res) => {
     const filePath = join(
       __dirname,
       process.env.STORAGE_PATH || "",
-      document.path
+      document.path,
     );
 
     const stat = await fs.stat(filePath);
@@ -2165,7 +2171,7 @@ export const wopiFilePost = async (req, res) => {
     const filePath = join(
       __dirname,
       process.env.STORAGE_PATH || "",
-      document.path
+      document.path,
     );
 
     console.log("file path", filePath);
@@ -2305,7 +2311,7 @@ export const downloadWatermarkedFile = async (req, res) => {
     tempFilePath = path.join(
       __dirname,
       STORAGE_PATH,
-      `temp_${Date.now()}_${path.basename(absoluteFilePath, ext)}.pdf`
+      `temp_${Date.now()}_${path.basename(absoluteFilePath, ext)}.pdf`,
     );
 
     if (allowedExtensions.includes(ext)) {
@@ -2320,7 +2326,7 @@ export const downloadWatermarkedFile = async (req, res) => {
           const fontSize = Math.max(Math.min(width, height) * 0.07, 20);
           const textWidth = helveticaFont.widthOfTextAtSize(
             watermarkText,
-            fontSize
+            fontSize,
           );
           page.drawText(watermarkText, {
             x: width / 2 - textWidth / 2,
@@ -2337,7 +2343,7 @@ export const downloadWatermarkedFile = async (req, res) => {
         watermarkedFilePath = path.join(
           __dirname,
           STORAGE_PATH,
-          `watermarked_${Date.now()}_${path.basename(absoluteFilePath)}`
+          `watermarked_${Date.now()}_${path.basename(absoluteFilePath)}`,
         );
         await fs.writeFile(watermarkedFilePath, watermarkedPdfBytes);
       } else {
@@ -2345,15 +2351,15 @@ export const downloadWatermarkedFile = async (req, res) => {
         const metadata = await image.metadata();
         const fontSize = Math.max(
           Math.min(metadata.width || 0, metadata.height || 0) * 0.07,
-          20
+          20,
         );
         const svg = `
           <svg width="${metadata.width}" height="${
-          metadata.height
-        }" xmlns="http://www.w3.org/2000/svg">
+            metadata.height
+          }" xmlns="http://www.w3.org/2000/svg">
             <text x="50%" y="50%" font-family="Helvetica" font-size="${fontSize}" fill="#808080" fill-opacity="0.5" text-anchor="middle" dominant-baseline="middle" transform="rotate(-45, ${
-          metadata.width / 2
-        }, ${metadata.height / 2})">${watermarkText}</text>
+              metadata.width / 2
+            }, ${metadata.height / 2})">${watermarkText}</text>
           </svg>
         `;
         const svgBuffer = Buffer.from(svg);
@@ -2378,7 +2384,7 @@ export const downloadWatermarkedFile = async (req, res) => {
         tempImagePath = path.join(
           __dirname,
           STORAGE_PATH,
-          `temp_image_${Date.now()}${ext}`
+          `temp_image_${Date.now()}${ext}`,
         );
         await outputImage.toFile(tempImagePath);
 
@@ -2406,14 +2412,14 @@ export const downloadWatermarkedFile = async (req, res) => {
           STORAGE_PATH,
           `watermarked_${Date.now()}_${path.basename(
             absoluteFilePath,
-            ext
-          )}.pdf`
+            ext,
+          )}.pdf`,
         );
         await fs.writeFile(watermarkedFilePath, pdfBytes);
       }
 
       await execSync(
-        `qpdf --encrypt "${password}" "${password}" 256 -- "${watermarkedFilePath}" "${tempFilePath}"`
+        `qpdf --encrypt "${password}" "${password}" 256 -- "${watermarkedFilePath}" "${tempFilePath}"`,
       );
     } else {
       await fs.copyFile(absoluteFilePath, tempFilePath);
@@ -2425,7 +2431,7 @@ export const downloadWatermarkedFile = async (req, res) => {
       "Content-Length": tempStats.size,
       "Content-Disposition": `attachment; filename="${path.basename(
         absoluteFilePath,
-        ext
+        ext,
       )}.pdf"`,
       "Accept-Ranges": "bytes",
       "X-Content-Type-Options": "nosniff",

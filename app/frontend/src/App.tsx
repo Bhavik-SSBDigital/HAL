@@ -37,8 +37,11 @@ import TimelinePage from './pages/Timeline/TimelinePage';
 import Archive from './pages/Archive';
 import Templates from './pages/Templates';
 import CompletedProcesses from './pages/Processes/CompletedProcesses';
+import DraftedProcesses from './pages/Processes/DraftedProcesses';
 import Bookmark from './pages/Bookmark';
 import AdminReportsPage from './pages/Reports';
+import ReOpenProcessPage from './pages/Processes/Actions/ReOpenProcessModal';
+
 
 function App() {
   const dispatch = useDispatch();
@@ -123,6 +126,7 @@ function App() {
             </DefaultLayout>
           }
         />
+
 
         <Route
           path="/files"
@@ -314,6 +318,17 @@ function App() {
           }
         />
 
+
+        <Route
+          path="/processes/drafted"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Drafted Processes" />
+              <DraftedProcesses />
+            </DefaultLayout>
+          }
+        />
+
         {/* logs */}
         <Route
           path="/logs"
@@ -361,8 +376,10 @@ function App() {
             </DefaultLayout>
           }
         />
+
+
         <Route
-          path="/processes/initiate"
+          path="/processes/initiate/:draftId?"
           element={
             <DefaultLayout>
               <PageTitle title="Initiate Process" />

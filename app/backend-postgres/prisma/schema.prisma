@@ -41,6 +41,8 @@ model Document {
   createdBy             User?                    @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
   createdOn             DateTime                 @default(now())
   lastUpdatedOn         DateTime                 @updatedAt
+  draftDocuments ProcessDraftDocument[] @relation("DocumentDrafts")
+  oldDocumentInDrafts ProcessDraftDocument[] @relation("OldDocumentRelation")
   isArchived            Boolean                  @default(false)
   inBin                 Boolean                  @default(false)
   parentId              Int?
@@ -113,6 +115,7 @@ model User {
   updatedAt             DateTime?                @updatedAt
   createdById           Int?
   signaturePicFileName  String?
+  drafts ProcessDraft[] @relation("UserDrafts")
   profilePicFileName    String?
   dscFileName           String?
   createdBy             User?                    @relation("CreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
@@ -172,6 +175,7 @@ model Workflow {
   escalationTime   Int?      @default(48)
   autoApprovalAfter Int?     @default(168)
   createdAt        DateTime  @default(now())
+  drafts ProcessDraft[] @relation("WorkflowDrafts")
   updatedAt        DateTime? @updatedAt
   previousVersion  Workflow? @relation("WorkflowVersion", fields: [previousVersionId], references: [id], onDelete: Cascade)
   createdBy        User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
@@ -308,6 +312,7 @@ model ProcessInstance {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime? @updatedAt
   isRecirculated   Boolean   @default(false)
+  drafts ProcessDraft[] @relation("ProcessDrafts")
   reopenCycle      Int       @default(0)
   workflow         Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   initiator        User      @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
@@ -322,6 +327,64 @@ model ProcessInstance {
   departmentStepProgresses DepartmentStepProgress[] @relation()
   documentHistory  DocumentHistory[] @relation("ProcessDocumentHistory")
   storagePath     String    @default("")
+}
+
+model ProcessDraft {
+  id               String    @id @default(uuid())
+  type             DraftType // INITIATE or REOPEN
+  workflowId       String?
+  processId        String?   // For REOPEN drafts
+  initiatorId      Int
+  name             String?   // Generated process name
+  description      String?
+  issueNo          String?
+  documentData     Json      // Store document details as JSON
+  supersededDocuments Json?  // For REOPEN drafts
+  customizations   Json?
+  metadata         Json?
+  storagePath      String?
+  status           DraftStatus @default(DRAFT)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  submittedAt      DateTime?
+  
+  initiator User @relation("UserDrafts", fields: [initiatorId], references: [id])
+  workflow Workflow? @relation("WorkflowDrafts", fields: [workflowId], references: [id])
+  process ProcessInstance? @relation("ProcessDrafts", fields: [processId], references: [id])
+  draftDocuments ProcessDraftDocument[] @relation("ProcessDraftDocuments")
+  
+  @@unique([initiatorId, name, status])
+}
+
+model ProcessDraftDocument {
+  id               Int       @id @default(autoincrement())
+  draftId          String
+  documentId       Int
+  isNewDocument    Boolean?  @default(false)
+  oldDocumentId    Int?      // For replacements
+  preApproved      Boolean?  @default(false)
+  tags             String[]
+  partNumber       String?
+  description      String?
+  issueNo          String?
+  reasonOfSupersed String?
+  sortOrder        Int       @default(0)
+  
+  draft ProcessDraft @relation("ProcessDraftDocuments", fields: [draftId], references: [id], onDelete: Cascade)
+  document Document @relation("DocumentDrafts", fields: [documentId], references: [id], onDelete: Cascade)
+  oldDocument Document? @relation("OldDocumentRelation", fields: [oldDocumentId], references: [id])
+  @@unique([draftId, documentId])
+}
+
+enum DraftType {
+  INITIATE
+  REOPEN
+}
+
+enum DraftStatus {
+  DRAFT
+  SUBMITTED
+  ABANDONED
 }
 
 model AssignmentProgress {
@@ -512,6 +575,9 @@ model DocumentHistory {
   replacedDocument   Document? @relation("ReplacedDocumentHistory", fields: [replacedDocumentId], references: [id], onDelete: Cascade)
   processDocument    ProcessDocument? @relation("ProcessDocumentDocumentHistory", fields: [processDocumentId], references: [id], onDelete: Cascade)
 }
+
+
+
 
 model Recommendation {
   id               String    @id @default(uuid())
