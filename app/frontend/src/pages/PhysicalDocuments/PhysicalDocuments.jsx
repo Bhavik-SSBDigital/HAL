@@ -409,7 +409,7 @@ const PhysicalDocuments = () => {
                 >
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-semibold text-sm text-gray-800">
-                      {msg.user.name}
+                      Username : {msg.user.username}
                     </p>
                     <p className="text-xs text-gray-400">
                       {new Date(msg.createdAt).toLocaleString()}

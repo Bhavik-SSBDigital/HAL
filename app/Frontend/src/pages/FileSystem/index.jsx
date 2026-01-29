@@ -1024,9 +1024,14 @@ export default function FileSysten() {
           {/* BASIC */}
           <Section title="Basic Information" icon="📄">
             <Property label="Name" value={selectedItem?.name} />
+            <Property label="Document Issue No" value={selectedItem?.issueNo} />
             <Property label="Type" value={selectedItem?.type} />
             <Property label="Size" value={`${selectedItem?.size} bytes`} />
             <Property label="Created By" value={selectedItem?.createdBy} />
+            <Property
+              label="Process Issue No"
+              value={selectedItem?.processIssueNo}
+            />
           </Section>
 
           {/* TIMELINE */}
@@ -1090,13 +1095,11 @@ export default function FileSysten() {
           {/* CLASSIFICATION */}
           <Section title="Classification & Meta" icon="🏷️">
             <Property
-              label="Department ID"
-              value={selectedItem?.departmentId}
-            />
-            <Property
               label="Tags"
               value={
-                selectedItem?.processTags?.length ? selectedItem.processTags.join(', ') : '—'
+                selectedItem?.processTags?.length
+                  ? selectedItem.processTags.join(', ')
+                  : '—'
               }
             />
 

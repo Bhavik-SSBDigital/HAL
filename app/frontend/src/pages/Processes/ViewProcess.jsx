@@ -519,16 +519,16 @@ const ViewProcess = () => {
                   isLast ? 'bg-green-50 border-green-300' : 'bg-white'
                 }`}
               >
-                <div className="flex justify-between">
+                <div className="flex gap-6">
                   <span className="font-semibold text-gray-700">
-                    Reopen Cycle
+                    Reopen Cycle :
                   </span>
                   <span className="font-bold">{cycle.reopenCycle}</span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex gap-6">
                   <span className="font-semibold text-gray-700">
-                    Manual SOP
+                    Manual SOP :
                   </span>
                   <span className="font-medium">
                     {cycle.SOPIssueNo || '--'}
