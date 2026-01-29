@@ -824,7 +824,7 @@ export default function FileSysten() {
                   disabled={actionsLoading}
                 />
 
-                <CustomButton
+                {/* <CustomButton
                   variant="none"
                   text={
                     <>
@@ -836,7 +836,7 @@ export default function FileSysten() {
                     handleDownload(selectedItem.name, selectedItem.path)
                   }
                   disabled={actionsLoading}
-                />
+                /> */}
                 <CustomButton
                   variant="none"
                   text={

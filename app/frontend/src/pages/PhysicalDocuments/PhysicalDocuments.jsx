@@ -2,22 +2,25 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import CustomButton from '../../CustomComponents/CustomButton';
 import TopLoader from '../../common/Loader/TopLoader';
-import { IconEye } from '@tabler/icons-react';
+import { IconDownload, IconEye } from '@tabler/icons-react';
 import {
   getPhysicalRequests,
   updatePhysicalRequest,
   getPhysicalRequestMessages,
   ViewDocument,
+  DownloadFileWithWaterMark,
 } from '../../common/Apis';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
 import CustomCard from '../../CustomComponents/CustomCard';
 import moment from 'moment';
+import ModalWithField from '../../components/ModalWithField';
 
 const PhysicalDocuments = () => {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [actionsLoading, setActionsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -29,6 +32,7 @@ const PhysicalDocuments = () => {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [fileView, setFileView] = useState(null);
   const isAdmin = sessionStorage.getItem('isAdmin');
+  const [open, setOpen] = useState('');
   const isKeeperOfPhysicalDocs = sessionStorage.getItem(
     'isKeeperOfPhysicalDocs',
   );
@@ -173,6 +177,45 @@ const PhysicalDocuments = () => {
     }
   };
 
+  const handleDownloadWithWatermark = async (data) => {
+    try {
+      const response = await DownloadFileWithWaterMark(
+        selectedItem.id,
+        data.fieldValue,
+        data.watermark,
+      );
+
+      // Create a blob from the response data
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'],
+      });
+
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a hidden anchor element
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extract filename from headers if available
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = selectedItem?.name;
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+
+      // Trigger the download
+      link.click();
+
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('File download failed:', error);
+      toast.error(error?.response?.data?.message || error?.message);
+    }
+  };
+
   const getAvailableActions = (status) => {
     const userRole =
       isAdmin === 'true' || isKeeperOfPhysicalDocs === 'true'
@@ -283,6 +326,13 @@ const PhysicalDocuments = () => {
                     {/* Actions */}
                     <div className="flex flex-wrap justify-end gap-2">
                       <CustomButton
+                        text={<IconDownload size={18} className="text-white" />}
+                        title="Download Document"
+                        click={()=>setOpen('password')}
+                        variant="primary"
+                      />
+
+                      <CustomButton
                         text={<IconEye size={18} className="text-white" />}
                         title="View Document"
                         click={() =>
@@ -386,6 +436,16 @@ const PhysicalDocuments = () => {
           </div>
         </CustomModal>
       )}
+
+      {/* modal for watermark download */}
+      <ModalWithField
+        open={open == 'password'}
+        setOpen={setOpen}
+        actionsLoading={actionsLoading}
+        setActionsLoading={setActionsLoading}
+        fieldName="password" // 👈 parent defines the field name
+        onSubmit={handleDownloadWithWatermark}
+      />
 
       {/* History Modal */}
       {isHistoryModalOpen && (
