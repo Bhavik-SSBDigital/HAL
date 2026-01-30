@@ -9,13 +9,16 @@ export default function ModalWithField({
   setOpen,
   actionsLoading,
   setActionsLoading,
-  fieldName, // dynamic label/name
-  onSubmit, // callback from parent
+  fieldName,
+  onSubmit,
+  defaultWatermark = '',
+  lockWatermark = false,
 }) {
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -23,6 +26,13 @@ export default function ModalWithField({
       watermark: '',
     },
   });
+
+  // 👇 Set watermark when modal opens
+  React.useEffect(() => {
+    if (open && defaultWatermark) {
+      setValue('watermark', defaultWatermark);
+    }
+  }, [open, defaultWatermark, setValue]);
 
   const handleFormSubmit = async (data) => {
     setActionsLoading(true);
@@ -65,6 +75,7 @@ export default function ModalWithField({
               label="Watermark"
               type="text"
               {...field}
+              disabled={lockWatermark}   // 👈 lock it
               error={errors.watermark?.message}
             />
           )}
@@ -93,3 +104,4 @@ export default function ModalWithField({
     </CustomModal>
   );
 }
+

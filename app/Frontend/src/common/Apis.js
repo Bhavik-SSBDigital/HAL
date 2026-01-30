@@ -77,6 +77,12 @@ export const SaveOrUpdateDraft = async (data) => {
   });
 };
 
+export const deleteDraft = async (data) => {
+  return apiClient.delete(`/drafts/delete/${data.draftId}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+};
+
 export const SubmitDraft = async (draftId, data) => {
   return apiClient.post(
     '/drafts/submit',
@@ -304,10 +310,11 @@ export const DownloadFileWithWaterMark = async (
   documentId,
   password,
   watermark,
+  isControlled,
 ) => {
   return apiClient.post(
     `/downloadWatermarkedFile/${documentId}`,
-    { password, watermark },
+    { password, watermark, isControlled },
     { responseType: 'blob' },
   );
 };

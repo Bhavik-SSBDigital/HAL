@@ -12,6 +12,7 @@ import {
   GetDraftForEditing,
   SaveOrUpdateDraft,
   SubmitDraft,
+  deleteDraft
 } from '../../common/Apis';
 import Show from '../workflows/Show';
 import { toast } from 'react-toastify';
@@ -172,6 +173,11 @@ export default function InitiateProcess() {
   };
 
   const inputRef = useRef(null);
+
+
+
+  const latestFormDataRef = useRef(null);
+
   
   const handleUpload = async () => {
     if (!workflowId) {
@@ -236,32 +242,34 @@ export default function InitiateProcess() {
   };
 
   // Handle save as draft
-  const handleSaveDraft = async (data) => {
-    setActionsLoading(true);
-    try {
-      const payload = {
-        ...data,
-        saveAsDraft: true,
-        draftId: currentDraftId,
-        type: "INITIATE",
-      };
+const handleSaveDraft = async (data) => {
+  setActionsLoading(true);
+  try {
+    const payload = {
+      ...data,
+      saveAsDraft: true,
+      draftId: currentDraftId,
+      type: "INITIATE",
+    };
 
-      const res = await SaveOrUpdateDraft(payload);
-      
-      toast.success(res?.data?.message || 'Draft saved successfully');
-      setCurrentDraftId(res?.data?.draftId);
-      setIsEditMode(true);
-      
-      // Update URL if this is a new draft
-      if (!draftId && res?.data?.draftId) {
-        navigate(`/processes/initiate/${res.data.draftId}`);
-      }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
+
+    const res = await SaveOrUpdateDraft(payload);
+
+    toast.success(res?.data?.message || 'Draft saved successfully');
+
+    setCurrentDraftId(res?.data?.draftId);
+    setIsEditMode(true);
+
+    // ✅ navigate ONCE
+    navigate('/processes/drafted');
+
+  } catch (error) {
+    toast.error(error?.response?.data?.message || error?.message);
+  } finally {
+    setActionsLoading(false);
+  }
+};
+
 
   // Handle submit draft (convert to actual process)
   const handleSubmitDraft = async () => {
@@ -283,23 +291,32 @@ export default function InitiateProcess() {
   };
 
   // Handle submit immediately (no draft)
-  const handleSubmitImmediately = async (data) => {
-    if (data?.documents?.length === 0) {
-      toast.info('Please upload documents for process');
-      return;
+ const handleSubmitImmediately = async (data) => {
+  if (data?.documents?.length === 0) {
+    toast.info('Please upload documents for process');
+    return;
+  }
+
+  setActionsLoading(true);
+  try {
+    const res = await ProcessInitiate(data);
+
+    // ✅ STOP auto-save
+
+    const draftId = draftIdRef.current;
+    if (draftId) {
+      await deleteDraft({ draftId });
     }
 
-    setActionsLoading(true);
-    try {
-      const res = await ProcessInitiate(data);
-      toast.success(res?.data?.message || 'Process initiated successfully');
-      navigate('/processes/work');
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
+    toast.success(res?.data?.message || 'Process initiated successfully');
+    navigate('/processes/work');
+  } catch (error) {
+    toast.error(error?.response?.data?.message || error?.message);
+  } finally {
+    setActionsLoading(false);
+  }
+};
+
 
   const handleUseTemplate = async (template) => {
     setActionsLoading(true);
@@ -334,6 +351,26 @@ export default function InitiateProcess() {
       setActionsLoading(false);
     }
   };
+
+  useEffect(() => {
+  const subscription = watch((value) => {
+    latestFormDataRef.current = value;
+  });
+
+  return () => subscription.unsubscribe();
+}, [watch]);
+
+
+const draftIdRef = useRef(null);
+useEffect(() => {
+  draftIdRef.current = currentDraftId;
+}, [currentDraftId]);
+
+
+
+
+
+
 
   // Load templates when workflow is selected
   useEffect(() => {
@@ -743,6 +780,16 @@ export default function InitiateProcess() {
                         <p className="text-gray-700">
                           Tags: {doc.tags?.join(', ') || 'None'}
                         </p>
+                          <p className="text-gray-700">
+                          IssueNo: {doc.issueNo || 'None'}
+                        </p>
+                          <p className="text-gray-700">
+                          Description: {doc.description || 'None'}
+                        </p>
+                         <p className="text-gray-700">
+                          PartNumber: {doc.partNumber || 'None'}
+                        </p>
+                      
                         {doc.info && (
                           <p className="text-sm text-blue-700 bg-blue-50 px-2 py-1 rounded-md mt-1 w-fit">
                             ℹ️ {doc.info}
@@ -786,10 +833,18 @@ export default function InitiateProcess() {
 
           {/* Submit Button */}
           <div className="flex gap-4">
+             <CustomButton
+    type="button"
+    text="Save as Draft"
+    variant="secondary"
+    click={handleSubmit((data) => handleSaveDraft(data))}
+    disabled={actionsLoading || documentFields.length === 0}
+    className="flex-1"
+  />
             <CustomButton
               type="button"
               click={handleSubmit(handleSubmitImmediately)}
-              disabled={actionsLoading}
+              disabled={actionsLoading || documentFields.length === 0}
               text="Submit Process"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
             />

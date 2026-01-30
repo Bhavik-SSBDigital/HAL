@@ -179,6 +179,7 @@ export const saveProcessDraft = async (req, res) => {
 
     let existingDraft = null;
 
+    console.log("req.body.draftId", req.body.draftId);
     if (req.body.draftId) {
       existingDraft = await prisma.processDraft.findUnique({
         where: {
@@ -188,6 +189,8 @@ export const saveProcessDraft = async (req, res) => {
         },
         include: { draftDocuments: true },
       });
+
+      console.log("existing draft", existingDraft);
     }
 
     const draft = await prisma.$transaction(async (tx) => {
@@ -977,7 +980,7 @@ export const deleteProcessDraft = async (req, res) => {
 
     await prisma.$transaction(async (tx) => {
       // Clean up draft folder first
-      await cleanupDraftFolder(draft.storagePath, accessToken);
+      // await cleanupDraftFolder(draft.storagePath, accessToken);
 
       // Delete draft record (cascade will delete draftDocuments)
       await tx.processDraft.delete({
@@ -1051,6 +1054,15 @@ const cleanupDraftFolder = async (storagePath, accessToken) => {
 
 // Add this to your draft controller
 export const getDraftForEditing = async (req, res) => {
+  // Helper function to remove filename from path
+  const getDirectoryPath = (path) => {
+    if (!path) return "";
+    // Remove the last segment (filename) from the path
+    const parts = path.split("/");
+    parts.pop(); // Remove the filename
+    return parts.join("/");
+  };
+
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
@@ -1147,8 +1159,8 @@ export const getDraftForEditing = async (req, res) => {
             description: doc.description,
             issueNo: doc.issueNo,
             preApproved: doc.preApproved,
-            // For display in the form
-            documentPath: doc.document.path,
+            // For display in the form - remove filename from path
+            documentPath: getDirectoryPath(doc.document.path),
           })),
         },
       };
@@ -1159,7 +1171,7 @@ export const getDraftForEditing = async (req, res) => {
         draft.process?.documents?.map((doc) => ({
           id: doc.document.id,
           name: doc.document.name,
-          path: doc.document.path,
+          path: getDirectoryPath(doc.document.path), // Remove filename from path
           type: doc.document.type,
         })) || [];
 
@@ -1198,7 +1210,7 @@ export const getDraftForEditing = async (req, res) => {
             // Additional information for display
             oldDocumentName: draftDoc.oldDocument?.name || "",
             newDocumentName: draftDoc.document?.name || "",
-            documentPath: draftDoc.document?.path || "",
+            documentPath: getDirectoryPath(draftDoc.document?.path) || "", // Remove filename from path
             hasDocumentUploaded: !!draftDoc.document?.id,
           };
         },
@@ -1223,7 +1235,7 @@ export const getDraftForEditing = async (req, res) => {
             tags: draftDoc.tags || [],
             oldDocumentName: draftDoc.oldDocument?.name || "",
             newDocumentName: draftDoc.document?.name || "",
-            documentPath: draftDoc.document?.path || "",
+            documentPath: getDirectoryPath(draftDoc.document?.path) || "", // Remove filename from path
             hasDocumentUploaded: !!draftDoc.document?.id,
           });
         });

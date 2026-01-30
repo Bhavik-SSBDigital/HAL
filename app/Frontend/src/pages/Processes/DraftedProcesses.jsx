@@ -101,17 +101,33 @@ export default function DraftedProcesses() {
         </span>
       ),
     },
-    {
-      field: 'workflow',
-      headerName: 'Workflow / Process',
-      width: 260,
-      valueGetter: (params) => {
-        console.log(params);
-        if (!params) return '—';
-
-        return params?.name || '—';
-      },
-    },
+{
+  field: 'workflow',
+  headerName: 'Workflow / Process',
+  width: 260,
+  renderCell: ({ row }) => {
+    if (row.type === 'INITIATE') {
+      return (
+        <div>
+          <div className="font-medium">{row.workflow?.name || '—'}</div>
+          <div className="text-xs text-gray-500">Workflow</div>
+        </div>
+      );
+    } else if (row.type === 'REOPEN') {
+      return (
+        <div>
+          <div className="font-medium">{row.originalProcess?.name || '—'}</div>
+          {row.originalProcess?.name && (
+            <div className="text-xs text-gray-500">
+              Workflow: {row.originalProcess?.name}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return '—';
+  },
+},
     {
       field: 'documentCount',
       headerName: 'Drafted Documents',

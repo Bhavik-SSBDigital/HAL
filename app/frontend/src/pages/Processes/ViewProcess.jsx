@@ -50,6 +50,11 @@ import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
+  const [reopenDraftInfo, setReopenDraftInfo] = useState({
+  draftId: null,
+  shouldOpen: false,
+  fromDraftedList: false
+});
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const isCompleted = searchParams.get('completed') === 'true';
@@ -147,6 +152,50 @@ const ViewProcess = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+  // Check if we came from DraftedProcesses with a reopen draft
+  if (location.state?.openReopenModal && location.state?.reopenDraftId) {
+    setReopenDraftInfo({
+      draftId: location.state.reopenDraftId,
+      shouldOpen: true,
+      fromDraftedList: true
+    });
+    
+    // Store in sessionStorage for persistence during navigation
+    sessionStorage.setItem('reopenDraftData', JSON.stringify({
+      processId: id,
+      draftId: location.state.reopenDraftId,
+      timestamp: Date.now()
+    }));
+    
+    // Clear the state
+    window.history.replaceState({}, document.title);
+  }
+}, [location.state, id]);
+
+useEffect(() => {
+  if (process && !reopenDraftInfo.fromDraftedList) {
+    // Check if there's a saved draft for this process
+    const savedDraft = sessionStorage.getItem('reopenDraftData');
+    if (savedDraft) {
+      const draftData = JSON.parse(savedDraft);
+      
+      // Check if draft belongs to current process and is recent (last 5 minutes)
+      if (draftData.processId === process.processId && 
+          Date.now() - draftData.timestamp < 5 * 60 * 1000) {
+        setReopenDraftInfo({
+          draftId: draftData.draftId,
+          shouldOpen: false,
+          fromDraftedList: false
+        });
+      } else {
+        // Clear expired or unrelated draft
+        sessionStorage.removeItem('reopenDraftData');
+      }
+    }
+  }
+}, [process]);
 
   const DetailItem = ({ label, value }) => (
     <div>
@@ -707,13 +756,23 @@ useEffect(() => {
 
       <CustomCard>
         <div className="flex justify-end flex-row gap-2 flex-wrap">
-          <CustomButton
-            variant={'primary'}
-            text={'Re-Open'}
-            className={'min-w-[150px]'}
-            click={() => setOpenModal('re-open')}
-            disabled={actionsLoading || !isCompleted || disableActions}
-          />
+         <CustomButton
+  variant={'primary'}
+  text={'Re-Open'}
+  className={'min-w-[150px]'}
+  click={() => {
+    if (reopenDraftInfo.draftId) {
+      // Open with existing draft
+      setOpenModal('re-open');
+    } else {
+      // Open new
+      setOpenModal('re-open');
+      setReopenDraftInfo(prev => ({ ...prev, shouldOpen: true }));
+    }
+  }}
+  disabled={actionsLoading || !isCompleted || disableActions}
+/>
+
           <CustomButton
             variant={'primary'}
             text={'Upload Document'}
@@ -1662,22 +1721,43 @@ useEffect(() => {
   isOpen={openModal == 're-open'}
   onClose={() => {
     setOpenModal('');
-    setReopenDraftId(null);
   }}
   className={'max-h-[95vh] overflow-auto max-w-lg w-full'}
 >
-  <ReOpenProcessModal
+ <ReOpenProcessModal
     workflowId={process?.workflow?.id}
     processId={process?.processId}
     storagePath={process?.processStoragePath}
     close={() => {
       setOpenModal('');
-      setReopenDraftId(null);
       // Refresh the page to show updated process
       fetchProcess();
     }}
     documents={process?.documents || []}
-    draftId={reopenDraftId}
+    draftId={reopenDraftInfo.draftId}
+    onDraftSaved={(draftId) => {
+      // Update draft info when draft is saved
+      setReopenDraftInfo(prev => ({
+        ...prev,
+        draftId: draftId
+      }));
+      
+      // Store in sessionStorage
+      sessionStorage.setItem('reopenDraftData', JSON.stringify({
+        processId: process.processId,
+        draftId: draftId,
+        timestamp: Date.now()
+      }));
+    }}
+    onDraftSubmitted={() => {
+      // Clear draft info when submitted
+      setReopenDraftInfo({
+        draftId: null,
+        shouldOpen: false,
+        fromDraftedList: false
+      });
+      sessionStorage.removeItem('reopenDraftData');
+    }}
   />
 </CustomModal>
       <RemarksModal

@@ -18,6 +18,9 @@ import ModalWithField from '../../components/ModalWithField';
 
 const PhysicalDocuments = () => {
   const [requests, setRequests] = useState([]);
+  const username = sessionStorage.getItem('username');
+  const [selectedItem, setSelectedItem] = useState(null);
+
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [actionsLoading, setActionsLoading] = useState(false);
@@ -183,6 +186,7 @@ const PhysicalDocuments = () => {
         selectedItem.id,
         data.fieldValue,
         data.watermark,
+        true
       );
 
       // Create a blob from the response data
@@ -199,7 +203,7 @@ const PhysicalDocuments = () => {
 
       // Extract filename from headers if available
       const contentDisposition = response.headers['content-disposition'];
-      let fileName = selectedItem?.name;
+      let fileName = selectedItem?.document?.name;
 
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
@@ -326,11 +330,15 @@ const PhysicalDocuments = () => {
                     {/* Actions */}
                     <div className="flex flex-wrap justify-end gap-2">
                       <CustomButton
-                        text={<IconDownload size={18} className="text-white" />}
-                        title="Download Document"
-                        click={()=>setOpen('password')}
-                        variant="primary"
-                      />
+  text={<IconDownload size={18} className="text-white" />}
+  title="Download Document"
+  click={() => {
+    setSelectedItem(req);   // ✅ store the clicked request
+    setOpen('password');
+  }}
+  variant="primary"
+/>
+
 
                       <CustomButton
                         text={<IconEye size={18} className="text-white" />}
@@ -439,13 +447,15 @@ const PhysicalDocuments = () => {
 
       {/* modal for watermark download */}
       <ModalWithField
-        open={open == 'password'}
-        setOpen={setOpen}
-        actionsLoading={actionsLoading}
-        setActionsLoading={setActionsLoading}
-        fieldName="password" // 👈 parent defines the field name
-        onSubmit={handleDownloadWithWatermark}
-      />
+  open={open === 'password'}
+  setOpen={setOpen}
+  actionsLoading={actionsLoading}
+  setActionsLoading={setActionsLoading}
+  fieldName="password"
+  onSubmit={handleDownloadWithWatermark}
+  defaultWatermark={`Controlled Copy For Reference P.B.No ${username}`}
+  lockWatermark={true}
+/>
 
       {/* History Modal */}
       {isHistoryModalOpen && (

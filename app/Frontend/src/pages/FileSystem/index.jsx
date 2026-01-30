@@ -201,6 +201,7 @@ export default function FileSysten() {
         selectedItem.id,
         data.fieldValue,
         data.watermark,
+        false
       );
 
       // Create a blob from the response data
@@ -1176,13 +1177,15 @@ export default function FileSysten() {
 
       {/* modal for watermark download */}
       <ModalWithField
-        open={open == 'password'}
-        setOpen={setOpen}
-        actionsLoading={actionsLoading}
-        setActionsLoading={setActionsLoading}
-        fieldName="password" // 👈 parent defines the field name
-        onSubmit={handleDownloadWithWatermark}
-      />
+  open={open === 'password'}
+  setOpen={setOpen}
+  actionsLoading={actionsLoading}
+  setActionsLoading={setActionsLoading}
+  fieldName="password"
+  onSubmit={handleDownloadWithWatermark}
+  defaultWatermark={`Uncontrolled Copy For Reference P.B.No ${username}`}
+/>
+
 
       <CustomModal
         isOpen={open === 'physicalDocument'}

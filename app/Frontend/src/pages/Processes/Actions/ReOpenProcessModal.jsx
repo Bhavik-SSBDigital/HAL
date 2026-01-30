@@ -7,6 +7,7 @@ import {
   GetDraftForEditing,
   SaveOrUpdateDraft,
   SubmitDraft,
+  deleteDraft
 } from '../../../common/Apis';
 import { toast } from 'react-toastify';
 import CustomButton from '../../../CustomComponents/CustomButton';
@@ -80,6 +81,14 @@ export default function ReOpenProcessModal({
       loadDraftForEdit(initialDraftId);
     }
   }, [initialDraftId, draftLoaded]);
+
+
+
+
+
+const handleClose = () => {
+  close();
+};
 
   const loadDraftForEdit = async (id) => {
     setLoading(true);
@@ -292,6 +301,12 @@ export default function ReOpenProcessModal({
           uploadedFileName: d.uploadedFileName,
         })),
       });
+
+      try{
+        await deleteDraft({draftId:currentDraftId});
+      }catch(error){
+        //no draft was there
+      }
 
       toast.success('Process reopened successfully');
       close();
@@ -703,12 +718,12 @@ export default function ReOpenProcessModal({
               />
             </div>
             <div>
-              <CustomButton
-                type="button"
-                variant="danger"
-                click={close}
-                text="Cancel"
-              />
+             <CustomButton
+  type="button"
+  variant="danger"
+  click={handleClose} // Use handleClose instead of direct close
+  text="Cancel"
+/>
             </div>
             <div>
               <CustomButton

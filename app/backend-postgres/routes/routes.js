@@ -176,6 +176,7 @@ import {
 } from "../controller/doc-tracking-controller.js";
 import { export_file_logs } from "../controller/file-operation-handler.js";
 import {
+  deleteProcessDraft,
   getDraftForEditing,
   saveProcessDraft,
   submitProcessDraft,
@@ -385,6 +386,8 @@ router.post("/generateDocumentName", generateDocumentNameController);
 router.get("/getDraftedProcess/:draftId", getDraftForEditing);
 
 router.post("/drafts/save/:draftId", saveProcessDraft);
+
+router.delete("/drafts/delete/:draftId", deleteProcessDraft);
 
 router.post("/drafts/submit", submitProcessDraft);
 
