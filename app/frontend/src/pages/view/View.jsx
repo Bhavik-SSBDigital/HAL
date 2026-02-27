@@ -54,7 +54,6 @@ const EDITABLE_TYPES = [
   'odp',
   'odg',
   'tiff',
-  'pdf'
 ];
 
 const PdfViewer = ({
@@ -158,67 +157,38 @@ const PdfViewer = ({
       onClose={handleViewClose}
       className="max-h-[90vh] overflow-auto"
       size={'full'}
-    >
-      <div className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 bg-white border rounded-t-lg">
-        <div className="flex items-center gap-2">
+      title={
+        <>
+          {currentDoc?.name ||
+            currentDoc?.fileName ||
+            currentDoc?.url?.split('/')?.pop()}
+
           {documents.length > 1 && (
-            <>
-              <button
+            <div className="inline flex items-center">
+              <span className="text-xs text-gray-500 ml-2">
+                ({currentIndex + 1} of {documents.length})
+              </span>
+              <CustomButton
                 onClick={handlePrevious}
                 disabled={currentIndex === 0}
-                className={`p-1 rounded-full transition ${
-                  currentIndex === 0
-                    ? 'opacity-30 cursor-not-allowed'
-                    : 'hover:bg-gray-200'
-                }`}
+                variant={'icon'}
                 title="Previous Document"
               >
                 <IconArrowLeft size={22} />
-              </button>
-              <button
+              </CustomButton>
+              <CustomButton
                 onClick={handleNext}
                 disabled={currentIndex === documents.length - 1}
-                className={`p-1 rounded-full transition ${
-                  currentIndex === documents.length - 1
-                    ? 'opacity-30 cursor-not-allowed'
-                    : 'hover:bg-gray-200'
-                }`}
+                variant={'icon'}
                 title="Next Document"
               >
                 <IconArrowRight size={22} />
-              </button>
-            </>
+              </CustomButton>
+            </div>
           )}
-          <span className="text-sm font-medium text-gray-700 truncate max-w-[250px]">
-            {currentDoc?.name ||
-              currentDoc?.fileName ||
-              currentDoc?.url?.split('/')?.pop()}
-          </span>
-          {documents.length > 1 && (
-            <span className="text-xs text-gray-500 ml-2">
-              ({currentIndex + 1} of {documents.length})
-            </span>
-          )}
-          {/* {EDITABLE_TYPES.includes(currentDoc?.type) && (
-            <button
-              onClick={toggleEditMode}
-              className={`p-1 rounded-full transition ${
-                isEditing ? 'bg-blue-100' : 'hover:bg-gray-200'
-              }`}
-              title={isEditing ? 'Switch to View' : 'Edit Document'}
-            >
-              <IconPencil size={22} />
-            </button>
-          )} */}
-        </div>
-        <button
-          onClick={handleViewClose}
-          className="hover:bg-gray-200 p-1 rounded-full transition"
-          title="Close Viewer"
-        >
-          <IconSquareRoundedX size={22} />
-        </button>
-      </div>
+        </>
+      }
+    >
 
       {currentDoc ? (
         EDITABLE_TYPES.includes(currentDoc.type) ? (

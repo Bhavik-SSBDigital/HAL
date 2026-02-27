@@ -6,6 +6,7 @@ export default function CustomModal({
   isOpen,
   onClose,
   className,
+  title = '',
   size = '3xl',
 }) {
   const sizeClasses = {
@@ -53,6 +54,9 @@ export default function CustomModal({
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()} // Prevent backdrop click
           >
+            {title && (
+              <h2 className="text-base font-semibold break-all">{title}</h2>
+            )}
             {children}
           </motion.div>
         </motion.div>

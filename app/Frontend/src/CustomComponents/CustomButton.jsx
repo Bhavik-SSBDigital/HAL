@@ -8,6 +8,7 @@ export default function CustomButton({
   disabled,
   title,
   type,
+  children
 }) {
   const baseClasses =
     'px-5 py-2 rounded-md text-white transition-colors duration-200';
@@ -25,6 +26,7 @@ export default function CustomButton({
       'bg-button-warning-default hover:bg-button-warning-hover disabled:bg-button-warning-disabled disabled:cursor-not-allowed',
     info: 'bg-button-info-default hover:bg-button-info-hover disabled:bg-button-info-disabled disabled:cursor-not-allowed',
     none: 'border border-black !text-black bg-white hover:bg-slate-100 disabled:border-slate-300  disabled:!text-slate-600 disabled:cursor-not-allowed',
+    icon: 'border !px-1 !py-1 border-black !text-black bg-white hover:bg-slate-100 disabled:border-slate-300  disabled:!text-slate-600 disabled:cursor-not-allowed',
   };
 
   return (
@@ -37,7 +39,7 @@ export default function CustomButton({
         buttonStyles[variant] || buttonStyles.primary
       } ${className}`}
     >
-      {text}
+      {text || children}
     </button>
   );
 }
