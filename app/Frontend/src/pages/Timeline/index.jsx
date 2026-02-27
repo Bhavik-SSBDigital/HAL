@@ -19,6 +19,7 @@ import {
   IconFileArrowRight,
   IconArrowLeft,
   IconEye,
+  IconAlignBoxCenterMiddle,
 } from '@tabler/icons-react';
 import TimelineLegend from './TimelineLegend';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -917,8 +918,103 @@ const Timeline = ({
         <h2 className="text-xl font-semibold mb-4">
           Documents by Reopen Cycle
         </h2>
+        {/* ================= MOBILE VIEW ================= */}
+        <div className="space-y-4 max-h-[400px] overflow-auto">
+          {cycles.map((cycle, index) => {
+            const isLast = index === cycles.length - 1;
 
-        <div className="overflow-x-auto">
+            return (
+              <div
+                key={cycle.reopenCycle}
+                className={`border rounded-lg p-3 space-y-3 ${
+                  isLast ? 'bg-green-50 border-green-300' : 'bg-white'
+                }`}
+              >
+                <div className="flex gap-6">
+                  <span className="font-semibold text-gray-700">
+                    Reopen Cycle :
+                  </span>
+                  <span className="font-bold">{cycle.reopenCycle}</span>
+                </div>
+
+                <div className="flex gap-6">
+                  <span className="font-semibold text-gray-700">
+                    Manual SOP :
+                  </span>
+                  <span className="font-medium">
+                    {cycle.SOPIssueNo || '--'}
+                  </span>
+                </div>
+
+                <div className="border-t pt-2 space-y-2 max-h-[350px] overflow-y-auto">
+                  {cycle.documents.length > 0 ? (
+                    cycle.documents.map((doc, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 border rounded-md p-2"
+                      >
+                        <img
+                          width={26}
+                          src={ImageConfig[doc.type] || ImageConfig['default']}
+                          alt={doc.type}
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm truncate ${
+                              doc.active ? 'font-semibold' : 'text-gray-400'
+                            }`}
+                          >
+                            {doc.name}
+                          </p>
+
+                          <p className="text-xs text-blue-600 font-medium">
+                            Issue No: {doc?.issueNo || '--'}
+                          </p>
+                        </div>
+
+                        <CustomButton
+                          className="px-2"
+                          click={() =>
+                            handleViewFile(
+                              doc.name,
+                              doc.path,
+                              doc.id,
+                              doc.type,
+                              false,
+                            )
+                          }
+                          disabled={actionsLoading}
+                          title="View"
+                          text={<IconEye size={16} className="text-white" />}
+                        />
+
+                        <CustomButton
+                          variant="info"
+                          className="px-2"
+                          click={() => setDocumentModalOpen(doc)}
+                          disabled={actionsLoading}
+                          title="Details"
+                          text={
+                            <IconAlignBoxCenterMiddle
+                              size={16}
+                              className="text-white"
+                            />
+                          }
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-400">
+                      No documents uploaded
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-300">
             <thead className="bg-gray-100">
               <tr>
@@ -948,7 +1044,6 @@ const Timeline = ({
                       <td key={idx} className="py-2 px-4 border">
                         {doc ? (
                           <div className="flex items-center space-x-2 mr-4">
-                            {/* Document icon */}
                             <img
                               width={28}
                               src={
@@ -957,14 +1052,12 @@ const Timeline = ({
                               alt={doc.type}
                             />
                             <div className="flex flex-col">
-                              {/* Document name */}
                               <span
                                 title={doc.name}
                                 className={`truncate ${doc.active ? 'font-semibold' : 'text-gray-400'}`}
                               >
                                 {doc.name}
                               </span>
-                              {/* Highlight issueNo */}
 
                               <span className="text-sm text-blue-600 font-medium">
                                 Issue No: {doc?.issueNo || '--'}
@@ -998,7 +1091,7 @@ const Timeline = ({
               ))}
             </tbody>
           </table>
-        </div>
+        </div> */}
       </CustomCard>
     );
   };
