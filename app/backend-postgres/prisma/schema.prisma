@@ -404,6 +404,16 @@ model AssignmentProgress {
   @@unique([assignmentId, processId])
 }
 
+model ProcessMigrationLog {
+  id            String   @id @default(uuid())
+  processId     String
+  oldWorkflowId String
+  newWorkflowId String
+  migratedAt    DateTime @default(now())
+  migratedBy    Int      // user ID who performed migration
+  details       Json?    // Store what was changed: added/removed users per step, etc.
+}
+
 model ProcessStepInstance {
   id                 String    @id @default(uuid())
   processId          String
@@ -419,6 +429,8 @@ model ProcessStepInstance {
   createdAt          DateTime  @default(now())
   stepId             String?
   decisionComment    String?
+  isMigrated     Boolean  @default(false) // True if added post-migration for a passed step
+  migratedFromId String?  // Optional: reference to original step instance (if any)
   decisionAt         DateTime?
   isRecirculated     Boolean   @default(false)
   recirculationCycle Int       @default(0)
@@ -685,6 +697,7 @@ enum StepStatus {
   ESCALATED
   FOR_RECIRCULATION
   FOR_RECOMMENDATION
+  MIGRATED
 }
 
 enum EscalationType {

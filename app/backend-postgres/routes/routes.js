@@ -34,6 +34,11 @@ import {
   get_all_workflows_with_basics,
 } from "../controller/workflow-controller.js";
 
+import {
+  previewMigration,
+  migrateProcesses,
+} from "../controller/workflow-migration.js";
+
 // import {
 //   createQuery,
 //   getProcessQueries,
@@ -139,6 +144,7 @@ import {
   get_user_processes,
   initiate_process,
   view_process,
+  copy_and_restart_process,
   createQuery,
   createRecommendation,
   submitRecommendationResponse,
@@ -255,9 +261,13 @@ router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workfl
 router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
 router.get("/workflows/getWorkflows", get_workflows); // Get all workflows
 router.get("/workflows/getWorkflowsList", get_all_workflows_with_basics);
+router.post("/workflows/:newWorkflowId/migration-preview", previewMigration);
+router.post("/workflows/:newWorkflowId/migrate-processes", migrateProcesses);
 router.post("/initiateProcess", initiate_process);
 
 router.get("/viewProcess/:processId", view_process);
+
+router.post("/process/restart", copy_and_restart_process);
 
 router.post("/claimProcessStep", pick_process_step);
 

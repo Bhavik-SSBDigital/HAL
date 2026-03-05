@@ -155,6 +155,9 @@ export const GetUsersWithDetails = async () => {
   return apiClient.get('/getUsersWithDetails');
 };
 
+export const RestartProcessApi = async (data) => {
+  return apiClient.post('/process/restart', data);
+};
 // roles endpoints
 export const GetRoles = async (fromAdmin) => {
   return apiClient.get('/getRoles', {

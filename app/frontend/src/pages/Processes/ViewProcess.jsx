@@ -30,7 +30,6 @@ import {
 import CustomCard from '../../CustomComponents/CustomCard';
 import { useLocation } from 'react-router-dom';
 
-
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
 import ViewFile from '../view/View';
@@ -51,10 +50,10 @@ import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 const ViewProcess = () => {
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [reopenDraftInfo, setReopenDraftInfo] = useState({
-  draftId: null,
-  shouldOpen: false,
-  fromDraftedList: false
-});
+    draftId: null,
+    shouldOpen: false,
+    fromDraftedList: false
+  });
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const isCompleted = searchParams.get('completed') === 'true';
@@ -79,7 +78,20 @@ const ViewProcess = () => {
     id: null,
     open: false,
   });
-  const disableActions = process?.currentStepType != 'APPROVAL';
+  
+  // --- MIGRATION LOGIC ADDED HERE ---
+  // If currentStepType is missing/null, it evaluates to false, keeping disableActions false so we can granularly control buttons
+  const disableActions = process?.currentStepType ? process.currentStepType !== 'APPROVAL' : false;
+
+  const activeStepInstance = process?.stepInstances?.find(
+    (item) => item.status === "IN_PROGRESS" || item.status === "MIGRATED"
+  );
+  
+  const currentStepInstanceId = activeStepInstance?.id || process?.processStepInstanceId;
+  
+  // We infer migrated status if the backend hasn't populated step instances & currentStepType is missing in an active process
+  const isMigratedStep = activeStepInstance?.status === "MIGRATED" || (!process?.currentStepType && process?.status === 'IN_PROGRESS');
+  // ----------------------------------
 
   const processDetails = [
     { label: 'Process ID', value: process?.processId },
@@ -222,7 +234,7 @@ useEffect(() => {
     try {
       const response = await ClaimProcess(
         process?.processId,
-        process?.processStepInstanceId,
+        currentStepInstanceId, // UPDATED
       );
       toast.success(response?.data?.message);
       setProcess((prev) => ({ ...prev, toBePicked: false }));
@@ -283,7 +295,7 @@ useEffect(() => {
     try {
       const res = await SignDocument(
         process?.processId,
-        process?.processStepInstanceId,
+        currentStepInstanceId, // UPDATED
         remarksModalOpen.id,
         remarks,
       );
@@ -313,7 +325,7 @@ useEffect(() => {
       const response = await RejectDocument(
         process.processId,
         remarksModalOpen.id,
-        process?.processStepInstanceId,
+        currentStepInstanceId, // UPDATED
         remarks,
       );
       setProcess((prev) => ({
@@ -757,28 +769,28 @@ useEffect(() => {
       <CustomCard>
         <div className="flex justify-end flex-row gap-2 flex-wrap">
          <CustomButton
-  variant={'primary'}
-  text={'Re-Open'}
-  className={'min-w-[150px]'}
-  click={() => {
-    if (reopenDraftInfo.draftId) {
-      // Open with existing draft
-      setOpenModal('re-open');
-    } else {
-      // Open new
-      setOpenModal('re-open');
-      setReopenDraftInfo(prev => ({ ...prev, shouldOpen: true }));
-    }
-  }}
-  disabled={actionsLoading || !isCompleted || disableActions}
-/>
+          variant={'primary'}
+          text={'Re-Open'}
+          className={'min-w-[150px]'}
+          click={() => {
+            if (reopenDraftInfo.draftId) {
+              // Open with existing draft
+              setOpenModal('re-open');
+            } else {
+              // Open new
+              setOpenModal('re-open');
+              setReopenDraftInfo(prev => ({ ...prev, shouldOpen: true }));
+            }
+          }}
+          disabled={actionsLoading || !isCompleted || disableActions || isMigratedStep} // UPDATED
+        />
 
           <CustomButton
             variant={'primary'}
             text={'Upload Document'}
             className={'min-w-[150px] hidden'}
             click={() => setOpenModal('document-upload')}
-            disabled={actionsLoading || !isCompleted || disableActions}
+            disabled={actionsLoading || !isCompleted || disableActions || isMigratedStep} // UPDATED
           />
           <CustomButton
             variant={'primary'}
@@ -789,7 +801,7 @@ useEffect(() => {
               disableActions ||
               actionsLoading ||
               isCompleted ||
-              process?.toBePicked === false
+              process?.toBePicked === false 
             }
           />
           <CustomButton
@@ -797,14 +809,14 @@ useEffect(() => {
             text={'Query'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('query')}
-            disabled={actionsLoading || isCompleted || disableActions}
+            disabled={actionsLoading || isCompleted || (disableActions && !isMigratedStep)} // ENABLED for migrated
           />
           <CustomButton
             variant={'secondary'}
             text={'Ask Recommendation'}
             className={'min-w-[150px]'}
             click={() => setOpenModal('recommend')}
-            disabled={actionsLoading || isCompleted || disableActions}
+            disabled={actionsLoading || isCompleted || (disableActions && !isMigratedStep)} // ENABLED for migrated
           />
           <CustomButton
             variant={'secondary'}
@@ -816,10 +828,10 @@ useEffect(() => {
           <CustomButton
             variant={'danger'}
             text={'Complete'}
-            click={() => handleCompleteProcess(process?.processStepInstanceId)}
+            click={() => handleCompleteProcess(currentStepInstanceId)} // UPDATED
             className={'min-w-[150px]'}
             disabled={
-              actionsLoading || isCompleted || process?.toBePicked === true
+              actionsLoading || isCompleted || process?.toBePicked === true || disableActions  // UPDATED
             }
           />
         </div>
@@ -931,7 +943,7 @@ useEffect(() => {
                           doc.name,
                           doc.path,
                           doc.id,
-                          extension,
+                          doc.type,
                           false,
                         )
                       }
@@ -960,7 +972,8 @@ useEffect(() => {
                         doc?.type?.toUpperCase() !== 'PDF' ||
                         doc?.rejectionDetails ||
                         doc?.preApproved ||
-                        disableActions
+                        disableActions ||
+                        isMigratedStep // UPDATED
                       }
                       title="Sign Document"
                       text={<IconCheck size={18} className="text-white" />}
@@ -976,7 +989,8 @@ useEffect(() => {
                         isCompleted ||
                         doc.rejectionDetails ||
                         doc?.preApproved ||
-                        disableActions
+                        disableActions ||
+                        isMigratedStep // UPDATED
                       }
                       title="Reject Document"
                       text={<IconX size={18} className="text-white" />}
@@ -1005,7 +1019,7 @@ useEffect(() => {
                         })
                       }
                       disabled={
-                        actionsLoading || !isCompleted || disableActions
+                        actionsLoading || !isCompleted || disableActions || isMigratedStep // UPDATED
                       }
                       title="Delete"
                       text={<IconTrash size={18} className="text-white" />}
@@ -1402,7 +1416,7 @@ useEffect(() => {
                   </div>
                   <div className="mt-4 flex justify-end">
                     <CustomButton
-                      disabled={actionsLoading || isCompleted || disableActions}
+                      disabled={actionsLoading || isCompleted || (disableActions && !isMigratedStep)}
                       text="Solve Query"
                       variant="primary"
                       click={() => handleSolveQuery(query)}
@@ -1558,7 +1572,6 @@ useEffect(() => {
                 label="Part-Number"
                 value={documentModalOpen?.partNumber || '--'}
               />
-              {/* <DetailItem label="Tags" value={documentModalOpen?.tags} /> */}
               <DetailItem
                 label="Type"
                 value={documentModalOpen?.type?.toUpperCase() || '--'}
@@ -1644,7 +1657,7 @@ useEffect(() => {
             setOpenModal('');
             setExistingQuery(null);
           }}
-          stepInstanceId={process.processStepInstanceId}
+          stepInstanceId={currentStepInstanceId} // UPDATED
           documents={process.documents}
         />
       </CustomModal>
@@ -1696,7 +1709,7 @@ useEffect(() => {
           close={() => {
             setExistingQuery(null);
           }}
-          stepInstanceId={process.processStepInstanceId}
+          stepInstanceId={currentStepInstanceId} // UPDATED
           queryRaiserStepInstanceId={process?.queryDetails[0]?.stepInstanceId}
           existingQuery={existingQuery}
         />
@@ -1713,7 +1726,7 @@ useEffect(() => {
           close={() => {
             setOpenModal('');
           }}
-          stepInstanceId={process.processStepInstanceId}
+          stepInstanceId={currentStepInstanceId} // UPDATED
           documents={process.documents}
         />
       </CustomModal>

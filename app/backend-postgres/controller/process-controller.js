@@ -484,7 +484,7 @@ export const initiate_process = async (req, res, next) => {
 
       await tx.processInstance.update({
         where: { id: process_.id },
-        data: { currentStepId: step.id, status: "IN_PROGRESS" },
+        data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
       });
 
       return process_;
@@ -1018,1037 +1018,194 @@ export const serializeBigInt = (obj) => {
   );
 };
 
-export const view_process_ = async (req, res) => {
+export const copy_and_restart_process = async (req, res) => {
   try {
-    const { processId } = req.params;
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
 
-    if (userData === "Unauthorized" || !userData?.id) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          message: "Unauthorized request",
-          details: "Invalid or missing authorization token.",
-          code: "UNAUTHORIZED",
-        },
-      });
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const retry = async (fn, retries = 3, delay = 1000) => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          return await fn();
-        } catch (error) {
-          if (i === retries - 1) throw error;
-          console.warn(`Retry ${i + 1} for processId: ${processId}`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    };
+    const { processId, targetWorkflowId } = req.body;
 
-    // Fetch ProcessInstance with minimal relations
-    const process = await retry(() =>
-      prisma.processInstance.findUnique({
-        where: { id: processId },
-        include: {
-          initiator: {
-            select: { id: true, username: true, name: true, email: true },
-          },
-          workflow: { select: { id: true, name: true, version: true } },
-          currentStep: {
-            select: {
-              id: true,
-              stepName: true,
-              stepNumber: true,
-              stepType: true,
-            },
-          },
-        },
-      }),
-    );
-
-    if (!process) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          message: "Process not found",
-          details: "No process found with the specified ID.",
-          code: "PROCESS_NOT_FOUND",
-        },
-      });
+    if (!processId) {
+      return res.status(400).json({ message: "processId is required" });
     }
 
-    // Fetch documents separately
-    const documents = await retry(() =>
-      prisma.processDocument.findMany({
-        where: { processId: process.id },
-        include: {
-          document: {
-            select: { id: true, name: true, type: true, path: true },
-          },
-          signatures: {
-            include: { user: { select: { id: true, username: true } } },
-          },
-          rejections: {
-            include: { user: { select: { id: true, username: true } } },
-          },
-          documentHistory: {
-            include: {
-              user: { select: { id: true, name: true, username: true } },
-              replacedDocument: {
-                select: { id: true, name: true, path: true },
-              },
-            },
-          },
-        },
-      }),
-    );
-
-    // Fetch stepInstances separately
-    const stepInstances = await retry(() =>
-      prisma.processStepInstance.findMany({
-        where: {
-          processId: process.id,
-          assignedTo: userData.id,
-          status: {
-            in: [
-              "IN_PROGRESS",
-              "FOR_RECIRCULATION",
-              "APPROVED",
-              "FOR_RECOMMENDATION",
-            ],
-          },
-        },
-        include: {
-          workflowStep: {
-            select: {
-              id: true,
-              stepName: true,
-              stepNumber: true,
-              stepType: true,
-            },
-          },
-          workflowAssignment: {
-            include: {
-              step: {
-                select: {
-                  id: true,
-                  stepName: true,
-                  stepNumber: true,
-                  stepType: true,
-                },
-              },
-            },
-          },
-          pickedBy: { select: { id: true, username: true } },
-          processQA: {
-            where: {
-              OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-              status: "OPEN",
-            },
-            include: {
-              initiator: { select: { id: true, name: true } },
-              process: { select: { id: true, name: true } },
-            },
-          },
-          recommendations: {
-            include: {
-              initiator: { select: { id: true, username: true } },
-              recommender: { select: { id: true, username: true } },
-            },
-          },
-        },
-      }),
-    );
-
-    process.documents = documents;
-    process.stepInstances = stepInstances;
-    const getAssigneeUserIds = async (process, prisma) => {
-      const assigneeIds = (
-        await Promise.all(
-          process.stepInstances.flatMap(async (step) => {
-            if (!step.workflowAssignment) {
-              return step.assignedTo ? [step.assignedTo] : [];
-            }
-
-            const { assigneeType, assigneeIds, selectedRoles } =
-              step.workflowAssignment;
-
-            if (assigneeType === "USER") {
-              // For USER type, return assigneeIds directly
-
-              return assigneeIds || [];
-            } else if (assigneeType === "ROLE") {
-              // For ROLE type, find all users with these roles
-              const userRoles = await prisma.userRole.findMany({
-                where: {
-                  roleId: { in: assigneeIds.map((id) => parseInt(id)) },
-                },
-                select: {
-                  userId: true,
-                },
-              });
-
-              return userRoles.map((ur) => ur.userId);
-            } else if (assigneeType === "DEPARTMENT") {
-              // For DEPARTMENT type, find users with roles from selectedRoles
-              const userRoles = await prisma.userRole.findMany({
-                where: {
-                  roleId: { in: selectedRoles.map((id) => parseInt(id)) },
-                },
-                select: {
-                  userId: true,
-                },
-              });
-
-              return userRoles.map((ur) => ur.userId);
-            }
-
-            return [];
-          }),
-        )
-      ).flat(); // Flatten the array of arrays
-
-      return [...new Set(assigneeIds)]; // Remove duplicates
-    };
-
-    const assigneeIds = await getAssigneeUserIds(process, prisma);
-
-    const assignees = await prisma.user.findMany({
-      where: {
-        id: { in: assigneeIds },
-      },
-      select: {
-        id: true,
-        username: true,
-      },
-    });
-
-    const assigneeMap = assignees.reduce((map, user) => {
-      map[user.id] = user;
-      return map;
-    }, {});
-
-    // Deduplicate steps and include username in stepName
-
-    // Deduplicate steps and include username in stepName
-    // Deduplicate steps and include only the latest step instance for stepNumber 1
-
-    const firstStepInstances = await retry(() =>
-      prisma.processStepInstance.findMany({
-        where: {
-          processId: process.id,
-          status: {
-            in: ["APPROVED"],
-          },
-          workflowStep: {
-            stepNumber: 1,
-          },
-        },
-        include: {
-          workflowStep: {
-            select: {
-              id: true,
-              stepName: true,
-              stepNumber: true,
-              stepType: true,
-            },
-          },
-          workflowAssignment: {
-            include: {
-              step: {
-                select: {
-                  id: true,
-                  stepName: true,
-                  stepNumber: true,
-                  stepType: true,
-                },
-              },
-            },
-          },
-          pickedBy: { select: { id: true, username: true } },
-          processQA: {
-            where: {
-              OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-              status: "OPEN",
-            },
-            include: {
-              initiator: { select: { id: true, name: true } },
-              process: { select: { id: true, name: true } },
-            },
-          },
-          recommendations: {
-            include: {
-              initiator: { select: { id: true, username: true } },
-              recommender: { select: { id: true, username: true } },
-            },
-          },
-        },
-      }),
-    );
-    const steps = await (async () => {
-      // Filter step instances for stepNumber 1 and APPROVED status
-      const stepNumberOneInstances = firstStepInstances.filter(
-        (step) =>
-          step.status === "APPROVED" &&
-          (step.workflowAssignment?.step?.stepNumber === 1 ||
-            step.workflowStep?.stepNumber === 1),
-      );
-
-      // If no step instances are found for stepNumber 1, return an empty array
-      if (stepNumberOneInstances.length === 0) {
-        return [];
-      }
-
-      // Find the latest step instance based on updatedAt or createdAt
-      const latestStep = stepNumberOneInstances.sort((a, b) => {
-        const aTime = a.updatedAt || a.createdAt;
-        const bTime = b.updatedAt || b.createdAt;
-        return bTime - aTime; // Sort descending to get the latest first
-      })[0];
-
-      const initiator = await prisma.user.findFirst({
-        where: {
-          id: latestStep.assignedTo,
-        },
-      });
-      // Get step data from workflowAssignment or workflowStep
-      const stepData =
-        latestStep.workflowAssignment?.step ?? latestStep.workflowStep;
-
-      const assigneeUsername = latestStep.assignedTo
-        ? initiator.username
-        : "Unknown User";
-
-      // Return the single step in the required format
-      return [
-        {
-          stepName: stepData
-            ? `${stepData.stepName}_${assigneeUsername}`
-            : `Unknown Step (${assigneeUsername})`,
-          stepNumber: stepData?.stepNumber ?? 1,
-          stepId: stepData?.id ?? null,
-          stepType: stepData?.stepType ?? "UNKNOWN",
-          assignees: [latestStep.assignedTo].map((id) => ({
-            assigneeId: id,
-            assigneeName: initiator.username ?? "Unknown User",
-          })),
-        },
-      ];
-    })();
-
-    const processDocuments = await prisma.processDocument.findMany({
-      where: { processId: process.id },
+    // 1. Fetch original process and its documents
+    const originalProcess = await prisma.processInstance.findUnique({
+      where: { id: processId },
       include: {
-        document: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            path: true,
-            createdOn: true,
-          },
-        },
-        replacedDocument: {
-          select: {
-            id: true,
-            name: true,
-            path: true,
-          },
+        documents: {
+          include: { document: true },
         },
       },
     });
 
-    // Identify replaced and superseded document IDs
+    if (!originalProcess) {
+      return res.status(404).json({ message: "Original process not found" });
+    }
+
+    // Allow overriding workflow, otherwise fallback to the original
+    const workflowId = targetWorkflowId || originalProcess.workflowId;
+
+    // 2. Filter for active/terminal documents (not replaced by others)
     const replacedDocumentIds = new Set(
-      processDocuments
+      originalProcess.documents
         .filter((pd) => pd.replacedDocumentId)
         .map((pd) => pd.replacedDocumentId),
     );
 
-    const supersededDocumentIds = new Set(
-      processDocuments
-        .filter((pd) => pd.superseding)
-        .map((pd) => pd.replacedDocumentId),
+    const activeDocuments = originalProcess.documents.filter(
+      (pd) => !replacedDocumentIds.has(pd.documentId) && !pd.superseding,
     );
 
-    // Find the latest document (neither replaced nor superseded)
-    let latestDocument = processDocuments.find(
-      (pd) =>
-        !replacedDocumentIds.has(pd.documentId) &&
-        !supersededDocumentIds.has(pd.documentId),
-    );
-
-    // If no such document exists, take the latest non-replaced document
-    if (!latestDocument) {
-      latestDocument = processDocuments
-        .filter((pd) => !replacedDocumentIds.has(pd.documentId))
-        .sort((a, b) => b.document.id - a.document.id)[0];
+    if (activeDocuments.length === 0) {
+      return res
+        .status(400)
+        .json({
+          message: "No active documents found to copy in the original process.",
+        });
     }
 
-    // Build documentVersioning
-    const documentVersioning = [];
-    const allProcessDocuments = await prisma.processDocument.findMany({
-      where: { processId: process.id },
-      include: {
-        document: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            path: true,
-            createdOn: true,
-          },
-        },
-        replacedDocument: {
-          select: {
-            id: true,
-            name: true,
-            path: true,
-          },
-        },
-      },
+    // 3. Setup new process details and folder
+    const processName = await generate_unique_process_name(workflowId);
+
+    const workflowDetails = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: { name: true },
     });
 
-    // Create maps for quick lookups
-    const docIdToProcessDoc = new Map(
-      allProcessDocuments.map((d) => [d.documentId, d]),
-    );
-    const replacedToReplacer = new Map(
-      allProcessDocuments
-        .filter((d) => d.replacedDocumentId)
-        .map((d) => [d.replacedDocumentId, d.documentId]),
+    await createFolder(
+      false,
+      `../${workflowDetails.name}/${processName}`,
+      userData,
     );
 
-    // Find all terminal documents (not replaced by any other)
-    const terminalDocumentIds = allProcessDocuments
-      .filter((d) => !replacedToReplacer.has(d.documentId))
-      .map((d) => d.documentId);
+    const newDocumentDetails = [];
 
-    // For each terminal document, build its complete chain
+    // 4. Duplicate physical files using existing file_copy utility
+    for (const pDoc of activeDocuments) {
+      const sourcePath = `./${pDoc.document.path}`;
+      const destinationPath = `../${workflowDetails.name}/${processName}`;
+      const name = sourcePath.split("/").pop();
 
-    for (const terminalDocId of terminalDocumentIds) {
-      const versions = [];
-      let currentDocId = terminalDocId;
-      const visitedDocIds = new Set(); // Track visited document IDs to detect cycles
-
-      while (currentDocId) {
-        // Check for cycle
-        if (visitedDocIds.has(currentDocId)) {
-          console.warn(
-            `Cycle detected at docId: ${currentDocId}. Breaking loop.`,
-          );
-          break;
-        }
-        visitedDocIds.add(currentDocId);
-
-        const processDoc = docIdToProcessDoc.get(currentDocId);
-
-        if (!processDoc) {
-          console.log("No processDoc found for docId:", currentDocId);
-          break;
-        }
-
-        versions.unshift({
-          id: processDoc.document.id,
-          createdAt: processDoc.document.createdOn || null,
-          name: processDoc.document.name,
-          path: processDoc.document.path.split("/").slice(0, -1).join("/"),
-          type: processDoc.document.type,
-          issueNo: processDoc.issueNo || null,
-          SOPIssueNo: processDoc.SOPIssueNo || null,
-          tags: processDoc.tags,
-          preApproved: processDoc.preApproved,
-          reasonOfSupersed: processDoc.reasonOfSupersed,
-          description: processDoc.description,
-          partNumber: processDoc.partNumber,
-          active: processDoc.document.id === latestDocument?.document?.id,
-          isReplacement: processDoc.isReplacement,
-          superseding: processDoc.superseding,
-          reopenCycle: processDoc.reopenCycle,
-        });
-
-        currentDocId = processDoc.replacedDocumentId;
-      }
-
-      if (versions.length > 0) {
-        documentVersioning.push({
-          latestDocumentId: terminalDocId,
-          versions: versions,
-        });
-      } else {
-        console.log("No versions added for terminalDocId:", terminalDocId);
-      }
-    }
-
-    // Handle any documents not included in chains
-    const includedDocIds = new Set(
-      documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id)),
-    );
-    const missingDocs = allProcessDocuments.filter(
-      (d) => !includedDocIds.has(d.documentId),
-    );
-
-    for (const doc of missingDocs) {
-      documentVersioning.push({
-        latestDocumentId: doc.documentId,
-        versions: [
-          {
-            id: doc.document.id,
-            name: doc.document.name,
-            createdAt: doc.document.createdOn || null,
-            path: doc.document.path.split("/").slice(0, -1).join("/"),
-            type: doc.document.type,
-            tags: doc.document.tags,
-            reasonOfSupersed: doc.reasonOfSupersed,
-            description: doc.description,
-            partNumber: doc.document.partNumber,
-            active: doc.document.id === latestDocument?.document?.id,
-            isReplacement: doc.isReplacement,
-            superseding: doc.superseding,
-            reopenCycle: doc.reopenCycle,
-            preApproved: doc.preApproved,
-            description: doc.description,
-          },
-        ],
-      });
-    }
-
-    // Build sededDocuments
-    const sededDocuments = [];
-
-    if (processDocuments.length > 0) {
-      // Sort all documents by ID to get chronological order
-      const allDocsSorted = [...processDocuments].sort(
-        (a, b) => a.document.id - b.document.id,
-      );
-
-      // Find all documents with reopenCycle = 1
-      const reopenCycle1Docs = allDocsSorted.filter(
-        (doc) => doc.reopenCycle === 1,
-      );
-
-      // Process each reopenCycle = 1 document
-      reopenCycle1Docs.forEach((firstReopenCycle1Doc) => {
-        // Find the document that was replaced by this reopenCycle=1 document
-        const documentWhichSuperseded = allDocsSorted.find(
-          (doc) => doc.documentId === firstReopenCycle1Doc.replacedDocumentId,
-        );
-
-        const versions = [];
-        let currentDoc = firstReopenCycle1Doc;
-        let currentReopenCycle = 1;
-        let lastDocBeforeCycleChange = null;
-        const visitedDocIds = new Set(); // Track visited document IDs to prevent infinite loops
-
-        // Build versions by finding documents just before reopenCycle increments
-        while (currentDoc && !visitedDocIds.has(currentDoc.documentId)) {
-          visitedDocIds.add(currentDoc.documentId); // Mark current document as visited
-
-          if (currentDoc.reopenCycle > currentReopenCycle) {
-            // Found a cycle change - add the last doc from previous cycle
-            if (lastDocBeforeCycleChange) {
-              versions.push({
-                id: lastDocBeforeCycleChange.document.id,
-                createdAt: lastDocBeforeCycleChange.document.createdOn || null,
-                name: lastDocBeforeCycleChange.document.name,
-                path: lastDocBeforeCycleChange.document.path
-                  ? lastDocBeforeCycleChange.document.path
-                      .split("/")
-                      .slice(0, -1)
-                      .join("/")
-                  : "",
-                issueNo: lastDocBeforeCycleChange.issueNo || null,
-                SOPIssueNo: lastDocBeforeCycleChange.SOPIssueNo || null,
-                type: lastDocBeforeCycleChange.document.type || "",
-                tags: lastDocBeforeCycleChange.tags || [],
-                reasonOfSupersed:
-                  lastDocBeforeCycleChange.reasonOfSupersed || null,
-                description: lastDocBeforeCycleChange.description || null,
-                partNumber: lastDocBeforeCycleChange.partNumber || null,
-                active:
-                  lastDocBeforeCycleChange.document.id ===
-                  (latestDocument?.document?.id || null),
-                isReplacement: lastDocBeforeCycleChange.isReplacement || false,
-                superseding: lastDocBeforeCycleChange.superseding || false,
-                preApproved: lastDocBeforeCycleChange.preApproved || false,
-                reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
-              });
-            }
-            currentReopenCycle = currentDoc.reopenCycle;
-          }
-
-          // Track the last document we see for each reopenCycle
-          lastDocBeforeCycleChange = currentDoc;
-
-          // Move to next document in the chain
-          currentDoc = allDocsSorted.find(
-            (d) => d.replacedDocumentId === currentDoc.documentId,
-          );
-        }
-
-        // Add the last document if it wasn't added yet
-        if (
-          lastDocBeforeCycleChange &&
-          !versions.some((v) => v.id === lastDocBeforeCycleChange.document.id)
-        ) {
-          versions.push({
-            id: lastDocBeforeCycleChange.document.id,
-            name: lastDocBeforeCycleChange.document.name,
-            createdAt: lastDocBeforeCycleChange.document.createdOn || null,
-            path: lastDocBeforeCycleChange.document.path
-              ? lastDocBeforeCycleChange.document.path
-                  .split("/")
-                  .slice(0, -1)
-                  .join("/")
-              : "",
-            type: lastDocBeforeCycleChange.document.type || "",
-            issueNo: lastDocBeforeCycleChange.document.issueNo || null,
-            tags: lastDocBeforeCycleChange.tags || [],
-            active:
-              lastDocBeforeCycleChange.document.id ===
-              (latestDocument?.document?.id || null),
-            isReplacement: lastDocBeforeCycleChange.isReplacement || false,
-            superseding: lastDocBeforeCycleChange.superseding || false,
-            reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
-            preApproved: lastDocBeforeCycleChange.preApproved || false,
-            reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed || null,
-            description: lastDocBeforeCycleChange.description || null,
-            partNumber: lastDocBeforeCycleChange.partNumber || null,
-          });
-        }
-
-        // Add to sededDocuments if a superseded document was found
-        if (documentWhichSuperseded) {
-          sededDocuments.push({
-            documentWhichSuperseded: {
-              id: documentWhichSuperseded.document.id,
-              name: documentWhichSuperseded.document.name,
-              createdAt: documentWhichSuperseded.document.createdOn || null,
-              path: documentWhichSuperseded.document.path
-                ? documentWhichSuperseded.document.path
-                    .split("/")
-                    .slice(0, -1)
-                    .join("/")
-                : "",
-              type: documentWhichSuperseded.document.type || "",
-              description: documentWhichSuperseded.description || "",
-              preApproved: documentWhichSuperseded.preApproved || false,
-              tags: documentWhichSuperseded.tags || [],
-              issueNo: documentWhichSuperseded.issueNo || null,
-              SOPIssueNo: documentWhichSuperseded.SOPIssueNo || null,
-              reasonOfSupersed:
-                documentWhichSuperseded.reasonOfSupersed || null,
-              description: documentWhichSuperseded.description || null,
-              partNumber: documentWhichSuperseded.partNumber || null,
+      try {
+        const copyResult = await new Promise((resolve, reject) => {
+          file_copy(
+            {
+              headers: { authorization: `Bearer ${accessToken}` },
+              body: { sourcePath, destinationPath, name },
             },
-            latestDocumentId: latestDocument
-              ? latestDocument.document.id
-              : null,
-            versions: versions,
-          });
-        }
-      });
-    }
-
-    // Transform documents for response
-    const transformedDocuments = processDocuments
-      .filter(
-        (doc) =>
-          (!replacedDocumentIds.has(doc.documentId) ||
-            (doc.replacedDocument &&
-              doc.document.id === doc.replacedDocument.id)) &&
-          !supersededDocumentIds.has(doc.documentId),
-      )
-      .map((doc) => {
-        const processDoc = process.documents.find(
-          (d) => d.documentId === doc.documentId,
-        );
-        const signedBy =
-          processDoc?.signatures.map((sig) => ({
-            signedBy: sig.user.username,
-            signedAt: sig.signedAt ? sig.signedAt.toISOString() : null,
-            remarks: sig.reason || null,
-            byRecommender: sig.byRecommender,
-            isAttachedWithRecommendation: sig.isAttachedWithRecommendation,
-          })) || [];
-
-        const rejectionDetails =
-          processDoc?.rejections.length > 0
-            ? {
-                rejectedBy: processDoc.rejections[0].user.username,
-                rejectionReason: processDoc.rejections[0].reason || null,
-                rejectedAt: processDoc.rejections[0].rejectedAt
-                  ? processDoc.rejections[0].rejectedAt.toISOString()
-                  : null,
-                byRecommender: processDoc.rejections[0].byRecommender,
-                isAttachedWithRecommendation:
-                  processDoc.rejections[0].isAttachedWithRecommendation,
-              }
-            : null;
-
-        const parts = doc.document.path.split("/");
-        parts.pop();
-        const updatedPath = parts.join("/");
-        return {
-          id: doc.document.id,
-          name: doc.document.name,
-          createdAt: doc.document.createdOn || null,
-          type: doc.document.type,
-          path: updatedPath,
-          tags: doc.tags,
-          signedBy,
-          rejectionDetails,
-          isRecirculationTrigger:
-            processDoc?.documentHistory.some(
-              (history) => history.isRecirculationTrigger,
-            ) || false,
-          approvalCount: signedBy.length,
-          isReplacement: doc.isReplacement,
-          superseding: doc.superseding,
-          preApproved: doc.preApproved,
-          reopenCycle: doc.reopenCycle,
-          description: doc.description,
-          reasonOfSupersed: doc.reasonOfSupersed,
-          description: doc.description,
-          partNumber: doc.partNumber,
-          issueNo: doc.issueNo,
-          SOPIssueNo: doc.SOPIssueNo,
-          active: true,
-        };
-      });
-
-    const queryStepInstances = await retry(() =>
-      prisma.processStepInstance.findMany({
-        where: {
-          processId: process.id,
-          status: {
-            in: [
-              "IN_PROGRESS",
-              "FOR_RECIRCULATION",
-              "APPROVED",
-              "FOR_RECOMMENDATION",
-            ],
-          },
-        },
-        include: {
-          workflowStep: {
-            select: {
-              id: true,
-              stepName: true,
-              stepNumber: true,
-              stepType: true,
-            },
-          },
-          workflowAssignment: {
-            include: {
-              step: {
-                select: {
-                  id: true,
-                  stepName: true,
-                  stepNumber: true,
-                  stepType: true,
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
                 },
-              },
+              }),
             },
-          },
-          pickedBy: { select: { id: true, username: true } },
-          processQA: {
-            where: {
-              OR: [{ initiatorId: userData.id }, { entityId: userData.id }],
-              status: "OPEN",
-            },
-            include: {
-              initiator: { select: { id: true, name: true } },
-              process: { select: { id: true, name: true } },
-            },
-          },
-          recommendations: {
-            include: {
-              initiator: { select: { id: true, username: true } },
-              recommender: { select: { id: true, username: true } },
-            },
-          },
-        },
-      }),
-    );
-
-    const queryDetails = await Promise.all(
-      queryStepInstances.flatMap((step) =>
-        step.processQA.map(async (qa) => {
-          const documentHistoryIds = [
-            ...(qa.details?.documentChanges?.map(
-              (dc) => dc.documentHistoryId,
-            ) || []),
-            ...(qa.details?.documentSummaries?.map(
-              (ds) => ds.documentHistoryId,
-            ) || []),
-          ];
-
-          const documentHistories =
-            documentHistoryIds.length > 0
-              ? await prisma.documentHistory.findMany({
-                  where: { id: { in: documentHistoryIds } },
-                  include: {
-                    document: {
-                      select: {
-                        id: true,
-                        name: true,
-                        type: true,
-                        path: true,
-                      },
-                    },
-                    replacedDocument: {
-                      select: {
-                        id: true,
-                        name: true,
-                        path: true,
-                      },
-                    },
-                    user: {
-                      select: {
-                        id: true,
-                        name: true,
-                        username: true,
-                      },
-                    },
-                  },
-                })
-              : [];
-
-          return {
-            stepInstanceId: step.id,
-            stepName: step.workflowAssignment?.step?.stepName ?? null,
-            stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
-            status: step.status,
-            taskType: qa.answer ? "RESOLVED" : "QUERY_UPLOAD",
-            queryText: qa.question,
-            answerText: qa.answer || null,
-            initiatorName: qa.initiator.name,
-            createdAt: qa.createdAt.toISOString(),
-            answeredAt: qa.answeredAt ? qa.answeredAt.toISOString() : null,
-            documentChanges:
-              qa.details?.documentChanges?.map((dc) => {
-                const history = documentHistories.find(
-                  (h) => h.id === dc.documentHistoryId,
-                );
-                return {
-                  documentId: dc.documentId,
-                  requiresApproval: dc.requiresApproval,
-                  isReplacement: dc.isReplacement,
-                  superseding: dc.superseding || false,
-                  documentHistoryId: dc.documentHistoryId,
-                  document: history?.document
-                    ? {
-                        id: history.document.id,
-                        name: history.document.name,
-                        type: history.document.type,
-                        path: history.document.path,
-                        tags: history.document.tags,
-                      }
-                    : null,
-                  actionDetails: history?.actionDetails,
-                  user: history?.user.name,
-                  createdAt: history?.createdAt.toISOString(),
-                  replacedDocument: history?.replacedDocument
-                    ? {
-                        id: history.replacedDocument.id,
-                        name: history.replacedDocument.name,
-                        path: history.replacedDocument.path,
-                      }
-                    : null,
-                  reopenCycle: history?.actionDetails?.reopenCycle || 0,
-                };
-              }) || [],
-            documentSummaries:
-              qa.details?.documentSummaries?.map((ds) => {
-                const history = documentHistories.find(
-                  (h) => h.id === ds.documentHistoryId,
-                );
-                return {
-                  documentId: ds.documentId,
-                  feedbackText: ds.feedbackText,
-                  documentHistoryId: ds.documentHistoryId,
-                  documentDetails: history?.document
-                    ? {
-                        id: history.document.id,
-                        name: history.document.name,
-                        path: history.document.path,
-                      }
-                    : null,
-                  user: history?.user.username,
-                  createdAt: history?.createdAt.toISOString(),
-                  reopenCycle: history?.actionDetails?.reopenCycle || 0,
-                };
-              }) || [],
-            assigneeDetails: qa.details?.assigneeDetails
-              ? {
-                  assignedStepName: qa.details.assigneeDetails.assignedStepName,
-                  assignedAssigneeId:
-                    qa.details.assigneeDetails.assignedAssigneeId,
-                  assignedAssigneeName: qa.details.assigneeDetails
-                    .assignedAssigneeId
-                    ? (
-                        await prisma.user.findUnique({
-                          where: {
-                            id: parseInt(
-                              qa.details.assigneeDetails.assignedAssigneeId,
-                            ),
-                          },
-                          select: { username: true },
-                        })
-                      )?.username || null
-                    : null,
-                }
-              : null,
-          };
-        }),
-      ),
-    );
-
-    const recommendationDetails = await Promise.all(
-      process.stepInstances.flatMap((step) =>
-        step.recommendations.map(async (rec) => {
-          const documentSummaries = rec.documentSummaries || [];
-          const documentResponses = rec.details?.documentResponses || [];
-          const documentIds = documentSummaries.map((ds) =>
-            parseInt(ds.documentId),
           );
-          const documents = documentIds.length
-            ? await prisma.document.findMany({
-                where: { id: { in: documentIds } },
-                select: { id: true, name: true },
-              })
-            : [];
+        });
 
-          const documentMap = documents.reduce((map, doc) => {
-            map[doc.id] = doc.name;
-            return map;
-          }, {});
-
-          const documentDetails = documentSummaries.map((ds) => {
-            const response = documentResponses?.find(
-              (dr) => parseInt(dr.documentId) === parseInt(ds.documentId),
-            );
-            return {
-              documentId: ds.documentId,
-              documentName: documentMap[ds.documentId] || "Unknown Document",
-              queryText: ds.queryText,
-              answerText: response?.answerText || null,
-            };
+        if (copyResult.documentId) {
+          newDocumentDetails.push({
+            newId: copyResult.documentId,
+            oldDoc: pDoc,
           });
+        }
+      } catch (error) {
+        console.error(`Error duplicating document ${pDoc.documentId}:`, error);
+      }
+    }
 
-          return {
-            recommendationId: rec.id,
-            stepInstanceId: step.id,
-            stepName: step.workflowAssignment?.step?.stepName ?? null,
-            stepNumber: step.workflowAssignment?.step?.stepNumber ?? null,
-            status: rec.status,
-            recommendationText: rec.recommendationText,
-            responseText: rec.responseText || null,
-            initiatorName: rec.initiator.username,
-            recommenderName: rec.recommender.username,
-            createdAt: rec.createdAt.toISOString(),
-            respondedAt: rec.respondedAt ? rec.respondedAt.toISOString() : null,
-            documentDetails,
-          };
-        }),
-      ),
-    );
+    if (newDocumentDetails.length === 0) {
+      return res
+        .status(500)
+        .json({
+          message: "Failed to duplicate documents for the new process.",
+        });
+    }
 
-    const toBePicked = process.stepInstances.every(
-      (step) => step.pickedById === null,
-    );
+    const documentIds = newDocumentDetails.map((d) => d.newId);
 
-    const workflow = {
-      id: process.workflow.id,
-      name: process.workflow.name,
-      version: process.workflow.version,
-    };
+    // 5. Execute DB Transaction to start the new process instance
+    const newProcess = await prisma.$transaction(async (tx) => {
+      const process_ = await tx.processInstance.create({
+        data: {
+          workflowId: workflowId,
+          initiatorId: userData.id,
+          name: processName,
+          status: "IN_PROGRESS",
+          description: originalProcess.description,
+          issueNo: originalProcess.issueNo,
+          currentStepId: null,
+          reopenCycle: 0,
+          storagePath: `../${workflowDetails.name}/${processName}`,
+        },
+      });
 
-    const processDocs = await prisma.processDocument.findMany({
-      where: {
-        processId,
-      },
-      select: {
-        reopenCycle: true,
-      },
-      distinct: ["reopenCycle"],
+      // Map copied documents to the new process
+      const processDocumentData = newDocumentDetails.map((item) => ({
+        processId: process_.id,
+        documentId: item.newId,
+        reopenCycle: 0,
+        SOPIssueNo: item.oldDoc.SOPIssueNo || null,
+        preApproved: item.oldDoc.preApproved || false,
+        tags: item.oldDoc.tags || [],
+        partNumber: item.oldDoc.partNumber || null,
+        description: item.oldDoc.description || null,
+        issueNo: item.oldDoc.issueNo || null,
+      }));
+
+      await tx.processDocument.createMany({
+        data: processDocumentData,
+      });
+
+      // Fetch target workflow and initialize assignments
+      const workflow = await tx.workflow.findUnique({
+        where: { id: workflowId },
+        include: { steps: { include: { assignments: true } } },
+      });
+
+      if (!workflow || !workflow.steps.length) {
+        throw new Error("Target workflow or steps not found");
+      }
+
+      const step = workflow.steps[0];
+
+      for (const assignment of step.assignments) {
+        await processAssignment(
+          tx,
+          process_,
+          step,
+          assignment,
+          documentIds,
+          false,
+          true,
+          workflowId,
+        );
+      }
+
+      await tx.processInstance.update({
+        where: { id: process_.id },
+        data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
+      });
+
+      return process_;
     });
 
-    // Map reopenCycle to version numbers (reopenCycle + 1) and ensure uniqueness
-    const versions = [
-      ...new Set(processDocs.map((doc) => doc.reopenCycle + 1)),
-    ].sort((a, b) => a - b);
-
-    // Find the current step instance to get stepNumber and stepType
-    const currentStepInstance = process.stepInstances.find(
-      (item) =>
-        item.id ===
-        process.stepInstances.filter((item) => item.status === "IN_PROGRESS")[0]
-          ?.id,
-    );
-
-    const responseData = {
-      process: {
-        processStoragePath: process.storagePath,
-        description: process.description,
-        processName: process.name,
-        initiatorName: process.initiator.username,
-        status: process.status,
-        createdAt: process.createdAt,
-        issueNo: process.issueNo,
-        processId: process.id,
-        reopenCycle: process.reopenCycle,
-        versions: versions,
-        processStepInstanceId:
-          process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
-          )[0]?.id || null,
-        arrivedAt:
-          process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
-          )[0]?.updatedAt ||
-          process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
-          )[0]?.createdAt ||
-          null,
-        updatedAt: process.updatedAt,
-        toBePicked,
-        isRecirculated: process.isRecirculated,
-        documents: transformedDocuments,
-        steps,
-        queryDetails,
-        recommendationDetails,
-        documentVersioning,
-        sededDocuments,
-        workflow,
-        currentStepNumber:
-          currentStepInstance?.workflowStep?.stepNumber || null,
-        currentStepType:
-          process.status === "COMPLETED" || process.initiator.id === userData.id
-            ? "APPROVAL"
-            : currentStepInstance?.workflowStep?.stepType,
-      },
-    };
-
-    // Serialize BigInt values
-    const serializedResponse = serializeBigInt(responseData);
-
-    return res.status(200).json(serializedResponse);
+    return res.status(200).json({
+      message: `Process restarted successfully. New Process: ${processName}`,
+      processId: newProcess.id,
+    });
   } catch (error) {
-    console.error("Error getting process:", error);
+    console.error("Error restarting process", error);
     return res.status(500).json({
-      success: false,
-      error: {
-        message: "Failed to view process",
-        details: error.message,
-        code: "PROCESS_VIEW_ERROR",
-      },
+      message: "Error restarting process",
+      error: error.message,
     });
-  } finally {
-    await prisma.$disconnect();
   }
 };
 
@@ -2151,6 +1308,7 @@ export const view_process = async (req, res) => {
               "FOR_RECIRCULATION",
               "APPROVED",
               "FOR_RECOMMENDATION",
+              "MIGRATED",
             ],
           },
         },
@@ -3072,14 +2230,18 @@ export const view_process = async (req, res) => {
         versions: versions,
         processStepInstanceId:
           process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
+            (item) =>
+              item.status === "IN_PROGRESS" || item.status === "MIGRATED",
           )[0]?.id || null,
+
         arrivedAt:
           process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
+            (item) =>
+              item.status === "IN_PROGRESS" || item.status === "MIGRATED",
           )[0]?.updatedAt ||
           process.stepInstances.filter(
-            (item) => item.status === "IN_PROGRESS",
+            (item) =>
+              item.status === "IN_PROGRESS" || item.status === "MIGRATED",
           )[0]?.createdAt ||
           null,
         updatedAt: process.updatedAt,
@@ -3122,11 +2284,17 @@ export const view_process = async (req, res) => {
 
 async function handleProcessClaim(userId, stepInstanceId) {
   return prisma.$transaction(async (tx) => {
-    // 2. Claim the step
+    // Check the migration status before updating
+    const instanceCheck = await tx.processStepInstance.findUnique({
+      where: { id: stepInstanceId },
+      select: { isMigrated: true },
+    });
+
+    // 2. Claim the step - now allowing MIGRATED status
     const step = await tx.processStepInstance.update({
       where: {
         id: stepInstanceId,
-        status: "IN_PROGRESS",
+        status: { in: ["IN_PROGRESS", "MIGRATED"] }, // 👈 Added MIGRATED
         assignedTo: userId,
       },
       data: {
@@ -3149,9 +2317,16 @@ async function handleProcessClaim(userId, stepInstanceId) {
       },
     });
 
+    // --- NO DISTURBANCE POLICY START ---
+    // If this is a migrated step instance, we update its local status and STOP.
+    // We do NOT delete other roles and do NOT check process advancement.
+    if (instanceCheck?.isMigrated) {
+      return step;
+    }
+    // --- NO DISTURBANCE POLICY END ---
+
     const processId = step.process.id;
 
-    // 3. Handle Role assignments
     if (step.workflowAssignment.assigneeType === "ROLE") {
       await tx.processStepInstance.deleteMany({
         where: {
@@ -3184,7 +2359,6 @@ async function handleProcessClaim(userId, stepInstanceId) {
       });
     }
 
-    // 4. Handle department-specific tracking
     if (step.workflowAssignment.assigneeType === "DEPARTMENT") {
       if (step.workflowAssignment.allowParallel) {
         await tx.departmentStepProgress.update({
@@ -3199,11 +2373,9 @@ async function handleProcessClaim(userId, stepInstanceId) {
       await updateDepartmentProgress(tx, step);
     }
 
-    // 5. Check assignment and process completion
     await checkAssignmentCompletion(tx, step.assignmentProgress.id);
     await checkProcessProgress(tx, processId);
 
-    // 6. Notify about step completion
     await tx.processNotification.create({
       data: {
         stepId: step.id,
@@ -3670,7 +2842,9 @@ export const get_user_processes = async (req, res, next) => {
     const stepInstances = await prisma.processStepInstance.findMany({
       where: {
         assignedTo: userId,
-        status: "IN_PROGRESS",
+        status: {
+          in: ["IN_PROGRESS", "MIGRATED"], // 👈 include MIGRATED
+        },
       },
       include: {
         process: {
@@ -3681,22 +2855,6 @@ export const get_user_processes = async (req, res, next) => {
             initiator: {
               select: { username: true },
             },
-            // queries: {
-            //   where: {
-            //     OR: [
-            //       { raisedById: userId },
-            //       { recirculationApprovals: { some: { approverId: userId } } },
-            //     ],
-            //   },
-            //   select: { id: true, queryText: true, status: true },
-            // },
-            // recommendations: {
-            //   where: {
-            //     OR: [{ requestedById: userId }, { recommendedToId: userId }],
-            //     status: "IN_PROGRESS",
-            //   },
-            //   select: { id: true, remarks: true, status: true },
-            // },
           },
         },
         workflowAssignment: {
@@ -3727,7 +2885,7 @@ export const get_user_processes = async (req, res, next) => {
         initiatorUsername: step.process?.initiator?.username || "System User",
         createdAt: step.createdAt,
         actionType:
-          process.initiatorId === userData.id
+          step.process.initiatorId === userData.id
             ? "APPROVAL"
             : step.workflowAssignment?.step?.stepType || "GENERAL",
         stepName: step.workflowAssignment?.step?.stepName || "Pending Step",
@@ -3735,16 +2893,7 @@ export const get_user_processes = async (req, res, next) => {
         assignmentId: step.assignmentId,
         deadline: step.deadline,
         stepInstanceId: step.id,
-        // queries: step.process.queries.map((q) => ({
-        //   id: q.id,
-        //   queryText: q.queryText,
-        //   status: q.status,
-        // })),
-        // recommendations: step.process.recommendations.map((r) => ({
-        //   id: r.id,
-        //   remarks: r.remarks,
-        //   status: r.status,
-        // })),
+        isObserver: step.status === "MIGRATED", // 👈 new flag
       };
     });
 
@@ -3792,7 +2941,7 @@ export const complete_process_step = async (req, res) => {
         where: {
           id: stepInstanceId,
           assignedTo: userData.id,
-          status: "IN_PROGRESS",
+          status: { in: ["IN_PROGRESS", "MIGRATED"] }, // 👈 Allow MIGRATED
         },
         include: {
           process: {
@@ -3807,11 +2956,7 @@ export const complete_process_step = async (req, res) => {
           workflowAssignment: {
             include: {
               step: {
-                select: {
-                  id: true,
-                  workflowId: true,
-                  stepNumber: true,
-                },
+                select: { id: true, workflowId: true, stepNumber: true },
               },
             },
           },
@@ -3823,9 +2968,20 @@ export const complete_process_step = async (req, res) => {
         throw new Error("Invalid step instance or user not assigned");
       }
 
-      if (!stepInstance.process) {
-        throw new Error("Process not found for this step instance");
+      // --- NO DISTURBANCE POLICY START ---
+      // If migrated, archive the step instance but do NOT advance the process.
+      if (stepInstance.isMigrated) {
+        return await tx.processStepInstance.update({
+          where: { id: stepInstanceId },
+          data: {
+            status: "APPROVED",
+            decisionAt: new Date(),
+            pickedById: userData.id,
+            claimedAt: new Date(),
+          },
+        });
       }
+      // --- NO DISTURBANCE POLICY END ---
 
       if (stepInstance.status === "FOR_RECIRCULATION") {
         throw new Error("Cannot complete step until recirculation is resolved");
@@ -3833,7 +2989,6 @@ export const complete_process_step = async (req, res) => {
 
       const workflowId = stepInstance.process.workflowId;
 
-      // Handle recirculated steps differently
       if (stepInstance.isRecirculated) {
         await tx.processStepInstance.update({
           where: { id: stepInstanceId },
@@ -3845,7 +3000,6 @@ export const complete_process_step = async (req, res) => {
           },
         });
 
-        // For recirculated steps, check if all instances for this assignment are completed
         const pendingRecirculatedInstances =
           await tx.processStepInstance.findMany({
             where: {
@@ -3862,7 +3016,6 @@ export const complete_process_step = async (req, res) => {
           });
         }
 
-        // Check if all assignments for the current step are completed
         const allAssignmentsCompleted = await checkAllAssignmentsCompleted(
           tx,
           stepInstance.processId,
@@ -3876,21 +3029,14 @@ export const complete_process_step = async (req, res) => {
             stepInstance.stepId,
             workflowId,
           );
-
           return {
-            message:
-              "Recirculated step completed successfully and process advanced",
+            message: "Recirculated step completed and advanced",
             advanceStatus: advanceResult.status,
             recirculated: true,
           };
         }
-
-        return {
-          message: "Recirculated step completed successfully",
-          recirculated: true,
-        };
+        return { message: "Recirculated step completed", recirculated: true };
       } else {
-        // Original logic for non-recirculated steps
         await tx.processStepInstance.update({
           where: { id: stepInstanceId },
           data: {
@@ -3915,7 +3061,6 @@ export const complete_process_step = async (req, res) => {
               status: "IN_PROGRESS",
             },
           });
-
           await tx.assignmentProgress.update({
             where: { id: stepInstance.assignmentProgress.id },
             data: { completed: true, completedAt: new Date() },
@@ -3941,8 +3086,7 @@ export const complete_process_step = async (req, res) => {
 
         if (openQueries.length > 0) {
           return {
-            message:
-              "Step completed, but process is waiting for query resolution",
+            message: "Step completed, waiting for queries",
             openQueriesCount: openQueries.length,
           };
         }
@@ -3962,12 +3106,6 @@ export const complete_process_step = async (req, res) => {
             select: { id: true, stepNumber: true, workflowId: true },
           });
 
-          if (!currentStep) {
-            throw new Error(
-              `Current step with ID ${stepInstance.stepId} not found`,
-            );
-          }
-
           const nextStep = await tx.workflowStep.findFirst({
             where: {
               workflowId: currentStep.workflowId,
@@ -3984,34 +3122,27 @@ export const complete_process_step = async (req, res) => {
               stepInstance.stepId,
               workflowId,
             );
-
             return {
-              message: "Step completed successfully and process advanced",
+              message: "Step completed and process advanced",
               advanceStatus: advanceResult.status,
             };
           } else {
             await tx.processInstance.update({
-              where: {
-                id: stepInstance.processId,
-              },
+              where: { id: stepInstance.processId },
               data: { status: "COMPLETED" },
             });
           }
         }
-
-        return {
-          message: "Step completed successfully",
-        };
+        return { message: "Step completed successfully" };
       }
     });
 
     return res.status(200).json(result);
   } catch (error) {
     console.error("Error completing step:", error);
-    return res.status(500).json({
-      message: "Error completing step",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "Error completing step", error: error.message });
   }
 };
 
@@ -4155,7 +3286,7 @@ export const createQuery = async (req, res) => {
         where: {
           id: stepInstanceId,
           // assignedTo: userData.id,
-          status: "IN_PROGRESS",
+          status: { in: ["IN_PROGRESS", "MIGRATED"] },
         },
         include: {
           process: true,
@@ -4420,7 +3551,12 @@ export const createQuery = async (req, res) => {
               { claimedAt: { not: null } },
               {
                 status: {
-                  in: ["APPROVED", "IN_PROGRESS", "FOR_RECIRCULATION"],
+                  in: [
+                    "APPROVED",
+                    "IN_PROGRESS",
+                    "FOR_RECIRCULATION",
+                    "MIGRATED",
+                  ], // Added MIGRATED
                 },
               },
             ],
@@ -4585,7 +3721,7 @@ export const createRecommendation = async (req, res) => {
         where: {
           id: stepInstanceId,
           assignedTo: userData.id,
-          status: "IN_PROGRESS",
+          status: { in: ["IN_PROGRESS", "MIGRATED"] },
         },
         include: {
           process: true,
@@ -4828,9 +3964,11 @@ export const submitRecommendationResponse = async (req, res) => {
             "Invalid document response: documentId and answerText are required",
           );
         }
+
         const documentSummary = recommendation.documentSummaries?.find(
           (ds) => parseInt(ds.documentId) === parseInt(documentId),
         );
+
         if (!documentSummary) {
           throw new Error(
             `Document ${documentId} is not part of this recommendation`,
@@ -4866,6 +4004,7 @@ export const submitRecommendationResponse = async (req, res) => {
       const documentHistoryEntries = [];
       for (const response of documentResponses) {
         const { documentId, answerText } = response;
+
         const history = await tx.documentHistory.create({
           data: {
             documentId: parseInt(documentId),
@@ -4877,6 +4016,7 @@ export const submitRecommendationResponse = async (req, res) => {
             createdAt: new Date(),
           },
         });
+
         documentHistoryEntries.push(history);
       }
 
@@ -4891,10 +4031,19 @@ export const submitRecommendationResponse = async (req, res) => {
         },
       });
 
-      // 6. Unfreeze the step instance
+      // 6. Unfreeze the step instance with the correct status
+      const stepInst = await tx.processStepInstance.findUnique({
+        where: { id: recommendation.stepInstanceId },
+      });
+
+      const restoreStatus =
+        stepInst.isMigrated && !stepInst.isRecirculated
+          ? "MIGRATED"
+          : "IN_PROGRESS";
+
       await tx.processStepInstance.update({
         where: { id: recommendation.stepInstanceId },
-        data: { status: "IN_PROGRESS" },
+        data: { status: restoreStatus },
       });
 
       // 7. Create notification for the initiator
@@ -4904,11 +4053,17 @@ export const submitRecommendationResponse = async (req, res) => {
           userId: recommendation.initiatorId,
           type: "DOCUMENT_QUERY",
           status: "ACTIVE",
-          metadata: { responseText, processId: recommendation.processId },
+          metadata: {
+            responseText,
+            processId: recommendation.processId,
+          },
         },
       });
 
-      return { recommendation: updatedRecommendation, documentHistoryEntries };
+      return {
+        recommendation: updatedRecommendation,
+        documentHistoryEntries,
+      };
     });
 
     return res.status(200).json({
@@ -5263,6 +4418,7 @@ export const reopen_process = async (req, res) => {
           OR: [
             { status: "APPROVED" },
             { status: "IN_PROGRESS" },
+            { status: "MIGRATED" }, // Added MIGRATED
             { pickedById: { not: null } },
           ],
         },
@@ -5867,14 +5023,18 @@ export const get_completed_initiator_processes = async (req, res) => {
           processId: process.id,
           processStepInstanceId:
             process.stepInstances.filter(
-              (item) => item.status === "IN_PROGRESS",
+              (item) =>
+                item.status === "IN_PROGRESS" || item.status === "MIGRATED",
             )[0]?.id || null,
+
           arrivedAt:
             process.stepInstances.filter(
-              (item) => item.status === "IN_PROGRESS",
+              (item) =>
+                item.status === "IN_PROGRESS" || item.status === "MIGRATED",
             )[0]?.updatedAt ||
             process.stepInstances.filter(
-              (item) => item.status === "IN_PROGRESS",
+              (item) =>
+                item.status === "IN_PROGRESS" || item.status === "MIGRATED",
             )[0]?.createdAt ||
             null,
           updatedAt: process.updatedAt,

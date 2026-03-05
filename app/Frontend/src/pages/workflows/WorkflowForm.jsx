@@ -2,7 +2,6 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconEdit,
-  IconEye,
   IconInfoCircle,
   IconPlus,
   IconSquareLetterX,
@@ -24,10 +23,6 @@ import {
 import {
   Autocomplete,
   TextField,
-  FormControl,
-  FormLabel,
-  FormGroup,
-  FormHelperText,
 } from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -38,6 +33,7 @@ export default function WorkflowForm({
   editData,
   setEditData,
   updateList,
+  onEditSuccess, // <-- NEW PROP
 }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
   const [actionsLoading, setActionsLoading] = useState(false);
@@ -63,7 +59,7 @@ export default function WorkflowForm({
     remove: removeStep,
     move: moveStep,
   } = useFieldArray({ control, name: 'steps' });
-  console.log(stepFields);
+
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(null);
   const [currentAssignmentIndex, setCurrentAssignmentIndex] = useState(null);
@@ -74,15 +70,16 @@ export default function WorkflowForm({
     setCurrentStepIndex(stepIndex);
     setShowAssignmentForm(true);
   };
+
   const handleMoveStepUp = (index) => {
     if (index > 0) {
-      moveStep(index, index - 1); // Move step up
+      moveStep(index, index - 1);
     }
   };
 
   const handleMoveStepDown = (index) => {
     if (index < stepFields.length - 1) {
-      moveStep(index, index + 1); // Move step down
+      moveStep(index, index + 1);
     }
   };
 
@@ -108,37 +105,46 @@ export default function WorkflowForm({
     setValue('steps', updatedSteps);
     setShowAssignmentForm(false);
     setSelectedNodes([]);
-    setEditingAssignment(null); // Reset editing state
-    setCurrentAssignmentIndex(null); // Reset assignment index
+    setEditingAssignment(null);
+    setCurrentAssignmentIndex(null);
   };
+
   const createWorkflow = async (data) => {
     if (!data?.steps || data.steps.length < 2) {
       toast.info('Please add at least two steps to proceed.');
       return;
     }
 
-    if (data?.steps?.find((item) => item.assignments.length == 0)) {
+    if (data?.steps?.find((item) => item.assignments.length === 0)) {
       toast.info('Please add assignments');
       return;
     }
+
     try {
       const res = editData
         ? await EditWorkflow(editData?.id, data)
         : await CreateWorkflow(data);
+
       toast.success(res?.data?.message);
       updateList();
       handleCloseForm();
       reset();
       setEditData(null);
+
+      // If editing, notify parent with the new workflow ID
+      if (editData && onEditSuccess) {
+        onEditSuccess(res.data.workflow.id); // <-- NEW CALL
+      }
     } catch (error) {
-      toast.error(error?.response?.data?.messaeg || error?.message);
+      toast.error(error?.response?.data?.message || error?.message);
     }
   };
+
   const handleEditAssignment = (stepIndex, assignmentIndex, selectedRoles) => {
     setCurrentStepIndex(stepIndex);
-    setCurrentAssignmentIndex(assignmentIndex); // Store the index of the assignment being edited
+    setCurrentAssignmentIndex(assignmentIndex);
     const assignment = stepFields[stepIndex].assignments[assignmentIndex];
-    setEditingAssignment(assignment); // Store the assignment data to edit
+    setEditingAssignment(assignment);
     setShowAssignmentForm(true);
     setSelectedNodes(selectedRoles || []);
   };
@@ -153,12 +159,13 @@ export default function WorkflowForm({
       toast.error(
         error?.response?.data?.message ||
           error?.response?.data?.error ||
-          error?.message,
+          error?.message
       );
     } finally {
       setActionsLoading(false);
     }
   };
+
   const getWorkflowsToCopy = async () => {
     try {
       const response = await GetWorkflowsList();
@@ -167,18 +174,21 @@ export default function WorkflowForm({
       toast.error(
         error?.response?.data?.message ||
           error?.response?.data?.message ||
-          error?.message,
+          error?.message
       );
     }
   };
+
   useEffect(() => {
     if (editData) {
       reset(editData);
     }
   }, [editData]);
+
   useEffect(() => {
     getWorkflowsToCopy();
   }, []);
+
   return (
     <div className="mx-auto bg-white overflow-auto p-2">
       <h2 className="text-xl font-bold mb-4 text-center">Add Workflow</h2>
@@ -218,15 +228,11 @@ export default function WorkflowForm({
           />
         </div>
 
-        {/* ------------------------------------------------------------- */}
-        {/* WORKFLOW TEMPLATE DROPDOWN (NEW SECTION) */}
-        {/* ------------------------------------------------------------- */}
-
+        {/* Copy from existing workflow */}
         <div className="mb-6">
           <label className="block text-sm font-semibold mb-2">
             Choose From Existing Workflows :
           </label>
-
           <div className="border p-3 rounded-md bg-gray-50">
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
               {workflowsList && workflowsList.length > 0 ? (
@@ -241,13 +247,12 @@ export default function WorkflowForm({
                         {wf.workflowDescription}
                       </p>
                     </div>
-
                     <CustomButton
                       type="button"
                       disabled={actionsLoading}
                       click={() => handleCopyWorkflow(wf.workflowId)}
                       text={'Use'}
-                    ></CustomButton>
+                    />
                   </div>
                 ))
               ) : (
@@ -259,10 +264,7 @@ export default function WorkflowForm({
           </div>
         </div>
 
-        {/* ------------------------------------------------------------- */}
         {/* Steps Section */}
-        {/* ------------------------------------------------------------- */}
-
         <div>
           <h3 className="text-lg font-semibold mb-4">Workflow Steps :</h3>
 
@@ -282,9 +284,7 @@ export default function WorkflowForm({
                 <CustomButton
                   type="button"
                   click={() => handleMoveStepDown(stepIndex)}
-                  disabled={
-                    stepIndex === stepFields.length - 1 || actionsLoading
-                  }
+                  disabled={stepIndex === stepFields.length - 1 || actionsLoading}
                   title="Move Step Down"
                   text={<IconArrowDown size={20} />}
                 />
@@ -312,7 +312,6 @@ export default function WorkflowForm({
               {/* Assignment Header */}
               <div className="flex justify-between items-center mt-4">
                 <h4 className="text-sm font-semibold">Assignments :</h4>
-
                 <button
                   type="button"
                   onClick={() => handleAddAssignment(stepIndex)}
@@ -335,7 +334,6 @@ export default function WorkflowForm({
                           <th className="p-2 text-left">Action</th>
                         </tr>
                       </thead>
-
                       <tbody>
                         {step.assignments.map((assignment, index) => (
                           <tr key={index} className="border-b">
@@ -345,13 +343,11 @@ export default function WorkflowForm({
                               {assignment.assigneeIds
                                 .map(
                                   (item) =>
-                                    item?.name || item?.username || item?.role,
+                                    item?.name || item?.username || item?.role
                                 )
                                 .filter(Boolean)
                                 .join(', ') || 'N/A'}
                             </td>
-
-                            {/* Actions */}
                             <td className="p-2 flex gap-2">
                               <CustomButton
                                 type="button"
@@ -359,12 +355,11 @@ export default function WorkflowForm({
                                   handleEditAssignment(
                                     stepIndex,
                                     index,
-                                    assignment.selectedRoles,
+                                    assignment.selectedRoles
                                   )
                                 }
                                 text={<IconEdit size={18} />}
                               />
-
                               <CustomButton
                                 type="button"
                                 variant="danger"
@@ -372,7 +367,7 @@ export default function WorkflowForm({
                                   const updatedSteps = [...stepFields];
                                   updatedSteps[stepIndex].assignments.splice(
                                     index,
-                                    1,
+                                    1
                                   );
                                   setValue('steps', updatedSteps);
                                 }}
@@ -404,19 +399,18 @@ export default function WorkflowForm({
           </button>
         </div>
 
-        {/* Submit Buttons */}
         <hr className="mt-15 border-t-2 border-gray-300" />
 
+        {/* Submit Buttons */}
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
           <CustomButton
             type="button"
-            click={() => handleCloseForm()}
+            click={handleCloseForm}
             disabled={actionsLoading}
             text="Cancel"
             variant="none"
             className="flex-1"
           />
-
           <CustomButton
             disabled={actionsLoading}
             type="submit"
@@ -426,20 +420,20 @@ export default function WorkflowForm({
         </div>
       </form>
 
-      {/* Assignment Form as Modal */}
+      {/* Assignment Form Modal */}
       {showAssignmentForm && (
         <AssignmentForm
           onSubmit={handleAssignmentSubmit}
           onClose={() => {
             setShowAssignmentForm(false);
             setSelectedNodes([]);
-            setEditingAssignment(null); // Reset editing state
-            setCurrentAssignmentIndex(null); // Reset assignment index
+            setEditingAssignment(null);
+            setCurrentAssignmentIndex(null);
           }}
           setSelectedNodes={setSelectedNodes}
           selectedNodes={selectedNodes}
-          editingAssignment={editingAssignment} // Pass the assignment to edit
-          currentAssignmentIndex={currentAssignmentIndex} // Pass the assignment index
+          editingAssignment={editingAssignment}
+          currentAssignmentIndex={currentAssignmentIndex}
           actionsLoading={actionsLoading}
           setActionsLoading={setActionsLoading}
         />
@@ -448,7 +442,7 @@ export default function WorkflowForm({
   );
 }
 
-// Assignment Form (Modal)
+// AssignmentForm (unchanged, but included for completeness)
 function AssignmentForm({
   onSubmit,
   onClose,
@@ -471,7 +465,6 @@ function AssignmentForm({
   function sortSelectedRolesByStep(data, selectedIds, direction) {
     const selectedSet = new Set(selectedIds);
 
-    // Helper: find parent-child relationships
     function findParents(node) {
       const results = [];
       if (node.children) {
@@ -485,28 +478,24 @@ function AssignmentForm({
       return results;
     }
 
-    // Gather all parent-child pairs
     let parentChildPairs = [];
     for (const root of data) {
       parentChildPairs = parentChildPairs.concat(findParents(root));
     }
 
-    // Step 1: identify leaf nodes (selected with no selected children)
     const selectedWithChildren = new Set(
-      parentChildPairs.map((pc) => pc.parent),
+      parentChildPairs.map((pc) => pc.parent)
     );
     const leaves = Array.from(selectedSet).filter(
-      (id) => !selectedWithChildren.has(id),
+      (id) => !selectedWithChildren.has(id)
     );
 
-    // Step 2: find selected parents of the selected leaves
     const parents = parentChildPairs
       .filter((pc) => leaves.includes(pc.child) && selectedSet.has(pc.parent))
       .map((pc) => pc.parent);
 
     const uniqueParents = [...new Set(parents)];
 
-    // Map IDs to names
     const idToName = {};
     (function mapAll(nodes) {
       for (const n of nodes) {
@@ -515,7 +504,6 @@ function AssignmentForm({
       }
     })(data);
 
-    // Build step-based output
     let stepGroups = [];
 
     if (leaves.length && uniqueParents.length) {
@@ -537,7 +525,6 @@ function AssignmentForm({
       ];
     }
 
-    // Return JSX UI
     return (
       <div>
         {stepGroups.map((group) => (
@@ -582,21 +569,17 @@ function AssignmentForm({
 
   useEffect(() => {
     if (editingAssignment) {
-      // Pre-fill form fields
-      console.log('callded');
       setValue('assigneeType', editingAssignment.assigneeType);
       setValue('actionType', editingAssignment.actionType);
       setValue('assigneeIds', editingAssignment.assigneeIds);
-      // setValue('accessTypes', editingAssignment.accessTypes || []);
       if (
         editingAssignment.assigneeType === 'DEPARTMENT' &&
         editingAssignment.selectedRoles
       ) {
-        setSelectedNodes(editingAssignment.selectedRoles); // Pre-fill selected roles
+        setSelectedNodes(editingAssignment.selectedRoles);
       }
     }
 
-    // Existing logic for fetching users, roles, or departments
     if (userList.length === 0 && assigneeType?.toLowerCase() === 'user') {
       GetUserList();
     } else if (
@@ -617,7 +600,7 @@ function AssignmentForm({
   const [hierarchyData, setHierarchyData] = useState({});
   const [loading, setLoading] = useState(false);
   const selectedDepartments = departmentList.filter((dep) =>
-    assigneeIds?.some((item) => item?.id == dep?.id),
+    assigneeIds?.some((item) => item?.id == dep?.id)
   );
 
   const currentDepartment = selectedDepartments?.[currentPage];
@@ -629,7 +612,7 @@ function AssignmentForm({
       try {
         setLoading(true);
         const response = await getRolesHierarchyInDepartment(
-          currentDepartment.id,
+          currentDepartment.id
         );
         setHierarchyData((prev) => ({
           ...prev,
@@ -637,7 +620,7 @@ function AssignmentForm({
         }));
       } catch (error) {
         toast.error(
-          error?.response?.data?.message || 'Failed to load hierarchy',
+          error?.response?.data?.message || 'Failed to load hierarchy'
         );
       } finally {
         setLoading(false);
@@ -682,9 +665,7 @@ function AssignmentForm({
                   control={control}
                   render={({ field }) => {
                     const allSelected =
-                      field.value?.length === userList?.length; // Check if all users are selected
-
-                    // Add "Select All" option at the top
+                      field.value?.length === userList?.length;
                     const enhancedOptions = [
                       {
                         id: 'all',
@@ -704,14 +685,14 @@ function AssignmentForm({
                           allSelected
                             ? userList
                             : userList?.filter((u) =>
-                                field.value.some((item) => item.id === u.id),
+                                field.value.some((item) => item.id === u.id)
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(allSelected ? [] : userList); // Select/Deselect all
+                            field.onChange(allSelected ? [] : userList);
                           } else {
-                            field.onChange(value); // Normal selection
+                            field.onChange(value);
                           }
                         }}
                         renderInput={(params) => (
@@ -734,9 +715,7 @@ function AssignmentForm({
                   control={control}
                   render={({ field }) => {
                     const allSelected =
-                      field.value?.length === roleList?.length; // Check if all are selected
-
-                    // Add "Select All" option at the top
+                      field.value?.length === roleList?.length;
                     const enhancedOptions = [
                       {
                         id: 'all',
@@ -762,14 +741,14 @@ function AssignmentForm({
                             ? roleList
                             : roleList?.filter(
                                 (r) =>
-                                  field.value.some((item) => item.id === r.id), // Compare full objects
+                                  field.value.some((item) => item.id === r.id)
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(allSelected ? [] : roleList); // Select/Deselect all
+                            field.onChange(allSelected ? [] : roleList);
                           } else {
-                            field.onChange(value); // Store full object instead of just IDs
+                            field.onChange(value);
                           }
                         }}
                         renderInput={(params) => (
@@ -792,8 +771,7 @@ function AssignmentForm({
                   control={control}
                   render={({ field }) => {
                     const allSelected =
-                      field.value?.length === departmentList?.length; // Check if all are selected
-
+                      field.value?.length === departmentList?.length;
                     const enhancedOptions = [
                       {
                         id: 'all',
@@ -818,14 +796,14 @@ function AssignmentForm({
                             ? departmentList
                             : departmentList?.filter(
                                 (d) =>
-                                  field.value.some((item) => item.id === d.id), // Compare full objects
+                                  field.value.some((item) => item.id === d.id)
                               )
                         }
                         onChange={(_, value) => {
                           if (value.some((v) => v.id === 'all')) {
-                            field.onChange(allSelected ? [] : departmentList); // Select/Deselect all
+                            field.onChange(allSelected ? [] : departmentList);
                           } else {
-                            field.onChange(value); // Store full objects instead of just IDs
+                            field.onChange(value);
                           }
                         }}
                         renderInput={(params) => (
@@ -857,7 +835,6 @@ function AssignmentForm({
 
                     <div className="mb-3 mt-1 border rounded-md overflow-x-auto">
                       <table className="min-w-[500px] w-full border-collapse">
-                        {/* Table Head */}
                         <thead>
                           <tr className="bg-gray-200 text-sm font-semibold border-b">
                             <th className="p-2 text-left">Department Code</th>
@@ -869,8 +846,6 @@ function AssignmentForm({
                             <th className="p-2 text-center">Direction</th>
                           </tr>
                         </thead>
-
-                        {/* Table Body */}
                         <tbody>
                           {selectedNodes.map((node, index) => (
                             <tr key={index} className="border-b text-sm">
@@ -881,7 +856,7 @@ function AssignmentForm({
                                 {sortSelectedRolesByStep(
                                   node.roles,
                                   node.roles.map((item) => item.id),
-                                  node.direction,
+                                  node.direction
                                 )}
                               </td>
                               <td className="p-3 text-center hidden">
@@ -892,9 +867,9 @@ function AssignmentForm({
                                     const updatedNodes = [...selectedNodes];
                                     updatedNodes[index] = {
                                       ...node,
-                                      allowParallel: e.target.checked, // Toggle allowParallel
+                                      allowParallel: e.target.checked,
                                     };
-                                    setSelectedNodes(updatedNodes); // Notify parent component
+                                    setSelectedNodes(updatedNodes);
                                   }}
                                   className="cursor-pointer"
                                 />
@@ -935,27 +910,6 @@ function AssignmentForm({
               </>
             )}
 
-            {/* Access Types Selection */}
-            {/* <label className="block text-sm font-semibold mb-2">
-              Access Type
-            </label>
-            <Controller
-              name="accessTypes"
-              control={control}
-              render={({ field }) => (
-                <Autocomplete
-                  multiple
-                  className="mb-3"
-                  size="small"
-                  options={['READ', 'EDIT', 'DOWNLOAD']}
-                  onChange={(_, value) => field.onChange(value)}
-                  renderInput={(params) => (
-                    <TextField {...params} variant="outlined" />
-                  )}
-                />
-              )}
-            /> */}
-
             {/* Action Type */}
             <label className="block text-sm font-semibold mb-2">
               Action Type
@@ -967,44 +921,24 @@ function AssignmentForm({
             >
               <option value="APPROVAL">APPROVAL</option>
               <option value="REVIEW">VIEW</option>
-              {/* <option value="RECOMMENDATION">RECOMMENDATION</option> */}
             </select>
-
-            {/* Direction */}
-            {/* {assigneeType.toLowerCase() == 'department' && (
-              <>
-                <label className="block text-sm font-semibold mb-2">
-                  Direction Of Flow
-                </label>
-                <select
-                  {...register('direction')}
-                  required
-                  className="border p-2 w-full rounded-sm mb-3"
-                >
-                  <option value="UPWARDS">UPWARDS</option>
-                  <option value="DOWNWARDS">DOWNWARDS</option>
-                </select>
-              </>
-            )} */}
 
             {/* Submit & Cancel Buttons */}
             <div className="flex justify-end space-x-2">
               <CustomButton
                 type="button"
-                disabled={loading | actionsLoading}
-                click={() => {
-                  onClose();
-                }}
+                disabled={loading || actionsLoading}
+                click={onClose}
                 variant={'danger'}
                 text={'Cancel'}
                 className={'w-30'}
-              ></CustomButton>
+              />
               <CustomButton
                 type="submit"
-                disabled={loading | actionsLoading}
+                disabled={loading || actionsLoading}
                 className={'w-30'}
                 text={editingAssignment ? 'Update' : 'Save'}
-              ></CustomButton>
+              />
             </div>
           </form>
         </div>
@@ -1030,7 +964,6 @@ function AssignmentForm({
 
               {/* Show Hierarchy if Available */}
               <div className="mb-4">
-                {/* Show Hierarchy in TreeGraph */}
                 <TreeGraph
                   data={hierarchyData[currentDepartment.id] || []}
                   loading={loading}
@@ -1056,7 +989,7 @@ function AssignmentForm({
               <button
                 onClick={() =>
                   setCurrentPage((prev) =>
-                    prev + 1 < departmentList.length ? prev + 1 : prev,
+                    prev + 1 < departmentList.length ? prev + 1 : prev
                   )
                 }
                 disabled={currentPage + 1 >= departmentList.length}

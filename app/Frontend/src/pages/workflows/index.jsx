@@ -8,7 +8,6 @@ import {
   IconEdit,
   IconFile,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react';
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -17,6 +16,7 @@ import DeleteConfirmationModal from '../../CustomComponents/DeleteConfirmation';
 import { toast } from 'react-toastify';
 import CustomModal from '../../CustomComponents/CustomModal';
 import { useNavigate } from 'react-router-dom';
+import MigrationModal from './MigrationModal';
 
 export default function WorkflowVisualizer() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -30,6 +30,14 @@ export default function WorkflowVisualizer() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteItemId, setDeleteItemId] = useState(null);
   const navigate = useNavigate();
+
+  // Migration states
+  const [newWorkflowId, setNewWorkflowId] = useState(null);
+  const [migrationData, setMigrationData] = useState(null);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [selectedProcesses, setSelectedProcesses] = useState([]);
+  const [migrating, setMigrating] = useState(false);
+
   const getList = async () => {
     try {
       const res = await GetWorkflows(true);
@@ -40,12 +48,13 @@ export default function WorkflowVisualizer() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     getList();
   }, []);
 
   const filteredWorkflows = workflows.filter((workflow) =>
-    workflow.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    workflow.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleVersionChange = (workflowName, version) => {
@@ -54,6 +63,7 @@ export default function WorkflowVisualizer() {
       [workflowName]: version,
     }));
   };
+
   const handleEdit = (workflow, version) => {
     const editObject = {
       name: workflow.name,
@@ -64,23 +74,19 @@ export default function WorkflowVisualizer() {
     setEditData(editObject);
     setShowForm(true);
   };
+
   const handleDelete = async (id) => {
     setDeleteLoading(true);
-    const url = `${backendUrl}/deleteBranch/${id}`;
-    const accessToken = sessionStorage.getItem('accessToken');
-
     try {
       const response = await deleteWorkflow(id);
-
       if (response.status === 200) {
         setWorkflows((prev) =>
           prev.map((item) =>
             (item.id || item._id) === id
               ? { ...item, status: 'Inactive' }
-              : item,
-          ),
+              : item
+          )
         );
-
         toast.success(response?.data?.message);
       }
     } catch (error) {
@@ -91,11 +97,92 @@ export default function WorkflowVisualizer() {
     setDeleteLoading(false);
   };
 
+  // Called from WorkflowForm after successful edit
+  const handleEditSuccess = (newId) => {
+    setNewWorkflowId(newId);
+    fetchMigrationPreview(newId);
+  };
+
+const fetchMigrationPreview = async (workflowId) => {
+  try {
+    const token = sessionStorage.getItem('accessToken');
+    const response = await fetch(
+      `${backendUrl}/workflows/${workflowId}/migration-preview`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const data = await response.json();
+    console.log('🔍 Migration preview response:', data); // ← ADD THIS
+
+    if (response.ok) {
+      // Check for the expected structure
+      if (data && data.oldWorkflow && data.newWorkflow) {
+        setMigrationData(data);
+        if (data.processes && data.processes.length > 0) {
+          setShowMigrationModal(true);
+          setSelectedProcesses(data.processes.map((p) => p.processId));
+        } else {
+          toast.info('No active processes need migration.');
+        }
+      } else {
+        toast.error('Invalid migration preview data received.');
+      }
+    } else {
+      toast.error(data.error || 'Failed to load migration preview');
+    }
+  } catch (error) {
+    console.error('Preview error:', error);
+    toast.error('Failed to load migration preview');
+  }
+};
+
+const handleMigrate = async () => {
+  if (selectedProcesses.length === 0) {
+    toast.warning('No processes selected');
+    return;
+  }
+  setMigrating(true);
+  console.log("reached")
+  try {
+    const token = sessionStorage.getItem('accessToken');
+    const response = await fetch(
+      `${backendUrl}/workflows/${newWorkflowId}/migrate-processes`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ processIds: selectedProcesses }),
+      }
+    );
+    const data = await response.json();
+    if (response.ok) {
+      toast.success('Migration completed successfully');
+      setShowMigrationModal(false);
+      getList(); // refresh workflow list
+    } else {
+      toast.error(data.error || 'Migration failed');
+    }
+  } catch (error) {
+    toast.error('Migration failed: ' + error.message);
+  } finally {
+    setMigrating(false);
+  }
+};
+
   if (loading) {
     return <ComponentLoader />;
   }
+
   return (
     <div className="p-2 mx-auto">
+      {/* Header with search and add button */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mb-3">
         <input
           type="text"
@@ -112,23 +199,27 @@ export default function WorkflowVisualizer() {
         </button>
       </div>
 
-      <CustomModal
-        isOpen={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditData(null);
-        }}
-      >
-        <WorkflowForm
-          handleCloseForm={() => {
-            setShowForm(false);
-            setEditData(null);
-          }}
-          updateList={getList}
-          editData={editData}
-          setEditData={setEditData}
-        />
-      </CustomModal>
+      {/* Workflow Form Modal */}
+    <CustomModal
+  isOpen={showForm}
+  onClose={() => {
+    setShowForm(false);
+    setEditData(null);
+  }}
+>
+  <WorkflowForm
+    handleCloseForm={() => {
+      setShowForm(false);
+      setEditData(null);
+    }}
+    updateList={getList}
+    editData={editData}
+    setEditData={setEditData}
+    onEditSuccess={handleEditSuccess}   // ← add this line
+  />
+</CustomModal>
+
+      {/* Workflow Cards */}
       {filteredWorkflows.length > 0 ? (
         filteredWorkflows.map((workflow) => {
           const selectedVersion =
@@ -138,11 +229,14 @@ export default function WorkflowVisualizer() {
           return (
             <motion.div
               key={workflow.name}
-              className={`bg-white rounded-xl shadow-lg p-6 mb-3 border border-slate-400 relative ${selectedVersion?.status == 'Inactive' ? 'bg-red-100' : ''}`}
+              className={`bg-white rounded-xl shadow-lg p-6 mb-3 border border-slate-400 relative ${
+                selectedVersion?.status === 'Inactive' ? 'bg-red-100' : ''
+              }`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
+              {/* Action Buttons */}
               <div className="w-full mb-2 flex flex-col ml-auto items-end">
                 <div className="flex absolute top-3 left-3 gap-2">
                   <CustomButton
@@ -154,7 +248,7 @@ export default function WorkflowVisualizer() {
                     click={() => setDeleteItemId(selectedVersion?.id)}
                     text={<IconTrash size={20} />}
                     title={'Delete'}
-                    disabled={selectedVersion?.status == "Inactive"}
+                    disabled={selectedVersion?.status === 'Inactive'}
                     variant={'danger'}
                   />
                   <CustomButton
@@ -172,7 +266,7 @@ export default function WorkflowVisualizer() {
                   value={selectedVersion.version}
                   onChange={(e) => {
                     const selected = workflow.versions.find(
-                      (v) => v.version === parseInt(e.target.value, 10),
+                      (v) => v.version === parseInt(e.target.value, 10)
                     );
                     handleVersionChange(workflow.name, selected);
                   }}
@@ -185,6 +279,8 @@ export default function WorkflowVisualizer() {
                   ))}
                 </select>
               </div>
+
+              {/* Workflow Header */}
               <CustomCard
                 className="flex border justify-between items-center cursor-pointer transition"
                 click={() =>
@@ -203,6 +299,7 @@ export default function WorkflowVisualizer() {
                 </motion.span>
               </CustomCard>
 
+              {/* Workflow Metadata */}
               <div className="mt-2 space-y-4">
                 <CustomCard>
                   <div className="flex justify-between items-center space-x-2 text-md text-gray-700">
@@ -226,10 +323,10 @@ export default function WorkflowVisualizer() {
                 </CustomCard>
               </div>
 
+              {/* Expanded Steps */}
               <AnimatePresence>
                 {isExpanded && (
                   <motion.div
-                    key={workflow.name} // Ensure uniqueness for AnimatePresence
                     initial={{ scaleY: 0, opacity: 0 }}
                     animate={{ scaleY: 1, opacity: 1 }}
                     exit={{ scaleY: 0, opacity: 0 }}
@@ -249,6 +346,7 @@ export default function WorkflowVisualizer() {
         </p>
       )}
 
+      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={deleteItemId !== null}
         onClose={() => setDeleteItemId(null)}
@@ -256,6 +354,24 @@ export default function WorkflowVisualizer() {
         isLoading={deleteLoading}
         deactive={true}
       />
+
+      {/* Migration Modal */}
+{showMigrationModal && migrationData && (
+  <CustomModal
+    isOpen={showMigrationModal}
+    onClose={() => setShowMigrationModal(false)}
+    size="lg"
+  >
+    <MigrationModal
+      migrationData={migrationData}
+      selectedProcesses={selectedProcesses}
+      setSelectedProcesses={setSelectedProcesses}
+      onMigrate={handleMigrate}      // ← ensure this is passed
+      migrating={migrating}
+      onClose={() => setShowMigrationModal(false)}
+    />
+  </CustomModal>
+)}
     </div>
   );
 }

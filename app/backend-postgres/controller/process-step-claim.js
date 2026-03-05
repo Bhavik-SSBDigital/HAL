@@ -13,28 +13,15 @@ export const pick_process_step = async (req, res, next) => {
       return res.status(400).json({ message: "stepInstanceId is required" });
     }
 
-    // Execute all operations in a single transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Get the step instance with related workflow assignment and assignee type
       const stepInstance = await tx.processStepInstance.findUnique({
         where: { id: stepInstanceId },
         include: {
           workflowAssignment: {
-            select: {
-              assigneeType: true,
-              id: true,
-            },
+            select: { assigneeType: true, id: true },
           },
-          process: {
-            select: {
-              id: true,
-            },
-          },
-          workflowStep: {
-            select: {
-              id: true,
-            },
-          },
+          process: { select: { id: true } },
+          workflowStep: { select: { id: true } },
         },
       });
 
@@ -42,61 +29,63 @@ export const pick_process_step = async (req, res, next) => {
         throw new Error("Step instance not found");
       }
 
-      const assigneeType = stepInstance.workflowAssignment?.assigneeType;
+      let assigneeType = stepInstance.workflowAssignment?.assigneeType;
+
+      // If there is no workflowAssignment but it is a migrated step, treat it as USER assignment
+      if (!assigneeType && stepInstance.isMigrated) {
+        assigneeType = "USER";
+      }
 
       if (!assigneeType) {
         throw new Error("Assignee type not found for this step");
       }
 
-      // Update the step instance with the current user's ID
+      // Determine new status
+      let newStatus = undefined;
+
+      if (stepInstance.status === null) {
+        newStatus = "IN_PROGRESS";
+      }
+
       const updatedStepInstance = await tx.processStepInstance.update({
         where: { id: stepInstanceId },
         data: {
           pickedById: userData.id,
           claimedAt: new Date(),
-          status: "IN_PROGRESS",
+          ...(newStatus && { status: newStatus }),
         },
       });
 
-      // If assigneeType is USER, just return success
       if (assigneeType === "USER") {
         return { message: "Process picked successfully", assigneeType };
       }
 
-      // If assigneeType is ROLE or DEPARTMENT, handle the logic
       if (assigneeType === "ROLE" || assigneeType === "DEPARTMENT") {
-        // Get the roleId from the step instance
         if (!stepInstance.roleId) {
           throw new Error("Role ID not found for this step instance");
         }
 
-        // Get all users with the same role (excluding current user)
         const usersWithSameRole = await tx.userRole.findMany({
           where: {
             roleId: stepInstance.roleId,
-            userId: {
-              not: userData.id, // Exclude current user
-            },
+            userId: { not: userData.id },
           },
-          select: {
-            userId: true,
-          },
+          select: { userId: true },
         });
 
         const userIdsToDelete = usersWithSameRole.map((ur) => ur.userId);
 
         if (userIdsToDelete.length > 0) {
-          // Delete process step instances for other users with the same criteria
           const deleteResult = await tx.processStepInstance.deleteMany({
             where: {
               AND: [
                 { processId: stepInstance.processId },
                 { assignedTo: { in: userIdsToDelete } },
                 { roleId: stepInstance.roleId },
-                { assignmentId: stepInstance.assignmentId }, // Use assignmentId instead of workflowAssignmentId
-                { stepId: stepInstance.stepId }, // Match the same step
-                { id: { not: stepInstanceId } }, // Exclude the current step instance
-                { status: "IN_PROGRESS" }, // Only delete pending steps
+                { assignmentId: stepInstance.assignmentId },
+                { stepId: stepInstance.stepId },
+                { id: { not: stepInstanceId } },
+                { status: { in: ["IN_PROGRESS", "MIGRATED"] } },
               ],
             },
           });
@@ -126,6 +115,7 @@ export const pick_process_step = async (req, res, next) => {
     if (error.message === "Step instance not found") {
       return res.status(404).json({ message: error.message });
     }
+
     if (
       error.message === "Assignee type not found for this step" ||
       error.message === "Role ID not found for this step instance" ||
@@ -237,8 +227,8 @@ async function createRoleSteps(tx, params) {
           status: "IN_PROGRESS",
           deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
         },
-      })
-    )
+      }),
+    ),
   );
 }
 

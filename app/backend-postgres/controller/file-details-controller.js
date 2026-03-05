@@ -134,7 +134,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
           include: {
             processDocuments: {
               include: {
-                process: true,
+                process: {
+                  include: {
+                    workflow: true,
+                  },
+                },
               },
               orderBy: {
                 process: {
