@@ -604,6 +604,8 @@ export async function processAssignment(
     },
   });
 
+  console.log("assignment from process assignment", assignment);
+
   const progress = foundProgress
     ? foundProgress
     : await tx.assignmentProgress.create({
@@ -1062,11 +1064,9 @@ export const copy_and_restart_process = async (req, res) => {
     );
 
     if (activeDocuments.length === 0) {
-      return res
-        .status(400)
-        .json({
-          message: "No active documents found to copy in the original process.",
-        });
+      return res.status(400).json({
+        message: "No active documents found to copy in the original process.",
+      });
     }
 
     // 3. Setup new process details and folder
@@ -1121,11 +1121,9 @@ export const copy_and_restart_process = async (req, res) => {
     }
 
     if (newDocumentDetails.length === 0) {
-      return res
-        .status(500)
-        .json({
-          message: "Failed to duplicate documents for the new process.",
-        });
+      return res.status(500).json({
+        message: "Failed to duplicate documents for the new process.",
+      });
     }
 
     const documentIds = newDocumentDetails.map((d) => d.newId);
@@ -2694,6 +2692,9 @@ async function advanceToNextStep(tx, processId, currentStepId) {
 }
 
 export async function buildRoleHierarchy(step, assignment) {
+  if (!assignment) {
+    return [];
+  }
   const { allowParallel, direction } = assignment;
   const selectedRoles = step.selectedRoles;
 

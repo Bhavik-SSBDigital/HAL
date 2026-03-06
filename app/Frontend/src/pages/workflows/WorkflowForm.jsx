@@ -236,30 +236,33 @@ export default function WorkflowForm({
           <div className="border p-3 rounded-md bg-gray-50">
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
               {workflowsList && workflowsList.length > 0 ? (
-                workflowsList.map((wf) => (
-                  <div
-                    key={wf.workflowId}
-                    className="flex justify-between items-center border p-2 rounded-md bg-white hover:bg-gray-100 transition"
-                  >
-                    <div>
-                      <p className="font-semibold text-sm">{wf.workflowName}</p>
-                      <p className="text-xs text-gray-600">
-                        {wf.workflowDescription}
-                      </p>
-                    </div>
-                    <CustomButton
-                      type="button"
-                      disabled={actionsLoading}
-                      click={() => handleCopyWorkflow(wf.workflowId)}
-                      text={'Use'}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-sm italic">
-                  No workflows found.
-                </p>
-              )}
+  workflowsList.map((wf) => (
+    <div
+      key={wf.workflowId}
+      className="flex justify-between items-center border p-2 rounded-md bg-white hover:bg-gray-100 transition"
+    >
+      <div>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-sm">{wf.workflowName}</p>
+          {wf.version && (
+            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
+              v{wf.version}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-600">{wf.workflowDescription}</p>
+      </div>
+      <CustomButton
+        type="button"
+        disabled={actionsLoading}
+        click={() => handleCopyWorkflow(wf.workflowId)}
+        text={'Use'}
+      />
+    </div>
+  ))
+) : (
+  <p className="text-gray-500 text-sm italic">No workflows found.</p>
+)}
             </div>
           </div>
         </div>
@@ -462,79 +465,62 @@ function AssignmentForm({
     }
     onClose();
   };
-  function sortSelectedRolesByStep(data, selectedIds, direction) {
-    const selectedSet = new Set(selectedIds);
+function sortSelectedRolesByStep(hierarchyData, selectedRoles, direction) {
+  const idToDepth = {};
 
-    function findParents(node) {
-      const results = [];
-      if (node.children) {
-        for (const child of node.children) {
-          if (selectedSet.has(child.id)) {
-            results.push({ child: child.id, parent: node.id });
-          }
-          results.push(...findParents(child));
-        }
-      }
-      return results;
+  function mapDepth(nodes, currentDepth) {
+    for (const n of nodes) {
+      idToDepth[n.id] = currentDepth;
+      if (n.children) mapDepth(n.children, currentDepth + 1);
     }
-
-    let parentChildPairs = [];
-    for (const root of data) {
-      parentChildPairs = parentChildPairs.concat(findParents(root));
-    }
-
-    const selectedWithChildren = new Set(
-      parentChildPairs.map((pc) => pc.parent)
-    );
-    const leaves = Array.from(selectedSet).filter(
-      (id) => !selectedWithChildren.has(id)
-    );
-
-    const parents = parentChildPairs
-      .filter((pc) => leaves.includes(pc.child) && selectedSet.has(pc.parent))
-      .map((pc) => pc.parent);
-
-    const uniqueParents = [...new Set(parents)];
-
-    const idToName = {};
-    (function mapAll(nodes) {
-      for (const n of nodes) {
-        idToName[n.id] = n.name;
-        if (n.children) mapAll(n.children);
-      }
-    })(data);
-
-    let stepGroups = [];
-
-    if (leaves.length && uniqueParents.length) {
-      stepGroups =
-        direction === 'UPWARDS'
-          ? [
-              { step: 1, roles: leaves.map((id) => idToName[id]) },
-              { step: 2, roles: uniqueParents.map((id) => idToName[id]) },
-            ]
-          : [
-              { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
-              { step: 2, roles: leaves.map((id) => idToName[id]) },
-            ];
-    } else if (leaves.length) {
-      stepGroups = [{ step: 1, roles: leaves.map((id) => idToName[id]) }];
-    } else if (uniqueParents.length) {
-      stepGroups = [
-        { step: 1, roles: uniqueParents.map((id) => idToName[id]) },
-      ];
-    }
-
-    return (
-      <div>
-        {stepGroups.map((group) => (
-          <div key={group.step} className="text-sm text-gray-800 mb-1">
-            <strong>Step {group.step}:</strong> {group.roles.join(', ')}
-          </div>
-        ))}
-      </div>
-    );
   }
+
+  mapDepth(hierarchyData, 0);
+
+  const groupedByDepth = {};
+
+  for (const role of selectedRoles) {
+    const depth = idToDepth[role.id] !== undefined ? idToDepth[role.id] : 0;
+
+    if (!groupedByDepth[depth]) {
+      groupedByDepth[depth] = [];
+    }
+
+    groupedByDepth[depth].push(role.name);
+  }
+
+  let sortedDepths = Object.keys(groupedByDepth)
+    .map(Number)
+    .sort((a, b) => b - a);
+
+  if (direction === 'DOWNWARDS') {
+    sortedDepths.reverse();
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {sortedDepths.map((depth, index) => (
+        <div
+          key={depth}
+          className="flex flex-wrap items-center gap-1 bg-gray-50 border rounded px-2 py-1"
+        >
+          <span className="text-xs font-semibold text-gray-600 mr-1">
+            Step {index + 1}:
+          </span>
+
+          {groupedByDepth[depth].map((role, i) => (
+            <span
+              key={i}
+              className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded"
+            >
+              {role}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
   const { register, handleSubmit, watch, control, setValue } = useForm({
     defaultValues: editingAssignment || {
@@ -633,7 +619,7 @@ function AssignmentForm({
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4">
-        <div className="bg-white p-4 sm:p-6 rounded-md shadow-lg w-full max-w-2xl max-h-[95vh] overflow-auto">
+        <div className="bg-white p-4 sm:p-6 rounded-md shadow-lg w-full max-w-5xl max-h-[95vh] overflow-auto">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Add Assignment
           </h3>
@@ -839,10 +825,9 @@ function AssignmentForm({
                           <tr className="bg-gray-200 text-sm font-semibold border-b">
                             <th className="p-2 text-left">Department Code</th>
                             <th className="p-2 text-left">Flow</th>
-                            <th className="p-2 text-center hidden">
-                              Allow Parallel ( Process will be sent to all roles
-                              at the same time )
-                            </th>
+                            <th className="p-2 text-center">
+  Allow Parallel ( Process will be sent to all roles at the same time )
+</th>
                             <th className="p-2 text-center">Direction</th>
                           </tr>
                         </thead>
@@ -853,13 +838,13 @@ function AssignmentForm({
                                 {node.department}
                               </td>
                               <td className="p-3 whitespace-nowrap">
-                                {sortSelectedRolesByStep(
-                                  node.roles,
-                                  node.roles.map((item) => item.id),
-                                  node.direction
-                                )}
-                              </td>
-                              <td className="p-3 text-center hidden">
+  {sortSelectedRolesByStep(
+    hierarchyData[node.department] || [],
+    node.roles,
+    node.direction
+  )}
+</td>
+                              <td className="p-3 text-center">
                                 <input
                                   type="checkbox"
                                   checked={node.allowParallel || false}
@@ -879,22 +864,23 @@ function AssignmentForm({
                                   Direction Of Flow
                                 </label>
                                 <select
-                                  value={node.direction || ''}
-                                  onChange={(e) => {
-                                    const updatedNodes = [...selectedNodes];
-                                    updatedNodes[index] = {
-                                      ...node,
-                                      direction: e.target.value,
-                                    };
-                                    setSelectedNodes(updatedNodes);
-                                  }}
-                                  required
-                                  className="border p-2 w-full rounded-sm mb-3"
-                                >
-                                  <option value="">Select Direction</option>
-                                  <option value="UPWARDS">UPWARDS</option>
-                                  <option value="DOWNWARDS">DOWNWARDS</option>
-                                </select>
+  value={node.direction || ''}
+  onChange={(e) => {
+    const updatedNodes = [...selectedNodes];
+    updatedNodes[index] = {
+      ...node,
+      direction: e.target.value,
+    };
+    setSelectedNodes(updatedNodes);
+  }}
+  required={!node.allowParallel}
+  disabled={node.allowParallel}
+  className="border p-2 w-full rounded-sm mb-3"
+>
+  <option value="">Select Direction</option>
+  <option value="UPWARDS">UPWARDS</option>
+  <option value="DOWNWARDS">DOWNWARDS</option>
+</select>
                               </td>
                             </tr>
                           ))}
