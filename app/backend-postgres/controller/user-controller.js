@@ -163,14 +163,25 @@ export const get_user_profile_data = async (req, res) => {
         username: true,
         email: true,
         signaturePicFileName: true,
+        profilePicFileName: true,
         dscFileName: true,
-        dscFileName: true,
-        branches: true,
+        branches: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         roles: {
           select: {
             role: {
               select: {
                 role: true,
+                branch: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -179,16 +190,37 @@ export const get_user_profile_data = async (req, res) => {
     });
 
     console.log("user", user);
+    const departmentMap = new Map();
+
+    // departments directly assigned
+    user.branches.forEach((branch) => {
+      departmentMap.set(branch.id, {
+        departmentId: branch.id,
+        departmentName: branch.name,
+      });
+    });
+
+    // departments through roles
+    user.roles.forEach((r) => {
+      if (r.role.branch) {
+        departmentMap.set(r.role.branch.id, {
+          departmentId: r.role.branch.id,
+          departmentName: r.role.branch.name,
+        });
+      }
+    });
 
     const formattedUser = {
       id: user.id,
       username: user.username,
-      departmentsInvoledIn: user.branches.map((branch) => branch.name),
-      roles: user.roles.map((role) => role.role.role),
       email: user.email,
       signaturePicFileName: user.signaturePicFileName,
       profilePicFileName: user.profilePicFileName,
       dscFileName: user.dscFileName,
+
+      roles: user.roles.map((role) => role.role.role),
+
+      departmentsInvolvedIn: Array.from(departmentMap.values()),
     };
 
     res.status(200).json({
@@ -270,7 +302,7 @@ export const get_user = async (req, res) => {
       roles: user.roles.map(
         (userRole) =>
           // {
-          userRole.role.id
+          userRole.role.id,
         // name: userRole.role.role,
         // departmentId: userRole.role.departmentId,
         // isActive: userRole.role.isActive,
@@ -440,7 +472,7 @@ export const get_user_signature = async (req, res, next) => {
     const imagePath = path.join(
       __dirname,
       process.env.SIGNATURE_FOLDER_PATH, // Use absolute path in env
-      user.signaturePicFileName
+      user.signaturePicFileName,
     );
 
     // Add file existence check
@@ -478,7 +510,7 @@ export const get_user_profile_pic = async (req, res, next) => {
     const imagePath = path.join(
       __dirname,
       process.env.PROFILE_PIC_FOLDER_PATH, // Use absolute path in env
-      user.profilePicFileName
+      user.profilePicFileName,
     );
 
     if (!fs.existsSync(imagePath)) {
@@ -515,7 +547,7 @@ export const get_user_dsc = async (req, res, next) => {
     const imagePath = path.join(
       __dirname,
       process.env.DSC_FOLDER_PATH, // Use absolute path in env
-      user.dscFileName
+      user.dscFileName,
     );
 
     if (!fs.existsSync(imagePath)) {

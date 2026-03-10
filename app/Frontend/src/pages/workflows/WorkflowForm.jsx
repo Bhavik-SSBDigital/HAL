@@ -179,11 +179,28 @@ export default function WorkflowForm({
     }
   };
 
-  useEffect(() => {
-    if (editData) {
-      reset(editData);
-    }
-  }, [editData]);
+useEffect(() => {
+  if (editData) {
+
+    const formattedData = {
+      name: editData.name,
+      description: editData.description,
+      steps: (editData.steps || []).map((step) => ({
+        stepName: step.stepName,
+        assignments: (step.assignments || []).map((a) => ({
+          assigneeType: a.assigneeType,
+          actionType: a.actionType,
+          assigneeIds: a.assigneeIds || [],
+          direction: a.direction || null,
+          allowParallel: a.allowParallel || false,
+          selectedRoles: a.selectedRoles || []
+        }))
+      }))
+    };
+
+    reset(formattedData);
+  }
+}, [editData, reset]);
 
   useEffect(() => {
     getWorkflowsToCopy();
@@ -847,7 +864,7 @@ function sortSelectedRolesByStep(hierarchyData, selectedRoles, direction) {
                               <td className="p-3 text-center">
                                 <input
                                   type="checkbox"
-                                  checked={node.allowParallel || false}
+                                  checked={node.allowParallel ?? editingAssignment?.allowParallel ?? false}
                                   onChange={(e) => {
                                     const updatedNodes = [...selectedNodes];
                                     updatedNodes[index] = {

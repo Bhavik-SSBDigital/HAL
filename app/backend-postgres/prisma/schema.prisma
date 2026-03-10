@@ -27,9 +27,9 @@ model Department {
   roles              Role[]                   @relation("BranchRoles")
   users              User[]                   @relation("BranchUsers")
   DepartmentRoleAssignment DepartmentRoleAssignment[]
-  departmentStepProgresses DepartmentStepProgress[] @relation()
+  departmentStepProgresses DepartmentStepProgress[]   // ✅ FIXED: removed @relation("DepartmentAssignmentProgress")
   documentAccesses   DocumentAccess[]         @relation()
-  physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
+  physicalDocumentRequests PhysicalDocumentRequest[] @relation()
 }
 
 model Document {
@@ -229,6 +229,8 @@ model DepartmentRoleAssignment {
   workflowAssignmentId String
   departmentId       Int
   roleId             Int
+  direction          Direction?   // ← NEW
+  allowParallel      Boolean      @default(false) // ← NEW
   workflowAssignment WorkflowAssignment @relation(fields: [workflowAssignmentId], references: [id], onDelete: Cascade)
   department         Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   role               Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -400,7 +402,7 @@ model AssignmentProgress {
   workflowAssignment WorkflowAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   process           ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
   stepInstances     ProcessStepInstance[]
-  departmentStepProgress DepartmentStepProgress? @relation("DepartmentAssignmentProgress")
+  departmentStepProgresses DepartmentStepProgress[]   // ✅ FIXED: now plural and array
   @@unique([assignmentId, processId])
 }
 
@@ -543,11 +545,11 @@ model DepartmentStepProgress {
   direction        Direction
   completedRoles   Int[]     @default([])
   requiredRoles    Int[]
-  assignmentProgressId String? @unique
+  assignmentProgressId String?                          // ✅ FIXED: removed @unique
   process          ProcessInstance @relation(fields: [processId], references: [id], onDelete: Cascade)
   step             WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   department       Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  assignmentProgress AssignmentProgress? @relation(name: "DepartmentAssignmentProgress", fields: [assignmentProgressId], references: [id], onDelete: Cascade)
+  assignmentProgress AssignmentProgress? @relation(fields: [assignmentProgressId], references: [id], onDelete: Cascade)  // ✅ FIXED: removed name, removed onDelete from this side (already on the other side)
   @@unique([processId, stepId, departmentId])
 }
 

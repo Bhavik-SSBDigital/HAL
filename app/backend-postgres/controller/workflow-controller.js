@@ -29,6 +29,7 @@ const prisma = new PrismaClient();
 export const add_workflow = async (req, res) => {
   const accessToken = req.headers["authorization"]?.substring(7);
   const userData = await verifyUser(accessToken);
+
   if (userData === "Unauthorized") {
     return res.status(401).json({ message: "Unauthorized request" });
   }
@@ -45,12 +46,17 @@ export const add_workflow = async (req, res) => {
   try {
     const workflow = await prisma.$transaction(async (tx) => {
       const newWorkflow = await tx.workflow.create({
-        data: { name, description, createdById, version: 1 },
+        data: {
+          name,
+          description,
+          createdById,
+          version: 1,
+        },
       });
 
       const stepRecords = await Promise.all(
-        steps.map(async (step, index) => {
-          return tx.workflowStep.create({
+        steps.map((step, index) =>
+          tx.workflowStep.create({
             data: {
               workflowId: newWorkflow.id,
               stepNumber: index + 1,
@@ -58,182 +64,88 @@ export const add_workflow = async (req, res) => {
               allowParallel: step.allowParallel ?? false,
               requiresDocument: step.requiresDocument ?? true,
             },
-          });
-        }),
+          }),
+        ),
       );
 
       for (let i = 0; i < steps.length; i++) {
         const assignments = steps[i].assignments || [];
 
-        if (assignments.length) {
-          const departmentAssignments = [];
-          const groupedAssignments = {};
+        for (const assignee of assignments) {
+          const assigneeIds = (assignee.assigneeIds || [])
+            .map((x) => x.id)
+            .filter(Boolean);
 
-          assignments.forEach((assignee) => {
-            // Extract assigneeIds
-            const assigneeIds = Array.isArray(assignee.assigneeIds)
-              ? assignee.assigneeIds
-                  .map((item) => item.id)
-                  .filter((id) => id != null)
-              : [];
+          // Collect all role IDs (still needed for the top-level selectedRoles array)
+          const roleIds = (assignee.selectedRoles || []).flatMap((dept) =>
+            (dept.roles || []).map((r) => r.id),
+          );
 
-            if (assignee.assigneeType === "DEPARTMENT") {
-              // Create a separate assignment for each department
-              assigneeIds.forEach((departmentId) => {
-                // Find the selectedRoles entry for this department
-                const roleEntry = (assignee.selectedRoles ?? []).find(
-                  (role) => role.department === departmentId,
-                );
-                const roleIds = roleEntry
-                  ? (roleEntry.roles ?? [])
-                      .filter((role) => role.id != null)
-                      .map((role) => role.id)
-                  : [];
-                const allowParallel = roleEntry
-                  ? (roleEntry.allowParallel ?? false)
-                  : false;
-                const direction = roleEntry
-                  ? (roleEntry.direction ?? assignee.direction)
-                  : assignee.direction;
+          // For non‑DEPARTMENT assignments, direction/allowParallel come from the first selectedRoles item
+          const firstSelectedRole =
+            Array.isArray(assignee.selectedRoles) &&
+            assignee.selectedRoles.length > 0
+              ? assignee.selectedRoles[0]
+              : null;
+          const allowParallel = firstSelectedRole?.allowParallel ?? false;
+          const direction = firstSelectedRole?.direction ?? null;
 
-                departmentAssignments.push({
-                  ...assignee,
-                  assigneeIds: [departmentId], // Single department per assignment
-                  selectedRoles: roleIds,
-                  allowParallel,
-                  direction,
-                });
-              });
-            } else {
-              // Group non-DEPARTMENT assignments
-              const roleIds = (assignee.selectedRoles ?? []).flatMap(
-                ({ roles }) =>
-                  (roles ?? [])
-                    .filter((role) => role.id != null)
-                    .map((role) => role.id),
-              );
-
-              assigneeIds.forEach((assigneeId) => {
-                const allowParallelMapping = {};
-                if (
-                  assignee.selectedRoles &&
-                  Array.isArray(assignee.selectedRoles)
-                ) {
-                  assignee.selectedRoles.forEach((role) => {
-                    if (role.department && Array.isArray(role.roles)) {
-                      role.roles.forEach((r) => {
-                        allowParallelMapping[role.department] =
-                          role.allowParallel ?? false;
-                      });
-                    }
-                  });
-                }
-
-                const allowParallel = allowParallelMapping[assigneeId] ?? false;
-                const key = JSON.stringify({
-                  assigneeType: assignee.assigneeType,
-                  actionType: assignee.actionType,
-                  accessTypes: Array.isArray(assignee.accessTypes)
-                    ? assignee.accessTypes.sort()
-                    : [],
-                  direction: assignee.direction ?? null,
-                  allowParallel,
-                  selectedRoles: roleIds.sort(),
-                });
-
-                if (!groupedAssignments[key]) {
-                  groupedAssignments[key] = { ...assignee, assigneeIds: [] };
-                }
-                groupedAssignments[key].assigneeIds.push(Number(assigneeId));
-              });
-            }
-          });
-
-          // Combine grouped non-DEPARTMENT and ungrouped DEPARTMENT assignments
-          const allAssignments = [
-            ...Object.values(groupedAssignments),
-            ...departmentAssignments,
-          ];
-
-          await tx.workflowAssignment.createMany({
-            data: allAssignments.map((assignee) => ({
+          const assignment = await tx.workflowAssignment.create({
+            data: {
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds,
+              assigneeIds,
               actionType: assignee.actionType,
-              accessTypes: Array.isArray(assignee.accessTypes)
-                ? assignee.accessTypes
-                : [],
-              direction: assignee.direction ?? null,
-              allowParallel: assignee.allowParallel ?? false,
-              selectedRoles:
-                assignee.assigneeType === "DEPARTMENT"
-                  ? (assignee.selectedRoles ?? [])
-                  : [],
-            })),
+              accessTypes: assignee.accessTypes ?? [],
+              direction,
+              allowParallel,
+              selectedRoles: roleIds,
+            },
           });
 
-          const createdAssignments = await tx.workflowAssignment.findMany({
-            where: { stepId: stepRecords[i].id },
-            select: { id: true, assigneeType: true },
-            orderBy: { id: "asc" }, // Ensure consistent order
-          });
+          // For DEPARTMENT assignments, create DepartmentRoleAssignment rows with per‑department settings
+          if (assignee.assigneeType === "DEPARTMENT") {
+            const departmentRoleRows = [];
 
-          const departmentRoleAssignments = assignments
-            .filter((assignee) => assignee.assigneeType === "DEPARTMENT")
-            .flatMap((assignee) => {
-              return (assignee.assigneeIds ?? []).flatMap((dept) => {
-                const departmentId = dept.id;
-                const roleEntry = (assignee.selectedRoles ?? []).find(
-                  (role) => role.department === departmentId,
-                );
-                if (!roleEntry || !Array.isArray(roleEntry.roles)) return [];
+            for (const dept of assignee.selectedRoles || []) {
+              const departmentId = dept.department;
+              const deptDirection = dept.direction ?? null;
+              const deptAllowParallel = dept.allowParallel ?? false;
 
-                // Find the corresponding WorkflowAssignment for this department
-                const assignment = createdAssignments.find(
-                  (ca, idx) =>
-                    ca.assigneeType === "DEPARTMENT" &&
-                    idx >=
-                      createdAssignments.length -
-                        departmentAssignments.length &&
-                    departmentAssignments[
-                      idx -
-                        (createdAssignments.length -
-                          departmentAssignments.length)
-                    ].assigneeIds[0] === departmentId,
-                );
+              for (const role of dept.roles || []) {
+                departmentRoleRows.push({
+                  workflowAssignmentId: assignment.id,
+                  departmentId,
+                  roleId: role.id,
+                  direction: deptDirection,
+                  allowParallel: deptAllowParallel,
+                });
+              }
+            }
 
-                if (!assignment) return [];
-
-                return roleEntry.roles
-                  .filter((role) => role.id != null)
-                  .map((role) => ({
-                    workflowAssignmentId: assignment.id,
-                    departmentId,
-                    roleId: role.id,
-                  }));
+            if (departmentRoleRows.length) {
+              await tx.departmentRoleAssignment.createMany({
+                data: departmentRoleRows,
               });
-            });
-
-          if (departmentRoleAssignments.length > 0) {
-            await tx.departmentRoleAssignment.createMany({
-              data: departmentRoleAssignments,
-            });
+            }
           }
         }
       }
 
-      const created = await createFolder(true, `../${name}`, userData);
-      console.log("created", created);
+      await createFolder(true, `../${name}`, userData);
+
       return newWorkflow;
     });
 
-    return res
-      .status(201)
-      .json({ message: "Workflow created successfully", workflow });
+    return res.status(201).json({
+      message: "Workflow created successfully",
+      workflow,
+    });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to create workflow" });
+    return res.status(500).json({
+      error: "Failed to create workflow",
+    });
   }
 };
 
@@ -241,23 +153,23 @@ export const edit_workflow = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
+
     if (userData === "Unauthorized") {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { name, description, steps, id: workflowId } = req.body;
+    const { name, description, steps } = req.body;
+    const workflowId = req.params.workflowId;
 
-    const updatedById = userData.id;
     const oldWorkflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
-      include: { steps: true },
     });
 
     if (!oldWorkflow) {
       return res.status(404).json({ error: "Workflow not found" });
     }
 
-    const newWorkflow = await prisma.$transaction(async (tx) => {
+    const updatedWorkflow = await prisma.$transaction(async (tx) => {
       const latestVersion = await tx.workflow.findFirst({
         where: { name: oldWorkflow.name },
         orderBy: { version: "desc" },
@@ -267,7 +179,7 @@ export const edit_workflow = async (req, res) => {
         data: {
           name,
           description,
-          createdById: updatedById,
+          createdById: userData.id,
           version: latestVersion ? latestVersion.version + 1 : 1,
           previousVersionId: oldWorkflow.id,
           isActive: true,
@@ -275,8 +187,8 @@ export const edit_workflow = async (req, res) => {
       });
 
       const stepRecords = await Promise.all(
-        steps.map(async (step, index) => {
-          return tx.workflowStep.create({
+        steps.map((step, index) =>
+          tx.workflowStep.create({
             data: {
               workflowId: newWorkflow.id,
               stepNumber: index + 1,
@@ -284,163 +196,67 @@ export const edit_workflow = async (req, res) => {
               allowParallel: step.allowParallel ?? false,
               requiresDocument: step.requiresDocument ?? true,
             },
-          });
-        }),
+          }),
+        ),
       );
 
       for (let i = 0; i < steps.length; i++) {
         const assignments = steps[i].assignments || [];
-        if (assignments.length) {
-          const departmentAssignments = [];
-          const groupedAssignments = {};
 
-          assignments.forEach((assignee) => {
-            // Extract assigneeIds
-            const assigneeIds = Array.isArray(assignee.assigneeIds)
-              ? assignee.assigneeIds
-                  .map((item) => item.id)
-                  .filter((id) => id != null)
-              : [];
+        for (const assignee of assignments) {
+          const assigneeIds = (assignee.assigneeIds || [])
+            .map((x) => x.id)
+            .filter(Boolean);
 
-            if (assignee.assigneeType === "DEPARTMENT") {
-              // Create a separate assignment for each department
-              assigneeIds.forEach((departmentId) => {
-                // Find the selectedRoles entry for this department
-                const roleEntry = (assignee.selectedRoles ?? []).find(
-                  (role) => role.department === departmentId,
-                );
-                const roleIds = roleEntry
-                  ? (roleEntry.roles ?? [])
-                      .filter((role) => role.id != null)
-                      .map((role) => role.id)
-                  : [];
-                const allowParallel = roleEntry
-                  ? (roleEntry.allowParallel ?? false)
-                  : false;
-                const direction = roleEntry
-                  ? (roleEntry.direction ?? assignee.direction)
-                  : assignee.direction;
+          const roleIds = (assignee.selectedRoles || []).flatMap((dept) =>
+            (dept.roles || []).map((r) => r.id),
+          );
 
-                departmentAssignments.push({
-                  ...assignee,
-                  assigneeIds: [departmentId], // Single department per assignment
-                  selectedRoles: roleIds,
-                  allowParallel,
-                  direction,
-                });
-              });
-            } else {
-              // Group non-DEPARTMENT assignments
-              const roleIds = (assignee.selectedRoles ?? []).flatMap(
-                ({ roles }) =>
-                  (roles ?? [])
-                    .filter((role) => role.id != null)
-                    .map((role) => role.id),
-              );
+          const firstSelectedRole =
+            Array.isArray(assignee.selectedRoles) &&
+            assignee.selectedRoles.length > 0
+              ? assignee.selectedRoles[0]
+              : null;
+          const allowParallel = firstSelectedRole?.allowParallel ?? false;
+          const direction = firstSelectedRole?.direction ?? null;
 
-              assigneeIds.forEach((assigneeId) => {
-                const allowParallelMapping = {};
-                if (
-                  assignee.selectedRoles &&
-                  Array.isArray(assignee.selectedRoles)
-                ) {
-                  assignee.selectedRoles.forEach((role) => {
-                    if (role.department && Array.isArray(role.roles)) {
-                      role.roles.forEach((r) => {
-                        allowParallelMapping[role.department] =
-                          role.allowParallel ?? false;
-                      });
-                    }
-                  });
-                }
-
-                const allowParallel = allowParallelMapping[assigneeId] ?? false;
-                const key = JSON.stringify({
-                  assigneeType: assignee.assigneeType,
-                  actionType: assignee.actionType,
-                  accessTypes: Array.isArray(assignee.accessTypes)
-                    ? assignee.accessTypes.sort()
-                    : [],
-                  direction: assignee.direction ?? null,
-                  allowParallel,
-                  selectedRoles: roleIds.sort(),
-                });
-
-                if (!groupedAssignments[key]) {
-                  groupedAssignments[key] = { ...assignee, assigneeIds: [] };
-                }
-                groupedAssignments[key].assigneeIds.push(Number(assigneeId));
-              });
-            }
-          });
-
-          // Combine grouped non-DEPARTMENT and ungrouped DEPARTMENT assignments
-          const allAssignments = [
-            ...Object.values(groupedAssignments),
-            ...departmentAssignments,
-          ];
-
-          await tx.workflowAssignment.createMany({
-            data: allAssignments.map((assignee) => ({
+          const assignment = await tx.workflowAssignment.create({
+            data: {
               stepId: stepRecords[i].id,
               assigneeType: assignee.assigneeType,
-              assigneeIds: assignee.assigneeIds,
+              assigneeIds,
               actionType: assignee.actionType,
-              accessTypes: Array.isArray(assignee.accessTypes)
-                ? assignee.accessTypes
-                : [],
-              direction: assignee.direction ?? null,
-              allowParallel: assignee.allowParallel ?? false,
-              selectedRoles: assignee.selectedRoles ?? [],
-            })),
+              accessTypes: assignee.accessTypes ?? [],
+              direction,
+              allowParallel,
+              selectedRoles: roleIds,
+            },
           });
 
-          const createdAssignments = await tx.workflowAssignment.findMany({
-            where: { stepId: stepRecords[i].id },
-            select: { id: true, assigneeType: true },
-            orderBy: { id: "asc" }, // Ensure consistent order
-          });
+          if (assignee.assigneeType === "DEPARTMENT") {
+            const departmentRoleRows = [];
 
-          const departmentRoleAssignments = assignments
-            .filter((assignee) => assignee.assigneeType === "DEPARTMENT")
-            .flatMap((assignee) => {
-              return (assignee.assigneeIds ?? []).flatMap((dept) => {
-                const departmentId = dept.id;
-                const roleEntry = (assignee.selectedRoles ?? []).find(
-                  (role) => role.department === departmentId,
-                );
-                if (!roleEntry || !Array.isArray(roleEntry.roles)) return [];
+            for (const dept of assignee.selectedRoles || []) {
+              const departmentId = dept.department;
+              const deptDirection = dept.direction ?? null;
+              const deptAllowParallel = dept.allowParallel ?? false;
 
-                // Find the corresponding WorkflowAssignment for this department
-                const assignment = createdAssignments.find(
-                  (ca, idx) =>
-                    ca.assigneeType === "DEPARTMENT" &&
-                    idx >=
-                      createdAssignments.length -
-                        departmentAssignments.length &&
-                    departmentAssignments[
-                      idx -
-                        (createdAssignments.length -
-                          departmentAssignments.length)
-                    ].assigneeIds[0] === departmentId,
-                );
+              for (const role of dept.roles || []) {
+                departmentRoleRows.push({
+                  workflowAssignmentId: assignment.id,
+                  departmentId,
+                  roleId: role.id,
+                  direction: deptDirection,
+                  allowParallel: deptAllowParallel,
+                });
+              }
+            }
 
-                if (!assignment) return [];
-
-                return roleEntry.roles
-                  .filter((role) => role.id != null)
-                  .map((role) => ({
-                    workflowAssignmentId: assignment.id,
-                    departmentId,
-                    roleId: role.id,
-                  }));
+            if (departmentRoleRows.length) {
+              await tx.departmentRoleAssignment.createMany({
+                data: departmentRoleRows,
               });
-            });
-
-          if (departmentRoleAssignments.length > 0) {
-            await tx.departmentRoleAssignment.createMany({
-              data: departmentRoleAssignments,
-            });
+            }
           }
         }
       }
@@ -450,19 +266,20 @@ export const edit_workflow = async (req, res) => {
         data: { isActive: false },
       });
 
-      console.log("updated path", `../${name}`);
-      const created = await createFolder(true, `../${name}`, userData);
-      console.log("created", created);
+      await createFolder(true, `../${name}`, userData);
+
       return newWorkflow;
     });
 
     return res.status(200).json({
       message: "Workflow updated successfully",
-      workflow: newWorkflow,
+      workflow: updatedWorkflow,
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to update workflow" });
+    return res.status(500).json({
+      error: "Failed to update workflow",
+    });
   }
 };
 
@@ -492,35 +309,24 @@ export const view_workflow = async (req, res) => {
 
     if (!workflow) return res.status(404).json({ error: "Workflow not found" });
 
-    // Fetch all role details in bulk for better performance
+    // Fetch all role details in bulk
     const allRoleIds = new Set();
-
-    // Collect role IDs from departmentRoles and selectedRoles
     workflow.steps.forEach((step) => {
       step.assignments.forEach((assignment) => {
-        // Add role IDs from departmentRoles
-        assignment.departmentRoles.forEach((dr) => {
-          allRoleIds.add(dr.roleId);
-        });
-
-        // Add role IDs from selectedRoles (for non-DEPARTMENT assignments)
+        assignment.departmentRoles.forEach((dr) => allRoleIds.add(dr.roleId));
         if (
           assignment.assigneeType !== "DEPARTMENT" &&
           Array.isArray(assignment.selectedRoles)
         ) {
-          assignment.selectedRoles.forEach((roleId) => {
-            allRoleIds.add(roleId);
-          });
+          assignment.selectedRoles.forEach((roleId) => allRoleIds.add(roleId));
         }
       });
     });
 
-    // Fetch all roles at once
     const roles = await prisma.role.findMany({
       where: { id: { in: Array.from(allRoleIds) } },
       select: { id: true, role: true },
     });
-
     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
 
     const formattedWorkflow = {
@@ -536,41 +342,36 @@ export const view_workflow = async (req, res) => {
         allowParallel: step.allowParallel,
         requiresDocument: step.requiresDocument,
         assignments: step.assignments.map((assignee) => {
-          // Format for DEPARTMENT assignments
           if (assignee.assigneeType === "DEPARTMENT") {
-            const departmentRoles = assignee.departmentRoles.reduce(
-              (acc, dr) => {
-                const dept = acc.find(
-                  (d) => d.department.id === dr.department.id,
-                );
-                if (dept) {
-                  dept.roles.push({ id: dr.role.id, name: dr.role.role });
-                } else {
-                  acc.push({
-                    department: {
-                      id: dr.department.id,
-                      name: dr.department.name,
-                    },
-                    roles: [{ id: dr.role.id, name: dr.role.role }],
-                  });
-                }
-                return acc;
-              },
-              [],
-            );
+            // Group departmentRoles by department, picking direction/allowParallel from first row
+            const deptMap = new Map();
+            assignee.departmentRoles.forEach((dr) => {
+              if (!deptMap.has(dr.departmentId)) {
+                deptMap.set(dr.departmentId, {
+                  department: {
+                    id: dr.department.id,
+                    name: dr.department.name,
+                  },
+                  roles: [],
+                  direction: dr.direction,
+                  allowParallel: dr.allowParallel,
+                });
+              }
+              deptMap
+                .get(dr.departmentId)
+                .roles.push({ id: dr.role.id, name: dr.role.role });
+            });
 
             return {
               assigneeType: assignee.assigneeType,
               assigneeIds: assignee.assigneeIds,
               actionType: assignee.actionType,
               accessTypes: assignee.accessTypes,
-              direction: assignee.direction,
+              direction: assignee.direction, // kept for backward compatibility
               allowParallel: assignee.allowParallel,
-              selectedRoles: departmentRoles,
+              selectedRoles: Array.from(deptMap.values()),
             };
-          }
-          // Format for non-DEPARTMENT assignments (ROLE/USER)
-          else {
+          } else {
             return {
               assigneeType: assignee.assigneeType,
               assigneeIds: assignee.assigneeIds,
@@ -848,6 +649,16 @@ export const get_workflows = async (req, res) => {
                         direction: true,
                         allowParallel: true,
                         selectedRoles: true,
+                        departmentRoles: {
+                          select: {
+                            departmentId: true,
+                            roleId: true,
+                            direction: true,
+                            allowParallel: true,
+                            department: { select: { id: true, name: true } },
+                            role: { select: { id: true, role: true } },
+                          },
+                        },
                       },
                     },
                   },
@@ -887,11 +698,17 @@ export const get_workflows = async (req, res) => {
                   break;
               }
             });
-            // Collect selectedRoles
+            // Collect role IDs from selectedRoles (for non‑DEPARTMENT)
             if (Array.isArray(assignment.selectedRoles)) {
               assignment.selectedRoles.forEach((roleId) =>
                 selectedRoleIds.add(roleId),
               );
+            }
+            // Collect role IDs from departmentRoles (for DEPARTMENT)
+            if (assignment.departmentRoles) {
+              assignment.departmentRoles.forEach((dr) => {
+                selectedRoleIds.add(dr.roleId);
+              });
             }
           });
         });
@@ -939,9 +756,9 @@ export const get_workflows = async (req, res) => {
             stepName: step.stepName,
             allowParallel: step.allowParallel,
             requiresDocument: step.requiresDocument,
-            assignments: step.assignments.map((assignment) => ({
-              assigneeType: assignment.assigneeType,
-              assigneeIds: assignment.assigneeIds.map((id) => {
+            assignments: step.assignments.map((assignment) => {
+              // Format assigneeIds with names
+              const assigneeIds = assignment.assigneeIds.map((id) => {
                 let name = "Unknown";
                 switch (assignment.assigneeType) {
                   case "DEPARTMENT":
@@ -955,33 +772,49 @@ export const get_workflows = async (req, res) => {
                     break;
                 }
                 return { id, name };
-              }),
-              actionType: assignment.actionType,
-              accessTypes: assignment.accessTypes,
-              direction: assignment.direction,
-              allowParallel: assignment.allowParallel,
-              selectedRoles:
-                assignment.assigneeType === "DEPARTMENT"
-                  ? [
-                      {
-                        direction: assignment.direction,
-                        department: assignment.assigneeIds[0],
-                        roles: Array.isArray(assignment.selectedRoles)
-                          ? assignment.selectedRoles.map((roleId) => ({
-                              id: roleId,
-                              name:
-                                selectedRoleMap.get(roleId) || "Unknown Role",
-                            }))
-                          : [],
-                      },
-                    ]
-                  : Array.isArray(assignment.selectedRoles)
-                    ? assignment.selectedRoles.map((roleId) => ({
-                        id: roleId,
-                        name: selectedRoleMap.get(roleId) || "Unknown Role",
-                      }))
-                    : [],
-            })),
+              });
+
+              // Build selectedRoles
+              let selectedRoles = [];
+
+              if (assignment.assigneeType === "DEPARTMENT") {
+                // Group departmentRoles by department
+                const deptMap = new Map();
+                assignment.departmentRoles?.forEach((dr) => {
+                  if (!deptMap.has(dr.departmentId)) {
+                    deptMap.set(dr.departmentId, {
+                      department: dr.departmentId,
+                      roles: [],
+                      direction: dr.direction,
+                      allowParallel: dr.allowParallel,
+                    });
+                  }
+                  deptMap.get(dr.departmentId).roles.push({
+                    id: dr.roleId,
+                    name: selectedRoleMap.get(dr.roleId) || "Unknown Role",
+                  });
+                });
+                selectedRoles = Array.from(deptMap.values());
+              } else {
+                // For non‑DEPARTMENT, use flat selectedRoles array
+                selectedRoles = (assignment.selectedRoles || []).map(
+                  (roleId) => ({
+                    id: roleId,
+                    name: selectedRoleMap.get(roleId) || "Unknown Role",
+                  }),
+                );
+              }
+
+              return {
+                assigneeType: assignment.assigneeType,
+                assigneeIds,
+                actionType: assignment.actionType,
+                accessTypes: assignment.accessTypes,
+                direction: assignment.direction,
+                allowParallel: assignment.allowParallel,
+                selectedRoles,
+              };
+            }),
           })),
         }));
 

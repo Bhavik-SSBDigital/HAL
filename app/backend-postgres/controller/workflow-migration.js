@@ -27,7 +27,11 @@ export const previewMigration = async (req, res) => {
       include: {
         steps: {
           orderBy: { stepNumber: "asc" },
-          include: { assignments: { include: { departmentRoles: true } } },
+          include: {
+            assignments: {
+              include: { departmentRoles: { include: { role: true } } },
+            },
+          },
         },
       },
     });
@@ -48,7 +52,11 @@ export const previewMigration = async (req, res) => {
       include: {
         steps: {
           orderBy: { stepNumber: "asc" },
-          include: { assignments: { include: { departmentRoles: true } } },
+          include: {
+            assignments: {
+              include: { departmentRoles: { include: { role: true } } },
+            },
+          },
         },
       },
     });
@@ -76,58 +84,65 @@ export const previewMigration = async (req, res) => {
       },
     });
 
-    // Helper to collect all assignee IDs from a workflow (for building maps)
-    const collectAssigneeIds = async (workflow) => {
-      const userIds = new Set();
-      const roleIds = new Set();
-      const deptIds = new Set();
+    // --- Helper: collect all assignee entities from a workflow ---
+    const collectEntities = (workflow) => {
+      const users = new Map(); // id -> name
+      const roles = new Map(); // id -> { name, departmentId }
+      const departments = new Map(); // id -> name
 
       for (const step of workflow.steps) {
         for (const assignment of step.assignments) {
           switch (assignment.assigneeType) {
             case "USER":
-              assignment.assigneeIds.forEach((id) => userIds.add(Number(id)));
+              assignment.assigneeIds.forEach((id) => {
+                if (!users.has(id)) users.set(id, `User ${id}`); // placeholder
+              });
               break;
             case "ROLE":
-              assignment.assigneeIds.forEach((id) => roleIds.add(Number(id)));
+              assignment.assigneeIds.forEach((id) => {
+                if (!roles.has(id))
+                  roles.set(id, { name: `Role ${id}`, departmentId: null });
+              });
               break;
             case "DEPARTMENT":
-              assignment.assigneeIds.forEach((id) => deptIds.add(Number(id)));
-              // Collect roles from departmentRoles
+              assignment.assigneeIds.forEach((id) => {
+                if (!departments.has(id)) departments.set(id, `Dept ${id}`);
+              });
+              // Roles from departmentRoles
               if (assignment.departmentRoles) {
-                assignment.departmentRoles.forEach((dr) =>
-                  roleIds.add(dr.roleId),
-                );
-              }
-              // Also from selectedRoles if present
-              if (
-                assignment.selectedRoles &&
-                Array.isArray(assignment.selectedRoles)
-              ) {
-                assignment.selectedRoles.forEach((roleId) =>
-                  roleIds.add(Number(roleId)),
-                );
+                assignment.departmentRoles.forEach((dr) => {
+                  if (!roles.has(dr.roleId))
+                    roles.set(dr.roleId, {
+                      name: dr.role?.role || `Role ${dr.roleId}`,
+                      departmentId: dr.departmentId,
+                    });
+                });
               }
               break;
           }
         }
       }
-      return {
-        userIds: Array.from(userIds),
-        roleIds: Array.from(roleIds),
-        deptIds: Array.from(deptIds),
-      };
+      return { users, roles, departments };
     };
 
-    // Collect IDs from both workflows
-    const oldIds = await collectAssigneeIds(oldWorkflow);
-    const newIds = await collectAssigneeIds(newWorkflow);
+    // Collect all IDs from both workflows (to fetch names)
+    const oldEntities = collectEntities(oldWorkflow);
+    const newEntities = collectEntities(newWorkflow);
 
-    const allUserIds = [...new Set([...oldIds.userIds, ...newIds.userIds])];
-    const allRoleIds = [...new Set([...oldIds.roleIds, ...newIds.roleIds])];
-    const allDeptIds = [...new Set([...oldIds.deptIds, ...newIds.deptIds])];
+    const allUserIds = [
+      ...new Set([...oldEntities.users.keys(), ...newEntities.users.keys()]),
+    ];
+    const allRoleIds = [
+      ...new Set([...oldEntities.roles.keys(), ...newEntities.roles.keys()]),
+    ];
+    const allDeptIds = [
+      ...new Set([
+        ...oldEntities.departments.keys(),
+        ...newEntities.departments.keys(),
+      ]),
+    ];
 
-    // Fetch details
+    // Fetch actual names
     const users = await prisma.user.findMany({
       where: { id: { in: allUserIds } },
       select: { id: true, username: true, name: true },
@@ -138,9 +153,11 @@ export const previewMigration = async (req, res) => {
 
     const roles = await prisma.role.findMany({
       where: { id: { in: allRoleIds } },
-      select: { id: true, role: true },
+      select: { id: true, role: true, departmentId: true },
     });
-    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+    const roleMap = new Map(
+      roles.map((r) => [r.id, { name: r.role, departmentId: r.departmentId }]),
+    );
 
     const departments = await prisma.department.findMany({
       where: { id: { in: allDeptIds } },
@@ -148,15 +165,58 @@ export const previewMigration = async (req, res) => {
     });
     const deptMap = new Map(departments.map((d) => [d.id, d.name]));
 
-    // Helper to resolve an array of IDs to { id, name, type }
-    const resolveAssignees = (ids) => {
-      return ids.map((id) => {
-        if (userMap.has(id)) return { id, name: userMap.get(id), type: "user" };
-        if (roleMap.has(id)) return { id, name: roleMap.get(id), type: "role" };
-        if (deptMap.has(id))
-          return { id, name: deptMap.get(id), type: "department" };
-        return { id, name: `Unknown (ID: ${id})`, type: "unknown" };
-      });
+    // --- Helper: get all assignee items (as { type, id, name, departmentId? }) for a step ---
+    const getStepEntities = (step) => {
+      const items = [];
+      for (const assignment of step.assignments) {
+        switch (assignment.assigneeType) {
+          case "USER":
+            assignment.assigneeIds.forEach((id) => {
+              items.push({
+                type: "user",
+                id,
+                name: userMap.get(id) || `User ${id}`,
+              });
+            });
+            break;
+          case "ROLE":
+            assignment.assigneeIds.forEach((id) => {
+              const roleInfo = roleMap.get(id) || { name: `Role ${id}` };
+              items.push({
+                type: "role",
+                id,
+                name: roleInfo.name,
+                departmentId: roleInfo.departmentId,
+              });
+            });
+            break;
+          case "DEPARTMENT":
+            // Add the department itself
+            assignment.assigneeIds.forEach((id) => {
+              items.push({
+                type: "department",
+                id,
+                name: deptMap.get(id) || `Dept ${id}`,
+              });
+            });
+            // Add the roles inside this department (if any)
+            if (assignment.departmentRoles) {
+              assignment.departmentRoles.forEach((dr) => {
+                const roleInfo = roleMap.get(dr.roleId) || {
+                  name: `Role ${dr.roleId}`,
+                };
+                items.push({
+                  type: "role",
+                  id: dr.roleId,
+                  name: roleInfo.name,
+                  departmentId: dr.departmentId,
+                });
+              });
+            }
+            break;
+        }
+      }
+      return items;
     };
 
     // Build step changes for each process
@@ -178,20 +238,31 @@ export const previewMigration = async (req, res) => {
             newStepMap.get(stepNumber) ||
             newWorkflow.steps.find((s) => s.stepName === oldStep.stepName);
 
-          const oldAssignees = await expandAssigneesForStep(oldStep);
-          const newAssignees = newStep
-            ? await expandAssigneesForStep(newStep)
-            : new Set();
+          const oldItems = getStepEntities(oldStep);
+          const newItems = newStep ? getStepEntities(newStep) : [];
 
-          const addedIds = Array.from(newAssignees).filter(
-            (id) => !oldAssignees.has(id),
+          // Compare by unique key (type + id)
+          const oldKeySet = new Set(oldItems.map((i) => `${i.type}-${i.id}`));
+          const newKeySet = new Set(newItems.map((i) => `${i.type}-${i.id}`));
+
+          const addedItems = newItems.filter(
+            (i) => !oldKeySet.has(`${i.type}-${i.id}`),
           );
-          const removedIds = Array.from(oldAssignees).filter(
-            (id) => !newAssignees.has(id),
+          const removedItems = oldItems.filter(
+            (i) => !newKeySet.has(`${i.type}-${i.id}`),
           );
 
-          const addedDetails = resolveAssignees(addedIds);
-          const removedDetails = resolveAssignees(removedIds);
+          // Enrich with department name for roles
+          const enrichItems = (items) =>
+            items.map((item) => {
+              if (item.type === "role" && item.departmentId) {
+                const deptName = deptMap.get(item.departmentId);
+                if (deptName) {
+                  return { ...item, name: `${item.name} (in ${deptName})` };
+                }
+              }
+              return item;
+            });
 
           let stepStatus = "future";
           if (stepNumber < currentStepNumber) stepStatus = "passed";
@@ -203,10 +274,10 @@ export const previewMigration = async (req, res) => {
             existsInNew: !!newStep,
             newStepNumber: newStep?.stepNumber,
             stepStatus,
-            addedAssignees: addedDetails,
-            removedAssignees: removedDetails,
-            addedCount: addedIds.length,
-            removedCount: removedIds.length,
+            added: enrichItems(addedItems),
+            removed: enrichItems(removedItems),
+            addedCount: addedItems.length,
+            removedCount: removedItems.length,
           });
         }
 
@@ -393,7 +464,7 @@ export const migrateProcesses = async (req, res) => {
               assignmentProgresses: {
                 include: {
                   workflowAssignment: true,
-                  departmentStepProgress: true,
+                  departmentStepProgresses: true,
                 },
               },
             },
@@ -516,13 +587,17 @@ export const migrateProcesses = async (req, res) => {
           ) {
             const progress = await tx.assignmentProgress.findFirst({
               where: { processId, assignmentId },
-              include: { departmentStepProgress: true },
+              include: { departmentStepProgresses: true }, // note the plural
             });
+
             if (!progress) return false;
-            const deptProgress = progress.departmentStepProgress.find(
-              (d) => d.departmentId === departmentId,
+
+            // Find the department progress for the specific departmentId
+            const deptProgress = progress.departmentStepProgresses.find(
+              (dp) => dp.departmentId === departmentId,
             );
-            return deptProgress?.isCompleted || false;
+
+            return deptProgress ? deptProgress.isCompleted : false;
           }
 
           // --- Process each old step ---
