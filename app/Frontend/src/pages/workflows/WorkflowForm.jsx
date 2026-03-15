@@ -6,8 +6,9 @@ import {
   IconPlus,
   IconSquareLetterX,
   IconTrash,
+  IconSearch
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import {
@@ -18,11 +19,12 @@ import {
   getDepartments,
   getRolesHierarchyInDepartment,
   GetUsersWithDetails,
-  GetWorkflowsList,
+  GetActiveWorkflowFamilies
 } from '../../common/Apis';
 import {
   Autocomplete,
   TextField,
+  InputAdornment
 } from '@mui/material';
 import TreeGraph from '../../components/TreeGraph';
 import CustomButton from '../../CustomComponents/CustomButton';
@@ -33,10 +35,12 @@ export default function WorkflowForm({
   editData,
   setEditData,
   updateList,
-  onEditSuccess, // <-- NEW PROP
+  onEditSuccess,
 }) {
   const [selectedNodes, setSelectedNodes] = useState([]);
   const [actionsLoading, setActionsLoading] = useState(false);
+  const [workflowSearch, setWorkflowSearch] = useState('');
+
   const {
     register,
     handleSubmit,
@@ -49,6 +53,7 @@ export default function WorkflowForm({
     defaultValues: {
       name: '',
       description: '',
+      parentWorkflowId: '',
       steps: [],
     },
   });
@@ -88,13 +93,11 @@ export default function WorkflowForm({
     const stepName = getValues(`steps.${currentStepIndex}.stepName`);
 
     if (assignmentIndex !== null) {
-      // Update existing assignment
       updatedSteps[currentStepIndex].assignments[assignmentIndex] = {
         ...assignment,
         selectedRoles: assignment.selectedRoles || [],
       };
     } else {
-      // Add new assignment
       updatedSteps[currentStepIndex].assignments = [
         ...(updatedSteps[currentStepIndex].assignments || []),
         { ...assignment, selectedRoles: assignment.selectedRoles || [] },
@@ -120,10 +123,15 @@ export default function WorkflowForm({
       return;
     }
 
+    const payload = {
+      ...data,
+      parentWorkflowId: data.parentWorkflowId === '' ? null : data.parentWorkflowId,
+    };
+
     try {
       const res = editData
-        ? await EditWorkflow(editData?.id, data)
-        : await CreateWorkflow(data);
+        ? await EditWorkflow(editData?.id, payload)
+        : await CreateWorkflow(payload);
 
       toast.success(res?.data?.message);
       updateList();
@@ -131,9 +139,8 @@ export default function WorkflowForm({
       reset();
       setEditData(null);
 
-      // If editing, notify parent with the new workflow ID
       if (editData && onEditSuccess) {
-        onEditSuccess(res.data.workflow.id); // <-- NEW CALL
+        onEditSuccess(res.data.workflow.id); 
       }
     } catch (error) {
       toast.error(error?.response?.data?.message || error?.message);
@@ -168,43 +175,49 @@ export default function WorkflowForm({
 
   const getWorkflowsToCopy = async () => {
     try {
-      const response = await GetWorkflowsList();
+      const response = await GetActiveWorkflowFamilies();
       setWorkflowsList(response.data);
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||
-          error?.response?.data?.message ||
           error?.message
       );
     }
   };
 
-useEffect(() => {
-  if (editData) {
-
-    const formattedData = {
-      name: editData.name,
-      description: editData.description,
-      steps: (editData.steps || []).map((step) => ({
-        stepName: step.stepName,
-        assignments: (step.assignments || []).map((a) => ({
-          assigneeType: a.assigneeType,
-          actionType: a.actionType,
-          assigneeIds: a.assigneeIds || [],
-          direction: a.direction || null,
-          allowParallel: a.allowParallel || false,
-          selectedRoles: a.selectedRoles || []
+  useEffect(() => {
+    if (editData) {
+      const formattedData = {
+        name: editData.name,
+        description: editData.description,
+        parentWorkflowId: editData.parentWorkflowId || '',
+        steps: (editData.steps || []).map((step) => ({
+          stepName: step.stepName,
+          assignments: (step.assignments || []).map((a) => ({
+            assigneeType: a.assigneeType,
+            actionType: a.actionType,
+            assigneeIds: a.assigneeIds || [],
+            direction: a.direction || null,
+            allowParallel: a.allowParallel || false,
+            selectedRoles: a.selectedRoles || []
+          }))
         }))
-      }))
-    };
+      };
 
-    reset(formattedData);
-  }
-}, [editData, reset]);
+      reset(formattedData);
+    }
+  }, [editData, reset]);
 
   useEffect(() => {
     getWorkflowsToCopy();
   }, []);
+
+  const filteredWorkflows = useMemo(() => {
+    return workflowsList.filter(wf => 
+      wf.workflowName.toLowerCase().includes(workflowSearch.toLowerCase()) ||
+      (wf.workflowDescription && wf.workflowDescription.toLowerCase().includes(workflowSearch.toLowerCase()))
+    );
+  }, [workflowsList, workflowSearch]);
 
   return (
     <div className="mx-auto bg-white overflow-auto p-2">
@@ -245,41 +258,87 @@ useEffect(() => {
           />
         </div>
 
+        {/* Parent Workflow Autocomplete */}
+        <div className="mb-4">
+          <label className="block text-sm font-semibold mb-2">
+            Parent Workflow (Optional) :
+          </label>
+          <Controller
+            name="parentWorkflowId"
+            control={control}
+            render={({ field }) => {
+              const parentOptions = workflowsList.filter(wf => wf.workflowName !== getValues('name'));
+              const selectedValue = parentOptions.find(opt => opt.workflowId === field.value) || null;
+
+              return (
+                <Autocomplete
+                  options={parentOptions}
+                  getOptionLabel={(option) => `${option.workflowName} ${option.version ? `(v${option.version})` : ''}`}
+                  value={selectedValue}
+                  onChange={(_, newValue) => field.onChange(newValue ? newValue.workflowId : '')}
+                  renderInput={(params) => (
+                    <TextField {...params} variant="outlined" size="small" placeholder="Search and assign parent workflow..." />
+                  )}
+                  isOptionEqualToValue={(option, value) => option.workflowId === value.workflowId}
+                />
+              );
+            }}
+          />
+          <p className="text-xs text-gray-500 mt-1">Select an active workflow to act as the logical parent hierarchy for this workflow.</p>
+        </div>
+
         {/* Copy from existing workflow */}
         <div className="mb-6">
           <label className="block text-sm font-semibold mb-2">
             Choose From Existing Workflows :
           </label>
           <div className="border p-3 rounded-md bg-gray-50">
-            <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-              {workflowsList && workflowsList.length > 0 ? (
-  workflowsList.map((wf) => (
-    <div
-      key={wf.workflowId}
-      className="flex justify-between items-center border p-2 rounded-md bg-white hover:bg-gray-100 transition"
-    >
-      <div>
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-sm">{wf.workflowName}</p>
-          {wf.version && (
-            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
-              v{wf.version}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-600">{wf.workflowDescription}</p>
-      </div>
-      <CustomButton
-        type="button"
-        disabled={actionsLoading}
-        click={() => handleCopyWorkflow(wf.workflowId)}
-        text={'Use'}
-      />
-    </div>
-  ))
-) : (
-  <p className="text-gray-500 text-sm italic">No workflows found.</p>
-)}
+            <TextField
+              fullWidth
+              variant="outlined"
+              size="small"
+              placeholder="Search existing workflows..."
+              value={workflowSearch}
+              onChange={(e) => setWorkflowSearch(e.target.value)}
+              className="mb-3 bg-white"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <IconSearch size={18} className="text-gray-400" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1 border-t pt-2 border-gray-200">
+              {filteredWorkflows && filteredWorkflows.length > 0 ? (
+                filteredWorkflows.map((wf) => (
+                  <div
+                    key={wf.workflowId}
+                    className="flex justify-between items-center border p-2 rounded-md bg-white hover:bg-gray-100 transition"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{wf.workflowName}</p>
+                        {wf.version && (
+                          <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
+                            v{wf.version}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">{wf.workflowDescription}</p>
+                    </div>
+                    <CustomButton
+                      type="button"
+                      disabled={actionsLoading}
+                      click={() => handleCopyWorkflow(wf.workflowId)}
+                      text={'Use'}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm italic py-2">No workflows found.</p>
+              )}
             </div>
           </div>
         </div>
@@ -462,7 +521,6 @@ useEffect(() => {
   );
 }
 
-// AssignmentForm (unchanged, but included for completeness)
 function AssignmentForm({
   onSubmit,
   onClose,
@@ -598,7 +656,6 @@ function sortSelectedRolesByStep(hierarchyData, selectedRoles, direction) {
     }
   }, [assigneeType, editingAssignment, setValue]);
 
-  // workflows
   const [currentPage, setCurrentPage] = useState(0);
   const [hierarchyData, setHierarchyData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -635,7 +692,7 @@ function sortSelectedRolesByStep(hierarchyData, selectedRoles, direction) {
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4">
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 px-4 z-50">
         <div className="bg-white p-4 sm:p-6 rounded-md shadow-lg w-full max-w-5xl max-h-[95vh] overflow-auto">
           <h3 className="text-lg font-semibold mb-4 text-center">
             Add Assignment

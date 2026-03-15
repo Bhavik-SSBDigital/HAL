@@ -1059,6 +1059,173 @@ async function handleRoleAssignment(
   }
 }
 
+export const get_processes_for_copy = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const processes = await prisma.processInstance.findMany({
+      where: { initiatorId: userData.id },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        issueNo: true,
+        createdAt: true,
+        workflow: {
+          select: { name: true, version: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json(processes);
+  } catch (error) {
+    console.error("Error fetching processes for copy:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const get_process_copy_details = async (req, res) => {
+  try {
+    const { processId } = req.params;
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const process = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      include: {
+        documents: {
+          include: { document: true },
+        },
+      },
+    });
+
+    if (!process) {
+      return res.status(404).json({ error: "Process not found" });
+    }
+
+    // Determine active documents (latest in chain)
+    const replacedDocumentIds = new Set(
+      process.documents
+        .filter((pd) => pd.replacedDocumentId)
+        .map((pd) => pd.replacedDocumentId),
+    );
+    const activeDocuments = process.documents.filter(
+      (pd) => !replacedDocumentIds.has(pd.documentId) && !pd.superseding,
+    );
+
+    const documents = activeDocuments.map((pd) => ({
+      documentId: pd.documentId,
+      name: pd.document.name,
+      path: pd.document.path,
+      tags: pd.tags,
+      partNumber: pd.partNumber,
+      description: pd.description,
+      preApproved: pd.preApproved,
+      issueNo: pd.issueNo,
+      SOPIssueNo: pd.SOPIssueNo,
+      extension: pd.document.name.split(".").pop(),
+    }));
+
+    return res.status(200).json({
+      description: process.description,
+      issueNo: process.issueNo,
+      workflowId: process.workflowId,
+      documents,
+    });
+  } catch (error) {
+    console.error("Error fetching process copy details:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const duplicate_document_for_copy = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const { sourceProcessId, sourceDocumentId, targetWorkflowId } = req.body;
+    if (!sourceProcessId || !sourceDocumentId || !targetWorkflowId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Fetch the source document to get its path and metadata
+    const sourceDocument = await prisma.document.findUnique({
+      where: { id: parseInt(sourceDocumentId) },
+      select: { path: true, name: true },
+    });
+    if (!sourceDocument) {
+      return res.status(404).json({ error: "Source document not found" });
+    }
+
+    // Get the source process to ensure we have the correct path (maybe not needed)
+    const sourceProcess = await prisma.processInstance.findUnique({
+      where: { id: sourceProcessId },
+      select: { storagePath: true },
+    });
+    if (!sourceProcess) {
+      return res.status(404).json({ error: "Source process not found" });
+    }
+
+    // Generate new document name using the target workflow's naming rules
+    const extension = sourceDocument.name.split(".").pop();
+    const newName = await generateUniqueDocumentName({
+      workflowId: targetWorkflowId,
+      replacedDocId: null,
+      extension,
+    });
+
+    // Destination: user's workspace folder
+    // Assuming workspace is at STORAGE_PATH/username
+    const destinationPath = `../check`; // relative path as used in file_copy
+
+    // Source path is relative to STORAGE_ROOT? file_copy expects relative path starting with ./
+    const sourcePath = `./${sourceDocument.path}`; // e.g., "./WorkflowName/ProcessName/document.pdf"
+
+    // Use file_copy to duplicate the file to workspace
+    const copyResult = await new Promise((resolve, reject) => {
+      file_copy(
+        {
+          headers: { authorization: `Bearer ${accessToken}` },
+          body: { sourcePath, destinationPath, name: newName },
+        },
+        {
+          status: (code) => ({
+            json: (data) => {
+              if (code === 200) resolve(data);
+              else reject(data);
+            },
+          }),
+        },
+      );
+    });
+
+    if (!copyResult.documentId) {
+      throw new Error("File copy did not return a document ID");
+    }
+
+    // Return the new document details
+    return res.status(200).json({
+      documentId: copyResult.documentId,
+      name: newName,
+      path: copyResult.path || destinationPath, // optional
+    });
+  } catch (error) {
+    console.error("Error duplicating document for copy:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 export const serializeBigInt = (obj) => {
   return JSON.parse(
     JSON.stringify(obj, (key, value) =>

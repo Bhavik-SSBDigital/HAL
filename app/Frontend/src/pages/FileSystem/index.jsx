@@ -1,1274 +1,615 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import CustomCard from '../../CustomComponents/CustomCard';
-import folderIcon from '../../assets/images/folder.png';
-import { Await, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
+import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'react-toastify';
+import moment from 'moment';
+import { Controller, useForm } from 'react-hook-form';
+
+// APIs & Config
 import {
-  ArchiveFile,
-  BookmarkDocument,
-  CopyPaste,
-  CreateFolder,
-  createPhysicalRequest,
-  CutPaste,
-  DeleteFile,
-  DownloadFile,
-  DownloadFileWithWaterMark,
-  DownloadFolder,
-  getDepartments,
-  GetFolderData,
-  GetRootFolders,
-  RemoveBookmark,
-  ViewDocument,
+  ArchiveFile, BookmarkDocument, CopyPaste, CreateFolder,
+  createPhysicalRequest, CutPaste, DeleteFile, DownloadFile,
+  DownloadFileWithWaterMark, DownloadFolder, getDepartments,
+  GetFolderData, GetRootFolders, RemoveBookmark, ViewDocument,
 } from '../../common/Apis';
-import ComponentLoader from '../../common/Loader/ComponentLoader';
-import PathBar from '../../components/path/PathBar';
+import { copy, cut } from '../../Slices/PathSlice';
+import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import { ImageConfig } from '../../config/ImageConfig';
-import {
-  IconDotsVertical,
-  IconFilter,
-  IconSquareLetterX,
-  IconDownload,
-  IconEye,
-  IconCopy,
-  IconClipboardCheck,
-  IconScissors,
-  IconSettings,
-  IconArchive,
-  IconTrash,
-  IconScript,
-  IconBookmark,
-  IconBookmarkFilled,
-} from '@tabler/icons-react';
+
+// UI Components
+import ComponentLoader from '../../common/Loader/ComponentLoader';
+import TopLoader from '../../common/Loader/TopLoader';
+import PathBar from '../../components/path/PathBar';
 import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
 import CustomButton from '../../CustomComponents/CustomButton';
-import { useDispatch, useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
-import { copy, cut } from '../../Slices/PathSlice';
-import TopLoader from '../../common/Loader/TopLoader';
-import moment from 'moment';
-import { Controller, useForm } from 'react-hook-form';
-import { upload } from '../../components/drop-file-input/FileUploadDownload';
-import { Tooltip } from '@mui/material';
-import ModalWithField from '../../components/ModalWithField';
 import CustomTextField from '../../CustomComponents/CustomTextField';
+import ModalWithField from '../../components/ModalWithField';
 
-export default function FileSysten() {
-  // States
+// Icons
+import {
+  IconDotsVertical, IconFilter, IconSquareLetterX, IconDownload,
+  IconEye, IconCopy, IconArchive, IconTrash, IconScript,
+  IconBookmark, IconBookmarkFilled, IconSettings, IconChevronRight,
+  IconFolder, IconFolderPlus, IconUpload, IconLayoutSidebar, IconFolderOpen
+} from '@tabler/icons-react';
+
+export default function FileSystem() {
   const dispatch = useDispatch();
-  const [departments, setDepartments] = useState([]);
   const username = sessionStorage.getItem('username');
-  const [fileType, setFileType] = useState('all');
-  const [showUploadFileModal, setUploadFileModal] = useState(false);
-  const [showFolderModal, setShowFolderModal] = useState(false);
-  const [showProperties, setShowProperties] = useState(false);
-  const [actionsLoading, setActionsLoading] = useState(false);
-  const [fileView, setFileView] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
-  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+
+  // --- Core State ---
+  const [treeData, setTreeData] = useState([]); 
+  const [mainData, setMainData] = useState([]); 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortType, setSortType] = useState('name');
-  const [documentsType, setDocumentsType] = useState(false);
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for action menu
-  const [currentPath, setCurrentPath] = useState(
-    sessionStorage.getItem('path') || '..',
-  );
-  const fileName = useSelector((state) => state.path.fileName);
-  const sourcePath = useSelector((state) => state.path.sourcePath);
-  const method = useSelector((state) => state.path.method);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [currentPath, setCurrentPath] = useState(sessionStorage.getItem('path') || '..');
+
+  // --- UI & Drag State ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(288); 
+  const [isDragging, setIsDragging] = useState(false);
+  const dragInfo = useRef({ startX: 0, startWidth: 288 }); 
+
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [fileView, setFileView] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showUploadFileModal, setUploadFileModal] = useState(false);
   const [open, setOpen] = useState(null);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // --- Context Menu State ---
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
-  const navigate = useNavigate();
+  // --- Filter State ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortType, setSortType] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [fileType, setFileType] = useState('all');
 
-  // Filtering and sorting data
-  const filteredData = data
-    .filter(
-      (item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item?.tags?.some((tag) =>
-          tag.toLowerCase().includes(searchQuery.toLowerCase()),
-        ),
-    )
-    .filter((item) => {
-      if (documentsType === 'normal') return true; // Show all documents
-      if (documentsType === 'rejected') return item.isRejected;
-      if (documentsType === 'achieved') return item.isAchieved;
-      return true;
-    })
-    .filter((item) => {
-      if (fileType === 'all') return true; // Show all file types
-      return item.type === fileType; // Match the selected file type
-    })
-    .sort((a, b) => {
-      if (sortType === 'size') {
-        // Sort by size (numeric comparison)
-        return sortOrder === 'asc' ? a.size - b.size : b.size - a.size;
-      } else {
-        // Sort by string-based properties (name or type)
-        return sortOrder === 'asc'
-          ? a[sortType].localeCompare(b[sortType])
-          : b[sortType].localeCompare(a[sortType]);
+  // --- Redux ---
+  const { fileName, sourcePath, method } = useSelector((state) => state.path);
+
+  // --- Forms ---
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm();
+  
+  // Updated File Form Destructuring to monitor selected file state
+  const { 
+    register: registerFile, 
+    handleSubmit: handleSubmitFile, 
+    watch: watchFile,
+    setValue: setFileValue,
+    formState: { errors: fileErrors, isSubmitting: isSubmittingFile }, 
+    reset: resetFile 
+  } = useForm();
+  
+  const selectedUploadFile = watchFile('file');
+
+  const { register: registerDept, handleSubmit: handleSubmitDept, formState: { errors: deptErrors }, control: controlDept, reset: resetDept } = useForm({ defaultValues: { departmentId: '', reason: '' } });
+
+  // --- Initialization ---
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      try {
+        const [rootRes, deptsRes] = await Promise.all([GetRootFolders(), getDepartments()]);
+        setTreeData((rootRes?.data?.children || []).map(item => ({ ...item, isExpanded: false, childrenData: [] })));
+        setDepartments(deptsRes?.data?.departments || []);
+        fetchMainData(currentPath);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
+    init();
+  }, []);
 
-  // Context Menu component
-  const ContextMenu = ({ xPos, yPos, handlePaste }) => {
-    return (
-      <CustomCard className="fixed z-50 !p-2" style={{ top: yPos, left: xPos }}>
-        <button
-          className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-gray-100 rounded-md"
-          onClick={handlePaste}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M19 20H5V8h5V6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-6h-2v6z" />
-            <path d="M14 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 14H8V4h5v5h5v7z" />
-          </svg>
-          Paste
-        </button>
-      </CustomCard>
-    );
-  };
+  useEffect(() => {
+    const handleClickOutside = (e) => { if (isContextMenuOpen && !e.target.closest('.context-menu')) setIsContextMenuOpen(false); };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isContextMenuOpen]);
 
-  // search
-  const handleSearchChange = useCallback(
-    debounce((value) => setSearchQuery(value), 300), // 300ms debounce to optimize performance
-    [],
-  );
+  // --- Smooth Resize Logic ---
+  useEffect(() => {
+    let animationFrameId;
 
-  // Reset Filters
-  const resetFilters = () => {
-    setFileType('all');
-    setSortType('name');
-    setDocumentsType('normal');
-    setSortOrder('asc');
-  };
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
 
-  // Handle folder click
-  const handleFolderClick = (item) => {
-    setSearchQuery('');
-    setSelectedItem(item);
-    if (item.type === 'folder') {
-      let newPath = item.path;
-      if (!newPath.startsWith('..')) {
-        newPath = '..' + newPath;
-      }
-      setCurrentPath(`${newPath}/${item.name}`);
-      sessionStorage.setItem('path', `${newPath}/${item.name}`);
-    }
-    resetFilters();
-  };
-  // Handler view file
-  const handleViewFile = async (name, path, fileId, type, isEditing) => {
-    setActionsLoading(true);
-    try {
-      const fileData = await ViewDocument(name, path, type, fileId);
-      setFileView(fileData);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
-  // handler download folder
-  const handleDownloadFolder = async (name, path) => {
-    setActionsLoading(true);
-    try {
-      const response = await DownloadFolder(path, name);
-      setIsMenuOpen(false);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-
-  const handleDownloadWithWatermark = async (data) => {
-    try {
-      const response = await DownloadFileWithWaterMark(
-        selectedItem.id,
-        data.fieldValue,
-        data.watermark,
-        false
-      );
-
-      // Create a blob from the response data
-      const blob = new Blob([response.data], {
-        type: response.headers['content-type'],
+      animationFrameId = requestAnimationFrame(() => {
+        const deltaX = e.clientX - dragInfo.current.startX;
+        let newWidth = dragInfo.current.startWidth + deltaX;
+        newWidth = Math.max(200, Math.min(newWidth, 600)); 
+        setSidebarWidth(newWidth);
       });
+    };
 
-      // Create a temporary URL for the blob
-      const url = window.URL.createObjectURL(blob);
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
 
-      // Create a hidden anchor element
-      const link = document.createElement('a');
-      link.href = url;
-
-      // Extract filename from headers if available
-      const contentDisposition = response.headers['content-disposition'];
-      let fileName = selectedItem?.name;
-
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-
-      // Trigger the download
-      link.click();
-
-      // Cleanup
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('File download failed:', error);
-      toast.error(error?.response?.data?.message || error?.message);
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
     }
-  };
 
-  // handler download file
-  const handleDownload = (name, path) => {
-    setActionsLoading(true);
-    DownloadFile(name, path);
-    setIsMenuOpen(false);
-    setActionsLoading(false);
-  };
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [isDragging]);
 
-  // right click handler
-  const handleContextMenu = (event) => {
-    event.preventDefault();
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
-    setContextMenuPos({ x: event.clientX, y: event.clientY });
-    setIsContextMenuOpen(true);
-  };
-
-  // handler copy file
-  const handleCopy = (name, path) => {
-    dispatch(copy({ name, pathValue: currentPath, method: 'copy' }));
-    setIsContextMenuOpen(false);
-    toast.success(`${name} Copied`);
-    setIsMenuOpen(false);
-  };
-
-  // handler cut file
-  const handleCut = (name, path) => {
-    dispatch(cut({ name, pathValue: currentPath, method: 'cut' }));
-    setIsContextMenuOpen(false);
-    toast.success(`${name} Cut Successfully`);
-    setIsMenuOpen(false);
-  };
-
-  // Fetch data
-  const getData = async (updatedPath) => {
+  // --- Data Fetching ---
+  const fetchMainData = async (path) => {
     setLoading(true);
     try {
-      const response =
-        updatedPath === '..'
-          ? await GetRootFolders()
-          : await GetFolderData(updatedPath);
-      setData(response?.data?.children || []);
+      const response = path === '..' ? await GetRootFolders() : await GetFolderData(path);
+      setMainData(response?.data?.children || []);
     } catch (error) {
-      console.log(error?.response?.data?.message || error?.message);
+      toast.error(error?.response?.data?.message || 'Failed to fetch directory contents');
     } finally {
       setLoading(false);
     }
   };
 
-  // handler paste file
-  const handlePaste = async () => {
-    if (!fileName || !sourcePath || !method) {
-      toast.error('No file to paste');
-      return;
+  const updateTreeNode = (nodes, targetId, updaterFn) => {
+    return nodes.map(node => {
+      if (node.id === targetId) return updaterFn(node);
+      if (node.childrenData?.length) return { ...node, childrenData: updateTreeNode(node.childrenData, targetId, updaterFn) };
+      return node;
+    });
+  };
+
+  // --- Handlers ---
+  const handleSidebarFolderClick = async (folder, toggleExpand = true) => {
+    let fetchPath = folder.path.startsWith('..') ? folder.path : '..' + folder.path;
+    fetchPath = `${fetchPath}/${folder.name}`;
+    setCurrentPath(fetchPath);
+    sessionStorage.setItem('path', fetchPath);
+    fetchMainData(fetchPath);
+
+    if (toggleExpand) {
+      if (folder.isExpanded) {
+        setTreeData(prev => updateTreeNode(prev, folder.id, n => ({ ...n, isExpanded: false })));
+      } else if (!folder.childrenData?.length) {
+        try {
+          const res = await GetFolderData(fetchPath);
+          const children = (res?.data?.children || []).filter(c => c.type === 'folder').map(c => ({ ...c, isExpanded: false, childrenData: [] }));
+          setTreeData(prev => updateTreeNode(prev, folder.id, n => ({ ...n, isExpanded: true, childrenData: children })));
+        } catch (e) { console.error(e); }
+      } else {
+        setTreeData(prev => updateTreeNode(prev, folder.id, n => ({ ...n, isExpanded: true })));
+      }
     }
-    setIsContextMenuOpen(false);
+  };
+
+  const handleMainItemClick = (item) => {
+    if (item.type === 'folder') handleSidebarFolderClick(item, false);
+    else handleViewFile(item.name, item.path, item.id, item.type);
+  };
+
+  const executeAction = async (actionFn, ...args) => {
     setActionsLoading(true);
-    try {
-      const body = { sourcePath, name: fileName, destinationPath: currentPath };
-      const response = await (method == 'copy'
-        ? CopyPaste(body)
-        : CutPaste(body));
-      toast.success(response?.data?.message);
-      await getData(currentPath);
-      // Reset Redux state after paste
-      dispatch(copy({ name: '', pathValue: '', method: '' }));
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
+    try { await actionFn(...args); }
+    catch (error) { toast.error(error?.response?.data?.message || error?.message); }
+    finally { setActionsLoading(false); setIsMenuOpen(false); }
   };
 
-  // handler for archive file
-  const handleArchive = async (item) => {
+  // --- File Operations ---
+  const handleViewFile = (name, path, id, type) => executeAction(async () => setFileView(await ViewDocument(name, path, type, id)));
+  const handleDownloadFolder = (name, path) => executeAction(() => DownloadFolder(path, name));
+  const handleDownloadWithWatermark = async (data) => {
     try {
-      const response = await ArchiveFile(item.id);
-      toast.success(response?.data?.message);
-      setData((prev) => prev.filter((file) => file.id !== item.id));
-      setIsMenuOpen(false);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
-  };
-  // handler to delete file
-  const handleDelete = async (item) => {
-    try {
-      const response = await DeleteFile(item.id);
-      toast.success(response?.data?.message);
-      setData((prev) => prev.filter((file) => file.id !== item.id));
-      setIsMenuOpen(false);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    }
+      const res = await DownloadFileWithWaterMark(selectedItem.id, data.fieldValue, data.watermark, false);
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: res.headers['content-type'] }));
+      const link = document.createElement('a'); link.href = url; link.setAttribute('download', selectedItem?.name);
+      document.body.appendChild(link); link.click(); link.remove(); window.URL.revokeObjectURL(url);
+    } catch (e) { toast.error(e?.response?.data?.message || e?.message); }
   };
 
-  // handler to bookmark
-  const handleBookMark = async (id) => {
-    try {
-      const response = await BookmarkDocument(id);
-      setData((prev) =>
-        prev.map((item) => {
-          return item.id == id
-            ? {
-                ...item,
-                isDocumentBookmarked: true,
-              }
-            : item;
-        }),
-      );
-      setSelectedItem((prev) => ({ ...prev, isDocumentBookmarked: true }));
-      toast.success(response?.data?.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.error || error?.message);
-    }
-  };
-
-  // handler to remove bookmark
-  const handleBookMarkRemove = async (id) => {
-    try {
-      const response = await RemoveBookmark(id);
-      setData((prev) =>
-        prev.map((item) => {
-          return item.id == id
-            ? {
-                ...item,
-                isDocumentBookmarked: false,
-              }
-            : item;
-        }),
-      );
-      setSelectedItem((prev) => ({ ...prev, isDocumentBookmarked: false }));
-
-      toast.success(response?.data?.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.error || error?.message);
-    }
-  };
-
-  // create folder
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm();
-
-  const handleCreateFolder = async (data) => {
-    setActionsLoading(true);
-    try {
-      const response = await CreateFolder(currentPath, {
-        path: `${currentPath}/${data.folderName}`,
-        ...(currentPath === '..' ? { isProject: true } : {}),
-      });
-      toast.success(response?.data?.message);
-
-      const currentDate = new Date();
-      const currentDateTimeString = currentDate.toString();
-      setData((prev) => [
-        ...prev,
-        {
-          createdOn: currentDateTimeString,
-          name: data.folderName,
-          type: 'folder',
-          path: currentPath,
-        },
-      ]);
-      setShowFolderModal(false);
-      reset();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
-
-  // upload file
-  const {
-    register: registerFile,
-    handleSubmit: handleSubmitFile,
-    formState: { errors: fileErrors, isSubmitting: isSubmittingFile },
-    reset: resetFile,
-  } = useForm();
-
-  // physical document request
-  const {
-    register: registerDepartment,
-    handleSubmit: handleSubmitDepartment,
-    formState: {
-      errors: departmentErrors,
-      isSubmitting: isSubmittingDepartment,
-    },
-    control: controlDepartment,
-    reset: resetDepartment,
-  } = useForm({
-    defaultValues: {
-      departmentId: '',
-      reason: '',
-    },
+  const handleArchive = (item) => executeAction(async () => {
+    await ArchiveFile(item.id); toast.success('Archived');
+    setMainData(prev => prev.filter(n => n.id !== item.id));
   });
-  const onSubmit = async (data) => {
-    setActionsLoading(true);
+  const handleDelete = (item) => executeAction(async () => {
+    await DeleteFile(item.id); toast.success('Deleted');
+    setMainData(prev => prev.filter(n => n.id !== item.id));
+  });
+  const toggleBookmark = async (id, isBookmarked) => {
     try {
-      // data has { departmentId, reason }
-      await createPhysicalRequest({ ...data, documentId: selectedItem?.id });
-      toast.success('Physical document request sent.');
-      resetDepartment(); // clear form after submit
-      setOpen(false);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message);
-    } finally {
-      setActionsLoading(false);
-    }
+      await (isBookmarked ? RemoveBookmark(id) : BookmarkDocument(id));
+      setMainData(prev => prev.map(n => n.id === id ? { ...n, isDocumentBookmarked: !isBookmarked } : n));
+      toast.success(isBookmarked ? 'Bookmark removed' : 'Bookmarked');
+    } catch (e) { toast.error(e?.response?.data?.error || e?.message); }
   };
 
-  // function to create metadata of newly uploaded file
-  const createUploadedFileMetadata = (
-    file,
-    uploadPath,
-    createdBy,
-    fileExt,
-    id,
-  ) => {
-    const now = new Date().toISOString();
-
-    return {
-      id: id, // or from backend if available
-      path: uploadPath,
-      name: file.name,
-      type: fileExt,
-      createdOn: now,
-      lastUpdated: now,
-      lastAccessed: now,
-      size: file.size,
-      isInvolvedInProcess: false,
-      createdBy,
-      isUploadable: false,
-      isDownloadable: true,
-      isRejected: false,
-      children: [], // Only relevant for folders, but keep empty for consistency
-    };
+  const handleCopy = (name, path) => { dispatch(copy({ name, pathValue: currentPath, method: 'copy' })); setIsMenuOpen(false); toast.success('Copied'); };
+  const handleCut = (name, path) => { dispatch(cut({ name, pathValue: currentPath, method: 'cut' })); setIsMenuOpen(false); toast.success('Cut'); };
+  const handlePaste = async () => {
+    if (!fileName || !sourcePath || !method) return toast.error('No file to paste');
+    setIsContextMenuOpen(false);
+    executeAction(async () => {
+      const body = { sourcePath, name: fileName, destinationPath: currentPath };
+      const res = method === 'copy' ? await CopyPaste(body) : await CutPaste(body);
+      toast.success(res?.data?.message);
+      fetchMainData(currentPath);
+      dispatch(copy({ name: '', pathValue: '', method: '' }));
+    });
   };
 
-  const handleFileUpload = async (data) => {
-    setActionsLoading(true);
-    try {
-      const selectedFile = data.file[0]; // Assuming this is from react-hook-form or similar
-      const fileName = selectedFile.name.split('.').slice(0, -1).join('.');
-      const fileExt = selectedFile.name.split('.').pop();
+  const onSubmitDept = async (data) => executeAction(async () => {
+    await createPhysicalRequest({ ...data, documentId: selectedItem?.id });
+    toast.success('Request sent'); resetDept(); setOpen(false);
+  });
 
-      const uploadResult = await upload(
-        [selectedFile], // File array
-        currentPath, // Target path
-        `${fileName}.${fileExt}`, // Final file name
-        false, // Overwrite = true
-      );
-      setUploadFileModal(false);
-      toast.success('File Uploaded');
-      const newFileData = createUploadedFileMetadata(
-        selectedFile,
-        currentPath,
-        username,
-        fileExt,
-        uploadResult[0],
-      );
+  const handleCreateFolder = async (data) => executeAction(async () => {
+    await CreateFolder(currentPath, { path: `${currentPath}/${data.folderName}`, ...(currentPath === '..' ? { isProject: true } : {}) });
+    toast.success('Folder Created');
+    fetchMainData(currentPath); setShowFolderModal(false); reset();
+  });
 
-      // Update your state (e.g., file list, folder contents)
-      setData((prev) => [...prev, newFileData]);
-      resetFile();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message);
-    } finally {
-      setActionsLoading(false);
-    }
-  };
+  const handleFileUpload = async (data) => executeAction(async () => {
+    const selectedFile = data.file[0];
+    const fileNameStr = selectedFile.name.split('.').slice(0, -1).join('.');
+    const fileExt = selectedFile.name.split('.').pop();
+    await upload([selectedFile], currentPath, `${fileNameStr}.${fileExt}`, false);
+    fetchMainData(currentPath); setUploadFileModal(false); resetFile(); toast.success('Uploaded');
+  });
 
-  const Section = ({ title, icon, children }) => (
-    <div className="bg-white rounded-xl border shadow-sm">
-      <div className="flex items-center gap-2 px-4 py-2 border-b bg-gray-50 rounded-t-xl">
-        <span className="text-lg">{icon}</span>
-        <h3 className="font-semibold text-gray-700">{title}</h3>
+  // --- Processors ---
+  const handleSearchChange = useCallback(debounce((value) => setSearchQuery(value), 300), []);
+  const resetFilters = () => { setFileType('all'); setSortType('name'); setSortOrder('asc'); setSearchQuery(''); };
+  
+  const processedMainData = mainData
+    .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item?.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+    .filter(item => fileType === 'all' || item.type === 'folder' || item.type === fileType)
+    .sort((a, b) => {
+      if (a.type === 'folder' && b.type !== 'folder') return -1;
+      if (a.type !== 'folder' && b.type === 'folder') return 1;
+      if (sortType === 'size') return sortOrder === 'asc' ? (a.size || 0) - (b.size || 0) : (b.size || 0) - (a.size || 0);
+      return sortOrder === 'asc' ? a[sortType]?.localeCompare(b[sortType]) : b[sortType]?.localeCompare(a[sortType]);
+    });
+
+  // --- Highly Scalable Tree Sidebar Component ---
+  const SidebarNode = ({ node, depth = 0 }) => {
+    const isActive = currentPath.endsWith(node.name);
+    const hasChildren = node.childrenData && node.childrenData.length > 0;
+    
+    const PADDING_PER_LEVEL = 16;
+    const BASE_PADDING = 12;
+
+    return (
+      <div className="flex flex-col w-full">
+        {/* Node Row */}
+        <div 
+          className={`group flex items-center py-1.5 pr-4 w-full cursor-pointer transition-colors duration-200 select-none outline-none
+            ${isActive 
+              ? 'bg-indigo-50 text-indigo-700 font-medium shadow-[inset_3px_0_0_0_rgba(79,70,229,1)]' 
+              : 'hover:bg-slate-200/50 text-slate-600 hover:text-slate-900 font-normal'}
+          `}
+          style={{ paddingLeft: `${depth * PADDING_PER_LEVEL + BASE_PADDING}px` }}
+          onClick={() => handleSidebarFolderClick(node)}
+        >
+          {/* Chevron */}
+          <div className="w-5 h-5 flex justify-center items-center flex-shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors">
+            <IconChevronRight 
+              size={14} stroke={2.5} 
+              className={`transition-transform duration-200 ease-out ${node.isExpanded ? 'rotate-90 text-indigo-400' : 'rotate-0'}`} 
+            />
+          </div>
+
+          {/* Icon */}
+          <div className="mr-2 flex-shrink-0">
+            {node.isExpanded ? (
+              <IconFolderOpen size={16} stroke={isActive ? 2 : 1.5} className={isActive ? 'text-indigo-600' : 'text-slate-500'} />
+            ) : (
+              <IconFolder size={16} stroke={isActive ? 2 : 1.5} className={isActive ? 'text-indigo-600 fill-indigo-100' : 'text-slate-400 fill-slate-100'} />
+            )}
+          </div>
+
+          {/* Label */}
+          <span className="text-sm tracking-tight whitespace-nowrap">
+            {node.name}
+          </span>
+        </div>
+
+        {/* Nested Children */}
+        {node.isExpanded && hasChildren && (
+          <div className="flex flex-col w-full relative">
+            <div 
+              className="absolute top-0 bottom-0 w-px bg-slate-200/80 pointer-events-none" 
+              style={{ left: `${depth * PADDING_PER_LEVEL + BASE_PADDING + 10}px` }}
+            />
+            {node.childrenData.map(child => (
+              <SidebarNode key={child.id} node={child} depth={depth + 1} />
+            ))}
+          </div>
+        )}
       </div>
-      <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        {children}
-      </div>
-    </div>
-  );
+    );
+  };
 
-  const Property = ({ label, value }) => (
-    <div className="flex flex-col">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="font-medium text-gray-900 break-all">
-        {value ?? '—'}
-      </span>
-    </div>
-  );
-
-  const StatusBadge = ({ value, trueLabel = 'Yes', falseLabel = 'No' }) => (
-    <span
-      className={`px-2 py-0.5 text-xs rounded-full w-fit font-medium
-      ${value ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
-    >
-      {value ? trueLabel : falseLabel}
-    </span>
-  );
-
-  useEffect(() => {
-    getData(currentPath);
-  }, [currentPath]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isContextMenuOpen && !event.target.closest('.context-menu')) {
-        setIsContextMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [isContextMenuOpen]);
-
-  useEffect(() => {
-    const getDepartmentList = async () => {
-      try {
-        const response = await getDepartments();
-        setDepartments(response?.data?.departments);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    getDepartmentList();
-  }, []);
-
-  if (loading) {
-    return <ComponentLoader />;
-  }
+  if (loading && !treeData.length) return <ComponentLoader />;
 
   return (
-    <>
+    <div className="flex h-[calc(100vh-60px)] bg-slate-50 font-sans antialiased text-slate-800 rounded-xl border border-slate-200/80 shadow-2xl overflow-hidden m-4">
       {actionsLoading && <TopLoader />}
-      <PathBar
-        pathValue={currentPath}
-        setCurrentPath={setCurrentPath}
-        state={'path'}
-        reset={resetFilters}
-      />
-      {/* Sidebar and Filter Button */}
-      <div className="relative flex flex-col md:flex-row h-[calc(100vh-160px)] gap-1 mt-1">
-        {/* Mobile Filter Button - Floating */}
-        {!isSidebarOpen && (
-          <button
-            className="absolute bottom-0 border right-4 rounded-full p-2 shadow-xl md:hidden z-10"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <IconFilter size={22} />
-          </button>
-        )}
 
-        {/* Sidebar */}
-        <CustomCard
-          className={`overflow-auto fixed md:relative md:w-64 p-4 bg-white rounded-lg transition-transform transform z-10 
-    h-auto md:h-full bottom-1 md:bottom-auto left-1 right-1 md:left-0 
-    ${isSidebarOpen ? 'translate-y-0' : 'translate-y-[110%] md:translate-y-0'} 
-    max-h-[500px] md:max-h-full`}
+      {/* --- LEFT PANE (Elegant Directory Tree) --- */}
+      {isSidebarOpen && (
+        <aside 
+          className="flex-shrink-0 bg-[#F8FAFC] flex flex-col overflow-hidden z-10 border-r border-slate-200/60 relative"
+          style={{ width: `${sidebarWidth}px`, transition: isDragging ? 'none' : 'width 0.2s ease-out' }} 
         >
-          {/* Header */}
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold text-gray-800 text-lg">Filters</h2>
-            <button
-              className="md:hidden p-1 text-gray-600 hover:text-gray-800"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <IconSquareLetterX size={22} />
+          <div className="pt-6 pb-4 px-6 flex justify-between items-center flex-shrink-0">
+            <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <IconLayoutSidebar size={14} /> Explorer
+            </h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 hover:text-indigo-500 transition-colors outline-none"><IconLayoutSidebar size={18} stroke={1.5}/></button>
+          </div>
+          
+          <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="min-w-max flex flex-col pb-4">
+               {/* Root Directory Base Node */}
+               <div 
+                  className={`group flex items-center py-2 pr-4 w-full cursor-pointer transition-colors duration-200 select-none outline-none
+                    ${currentPath === '..' ? 'bg-indigo-50 text-indigo-700 shadow-[inset_3px_0_0_0_rgba(79,70,229,1)] font-medium' : 'hover:bg-slate-200/50 text-slate-700'}`}
+                  style={{ paddingLeft: '12px' }}
+                  onClick={() => { setCurrentPath('..'); sessionStorage.setItem('path', '..'); fetchMainData('..'); }}
+                >
+                  <div className="w-5 flex-shrink-0" /> 
+                  <IconFolderOpen size={18} className={`mr-2 flex-shrink-0 ${currentPath === '..' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span className="text-sm tracking-tight whitespace-nowrap">Root Directory</span>
+                </div>
+              
+              {/* Tree Rendering */}
+              {treeData.filter(n => n.type === 'folder').map(node => <SidebarNode key={node.id} node={node} depth={0} />)}
+            </div>
+          </div>
+
+          {/* Resizer Handle */}
+          <div
+            className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-indigo-400/50 transition-colors z-50 flex items-center justify-center ${isDragging ? 'bg-indigo-500/50' : 'bg-transparent'}`}
+            onMouseDown={(e) => { 
+              e.preventDefault(); 
+              setIsDragging(true); 
+              dragInfo.current = { startX: e.clientX, startWidth: sidebarWidth }; 
+            }}
+          >
+             <div className={`w-0.5 h-8 bg-slate-300 rounded-full transition-opacity ${isDragging ? 'opacity-100 bg-white' : 'opacity-0'}`} />
+          </div>
+        </aside>
+      )}
+
+      {/* --- RIGHT PANE (Working Directory) --- */}
+      <main className="flex-1 flex flex-col min-w-0 bg-white z-20" onContextMenu={(e) => { e.preventDefault(); setContextMenuPos({ x: e.clientX, y: e.clientY }); setIsContextMenuOpen(true); }}>
+        
+        {/* Header / Path Bar */}
+        <header className="px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/90 backdrop-blur-xl z-30 sticky top-0 border-b border-slate-100">
+          <div className="flex items-center gap-4 w-full overflow-hidden">
+            {!isSidebarOpen && (
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors outline-none shadow-sm border border-transparent hover:border-indigo-100">
+                <IconLayoutSidebar size={20} stroke={1.5}/>
+              </button>
+            )}
+            <div className="flex-1 min-w-0"><PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} state={'path'} reset={resetFilters} /></div>
+          </div>
+          <div className="flex gap-3 flex-shrink-0">
+            <button onClick={() => setShowFolderModal(true)} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm outline-none">
+              <IconFolderPlus size={16} stroke={2} /> New Folder
+            </button>
+            <button onClick={() => setUploadFileModal(true)} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 outline-none">
+              <IconUpload size={16} stroke={2} /> Upload File
             </button>
           </div>
+        </header>
 
-          {/* Search */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700">Search</label>
-            <input
-              type="text"
-              placeholder="Type to search..."
-              className="border rounded-md px-3 py-2 w-full mt-1"
-              // value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              disabled={!data?.length}
-            />
+        {/* Filters Bar */}
+        <div className="px-8 py-3 border-b border-slate-100 flex items-center gap-6 text-xs bg-[#FAFAFC]">
+          <div className="flex items-center gap-2 flex-1 max-w-md group bg-white border border-slate-200 px-3 py-1.5 rounded-md focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all shadow-sm">
+             <IconFilter size={14} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors"/>
+             <input type="text" placeholder="Filter this directory..." className="w-full bg-transparent outline-none text-slate-700 placeholder:text-slate-400" onChange={(e) => handleSearchChange(e.target.value)} />
           </div>
-
-          {/* Sorting */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700">Sort By</label>
-            <select
-              className="border rounded-md px-3 py-2 w-full mt-1"
-              value={sortType}
-              onChange={(e) => setSortType(e.target.value)}
-              disabled={!filteredData?.length}
-            >
-              <option value="name">Name</option>
-              <option value="type">Type</option>
-              <option value="size">Size</option> {/* Added Size option */}
-            </select>
+          <div className="flex items-center gap-4 text-slate-600 font-medium ml-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Sort:</span>
+              <select className="bg-transparent outline-none cursor-pointer hover:text-indigo-600 transition-colors appearance-none pr-2 font-semibold" value={sortType} onChange={(e) => setSortType(e.target.value)}>
+                <option value="name">Name</option><option value="size">Size</option><option value="type">Type</option>
+              </select>
+            </div>
+            <div className="w-px h-4 bg-slate-300"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">View:</span>
+              <select className="bg-transparent outline-none cursor-pointer hover:text-indigo-600 transition-colors appearance-none pr-2 font-semibold" value={fileType} onChange={(e) => setFileType(e.target.value)}>
+                <option value="all">All Types</option>
+                {['pdf','doc','docx','xls','xlsx','img','jpg','png','zip'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+              </select>
+            </div>
           </div>
+        </div>
 
-          {/* type */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700">
-              File Type
-            </label>
-            <select
-              className="border rounded-md px-3 py-2 w-full mt-1"
-              value={fileType}
-              onChange={(e) => setFileType(e.target.value)}
-              disabled={!data?.length}
-            >
-              {[
-                'all',
-                'pdf',
-                'doc',
-                'docx',
-                'xls',
-                'xlsx',
-                'ppt',
-                'pptx',
-                'txt',
-                'csv',
-                'img',
-                'jpg',
-                'png',
-                'gif',
-                'svg',
-                'zip',
-                'rar',
-                'json',
-              ].map((type) => (
-                <option key={type} value={type}>
-                  {type === 'all' ? 'All' : type.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Document Type */}
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700">
-              Document Type
-            </label>
-            <select
-              className="border rounded-md px-3 py-2 w-full mt-1"
-              value={documentsType}
-              onChange={(e) => setDocumentsType(e.target.value)}
-              disabled={!data?.length}
-            >
-              <option value="normal">Normal Documents</option>
-              <option value="rejected">Rejected Documents</option>
-              <option value="achieved">Achieved</option>
-            </select>
-          </div>
-
-          {/* Order */}
-          <div className="mb-6">
-            <label className="text-sm font-medium text-gray-700">Order</label>
-            <select
-              className="border rounded-md px-3 py-2 w-full mt-1"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              disabled={!filteredData?.length}
-            >
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
-            </select>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-3">
-            <CustomButton
-              text="Create Folder"
-              click={() => setShowFolderModal(true)}
-            />
-            <CustomButton
-              text="Upload File"
-              click={() => setUploadFileModal(true)}
-              variant={'success'}
-            />
-            <CustomButton
-              text={'Reset Filters'}
-              variant={'secondary'}
-              click={resetFilters}
-            />
-          </div>
-        </CustomCard>
-
-        {/* Folder and File Display */}
-        <div
-          onContextMenu={(e) => handleContextMenu(e)}
-          className="flex-1 max-h-[calc(100vh-160px)] overflow-auto"
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-            {filteredData.length > 0 ? (
-              filteredData.map((item) => (
-                <div key={item.id} className="relative">
-                  <CustomCard
-                    // title={item.name}
-                    className="flex flex-row items-center justify-center p-4 hover:shadow-lg cursor-pointer relative"
-                    click={() =>
-                      item.type == 'folder' ? handleFolderClick(item) : null
-                    }
-                    onDoubleClick={() =>
-                      item.type == 'folder'
-                        ? null
-                        : handleViewFile(
-                            item.name,
-                            item.path,
-                            item.id,
-                            item.type,
-                            false,
-                          )
-                    }
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedItem(item);
-                        setIsMenuOpen(true); // Open action menu
-                      }}
-                      className="absolute top-1 right-0 hover:bg-blue-50 p-1 rounded-[50%] z-9"
-                    >
-                      <IconDotsVertical size={22} />
+        {/* File Table */}
+        <div className="flex-1 overflow-y-auto px-2">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead className="bg-white/95 backdrop-blur-md sticky top-0 z-10 shadow-[0_1px_0_0_rgba(241,245,249,1)]">
+              <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="px-6 py-4 w-full">Name</th>
+                <th className="px-6 py-4 hidden lg:table-cell">Date Modified</th>
+                <th className="px-6 py-4 text-right hidden md:table-cell">Size</th>
+                <th className="px-6 py-4 text-center w-16"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100/80">
+              {processedMainData.length > 0 ? processedMainData.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50/80 group cursor-pointer transition-colors" onDoubleClick={() => handleMainItemClick(item)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedItem(item); setContextMenuPos({ x: e.clientX, y: e.clientY }); setIsMenuOpen(true); }}>
+                  <td className="px-6 py-3.5 flex items-center gap-4">
+                    <div className="w-8 h-8 flex justify-center items-center flex-shrink-0 bg-slate-100 rounded-lg group-hover:bg-white group-hover:shadow-sm transition-all">
+                      {item.type === 'folder' ? <IconFolder size={20} stroke={1.5} className="text-indigo-500 fill-indigo-100" /> : <img src={ImageConfig[item.type] || ImageConfig['default']} className="w-5 h-5 object-contain drop-shadow-sm" alt={item.type} />}
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 tracking-tight truncate select-none group-hover:text-indigo-700 transition-colors">{item.name}</span>
+                    {item.isDocumentBookmarked && <IconBookmarkFilled size={14} className="text-amber-400 drop-shadow-sm ml-1" />}
+                  </td>
+                  <td className="px-6 py-3.5 text-xs text-slate-500 hidden lg:table-cell tracking-tight">{item.lastUpdated ? moment(item.lastUpdated).format('DD MMM YYYY, HH:mm') : '—'}</td>
+                  <td className="px-6 py-3.5 text-xs text-slate-500 font-mono text-right hidden md:table-cell">{item.type !== 'folder' && item.size ? `${(item.size / 1024).toFixed(1)} KB` : '—'}</td>
+                  <td className="px-6 py-3.5 text-center">
+                     <button onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setIsMenuOpen(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none">
+                      <IconDotsVertical size={18} stroke={2} />
                     </button>
-                    <img
-                      src={
-                        item.type !== 'folder'
-                          ? ImageConfig[item.type] || ImageConfig['default']
-                          : folderIcon
-                      }
-                      className="h-12 p-2"
-                      alt={item.type}
-                    />
-                    <Tooltip title={item.name}>
-                      <h2 className="cursor-text font-semibold truncate w-full text-center">
-                        {item.name}
-                      </h2>
-                    </Tooltip>
-                  </CustomCard>
-                </div>
-              ))
-            ) : (
-              <CustomCard className="w-full text-center">
-                <h2 className="font-semibold">No results found</h2>
-              </CustomCard>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Action Menu (Popup) */}
-      {selectedItem ? (
-        <CustomModal
-          isOpen={isMenuOpen && selectedItem}
-          className={'overflow-auto'}
-        >
-          <h3 className="font-semibold mb-3">{selectedItem?.name}</h3>
-
-          {/* Actions */}
-          <div className="flex flex-col gap-2">
-            {selectedItem?.type !== 'folder' ? (
-              <>
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconEye size={18} /> View
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() =>
-                    handleViewFile(
-                      selectedItem.name,
-                      selectedItem.path,
-                      selectedItem.id,
-                      selectedItem.type,
-                      false,
-                    )
-                  }
-                  disabled={actionsLoading}
-                />
-
-                {/* <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconDownload size={18} /> Download
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() =>
-                    handleDownload(selectedItem.name, selectedItem.path)
-                  }
-                  disabled={actionsLoading}
-                /> */}
-                <CustomButton
-                  variant="none"
-                  text={
-                    !selectedItem.isDocumentBookmarked ? (
-                      <>
-                        <IconBookmark size={18} /> Bookmark
-                      </>
-                    ) : (
-                      <>
-                        <IconBookmarkFilled size={18} /> Remove Bookmark
-                      </>
-                    )
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() =>
-                    selectedItem.isDocumentBookmarked
-                      ? handleBookMarkRemove(selectedItem.id)
-                      : handleBookMark(selectedItem.id)
-                  }
-                  disabled={actionsLoading}
-                />
-                {['pdf', 'jpg', 'jpeg', 'png', 'tiff'].includes(
-                  selectedItem?.type,
-                ) ? (
-                  <CustomButton
-                    variant="none"
-                    text={
-                      <>
-                        <IconDownload size={18} /> Download With Watermark
-                      </>
-                    }
-                    className="w-full flex items-center gap-2"
-                    click={() => setOpen('password')}
-                    disabled={actionsLoading}
-                  />
-                ) : null}
-
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconCopy size={18} /> Copy
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => handleCopy(selectedItem.name, selectedItem.path)}
-                  disabled={actionsLoading}
-                />
-                {/* <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconScissors size={18} /> Cut
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => handleCut(selectedItem.name, selectedItem.path)}
-                  disabled={actionsLoading}
-                /> */}
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconScript size={18} /> Request Physical Document
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => setOpen('physicalDocument')}
-                  disabled={actionsLoading}
-                />
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconArchive size={18} /> Archive
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => handleArchive(selectedItem)}
-                  disabled={actionsLoading}
-                />
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconTrash size={18} /> Delete
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => handleDelete(selectedItem)}
-                  disabled={actionsLoading}
-                />
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconSettings size={18} /> Properties
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => {
-                    setIsMenuOpen(false);
-                    setShowProperties(true); // Open properties modal
-                  }}
-                  disabled={actionsLoading}
-                />
-              </>
-            ) : (
-              <>
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconDownload size={18} /> Download ZIP
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() =>
-                    handleDownloadFolder(selectedItem.name, selectedItem.path)
-                  }
-                  disabled={actionsLoading}
-                />
-                <CustomButton
-                  variant="none"
-                  text={
-                    <>
-                      <IconSettings size={18} /> Properties
-                    </>
-                  }
-                  className="w-full flex items-center gap-2"
-                  click={() => {
-                    setIsMenuOpen(false);
-                    setShowProperties(true); // Open properties modal
-                  }}
-                  disabled={actionsLoading}
-                />
-              </>
-            )}
-          </div>
-
-          {/* Close Button */}
-          <CustomButton
-            variant="danger"
-            text={
-              <>
-                <IconSquareLetterX size={18} /> Close
-              </>
-            }
-            className="w-full flex items-center gap-2 mt-4"
-            click={() => setIsMenuOpen(false)}
-            disabled={actionsLoading}
-          />
-        </CustomModal>
-      ) : null}
-
-      {/* Paste button */}
-      {isContextMenuOpen && fileName && (
-        <ContextMenu
-          xPos={contextMenuPos.x}
-          yPos={contextMenuPos.y}
-          handlePaste={handlePaste}
-        />
-      )}
-
-      {/* Properties Modal */}
-      <CustomModal isOpen={showProperties}>
-        {/* HEADER */}
-        <div className="flex justify-between items-center border-b px-5 py-3">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">
-              {selectedItem?.name}
-            </h2>
-            <p className="text-xs text-gray-500">{selectedItem?.path}</p>
-          </div>
-          <button
-            onClick={() => setShowProperties(false)}
-            className="text-gray-400 hover:text-red-500"
-          >
-            <IconSquareLetterX />
-          </button>
-        </div>
-
-        {/* BODY */}
-        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto bg-gray-100">
-          {/* BASIC */}
-          <Section title="Basic Information" icon="📄">
-            <Property label="Name" value={selectedItem?.name} />
-            <Property label="Document Issue No" value={selectedItem?.issueNo} />
-            <Property label="Part Number" value={selectedItem?.partNumber} />
-            <Property label="Type" value={selectedItem?.type} />
-            <Property label="Size" value={`${selectedItem?.size} bytes`} />
-            <Property label="Created By" value={selectedItem?.createdBy} />
-            <Property
-              label="Process Issue No"
-              value={selectedItem?.processIssueNo}
-            />
-          </Section>
-
-          {/* TIMELINE */}
-          <Section title="Timeline" icon="🕒">
-            <Property
-              label="Created On"
-              value={moment(selectedItem?.createdOn).format('DD MMM YYYY')}
-            />
-            <Property
-              label="Last Updated"
-              value={moment(selectedItem?.lastUpdated).format('DD MMM YYYY')}
-            />
-            <Property
-              label="Last Accessed"
-              value={moment(selectedItem?.lastAccessed).format('DD MMM YYYY')}
-            />
-          </Section>
-
-          {/* STATUS */}
-          <Section title="Document Status" icon="📌">
-            <div>
-              <span className="text-xs text-gray-500">Archived</span>
-              <StatusBadge value={selectedItem?.isArchived} />
-            </div>
-            <div>
-              <span className="text-xs text-gray-500">In Bin</span>
-              <StatusBadge value={selectedItem?.inBin} />
-            </div>
-            <div>
-              <span className="text-xs text-gray-500">Rejected</span>
-              <StatusBadge value={selectedItem?.isRejected} />
-            </div>
-            <div>
-              <span className="text-xs text-gray-500">Bookmarked</span>
-              <StatusBadge value={selectedItem?.isDocumentBookmarked} />
-            </div>
-            <div>
-              <span className="text-xs text-gray-500">Pre Approved</span>
-              <StatusBadge
-                value={selectedItem?.preApproved}
-                trueLabel="Approved"
-                falseLabel="No"
-              />
-            </div>
-          </Section>
-
-          {/* PROCESS */}
-          <Section title="Process & Workflow" icon="⚙️">
-            <Property
-              label="In Process"
-              value={selectedItem?.isInvolvedInProcess ? 'Yes' : 'No'}
-            />
-            <Property label="Process Name" value={selectedItem?.processName} />
-            <Property
-              label="Process Status"
-              value={selectedItem?.processStatus}
-            />
-            <Property label="Workflow" value={selectedItem?.workflowName} />
-          </Section>
-
-          {/* CLASSIFICATION */}
-          <Section title="Classification & Meta" icon="🏷️">
-            <Property
-              label="Tags"
-              value={
-                selectedItem?.processTags?.length
-                  ? selectedItem.processTags.join(', ')
-                  : '—'
-              }
-            />
-
-            <div className="col-span-2">
-              <p className="text-xs text-gray-500 mb-1">Description</p>
-              <div className="bg-gray-50 border rounded-lg p-3 text-xs text-gray-700 min-h-[60px]">
-                {selectedItem?.description || '—'}
-              </div>
-            </div>
-          </Section>
-        </div>
-      </CustomModal>
-
-      {/* Create Folder Modal */}
-      <CustomModal isOpen={showFolderModal}>
-        <h2 className="text-lg font-semibold mb-4">Create Folder</h2>
-        <form onSubmit={handleSubmit(handleCreateFolder)}>
-          <input
-            type="text"
-            className="border p-2 w-full mb-2"
-            placeholder="Folder Name"
-            {...register('folderName', { required: 'Folder name is required' })}
-          />
-          {errors.folderName && (
-            <p className="text-red-500 text-sm">{errors.folderName.message}</p>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <CustomButton
-              variant={'danger'}
-              text={'Cancel'}
-              type={'button'}
-              disabled={isSubmitting}
-              click={() => setShowFolderModal(false)}
-            />
-            <CustomButton
-              type="submit"
-              text={'Create'}
-              disabled={isSubmitting}
-            />
-          </div>
-        </form>
-      </CustomModal>
-
-      {/* Upload File Modal */}
-      <CustomModal isOpen={showUploadFileModal}>
-        <h2 className="text-lg font-semibold mb-4">Upload File</h2>
-        <form onSubmit={handleSubmitFile(handleFileUpload)}>
-          <input
-            type="file"
-            className="border p-2 w-full mb-2"
-            {...registerFile('file', { required: 'Please select a file' })}
-          />
-          {fileErrors.file && (
-            <p className="text-red-500 text-sm">{fileErrors.file.message}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <CustomButton
-              type="button"
-              text="Cancel"
-              variant={'danger'}
-              click={() => setUploadFileModal(false)}
-              disabled={isSubmittingFile}
-            />
-            <CustomButton
-              type="submit"
-              text="Upload"
-              disabled={isSubmittingFile}
-            />
-          </div>
-        </form>
-      </CustomModal>
-
-      {/* modal for watermark download */}
-      <ModalWithField
-  open={open === 'password'}
-  setOpen={setOpen}
-  actionsLoading={actionsLoading}
-  setActionsLoading={setActionsLoading}
-  fieldName="password"
-  onSubmit={handleDownloadWithWatermark}
-  defaultWatermark={`Uncontrolled Copy For Reference P.B.No ${username}`}
-/>
-
-
-      <CustomModal
-        isOpen={open === 'physicalDocument'}
-        onClose={() => {
-          setOpen(false);
-          resetDepartment();
-        }}
-        size="md"
-      >
-        <h2 className="text-lg font-semibold mb-4">
-          Request Physical Document
-        </h2>
-
-        <form onSubmit={handleSubmitDepartment(onSubmit)} className="space-y-4">
-          {/* Department Dropdown */}
-          <div>
-            <select
-              {...registerDepartment('departmentId', {
-                required: 'Department is required',
-              })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-green-500"
-            >
-              <option value="">-- Select Department --</option>
-              {departments?.map((item) => (
-                <option key={item?.id} value={item?.id}>
-                  {item?.name}
-                </option>
-              ))}
-            </select>
-            {departmentErrors.departmentId && (
-              <p className="text-red-500 text-sm mt-1">
-                {departmentErrors.departmentId.message}
-              </p>
-            )}
-          </div>
-
-          {/* Reason Input */}
-          <div>
-            <Controller
-              name="reason"
-              control={controlDepartment}
-              rules={{ required: 'Reason is required' }}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  label="Reason"
-                  placeholder="Enter Reason"
-                  error={departmentErrors.reason?.message}
-                />
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="4" className="text-center py-32 text-slate-400">
+                    <div className="flex flex-col items-center">
+                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                         <IconFolderOpen size={40} stroke={1} className="text-slate-300" />
+                      </div>
+                      <p className="font-semibold text-slate-600">This folder is empty</p>
+                      <p className="text-xs mt-1 text-slate-400">Drop files here or click Upload in the top right.</p>
+                    </div>
+                  </td>
+                </tr>
               )}
-            />
-          </div>
+            </tbody>
+          </table>
+        </div>
+      </main>
 
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-2">
-            <CustomButton
-              type="button"
-              variant="danger"
-              disabled={actionsLoading}
-              click={() => {
-                setOpen(false);
-                resetDepartment();
-              }}
-              text="Cancel"
-            />
-            <CustomButton
-              type="submit"
-              variant="primary"
-              text={'Submit'}
-              disabled={actionsLoading}
-            />
+      {/* --- Context Menus & Modals (macOS blur style) --- */}
+      {isContextMenuOpen && fileName && (
+        <div className="fixed z-[100] bg-white/80 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] rounded-xl border border-slate-200/50 p-1.5 w-56 context-menu" style={{ top: contextMenuPos.y, left: contextMenuPos.x }}>
+          <button className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-sm font-medium text-slate-700 hover:bg-slate-100/80 hover:text-indigo-600 rounded-lg outline-none transition-colors" onClick={handlePaste}><IconCopy size={16} stroke={1.5} /> Paste Item</button>
+        </div>
+      )}
+
+      <CustomModal isOpen={isMenuOpen && selectedItem} onClose={() => setIsMenuOpen(false)} size="sm">
+        <div className="border-b border-slate-100 pb-3 mb-3 px-3"><h3 className="font-bold text-slate-800 truncate tracking-tight text-base">{selectedItem?.name}</h3></div>
+        <div className="flex flex-col gap-1 px-1 pb-1">
+          {selectedItem?.type !== 'folder' ? (
+            <>
+              <MenuBtn icon={<IconEye size={16}/>} text="View Content" onClick={() => handleViewFile(selectedItem.name, selectedItem.path, selectedItem.id, selectedItem.type)} />
+              <MenuBtn icon={selectedItem?.isDocumentBookmarked ? <IconBookmarkFilled size={16} className="text-amber-500"/> : <IconBookmark size={16}/>} text={selectedItem?.isDocumentBookmarked ? "Remove Bookmark" : "Bookmark"} onClick={() => toggleBookmark(selectedItem.id, selectedItem.isDocumentBookmarked)} />
+              {['pdf', 'jpg', 'jpeg', 'png', 'tiff'].includes(selectedItem?.type) && <MenuBtn icon={<IconDownload size={16}/>} text="Download with Watermark" onClick={() => {setIsMenuOpen(false); setOpen('password');}} />}
+              <MenuBtn icon={<IconCopy size={16}/>} text="Copy File" onClick={() => handleCopy(selectedItem.name, selectedItem.path)} />
+              <MenuBtn icon={<IconScript size={16}/>} text="Request Physical Copy" onClick={() => {setIsMenuOpen(false); setOpen('physicalDocument');}} />
+              <div className="h-px w-full bg-slate-100 my-1"></div>
+              <MenuBtn icon={<IconArchive size={16}/>} text="Archive" onClick={() => handleArchive(selectedItem)} />
+              <MenuBtn icon={<IconTrash size={16}/>} text="Delete" onClick={() => handleDelete(selectedItem)} className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" iconClass="text-rose-500" />
+            </>
+          ) : ( <MenuBtn icon={<IconDownload size={16}/>} text="Download ZIP" onClick={() => handleDownloadFolder(selectedItem.name, selectedItem.path)} /> )}
+          <div className="h-px w-full bg-slate-100 my-1"></div>
+          <MenuBtn icon={<IconSettings size={16}/>} text="Properties" onClick={() => { setIsMenuOpen(false); setShowProperties(true); }} />
+        </div>
+      </CustomModal>
+
+      {/* Modern Properties Modal */}
+      <CustomModal isOpen={showProperties} onClose={() => setShowProperties(false)}>
+        <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+            <h2 className="text-xl font-bold tracking-tight text-slate-800">Properties</h2>
+            <button onClick={() => setShowProperties(false)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors outline-none"><IconSquareLetterX size={20} stroke={1.5} /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 text-sm bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+          <Prop label="Name" value={selectedItem?.name} className="col-span-2" />
+          <Prop label="Location Path" value={selectedItem?.path} className="col-span-2" />
+          <Prop label="Format Type" value={selectedItem?.type?.toUpperCase()} />
+          <Prop label="File Size" value={selectedItem?.size ? `${selectedItem.size} bytes` : '—'} />
+          <Prop label="Created By" value={selectedItem?.createdBy} />
+          <Prop label="Creation Date" value={selectedItem?.createdOn ? moment(selectedItem.createdOn).format('DD MMM YYYY, HH:mm') : '—'} />
+        </div>
+      </CustomModal>
+
+      {/* Forms */}
+      <CustomModal isOpen={showFolderModal} onClose={() => setShowFolderModal(false)}>
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-slate-800">Create New Folder</h2>
+        <form onSubmit={handleSubmit(handleCreateFolder)}>
+          <input type="text" className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm mb-2 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-sm" placeholder="Enter folder name..." {...register('folderName', { required: 'Required' })} />
+          <div className="flex justify-end gap-3 mt-6">
+            <button type="button" onClick={() => setShowFolderModal(false)} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm">Create</button>
           </div>
         </form>
       </CustomModal>
 
-      {/* View File Modal */}
-      {fileView && (
-        <ViewFile
-          docu={fileView}
-          setFileView={setFileView}
-          handleViewClose={() => setFileView(null)}
-        />
-      )}
-    </>
+      <CustomModal isOpen={showUploadFileModal} onClose={() => { setUploadFileModal(false); resetFile(); }}>
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-slate-800">Upload File</h2>
+        <form onSubmit={handleSubmitFile(handleFileUpload)}>
+          <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 hover:bg-slate-50 hover:border-indigo-400 transition-colors relative flex flex-col items-center justify-center min-h-[160px]">
+             
+             {(!selectedUploadFile || selectedUploadFile.length === 0) && (
+               <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" {...registerFile('file', { required: 'Required' })} />
+             )}
+
+             {selectedUploadFile && selectedUploadFile.length > 0 ? (
+               <div className="flex flex-col items-center justify-center text-center z-10 w-full">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-3 text-indigo-600">
+                    <IconScript size={24} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 truncate max-w-[200px]">{selectedUploadFile[0].name}</p>
+                  <p className="text-xs text-slate-500 mt-1">{(selectedUploadFile[0].size / 1024).toFixed(1)} KB</p>
+                  <button type="button" className="text-xs text-rose-500 font-medium mt-4 px-3 py-1.5 bg-rose-50 rounded-md hover:bg-rose-100 transition-colors" onClick={() => setFileValue('file', null)}>
+                    Remove File
+                  </button>
+               </div>
+             ) : (
+               <div className="flex flex-col items-center justify-center text-center pointer-events-none">
+                  <IconUpload size={32} className="text-indigo-400 mb-3" />
+                  <p className="text-sm font-medium text-slate-700">Click to select or drag and drop</p>
+                  <p className="text-xs text-slate-500 mt-1">Any file type is supported</p>
+               </div>
+             )}
+
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button type="button" onClick={() => { setUploadFileModal(false); resetFile(); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+            <button type="submit" disabled={isSubmittingFile || !selectedUploadFile || selectedUploadFile.length === 0} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm">Upload</button>
+          </div>
+        </form>
+      </CustomModal>
+
+      <CustomModal isOpen={open === 'physicalDocument'} onClose={() => { setOpen(false); resetDept(); }}>
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-slate-800">Request Physical Document</h2>
+        <form onSubmit={handleSubmitDept(onSubmitDept)} className="space-y-5">
+          <select {...registerDept('departmentId', { required: 'Required' })} className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-sm">
+            <option value="">-- Select Department --</option>
+            {departments.map((item) => <option key={item?.id} value={item?.id}>{item?.name}</option>)}
+          </select>
+          <Controller name="reason" control={controlDept} rules={{ required: 'Required' }} render={({ field }) => <CustomTextField {...field} label="Reason for request" error={deptErrors.reason?.message} />} />
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={() => { setOpen(false); resetDept(); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+            <button type="submit" disabled={actionsLoading} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm">Submit Request</button>
+          </div>
+        </form>
+      </CustomModal>
+
+      <ModalWithField open={open === 'password'} setOpen={setOpen} actionsLoading={actionsLoading} setActionsLoading={setActionsLoading} fieldName="password" onSubmit={handleDownloadWithWatermark} defaultWatermark={`Uncontrolled Copy For Reference P.B.No ${username}`} />
+      {fileView && <ViewFile docu={fileView} setFileView={setFileView} handleViewClose={() => setFileView(null)} />}
+    </div>
   );
 }
+
+const MenuBtn = ({ icon, text, onClick, className = '', iconClass = 'text-slate-400' }) => (
+  <button onClick={onClick} className={`flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-indigo-700 rounded-lg outline-none transition-colors ${className}`}>
+    <span className={iconClass}>{icon}</span> <span>{text}</span>
+  </button>
+);
+
+const Prop = ({ label, value, className = '' }) => (
+  <div className={`flex flex-col ${className}`}>
+    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{label}</span>
+    <span className="text-sm font-semibold text-slate-800 break-words">{value || '—'}</span>
+  </div>
+);

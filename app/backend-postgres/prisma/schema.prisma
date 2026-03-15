@@ -175,6 +175,9 @@ model Workflow {
   escalationTime   Int?      @default(48)
   autoApprovalAfter Int?     @default(168)
   createdAt        DateTime  @default(now())
+  parentWorkflowId  String?
+  parentWorkflow    Workflow?  @relation("LogicalWorkflowHierarchy", fields: [parentWorkflowId], references: [id])
+  childWorkflows    Workflow[] @relation("LogicalWorkflowHierarchy")
   drafts ProcessDraft[] @relation("WorkflowDrafts")
   updatedAt        DateTime? @updatedAt
   previousVersion  Workflow? @relation("WorkflowVersion", fields: [previousVersionId], references: [id], onDelete: Cascade)

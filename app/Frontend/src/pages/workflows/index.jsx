@@ -70,6 +70,7 @@ export default function WorkflowVisualizer() {
       description: version.description,
       steps: version.steps,
       id: version.id,
+      parentWorkflowId: version.parentWorkflowId || workflow.parentWorkflowId || '',
     };
     setEditData(editObject);
     setShowForm(true);
@@ -97,84 +98,82 @@ export default function WorkflowVisualizer() {
     setDeleteLoading(false);
   };
 
-  // Called from WorkflowForm after successful edit
   const handleEditSuccess = (newId) => {
     setNewWorkflowId(newId);
     fetchMigrationPreview(newId);
   };
 
-const fetchMigrationPreview = async (workflowId) => {
-  try {
-    const token = sessionStorage.getItem('accessToken');
-    const response = await fetch(
-      `${backendUrl}/workflows/${workflowId}/migration-preview`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    const data = await response.json();
-    console.log('🔍 Migration preview response:', data); // ← ADD THIS
+  const fetchMigrationPreview = async (workflowId) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const response = await fetch(
+        `${backendUrl}/workflows/${workflowId}/migration-preview`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const data = await response.json();
+      console.log('🔍 Migration preview response:', data); 
 
-    if (response.ok) {
-      // Check for the expected structure
-      if (data && data.oldWorkflow && data.newWorkflow) {
-        setMigrationData(data);
-        if (data.processes && data.processes.length > 0) {
-          setShowMigrationModal(true);
-          setSelectedProcesses(data.processes.map((p) => p.processId));
+      if (response.ok) {
+        if (data && data.oldWorkflow && data.newWorkflow) {
+          setMigrationData(data);
+          if (data.processes && data.processes.length > 0) {
+            setShowMigrationModal(true);
+            setSelectedProcesses(data.processes.map((p) => p.processId));
+          } else {
+            toast.info('No active processes need migration.');
+          }
         } else {
-          toast.info('No active processes need migration.');
+          toast.error('Invalid migration preview data received.');
         }
       } else {
-        toast.error('Invalid migration preview data received.');
+        toast.error(data.error || 'Failed to load migration preview');
       }
-    } else {
-      toast.error(data.error || 'Failed to load migration preview');
+    } catch (error) {
+      console.error('Preview error:', error);
+      toast.error('Failed to load migration preview');
     }
-  } catch (error) {
-    console.error('Preview error:', error);
-    toast.error('Failed to load migration preview');
-  }
-};
+  };
 
-const handleMigrate = async () => {
-  if (selectedProcesses.length === 0) {
-    toast.warning('No processes selected');
-    return;
-  }
-  setMigrating(true);
-  console.log("reached")
-  try {
-    const token = sessionStorage.getItem('accessToken');
-    const response = await fetch(
-      `${backendUrl}/workflows/${newWorkflowId}/migrate-processes`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ processIds: selectedProcesses }),
-      }
-    );
-    const data = await response.json();
-    if (response.ok) {
-      toast.success('Migration completed successfully');
-      setShowMigrationModal(false);
-      getList(); // refresh workflow list
-    } else {
-      toast.error(data.error || 'Migration failed');
+  const handleMigrate = async () => {
+    if (selectedProcesses.length === 0) {
+      toast.warning('No processes selected');
+      return;
     }
-  } catch (error) {
-    toast.error('Migration failed: ' + error.message);
-  } finally {
-    setMigrating(false);
-  }
-};
+    setMigrating(true);
+    console.log("reached")
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const response = await fetch(
+        `${backendUrl}/workflows/${newWorkflowId}/migrate-processes`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ processIds: selectedProcesses }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        toast.success('Migration completed successfully');
+        setShowMigrationModal(false);
+        getList(); 
+      } else {
+        toast.error(data.error || 'Migration failed');
+      }
+    } catch (error) {
+      toast.error('Migration failed: ' + error.message);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   if (loading) {
     return <ComponentLoader />;
@@ -200,24 +199,24 @@ const handleMigrate = async () => {
       </div>
 
       {/* Workflow Form Modal */}
-    <CustomModal
-  isOpen={showForm}
-  onClose={() => {
-    setShowForm(false);
-    setEditData(null);
-  }}
->
-  <WorkflowForm
-    handleCloseForm={() => {
-      setShowForm(false);
-      setEditData(null);
-    }}
-    updateList={getList}
-    editData={editData}
-    setEditData={setEditData}
-    onEditSuccess={handleEditSuccess}   // ← add this line
-  />
-</CustomModal>
+      <CustomModal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditData(null);
+        }}
+      >
+        <WorkflowForm
+          handleCloseForm={() => {
+            setShowForm(false);
+            setEditData(null);
+          }}
+          updateList={getList}
+          editData={editData}
+          setEditData={setEditData}
+          onEditSuccess={handleEditSuccess}
+        />
+      </CustomModal>
 
       {/* Workflow Cards */}
       {filteredWorkflows.length > 0 ? (
@@ -356,22 +355,22 @@ const handleMigrate = async () => {
       />
 
       {/* Migration Modal */}
-{showMigrationModal && migrationData && (
-  <CustomModal
-    isOpen={showMigrationModal}
-    onClose={() => setShowMigrationModal(false)}
-    size="lg"
-  >
-    <MigrationModal
-      migrationData={migrationData}
-      selectedProcesses={selectedProcesses}
-      setSelectedProcesses={setSelectedProcesses}
-      onMigrate={handleMigrate}      // ← ensure this is passed
-      migrating={migrating}
-      onClose={() => setShowMigrationModal(false)}
-    />
-  </CustomModal>
-)}
+      {showMigrationModal && migrationData && (
+        <CustomModal
+          isOpen={showMigrationModal}
+          onClose={() => setShowMigrationModal(false)}
+          size="lg"
+        >
+          <MigrationModal
+            migrationData={migrationData}
+            selectedProcesses={selectedProcesses}
+            setSelectedProcesses={setSelectedProcesses}
+            onMigrate={handleMigrate}
+            migrating={migrating}
+            onClose={() => setShowMigrationModal(false)}
+          />
+        </CustomModal>
+      )}
     </div>
   );
 }

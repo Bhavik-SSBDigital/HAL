@@ -32,6 +32,7 @@ import {
   use_template_document,
   get_workflow_steps_with_assignments,
   get_all_workflows_with_basics,
+  get_active_workflow_families,
 } from "../controller/workflow-controller.js";
 
 import {
@@ -155,6 +156,9 @@ import {
   get_drafted_processes_for_initiator,
   reopen_process,
   generateDocumentNameController,
+  get_process_copy_details,
+  get_processes_for_copy,
+  duplicate_document_for_copy,
   get_process_documents,
   upload_documents_in_process,
   delete_document_in_process,
@@ -256,6 +260,7 @@ router.get(
   get_workflow_steps_with_assignments,
 );
 router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
+router.get("/workflows/active-families", get_active_workflow_families); // Get active workflow families for dropdowns
 router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
 router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
 router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
@@ -393,6 +398,9 @@ router.get("/getDraftedProcesses", get_drafted_processes_for_initiator);
 
 router.post("/generateDocumentName", generateDocumentNameController);
 
+router.get("/processes/available-for-copy", get_processes_for_copy);
+router.get("/processes/:processId/copy-details", get_process_copy_details);
+
 router.get("/getDraftedProcess/:draftId", getDraftForEditing);
 
 router.post("/drafts/save/:draftId", saveProcessDraft);
@@ -404,6 +412,11 @@ router.post("/drafts/submit", submitProcessDraft);
 router.get(
   "/processDocuments/:processId/:versionNumber",
   get_process_documents,
+);
+
+router.post(
+  "/processes/duplicate-document-for-copy",
+  duplicate_document_for_copy,
 );
 
 router.get("/searchDocuments", search_documents);

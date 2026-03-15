@@ -35,7 +35,7 @@ export const add_workflow = async (req, res) => {
   }
 
   const createdById = userData.id;
-  const { name, description, steps } = req.body;
+  const { name, description, steps, parentWorkflowId } = req.body;
 
   if (!name || !steps || !steps.length) {
     return res
@@ -51,6 +51,7 @@ export const add_workflow = async (req, res) => {
           description,
           createdById,
           version: 1,
+          parentWorkflowId: parentWorkflowId || null,
         },
       });
 
@@ -76,12 +77,10 @@ export const add_workflow = async (req, res) => {
             .map((x) => x.id)
             .filter(Boolean);
 
-          // Collect all role IDs (still needed for the top-level selectedRoles array)
           const roleIds = (assignee.selectedRoles || []).flatMap((dept) =>
             (dept.roles || []).map((r) => r.id),
           );
 
-          // For non‑DEPARTMENT assignments, direction/allowParallel come from the first selectedRoles item
           const firstSelectedRole =
             Array.isArray(assignee.selectedRoles) &&
             assignee.selectedRoles.length > 0
@@ -103,7 +102,6 @@ export const add_workflow = async (req, res) => {
             },
           });
 
-          // For DEPARTMENT assignments, create DepartmentRoleAssignment rows with per‑department settings
           if (assignee.assigneeType === "DEPARTMENT") {
             const departmentRoleRows = [];
 
@@ -158,7 +156,7 @@ export const edit_workflow = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { name, description, steps } = req.body;
+    const { name, description, steps, parentWorkflowId } = req.body;
     const workflowId = req.params.workflowId;
 
     const oldWorkflow = await prisma.workflow.findUnique({
@@ -183,6 +181,10 @@ export const edit_workflow = async (req, res) => {
           version: latestVersion ? latestVersion.version + 1 : 1,
           previousVersionId: oldWorkflow.id,
           isActive: true,
+          parentWorkflowId:
+            parentWorkflowId !== undefined
+              ? parentWorkflowId
+              : oldWorkflow.parentWorkflowId,
         },
       });
 
@@ -279,6 +281,45 @@ export const edit_workflow = async (req, res) => {
     console.error(error);
     return res.status(500).json({
       error: "Failed to update workflow",
+    });
+  }
+};
+
+export const get_active_workflow_families = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    // Fetches ONLY active workflows (the latest version in the game)
+    const workflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        version: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    const formattedWorkflows = workflows.map((workflow) => ({
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      workflowDescription: workflow.description,
+      version: workflow.version,
+    }));
+
+    return res.status(200).json(formattedWorkflows);
+  } catch (error) {
+    console.error("Error fetching workflows:", error);
+    return res.status(500).json({
+      error: "Failed to fetch workflows",
+      details: error.message,
     });
   }
 };
@@ -628,6 +669,7 @@ export const get_workflows = async (req, res) => {
                 description: true,
                 version: true,
                 createdAt: true,
+                parentWorkflowId: true,
                 isActive: true,
                 createdBy: {
                   select: { id: true, name: true, email: true },
@@ -751,6 +793,7 @@ export const get_workflows = async (req, res) => {
           isActive: workflow.isActive,
           createdBy: workflow.createdBy,
           createdAt: workflow.createdAt,
+          parentWorkflowId: workflow.parentWorkflowId,
           steps: workflow.steps.map((step) => ({
             stepNumber: step.stepNumber,
             stepName: step.stepName,
@@ -1635,7 +1678,8 @@ export const get_workflow_steps_with_assignments = async (req, res) => {
               departmentRolesMap.set(deptRole.departmentId, {
                 department: deptRole.departmentId,
                 roles: [],
-                direction: assignment.direction,
+                direction: deptRole.direction, // Fixed: mapped from deptRole
+                allowParallel: deptRole.allowParallel, // Fixed: added allowParallel
               });
             }
 

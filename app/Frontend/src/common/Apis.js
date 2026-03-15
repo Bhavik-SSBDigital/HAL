@@ -83,6 +83,13 @@ export const deleteDraft = async (data) => {
   });
 };
 
+export const GetProcessesForCopy = () =>
+  apiClient.get('/processes/available-for-copy');
+export const GetProcessCopyDetails = (processId) =>
+  apiClient.get(`/processes/${processId}/copy-details`);
+
+export const DuplicateDocumentForCopy = (data) =>
+  apiClient.post('/processes/duplicate-document-for-copy', data);
 export const SubmitDraft = async (draftId, data) => {
   return apiClient.post(
     '/drafts/submit',
@@ -194,6 +201,11 @@ export const GetWorkflows = async (fromAdmin) => {
   return apiClient.get('/workflows/getWorkflows', {
     params: { fromAdmin: fromAdmin },
   });
+};
+
+export const GetActiveWorkflowFamilies = async () => {
+  // Map this to the route you assign for `get_active_workflow_families`
+  return await apiClient.get('/workflows/active-families');
 };
 export const GetWorkflowsList = async () => {
   return apiClient.get('/workflows/getWorkflowsList');

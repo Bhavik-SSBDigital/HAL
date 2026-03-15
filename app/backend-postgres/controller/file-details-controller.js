@@ -42,7 +42,6 @@ export const getDocumentChildren = async (req, res, next) => {
 
     const parentPath = process.env.STORAGE_PATH + req.body.path.substring(2);
 
-    // Find the parent document using the unique path
     const parentDocument = await prisma.document.findUnique({
       where: {
         path: parentPath,
@@ -55,18 +54,73 @@ export const getDocumentChildren = async (req, res, next) => {
       });
     }
 
-    // Fetch children documents related to the parent
-    const childDocuments = await prisma.document.findMany({
+    let childDocuments = await prisma.document.findMany({
       where: {
         parentId: parentDocument.id,
-        type: "folder", // Assuming type "folder" is used to filter folders
+        type: "folder",
       },
       select: {
         path: true,
+        name: true,
+        type: true,
       },
     });
 
-    // Map and format the paths of the children documents
+    // =========================================================================
+    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
+    // =========================================================================
+    const activeWorkflowsWithParents = await prisma.workflow.findMany({
+      where: { parentWorkflowId: { not: null }, isActive: true },
+      select: { name: true },
+    });
+    const hideLiteralWorkflowNames = new Set(
+      activeWorkflowsWithParents.map((w) => w.name),
+    );
+
+    childDocuments = childDocuments.filter((child) => {
+      if (hideLiteralWorkflowNames.has(child.name)) {
+        return false;
+      }
+      return true;
+    });
+    // =========================================================================
+
+    // =========================================================================
+    // ✅ SYMBOLIC LOGIC INJECTION
+    // =========================================================================
+    const docPath = req.body.path.substring(2);
+    if (docPath === `/${parentDocument.name}`) {
+      const familyWorkflows = await prisma.workflow.findMany({
+        where: { name: parentDocument.name },
+        select: { id: true },
+      });
+
+      if (familyWorkflows.length > 0) {
+        const familyIds = familyWorkflows.map((w) => w.id);
+        const childWorkflows = await prisma.workflow.findMany({
+          where: { parentWorkflowId: { in: familyIds }, isActive: true },
+          select: { name: true },
+        });
+
+        if (childWorkflows.length > 0) {
+          const childWorkflowNames = [
+            ...new Set(childWorkflows.map((w) => w.name)),
+          ];
+          const logicalFolders = await prisma.document.findMany({
+            where: {
+              name: { in: childWorkflowNames },
+              path: { in: childWorkflowNames.map((name) => `/${name}`) },
+              type: "folder",
+            },
+            select: { path: true, name: true, type: true },
+          });
+
+          childDocuments = [...childDocuments, ...logicalFolders];
+        }
+      }
+    }
+    // =========================================================================
+
     const formattedDocuments = childDocuments.map((doc) => {
       let relativePath = `..${doc.path.substring(
         process.env.STORAGE_PATH.length,
@@ -110,7 +164,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get all document accesses for the user
     const userDocumentAccesses = await prisma.documentAccess.findMany({
       where: {
         OR: [
@@ -120,13 +173,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       },
     });
 
-    // Check if user is admin
     const isAdmin = user.username === "admin" || user.isAdmin;
 
     let docPath = req.body.path;
     docPath = docPath.substring(2);
 
-    // Find the document with its children and include process document details
     const foundDocument = await prisma.document.findUnique({
       where: { path: docPath },
       include: {
@@ -158,10 +209,82 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       });
     }
 
-    // Get parent documents for full access checks
+    // =========================================================================
+    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
+    // =========================================================================
+    const activeWorkflowsWithParents = await prisma.workflow.findMany({
+      where: { parentWorkflowId: { not: null }, isActive: true },
+      select: { name: true },
+    });
+    const hideLiteralWorkflowNames = new Set(
+      activeWorkflowsWithParents.map((w) => w.name),
+    );
+
+    foundDocument.children = foundDocument.children.filter((child) => {
+      // If it's a folder and belongs to a workflow that acts as a child, hide it from its literal parent
+      if (child.type === "folder" && hideLiteralWorkflowNames.has(child.name)) {
+        return false;
+      }
+      return true;
+    });
+    // =========================================================================
+
+    // =========================================================================
+    // ✅ SYMBOLIC LOGIC: DYNAMICALLY INJECT CHILD WORKFLOW FOLDERS
+    // =========================================================================
+    if (docPath === `/${foundDocument.name}`) {
+      const familyWorkflows = await prisma.workflow.findMany({
+        where: { name: foundDocument.name },
+        select: { id: true },
+      });
+
+      if (familyWorkflows.length > 0) {
+        const familyIds = familyWorkflows.map((w) => w.id);
+
+        const childWorkflows = await prisma.workflow.findMany({
+          where: { parentWorkflowId: { in: familyIds }, isActive: true },
+          select: { name: true },
+        });
+
+        if (childWorkflows.length > 0) {
+          const childWorkflowNames = [
+            ...new Set(childWorkflows.map((w) => w.name)),
+          ];
+
+          const logicalFolders = await prisma.document.findMany({
+            where: {
+              name: { in: childWorkflowNames },
+              path: { in: childWorkflowNames.map((name) => `/${name}`) },
+              type: "folder",
+            },
+            include: {
+              processDocuments: {
+                include: { process: { include: { workflow: true } } },
+                orderBy: { process: { createdAt: "desc" } },
+                take: 1,
+              },
+            },
+          });
+
+          const existingChildIds = new Set(
+            foundDocument.children.map((c) => c.id),
+          );
+          const newLogicalFolders = logicalFolders.filter(
+            (f) => !existingChildIds.has(f.id),
+          );
+
+          // Inject them into the children array dynamically
+          foundDocument.children = [
+            ...foundDocument.children,
+            ...newLogicalFolders,
+          ];
+        }
+      }
+    }
+    // =========================================================================
+
     const parents = await getParents([foundDocument.id]);
 
-    // Create access map
     const accessMap = new Map();
     userDocumentAccesses.forEach((access) => {
       if (!accessMap.has(access.documentId)) {
@@ -199,7 +322,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     let children;
 
     if (isAdmin || user.specialUser) {
-      // Admin or special user gets all children with full permissions
       children = await Promise.all(
         foundDocument.children.map(async (child) => {
           const fileAbsolutePath = path.join(
@@ -222,7 +344,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               child.id,
             );
 
-            // Get process document details
             const processDocument = child.processDocuments?.[0] || null;
 
             return {
@@ -245,14 +366,12 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               children: [],
               onlyMetaData: child.onlyMetaData,
 
-              // Additional document details from Document model
               departmentId: child.departmentId,
               minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
               tags: child.tags || [],
               isRecord: child.isRecord ?? true,
               isProject: child.isProject ?? false,
 
-              // Process document details (added at same level)
               issueNo: processDocument?.issueNo || null,
               processIssueNo: processDocument?.process?.issueNo || null,
               partNumber: processDocument?.partNumber || null,
@@ -277,14 +396,10 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
           }
         }),
       );
-
-      console.log(foundDocument.children.map((item) => item.id));
     } else {
-      // Regular user - filter based on permissions
       children = await Promise.all(
         foundDocument.children
           .filter((child) => {
-            // Check if user has any access to this child
             const hasAccess = userDocumentAccesses.some(
               (userAccess) =>
                 (userAccess.documentId === child.id ||
@@ -313,12 +428,10 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 ? await fs.stat(fileAbsolutePath)
                 : null;
 
-              // Check specific permissions for this document
               const documentAccess = userDocumentAccesses.find(
                 (access) => access.documentId === child.id,
               );
 
-              // Check for inherited full access
               const hasFullAccess = userDocumentAccesses.some(
                 (access) =>
                   access.accessLevel === "FULL" &&
@@ -330,7 +443,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 child.id,
               );
 
-              // Get process document details
               const processDocument = child.processDocuments?.[0] || null;
 
               return {
@@ -355,14 +467,12 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 children: [],
                 onlyMetaData: child.onlyMetaData,
 
-                // Additional document details from Document model
                 departmentId: child.departmentId,
                 minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
                 tags: child.tags || [],
                 isRecord: child.isRecord ?? true,
                 isProject: child.isProject ?? false,
 
-                // Process document details (added at same level)
                 issueNo: processDocument?.issueNo || null,
                 processIssueNo: processDocument?.process?.issueNo || null,
                 partNumber: processDocument?.partNumber || null,
@@ -392,8 +502,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     let result = await Promise.all(children);
     result = result.filter((item) => item !== null);
 
-    ///1. isArchived, 2. inBin 3. isArchived & inBin
-    console.log("section type", req.body.sectionType);
     if (req.body.sectionType) {
       result = result.filter((item) => {
         return (
@@ -407,7 +515,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
           (!item.inBin && !item.isArchived),
       );
     }
-    // Check if user can upload to this directory
+
     const canUpload = isAdmin
       ? true
       : foundDocument.createdById === user.id
@@ -442,7 +550,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       });
     }
 
-    // Get role document accesses
     const roleDocumentAccesses = await prisma.documentAccess.findMany({
       where: { roleId: parseInt(req.body.role) },
     });
@@ -450,7 +557,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
     let documentPath = req.body.path;
     documentPath = documentPath.substring(2);
 
-    // Find the document with its children
     const foundDocument = await prisma.document.findUnique({
       where: { path: documentPath },
       include: {
@@ -464,7 +570,70 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
       });
     }
 
-    // Get parent documents for full access checks
+    // =========================================================================
+    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
+    // =========================================================================
+    const activeWorkflowsWithParents = await prisma.workflow.findMany({
+      where: { parentWorkflowId: { not: null }, isActive: true },
+      select: { name: true },
+    });
+    const hideLiteralWorkflowNames = new Set(
+      activeWorkflowsWithParents.map((w) => w.name),
+    );
+
+    foundDocument.children = foundDocument.children.filter((child) => {
+      if (child.type === "folder" && hideLiteralWorkflowNames.has(child.name)) {
+        return false;
+      }
+      return true;
+    });
+    // =========================================================================
+
+    // =========================================================================
+    // ✅ SYMBOLIC LOGIC INJECTION FOR EDIT
+    // =========================================================================
+    if (documentPath === `/${foundDocument.name}`) {
+      const familyWorkflows = await prisma.workflow.findMany({
+        where: { name: foundDocument.name },
+        select: { id: true },
+      });
+
+      if (familyWorkflows.length > 0) {
+        const familyIds = familyWorkflows.map((w) => w.id);
+        const childWorkflows = await prisma.workflow.findMany({
+          where: { parentWorkflowId: { in: familyIds }, isActive: true },
+          select: { name: true },
+        });
+
+        if (childWorkflows.length > 0) {
+          const childWorkflowNames = [
+            ...new Set(childWorkflows.map((w) => w.name)),
+          ];
+
+          const logicalFolders = await prisma.document.findMany({
+            where: {
+              name: { in: childWorkflowNames },
+              path: { in: childWorkflowNames.map((name) => `/${name}`) },
+              type: "folder",
+            },
+          });
+
+          const existingChildIds = new Set(
+            foundDocument.children.map((c) => c.id),
+          );
+          const newLogicalFolders = logicalFolders.filter(
+            (f) => !existingChildIds.has(f.id),
+          );
+
+          foundDocument.children = [
+            ...foundDocument.children,
+            ...newLogicalFolders,
+          ];
+        }
+      }
+    }
+    // =========================================================================
+
     const parents = await getParents([foundDocument.id]);
 
     const __filename = fileURLToPath(import.meta.url);
@@ -491,7 +660,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
 
             const childParents = await getParents([child.id]);
 
-            // Check for full access permissions (direct or inherited)
             const hasFullAccess = roleDocumentAccesses.some(
               (access) =>
                 access.accessLevel === "FULL" &&
@@ -511,7 +679,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
                 selectedView.push(child.id);
               }
             } else {
-              // Check standard permissions
               const documentAccess = roleDocumentAccesses.find(
                 (access) => access.documentId === child.id,
               );
@@ -556,8 +723,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
 
       let result = await Promise.all(children);
       result = result.filter((item) => item !== null);
-
-      console.log("result", result);
 
       res.status(200).json({
         children: result,
