@@ -190,6 +190,15 @@ export const deleteRole = async (id) => {
   return apiClient.delete(`/deleteRole/${id}`);
 };
 
+// admin process cleanup endpoints
+export const getAllProcessesForAdmin = async () => {
+  return apiClient.get('/process/admin/all');
+};
+
+export const deleteProcessCleanup = async (processId) => {
+  return apiClient.delete(`/process/admin/cleanup/${processId}`);
+};
+
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
   return apiClient.post('/workflows/addWorkflow', data);

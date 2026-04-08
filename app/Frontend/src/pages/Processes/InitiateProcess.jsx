@@ -39,6 +39,16 @@ import TopLoader from '../../common/Loader/TopLoader';
 import ViewFile from '../view/View';
 import Title from '../../CustomComponents/Title';
 
+const InputClass = "w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 text-sm";
+const LabelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
+
+const Section = ({ title, children }) => (
+  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm mb-6">
+    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-5">{title}</h3>
+    {children}
+  </div>
+);
+
 export default function InitiateProcess() {
   const navigate = useNavigate();
   const { draftId } = useParams();
@@ -61,14 +71,13 @@ export default function InitiateProcess() {
   const [actionsLoading, setActionsLoading] = useState(false);
   const [fileView, setFileView] = useState(null);
 
-  // Copy feature state
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [processList, setProcessList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [copyingDocs, setCopyingDocs] = useState(false);
+  const [copyProgress, setCopyProgress] = useState({ current: 0, total: 0 });
 
-  // Document edit modal state
-  const [editingDocument, setEditingDocument] = useState(null); // { index, documentId, partNumber, issueNo, description, tags }
+  const [editingDocument, setEditingDocument] = useState(null); 
   const [editTagInput, setEditTagInput] = useState('');
 
   const defaultValues = {
@@ -83,7 +92,6 @@ export default function InitiateProcess() {
     handleSubmit,
     register,
     setValue,
-    getValues,
     watch,
     reset,
     formState: { errors },
@@ -97,8 +105,18 @@ export default function InitiateProcess() {
     update: updateDocument,
   } = useFieldArray({ control, name: 'documents' });
 
-  // Watch documents array to re-render tags accurately when editing
   const watchedDocuments = watch('documents');
+
+  useEffect(() => {
+    if (showCopyModal || editingDocument || copyingDocs || fileView) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCopyModal, editingDocument, copyingDocs, fileView]);
 
   useEffect(() => {
     if (draftId) {
@@ -211,7 +229,7 @@ export default function InitiateProcess() {
         partNumber: fileDetails.partNumber,
         preApproved: fileDetails.preApproved,
         issueNo: fileDetails.issueNo,
-      });
+      }, { shouldFocus: false });
 
       setFileDetails({ tags: [], partNumber: '', preApproved: false, fileDescription: '', issueNo: '', name: '' });
       setNewTag('');
@@ -240,47 +258,42 @@ export default function InitiateProcess() {
       const detailsRes = await GetProcessCopyDetails(process.id);
       const { description, issueNo, documents } = detailsRes.data;
 
-      // Overwrite process details
+      setCopyProgress({ current: 0, total: documents.length });
       setValue('description', description || '');
       setValue('issueNo', issueNo || '');
 
-      const duplicatePromises = documents.map(doc =>
-        DuplicateDocumentForCopy({
-          sourceProcessId: process.id,
-          sourceDocumentId: doc.documentId,
-          targetWorkflowId: workflowId 
-        }).then(res => ({
-          ...res.data,
-          metadata: {
+      for (let i = 0; i < documents.length; i++) {
+        const doc = documents[i];
+        setCopyProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        try {
+          const res = await DuplicateDocumentForCopy({
+            sourceProcessId: process.id,
+            sourceDocumentId: doc.documentId,
+            targetWorkflowId: workflowId 
+          });
+
+          addDocument({
+            documentId: res.data.documentId,
+            name: res.data.name,
             tags: doc.tags || [],
-            partNumber: doc.partNumber,
             description: doc.description,
+            partNumber: doc.partNumber,
             preApproved: doc.preApproved,
             issueNo: doc.issueNo,
-            SOPIssueNo: doc.SOPIssueNo
-          }
-        }))
-      );
+          }, { shouldFocus: false });
+        } catch (err) {
+          console.error(`Failed to duplicate ${doc.name}`, err);
+          toast.error(`Failed to copy ${doc.name}`);
+        }
+      }
 
-      const duplicatedDocs = await Promise.all(duplicatePromises);
-
-      duplicatedDocs.forEach(doc => {
-        addDocument({
-          documentId: doc.documentId,
-          name: doc.name,
-          tags: doc.metadata.tags || [],
-          description: doc.metadata.description,
-          partNumber: doc.metadata.partNumber,
-          preApproved: doc.metadata.preApproved,
-          issueNo: doc.metadata.issueNo,
-        });
-      });
-
-      toast.success(`Copied ${duplicatedDocs.length} document(s). You can edit their details below.`);
+      toast.success(`Documents processed successfully.`);
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
     } finally {
       setCopyingDocs(false);
+      setCopyProgress({ current: 0, total: 0 });
     }
   };
 
@@ -309,8 +322,8 @@ export default function InitiateProcess() {
     setActionsLoading(true);
     try {
       const res = await ProcessInitiate(data);
-      if (draftIdRef.current) {
-        await deleteDraft({ draftId: draftIdRef.current });
+      if (currentDraftId) {
+        await deleteDraft({ draftId: currentDraftId });
       }
       toast.success(res?.data?.message || 'Process initiated successfully');
       navigate('/processes/work');
@@ -326,13 +339,14 @@ export default function InitiateProcess() {
     try {
       const res = await useTemplateDocument({ workflowId, templateId: template?.id });
       toast.success(res?.data?.message);
+      
       addDocument({
         documentId: res?.data?.documentId,
         name: res?.data?.documentName,
         tags: [],
         documentPath: res?.data?.documentPath,
         info: 'Prepared from template. Please edit to add the latest data.',
-      });
+      }, { shouldFocus: false });
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
     } finally {
@@ -352,24 +366,6 @@ export default function InitiateProcess() {
     }
   };
 
-  const draftIdRef = useRef(null);
-  useEffect(() => { draftIdRef.current = currentDraftId; }, [currentDraftId]);
-
-  useEffect(() => {
-    if (workflowId) {
-      const getTemplates = async () => {
-        try {
-          const res = await getWorkflowTemplates(workflowId);
-          setTemplates(res.data.templates);
-        } catch (error) {
-          console.error(error?.response?.data?.message || error?.message);
-        }
-      };
-      getTemplates();
-    }
-  }, [workflowId]);
-
-  // Document edit modal handlers
   const openEditModal = (doc, index) => {
     setEditingDocument({
       index,
@@ -417,19 +413,41 @@ export default function InitiateProcess() {
     }));
   };
 
-  const Section = ({ title, children }) => (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm mb-6">
-      <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-5">{title}</h3>
-      {children}
-    </div>
-  );
-
-  const InputClass = "w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 text-sm";
-  const LabelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
-
   return (
     <>
-      {(actionsLoading || copyingDocs) && <TopLoader />}
+      {actionsLoading && <TopLoader />}
+
+      {copyingDocs && (
+        <div className="fixed inset-0 z-[10000] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl border border-gray-100 flex flex-col items-center max-w-sm w-full mx-4">
+            <div className="relative mb-6">
+              <IconLoader className="animate-spin text-blue-600" size={48} stroke={1.5} />
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-blue-700">
+                {copyProgress.total > 0 ? Math.round((copyProgress.current / copyProgress.total) * 100) : 0}%
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Duplicating Documents</h3>
+            <p className="text-sm text-gray-500 mb-6 text-center leading-relaxed">
+              Transferring files to your current workflow. Please do not close this window.
+            </p>
+            
+            <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2 overflow-hidden">
+              <div 
+                className="bg-blue-600 h-full transition-all duration-500 ease-out" 
+                style={{ width: `${(copyProgress.current / copyProgress.total) * 100}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex justify-between w-full px-1">
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Syncing</span>
+              <span className="text-xs font-bold text-gray-400">
+                {copyProgress.current} of {copyProgress.total}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -446,15 +464,7 @@ export default function InitiateProcess() {
           </div>
         </div>
 
-        {copyingDocs && (
-          <div className="mb-6 p-4 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg flex items-center gap-3 shadow-sm">
-            <IconLoader className="animate-spin text-blue-600" size={24} />
-            <span className="font-medium">Duplicating documents from source process...</span>
-          </div>
-        )}
-
-        <form className="space-y-6">
-          {/* Process Info Section */}
+        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
           <Section title="Process Details">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div>
@@ -509,7 +519,6 @@ export default function InitiateProcess() {
                 />
                 {errors.workflowId && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.workflowId.message}</p>}
                 
-                {/* Copy Context Area */}
                 <div className="mt-4 p-4 border border-indigo-100 bg-indigo-50/50 rounded-lg">
                   <p className="text-sm font-semibold text-indigo-900 mb-2">Want to reuse documents?</p>
                   <button
@@ -525,7 +534,6 @@ export default function InitiateProcess() {
                     <IconCopy size={18} />
                     Copy from existing process
                   </button>
-                  {!workflowId && <p className="text-xs text-indigo-600 mt-2 text-center">Select a workflow version above to enable copying.</p>}
                 </div>
               </div>
             </div>
@@ -538,7 +546,6 @@ export default function InitiateProcess() {
             )}
           </Section>
 
-          {/* Templates Section */}
           {templates?.length > 0 && (
             <Section title="Available Templates">
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -562,7 +569,6 @@ export default function InitiateProcess() {
             </Section>
           )}
 
-          {/* Upload File Section */}
           <Section title="Upload New Document">
              <div className="flex flex-col md:flex-row gap-8">
               <div className="w-full md:w-1/3 flex flex-col">
@@ -721,7 +727,6 @@ export default function InitiateProcess() {
             </div>
           </Section>
 
-          {/* Uploaded Documents List */}
           <Section title={`Attached Documents (${documentFields.length})`}>
             {documentFields.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 px-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
@@ -734,7 +739,7 @@ export default function InitiateProcess() {
                 {documentFields.map((doc, index) => {
                   const currentDocState = watchedDocuments[index] || doc;
                   return (
-                    <li key={doc.documentId} className="flex flex-col p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+                    <li key={doc.id} className="flex flex-col p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
                       <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4">
                         <div className="flex items-start gap-4 min-w-0">
                           <div className="w-10 h-10 bg-blue-50 border border-blue-100 flex items-center justify-center rounded-lg text-blue-600 flex-shrink-0 mt-1">
@@ -753,11 +758,9 @@ export default function InitiateProcess() {
                                 {currentDocState.tags.map(t => <span key={t} className="text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded">{t}</span>)}
                               </div>
                             )}
-                            {currentDocState.info && <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 mt-2 w-fit">💡 {currentDocState.info}</p>}
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100">
                           <button 
                             type="button" 
@@ -792,7 +795,6 @@ export default function InitiateProcess() {
             )}
           </Section>
 
-          {/* Form Actions */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-200">
             <button 
               type="button" 
@@ -814,33 +816,29 @@ export default function InitiateProcess() {
         </form>
       </div>
 
-      {/* Copy Process Modal */}
       {showCopyModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Header */}
             <div className="flex justify-between items-center p-5 sm:p-6 border-b border-gray-100 flex-shrink-0">
               <h3 className="text-xl font-bold text-gray-800">Copy From Existing Process</h3>
-              <button onClick={() => setShowCopyModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition-colors">
+              <button type="button" onClick={() => setShowCopyModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition-colors">
                 <IconX size={20} />
               </button>
             </div>
             
-            {/* Search */}
             <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
               <div className="relative">
                 <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Search by name, description, or ID..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow bg-white text-sm"
+                  placeholder="Search by name or description..."
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Scrollable List */}
             <div className="p-5 sm:p-6 flex-1 overflow-y-auto bg-gray-50/50 min-h-[300px]">
               {processList.length === 0 ? (
                 <div className="text-center py-12">
@@ -860,11 +858,11 @@ export default function InitiateProcess() {
                       >
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
                           <h4 className="font-bold text-gray-800 group-hover:text-blue-700 break-words leading-tight">{process.name}</h4>
-                          <span className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded whitespace-nowrap self-start sm:self-auto">
+                          <span className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded">
                             {new Date(process.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-3 break-words">
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                           {process.description || 'No description provided.'}
                         </p>
                         <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 w-fit px-2.5 py-1.5 rounded-md mt-auto">
@@ -873,21 +871,15 @@ export default function InitiateProcess() {
                         </div>
                       </li>
                     ))}
-                  
-                  {processList.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
-                    <div className="text-center py-10 text-gray-500 text-sm font-medium bg-white rounded-xl border border-dashed border-gray-300">
-                      No processes match your search query.
-                    </div>
-                  )}
                 </ul>
               )}
             </div>
             
-            {/* Footer */}
-            <div className="p-4 border-t border-gray-100 bg-white flex justify-end flex-shrink-0">
+            <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
               <button 
+                type="button"
                 onClick={() => setShowCopyModal(false)}
-                className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-lg"
               >
                 Cancel
               </button>
@@ -896,22 +888,19 @@ export default function InitiateProcess() {
         </div>
       )}
 
-      {/* Document Edit Modal */}
       {editingDocument && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Header */}
             <div className="flex justify-between items-center p-5 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <IconPencil size={20} className="text-blue-600" />
                 Edit Document Details
               </h3>
-              <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition-colors">
+              <button type="button" onClick={closeEditModal} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full">
                 <IconX size={20} />
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
               <div>
                 <label className={LabelClass}>Part Number</label>
@@ -920,7 +909,6 @@ export default function InitiateProcess() {
                   className={InputClass}
                   value={editingDocument.partNumber}
                   onChange={(e) => setEditingDocument({ ...editingDocument, partNumber: e.target.value })}
-                  placeholder="Enter part number"
                 />
               </div>
               <div>
@@ -930,7 +918,6 @@ export default function InitiateProcess() {
                   className={InputClass}
                   value={editingDocument.issueNo}
                   onChange={(e) => setEditingDocument({ ...editingDocument, issueNo: e.target.value })}
-                  placeholder="Enter issue number"
                 />
               </div>
               <div>
@@ -940,7 +927,6 @@ export default function InitiateProcess() {
                   className={InputClass}
                   value={editingDocument.description}
                   onChange={(e) => setEditingDocument({ ...editingDocument, description: e.target.value })}
-                  placeholder="Enter description"
                 />
               </div>
               <div>
@@ -951,58 +937,25 @@ export default function InitiateProcess() {
                     className={InputClass}
                     value={editTagInput}
                     onChange={(e) => setEditTagInput(e.target.value.replace(/[^a-zA-Z0-9 ]/g, ''))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTagToEditing();
-                      }
-                    }}
-                    placeholder="Add tag and press Enter"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTagToEditing())}
                   />
-                  <button
-                    type="button"
-                    onClick={addTagToEditing}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg border border-gray-300"
-                  >
-                    Add
-                  </button>
+                  <button type="button" onClick={addTagToEditing} className="bg-gray-100 px-4 py-2 rounded-lg border">Add</button>
                 </div>
-                {editingDocument.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {editingDocument.tags.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5"
-                      >
-                        {tag}
-                        <IconX
-                          size={14}
-                          className="cursor-pointer hover:text-red-500"
-                          onClick={() => removeTagFromEditing(idx)}
-                        />
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {editingDocument.tags.map((tag, idx) => (
+                    <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5">
+                      {tag}
+                      <IconX size={14} className="cursor-pointer" onClick={() => removeTagFromEditing(idx)} />
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50">
-              <button
-                type="button"
-                onClick={closeEditModal}
-                className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveDocumentEdit}
-                className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <IconCheck size={18} />
-                Save Changes
+            <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+              <button type="button" onClick={closeEditModal} className="px-5 py-2 bg-gray-200 rounded-lg">Cancel</button>
+              <button type="button" onClick={handleSaveDocumentEdit} className="px-5 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
+                <IconCheck size={18} /> Save Changes
               </button>
             </div>
           </div>

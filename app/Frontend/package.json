@@ -39,6 +39,7 @@
     "react-apexcharts": "^1.4.1",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.52.1",
+    "react-hot-toast": "^2.6.0",
     "react-icons": "^4.10.1",
     "react-idle-timer": "^5.7.2",
     "react-pdf": "^7.7.1",

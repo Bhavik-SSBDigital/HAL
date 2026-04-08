@@ -197,7 +197,7 @@ export const get_user_activity_log = async (req, res) => {
       });
     }
 
-    // Helper function to get document versioning (similar to view_process)
+    // Helper function to get document versioning
     const getDocumentVersioning = async (processId) => {
       const processDocuments = await prisma.processDocument.findMany({
         where: { processId },
@@ -220,34 +220,30 @@ export const get_user_activity_log = async (req, res) => {
         },
       });
 
-      // Create maps for quick lookups
       const docIdToProcessDoc = new Map(
-        processDocuments.map((d) => [d.documentId, d])
+        processDocuments.map((d) => [d.documentId, d]),
       );
       const replacedToReplacer = new Map(
         processDocuments
           .filter((d) => d.replacedDocumentId)
-          .map((d) => [d.replacedDocumentId, d.documentId])
+          .map((d) => [d.replacedDocumentId, d.documentId]),
       );
 
-      // Find all terminal documents (not replaced by any other)
       const terminalDocumentIds = processDocuments
         .filter((d) => !replacedToReplacer.has(d.documentId))
         .map((d) => d.documentId);
 
       const documentVersioning = [];
 
-      // For each terminal document, build its complete chain
       for (const terminalDocId of terminalDocumentIds) {
         const versions = [];
         let currentDocId = terminalDocId;
         const visitedDocIds = new Set();
 
         while (currentDocId) {
-          // Check for cycle
           if (visitedDocIds.has(currentDocId)) {
             console.warn(
-              `Cycle detected at docId: ${currentDocId}. Breaking loop.`
+              `Cycle detected at docId: ${currentDocId}. Breaking loop.`,
             );
             break;
           }
@@ -256,7 +252,6 @@ export const get_user_activity_log = async (req, res) => {
           const processDoc = docIdToProcessDoc.get(currentDocId);
 
           if (!processDoc) {
-            console.log("No processDoc found for docId:", currentDocId);
             break;
           }
 
@@ -267,14 +262,14 @@ export const get_user_activity_log = async (req, res) => {
             type: processDoc.document.type,
             issueNo: processDoc.issueNo || null,
             SOPIssueNo: processDoc.SOPIssueNo || null,
-            tags: processDoc.tags,
-            preApproved: processDoc.preApproved,
-            reasonOfSupersed: processDoc.reasonOfSupersed,
-            description: processDoc.description,
-            partNumber: processDoc.partNumber,
-            isReplacement: processDoc.isReplacement,
-            superseding: processDoc.superseding,
-            reopenCycle: processDoc.reopenCycle,
+            tags: processDoc.tags || [],
+            preApproved: processDoc.preApproved || false,
+            reasonOfSupersed: processDoc.reasonOfSupersed || null,
+            description: processDoc.description || null,
+            partNumber: processDoc.partNumber || null,
+            isReplacement: processDoc.isReplacement || false,
+            superseding: processDoc.superseding || false,
+            reopenCycle: processDoc.reopenCycle || 0,
           });
 
           currentDocId = processDoc.replacedDocumentId;
@@ -288,16 +283,14 @@ export const get_user_activity_log = async (req, res) => {
         }
       }
 
-      // Handle any documents not included in chains (documents that are not terminal and not in any chain)
       const includedDocIds = new Set(
-        documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
+        documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id)),
       );
 
       const missingDocs = processDocuments.filter(
-        (d) => !includedDocIds.has(d.documentId)
+        (d) => !includedDocIds.has(d.documentId),
       );
 
-      // Add missing documents as standalone chains
       for (const doc of missingDocs) {
         documentVersioning.push({
           latestDocumentId: doc.documentId,
@@ -307,14 +300,14 @@ export const get_user_activity_log = async (req, res) => {
               name: doc.document.name,
               path: doc.document.path.split("/").slice(0, -1).join("/"),
               type: doc.document.type,
-              tags: doc.tags,
-              reasonOfSupersed: doc.reasonOfSupersed,
-              description: doc.description,
-              partNumber: doc.partNumber,
-              isReplacement: doc.isReplacement,
-              superseding: doc.superseding,
-              reopenCycle: doc.reopenCycle,
-              preApproved: doc.preApproved,
+              tags: doc.tags || [],
+              reasonOfSupersed: doc.reasonOfSupersed || null,
+              description: doc.description || null,
+              partNumber: doc.partNumber || null,
+              isReplacement: doc.isReplacement || false,
+              superseding: doc.superseding || false,
+              reopenCycle: doc.reopenCycle || 0,
+              preApproved: doc.preApproved || false,
               issueNo: doc.issueNo || null,
               SOPIssueNo: doc.SOPIssueNo || null,
             },
@@ -322,41 +315,28 @@ export const get_user_activity_log = async (req, res) => {
         });
       }
 
-      // Sort chains by the latest document's reopenCycle, then by document ID
       documentVersioning.sort((a, b) => {
         const aLatest = docIdToProcessDoc.get(a.latestDocumentId);
         const bLatest = docIdToProcessDoc.get(b.latestDocumentId);
-
-        // First by reopenCycle
         if (aLatest.reopenCycle !== bLatest.reopenCycle) {
           return aLatest.reopenCycle - bLatest.reopenCycle;
         }
-        // Then by document ID (chronological)
         return aLatest.documentId - bLatest.documentId;
       });
 
       return documentVersioning;
     };
 
-    // Helper function to get transformed documents (similar to view_process)
+    // Helper function to get transformed documents
     const getTransformedDocuments = async (processId) => {
       const processDocuments = await prisma.processDocument.findMany({
         where: { processId },
         include: {
           document: {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              path: true,
-            },
+            select: { id: true, name: true, type: true, path: true },
           },
           replacedDocument: {
-            select: {
-              id: true,
-              name: true,
-              path: true,
-            },
+            select: { id: true, name: true, path: true },
           },
           signatures: {
             include: { user: { select: { id: true, username: true } } },
@@ -375,27 +355,25 @@ export const get_user_activity_log = async (req, res) => {
         },
       });
 
-      // Identify replaced and superseded document IDs
       const replacedDocumentIds = new Set(
         processDocuments
           .filter((pd) => pd.replacedDocumentId)
-          .map((pd) => pd.replacedDocumentId)
+          .map((pd) => pd.replacedDocumentId),
       );
 
       const supersededDocumentIds = new Set(
         processDocuments
           .filter((pd) => pd.superseding)
-          .map((pd) => pd.replacedDocumentId)
+          .map((pd) => pd.replacedDocumentId),
       );
 
-      // Transform documents for response
       const transformedDocuments = processDocuments
         .filter(
           (doc) =>
             (!replacedDocumentIds.has(doc.documentId) ||
               (doc.replacedDocument &&
                 doc.document.id === doc.replacedDocument.id)) &&
-            !supersededDocumentIds.has(doc.documentId)
+            !supersededDocumentIds.has(doc.documentId),
         )
         .map((doc) => {
           const signedBy =
@@ -424,28 +402,29 @@ export const get_user_activity_log = async (req, res) => {
           const parts = doc.document.path.split("/");
           parts.pop();
           const updatedPath = parts.join("/");
+
           return {
             id: doc.document.id,
             name: doc.document.name,
             type: doc.document.type,
             path: updatedPath,
-            tags: doc.tags,
+            tags: doc.tags || [],
             signedBy,
             rejectionDetails,
             isRecirculationTrigger:
               doc?.documentHistory.some(
-                (history) => history.isRecirculationTrigger
+                (history) => history.isRecirculationTrigger,
               ) || false,
             approvalCount: signedBy.length,
             isReplacement: doc.isReplacement,
             superseding: doc.superseding,
             preApproved: doc.preApproved,
             reopenCycle: doc.reopenCycle,
-            description: doc.description,
-            reasonOfSupersed: doc.reasonOfSupersed,
-            partNumber: doc.partNumber,
-            issueNo: doc.issueNo,
-            SOPIssueNo: doc.SOPIssueNo,
+            description: doc.description || null,
+            reasonOfSupersed: doc.reasonOfSupersed || null,
+            partNumber: doc.partNumber || null,
+            issueNo: doc.issueNo || null,
+            SOPIssueNo: doc.SOPIssueNo || null,
             active: true,
           };
         });
@@ -453,13 +432,11 @@ export const get_user_activity_log = async (req, res) => {
       return transformedDocuments;
     };
 
-    // Get document versioning and transformed documents
     const [documentVersioning, documents] = await Promise.all([
       getDocumentVersioning(processId),
       getTransformedDocuments(processId),
     ]);
 
-    // Fetch workflow details
     const workflow = await prisma.workflow.findUnique({
       where: { id: process.workflowId },
       select: {
@@ -494,7 +471,6 @@ export const get_user_activity_log = async (req, res) => {
       },
     });
 
-    // Collect assignee IDs and role IDs for enrichment
     const departmentIds = new Set();
     const roleIds = new Set();
     const userIds = new Set();
@@ -516,12 +492,11 @@ export const get_user_activity_log = async (req, res) => {
           }
         });
         assignment.selectedRoles.forEach((roleId) =>
-          selectedRoleIds.add(roleId)
+          selectedRoleIds.add(roleId),
         );
       });
     });
 
-    // Fetch related entities
     const [departments, roles, users, selectedRoles] = await Promise.all([
       prisma.department.findMany({
         where: { id: { in: Array.from(departmentIds) } },
@@ -541,13 +516,11 @@ export const get_user_activity_log = async (req, res) => {
       }),
     ]);
 
-    // Create lookup maps
     const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
     const userMap = new Map(users.map((u) => [u.id, u.username]));
     const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
 
-    // Enrich workflow data
     const enrichedWorkflow = {
       id: workflow.id,
       version: workflow.version,
@@ -809,7 +782,7 @@ export const get_user_activity_log = async (req, res) => {
                 processId: processInstance.id,
                 processName: processInstance.name,
                 initiatorName: await getUserDetails(
-                  processInstance.initiator.id
+                  processInstance.initiator.id,
                 ),
                 workflow: process.workflow?.name || "N/A",
                 assignmentType: "N/A",
@@ -828,7 +801,7 @@ export const get_user_activity_log = async (req, res) => {
           const stepInfo = findStepForTime(pd.document.createdOn);
           const assignmentDetails = await getAssignmentDetails(
             stepInfo.stepInstanceId,
-            pd.processId
+            pd.processId,
           );
           return {
             actionType: "DOCUMENT_UPLOADED",
@@ -839,7 +812,16 @@ export const get_user_activity_log = async (req, res) => {
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags: pd.tags?.length > 0 ? pd.tags : pd.document.tags || [],
+              description: pd.description || null,
+              partNumber: pd.partNumber || null,
+              issueNo: pd.issueNo || null,
+              SOPIssueNo: pd.SOPIssueNo || null,
+              reasonOfSupersed: pd.reasonOfSupersed || null,
+              preApproved: pd.preApproved || false,
+              isReplacement: pd.isReplacement || false,
+              superseding: pd.superseding || false,
+              reopenCycle: pd.reopenCycle || 0,
               uploadedBy: await getUserDetails(pd.document.createdById),
               stepInstanceId: stepInfo.stepInstanceId,
               stepName: stepInfo.stepName || "N/A",
@@ -850,31 +832,39 @@ export const get_user_activity_log = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(await Promise.all(
         documentSignatures.map(async (sig) => {
           const documentDetails = await getDocumentDetails(
-            sig.processDocument.documentId
+            sig.processDocument.documentId,
           );
           const assignmentDetails = await getAssignmentDetails(
             sig.processStepInstanceId,
-            sig.processDocument.processId
+            sig.processDocument.processId,
           );
           return {
             actionType: "DOCUMENT_SIGNED",
-            description: `You signed the document "${
-              documentDetails.name
-            }" during step "${
-              sig.processStepInstance?.workflowStep?.stepName || "N/A"
-            }"`,
+            description: `You signed the document "${documentDetails.name}" during step "${sig.processStepInstance?.workflowStep?.stepName || "N/A"}"`,
             createdAt: sig.signedAt.toISOString(),
             details: {
               documentId: sig.processDocument.documentId,
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags:
+                sig.processDocument.tags?.length > 0
+                  ? sig.processDocument.tags
+                  : sig.processDocument.document.tags || [],
+              description: sig.processDocument.description || null,
+              partNumber: sig.processDocument.partNumber || null,
+              issueNo: sig.processDocument.issueNo || null,
+              SOPIssueNo: sig.processDocument.SOPIssueNo || null,
+              reasonOfSupersed: sig.processDocument.reasonOfSupersed || null,
+              preApproved: sig.processDocument.preApproved || false,
+              isReplacement: sig.processDocument.isReplacement || false,
+              superseding: sig.processDocument.superseding || false,
+              reopenCycle: sig.processDocument.reopenCycle || 0,
               signedBy: await getUserDetails(sig.userId),
               signedAt: sig.signedAt.toISOString(),
               remarks: sig.reason || null,
@@ -891,31 +881,39 @@ export const get_user_activity_log = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(await Promise.all(
         documentRejections.map(async (dr) => {
           const documentDetails = await getDocumentDetails(
-            dr.processDocument.documentId
+            dr.processDocument.documentId,
           );
           const assignmentDetails = await getAssignmentDetails(
             dr.processStepInstanceId,
-            dr.processDocument.processId
+            dr.processDocument.processId,
           );
           return {
             actionType: "DOCUMENT_REJECTED",
-            description: `You rejected the document "${
-              documentDetails.name
-            }" during step "${
-              dr.processStepInstance?.workflowStep?.stepName || "N/A"
-            }" with reason: "${dr.reason || "No reason provided"}"`,
+            description: `You rejected the document "${documentDetails.name}" during step "${dr.processStepInstance?.workflowStep?.stepName || "N/A"}" with reason: "${dr.reason || "No reason provided"}"`,
             createdAt: dr.rejectedAt.toISOString(),
             details: {
               documentId: dr.processDocument.documentId,
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags:
+                dr.processDocument.tags?.length > 0
+                  ? dr.processDocument.tags
+                  : dr.processDocument.document.tags || [],
+              description: dr.processDocument.description || null,
+              partNumber: dr.processDocument.partNumber || null,
+              issueNo: dr.processDocument.issueNo || null,
+              SOPIssueNo: dr.processDocument.SOPIssueNo || null,
+              reasonOfSupersed: dr.processDocument.reasonOfSupersed || null,
+              preApproved: dr.processDocument.preApproved || false,
+              isReplacement: dr.processDocument.isReplacement || false,
+              superseding: dr.processDocument.superseding || false,
+              reopenCycle: dr.processDocument.reopenCycle || 0,
               rejectedBy: await getUserDetails(dr.userId),
               rejectionReason: dr.reason || null,
               rejectedAt: dr.rejectedAt.toISOString(),
@@ -931,14 +929,14 @@ export const get_user_activity_log = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(
         await Promise.all(
           processQAs.map(async (qa) => {
             const assignmentDetails = await getAssignmentDetails(
               qa.stepInstanceId,
-              qa.processId
+              qa.processId,
             );
             const initiatorDetails = await getUserDetails(qa.initiatorId);
             const entityDetails = await getUserDetails(qa.entityId);
@@ -947,11 +945,7 @@ export const get_user_activity_log = async (req, res) => {
             if (qa.initiatorId === userData.id) {
               actions.push({
                 actionType: "QUERY_RAISED",
-                description: `You raised a query: "${
-                  qa.question
-                }" during step "${
-                  qa.stepInstance?.workflowStep?.stepName || "N/A"
-                }"`,
+                description: `You raised a query: "${qa.question}" during step "${qa.stepInstance?.workflowStep?.stepName || "N/A"}"`,
                 createdAt: qa.createdAt.toISOString(),
                 details: {
                   stepInstanceId: qa.stepInstanceId || null,
@@ -973,11 +967,7 @@ export const get_user_activity_log = async (req, res) => {
             if (qa.entityId === userData.id && qa.status === "RESOLVED") {
               actions.push({
                 actionType: "QUERY_RESOLVED",
-                description: `You resolved the query: "${
-                  qa.question
-                }" during step "${
-                  qa.stepInstance?.workflowStep?.stepName || "N/A"
-                }" with answer: "${qa.answer || "No answer provided"}"`,
+                description: `You resolved the query: "${qa.question}" during step "${qa.stepInstance?.workflowStep?.stepName || "N/A"}" with answer: "${qa.answer || "No answer provided"}"`,
                 createdAt:
                   qa.answeredAt?.toISOString() || qa.createdAt.toISOString(),
                 details: {
@@ -1000,7 +990,7 @@ export const get_user_activity_log = async (req, res) => {
             }
 
             return actions;
-          })
+          }),
         )
       ).flat(),
       ...(
@@ -1008,15 +998,16 @@ export const get_user_activity_log = async (req, res) => {
           recommendations.map(async (rec) => {
             const assignmentDetails = await getAssignmentDetails(
               rec.stepInstanceId,
-              rec.processId
+              rec.processId,
             );
             const initiatorDetails = await getUserDetails(rec.initiatorId);
             const recommenderDetails = await getUserDetails(rec.recommenderId);
             const documentSummaries = rec.documentSummaries || [];
             const documentResponses = rec.details?.documentResponses || [];
             const documentIds = documentSummaries.map((ds) =>
-              parseInt(ds.documentId)
+              parseInt(ds.documentId),
             );
+
             const documents = documentIds.length
               ? await prisma.document.findMany({
                   where: { id: { in: documentIds } },
@@ -1035,14 +1026,14 @@ export const get_user_activity_log = async (req, res) => {
                 name: doc.name,
                 type: doc.type,
                 path: make_path(doc.path),
-                tags: doc.tags,
+                tags: doc.tags || [],
               };
               return map;
             }, {});
 
             const documentDetails = documentSummaries.map((ds) => {
               const response = documentResponses.find(
-                (dr) => dr.documentId === parseInt(ds.documentId)
+                (dr) => dr.documentId === parseInt(ds.documentId),
               );
               return {
                 documentId: ds.documentId,
@@ -1062,11 +1053,7 @@ export const get_user_activity_log = async (req, res) => {
             if (rec.initiatorId === userData.id) {
               actions.push({
                 actionType: "RECOMMENDATION_REQUESTED",
-                description: `You requested a recommendation: "${
-                  rec.recommendationText
-                }" during step "${
-                  rec.stepInstance?.workflowStep?.stepName || "N/A"
-                }"`,
+                description: `You requested a recommendation: "${rec.recommendationText}" during step "${rec.stepInstance?.workflowStep?.stepName || "N/A"}"`,
                 createdAt: rec.createdAt.toISOString(),
                 details: {
                   recommendationId: rec.id,
@@ -1101,11 +1088,7 @@ export const get_user_activity_log = async (req, res) => {
             ) {
               actions.push({
                 actionType: "RECOMMENDATION_PROVIDED",
-                description: `You provided a recommendation: "${
-                  rec.responseText || "No response provided"
-                }" during step "${
-                  rec.stepInstance?.workflowStep?.stepName || "N/A"
-                }"`,
+                description: `You provided a recommendation: "${rec.responseText || "No response provided"}" during step "${rec.stepInstance?.workflowStep?.stepName || "N/A"}"`,
                 createdAt:
                   rec.respondedAt?.toISOString() || rec.createdAt.toISOString(),
                 details: {
@@ -1136,7 +1119,7 @@ export const get_user_activity_log = async (req, res) => {
             }
 
             return actions;
-          })
+          }),
         )
       ).flat(),
       ...(
@@ -1145,13 +1128,11 @@ export const get_user_activity_log = async (req, res) => {
             if (step.decisionAt) {
               const assignmentDetails = await getAssignmentDetails(
                 step.id,
-                processId
+                processId,
               );
               return {
                 actionType: "STEP_COMPLETED",
-                description: `You completed the step "${
-                  step.workflowStep?.stepName || "Unknown"
-                }" with status "${step.status}"`,
+                description: `You completed the step "${step.workflowStep?.stepName || "Unknown"}" with status "${step.status}"`,
                 createdAt: step.decisionAt.toISOString(),
                 details: {
                   stepInstanceId: step.id,
@@ -1168,9 +1149,9 @@ export const get_user_activity_log = async (req, res) => {
               };
             }
             return null;
-          })
+          }),
         )
-      ).filter(Boolean)
+      ).filter(Boolean),
     );
 
     const sortedActivities = activities
@@ -1385,7 +1366,7 @@ export const get_user_activity_logs = async (req, res) => {
               userCompletedSteps.map(async (s) => {
                 const assignmentDetails = await getAssignmentDetails(
                   s.id,
-                  processId
+                  processId,
                 );
                 return {
                   stepInstanceId: s.id,
@@ -1398,7 +1379,7 @@ export const get_user_activity_logs = async (req, res) => {
                   role: assignmentDetails.role || "Unknown",
                   department: assignmentDetails.department || "Unknown",
                 };
-              })
+              }),
             )
           : [];
 
@@ -1501,7 +1482,7 @@ export const get_user_activity_logs = async (req, res) => {
           },
           lastActivityAt,
         };
-      })
+      }),
     );
 
     const validLogs = logs
@@ -1594,12 +1575,12 @@ export const get_process_activity_logs = async (req, res) => {
 
       // Create maps for quick lookups
       const docIdToProcessDoc = new Map(
-        processDocuments.map((d) => [d.documentId, d])
+        processDocuments.map((d) => [d.documentId, d]),
       );
       const replacedToReplacer = new Map(
         processDocuments
           .filter((d) => d.replacedDocumentId)
-          .map((d) => [d.replacedDocumentId, d.documentId])
+          .map((d) => [d.replacedDocumentId, d.documentId]),
       );
 
       // Find all terminal documents (not replaced by any other)
@@ -1619,7 +1600,7 @@ export const get_process_activity_logs = async (req, res) => {
           // Check for cycle
           if (visitedDocIds.has(currentDocId)) {
             console.warn(
-              `Cycle detected at docId: ${currentDocId}. Breaking loop.`
+              `Cycle detected at docId: ${currentDocId}. Breaking loop.`,
             );
             break;
           }
@@ -1639,14 +1620,14 @@ export const get_process_activity_logs = async (req, res) => {
             type: processDoc.document.type,
             issueNo: processDoc.issueNo || null,
             SOPIssueNo: processDoc.SOPIssueNo || null,
-            tags: processDoc.tags,
-            preApproved: processDoc.preApproved,
-            reasonOfSupersed: processDoc.reasonOfSupersed,
-            description: processDoc.description,
-            partNumber: processDoc.partNumber,
-            isReplacement: processDoc.isReplacement,
-            superseding: processDoc.superseding,
-            reopenCycle: processDoc.reopenCycle,
+            tags: processDoc.tags || [],
+            preApproved: processDoc.preApproved || false,
+            reasonOfSupersed: processDoc.reasonOfSupersed || null,
+            description: processDoc.description || null,
+            partNumber: processDoc.partNumber || null,
+            isReplacement: processDoc.isReplacement || false,
+            superseding: processDoc.superseding || false,
+            reopenCycle: processDoc.reopenCycle || 0,
           });
 
           currentDocId = processDoc.replacedDocumentId;
@@ -1662,11 +1643,11 @@ export const get_process_activity_logs = async (req, res) => {
 
       // Handle any documents not included in chains (documents that are not terminal and not in any chain)
       const includedDocIds = new Set(
-        documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id))
+        documentVersioning.flatMap((chain) => chain.versions.map((v) => v.id)),
       );
 
       const missingDocs = processDocuments.filter(
-        (d) => !includedDocIds.has(d.documentId)
+        (d) => !includedDocIds.has(d.documentId),
       );
 
       // Add missing documents as standalone chains
@@ -1679,14 +1660,14 @@ export const get_process_activity_logs = async (req, res) => {
               name: doc.document.name,
               path: doc.document.path.split("/").slice(0, -1).join("/"),
               type: doc.document.type,
-              tags: doc.tags,
-              reasonOfSupersed: doc.reasonOfSupersed,
-              description: doc.description,
-              partNumber: doc.partNumber,
-              isReplacement: doc.isReplacement,
-              superseding: doc.superseding,
-              reopenCycle: doc.reopenCycle,
-              preApproved: doc.preApproved,
+              tags: doc.tags || [],
+              reasonOfSupersed: doc.reasonOfSupersed || null,
+              description: doc.description || null,
+              partNumber: doc.partNumber || null,
+              isReplacement: doc.isReplacement || false,
+              superseding: doc.superseding || false,
+              reopenCycle: doc.reopenCycle || 0,
+              preApproved: doc.preApproved || false,
               issueNo: doc.issueNo || null,
               SOPIssueNo: doc.SOPIssueNo || null,
             },
@@ -1751,13 +1732,13 @@ export const get_process_activity_logs = async (req, res) => {
       const replacedDocumentIds = new Set(
         processDocuments
           .filter((pd) => pd.replacedDocumentId)
-          .map((pd) => pd.replacedDocumentId)
+          .map((pd) => pd.replacedDocumentId),
       );
 
       const supersededDocumentIds = new Set(
         processDocuments
           .filter((pd) => pd.superseding)
-          .map((pd) => pd.replacedDocumentId)
+          .map((pd) => pd.replacedDocumentId),
       );
 
       // Transform documents for response
@@ -1767,7 +1748,7 @@ export const get_process_activity_logs = async (req, res) => {
             (!replacedDocumentIds.has(doc.documentId) ||
               (doc.replacedDocument &&
                 doc.document.id === doc.replacedDocument.id)) &&
-            !supersededDocumentIds.has(doc.documentId)
+            !supersededDocumentIds.has(doc.documentId),
         )
         .map((doc) => {
           const signedBy =
@@ -1801,23 +1782,23 @@ export const get_process_activity_logs = async (req, res) => {
             name: doc.document.name,
             type: doc.document.type,
             path: updatedPath,
-            tags: doc.tags,
+            tags: doc.tags || [],
             signedBy,
             rejectionDetails,
             isRecirculationTrigger:
               doc?.documentHistory.some(
-                (history) => history.isRecirculationTrigger
+                (history) => history.isRecirculationTrigger,
               ) || false,
             approvalCount: signedBy.length,
             isReplacement: doc.isReplacement,
             superseding: doc.superseding,
             preApproved: doc.preApproved,
             reopenCycle: doc.reopenCycle,
-            description: doc.description,
-            reasonOfSupersed: doc.reasonOfSupersed,
-            partNumber: doc.partNumber,
-            issueNo: doc.issueNo,
-            SOPIssueNo: doc.SOPIssueNo,
+            description: doc.description || null,
+            reasonOfSupersed: doc.reasonOfSupersed || null,
+            partNumber: doc.partNumber || null,
+            issueNo: doc.issueNo || null,
+            SOPIssueNo: doc.SOPIssueNo || null,
             active: true,
           };
         });
@@ -1888,7 +1869,7 @@ export const get_process_activity_logs = async (req, res) => {
           }
         });
         assignment.selectedRoles.forEach((roleId) =>
-          selectedRoleIds.add(roleId)
+          selectedRoleIds.add(roleId),
         );
       });
     });
@@ -1917,7 +1898,7 @@ export const get_process_activity_logs = async (req, res) => {
     const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
     const userMap = new Map(
-      users.map((u) => [u.id, { username: u.username, name: u.name }])
+      users.map((u) => [u.id, { username: u.username, name: u.name }]),
     );
     const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
 
@@ -2064,7 +2045,7 @@ export const get_process_activity_logs = async (req, res) => {
 
     const allUserMap = new Map(allUsers.map((u) => [u.id, u]));
 
-    // Helper function to get user details (maintaining original format)
+    // Helper function to get user details
     const getUserDetails = async (userId) => {
       if (!userId) return "Unknown User";
 
@@ -2073,7 +2054,6 @@ export const get_process_activity_logs = async (req, res) => {
         return user.name ? `${user.name} (${user.username})` : user.username;
       }
 
-      // Fallback: fetch user if not in pre-fetched map
       try {
         const fetchedUser = await prisma.user.findUnique({
           where: { id: userId },
@@ -2355,7 +2335,7 @@ export const get_process_activity_logs = async (req, res) => {
                 processId: processInstanceData.id,
                 processName: processInstanceData.name,
                 initiatorName: await getUserDetails(
-                  processInstanceData.initiator.id
+                  processInstanceData.initiator.id,
                 ),
                 workflow: process.workflow?.name || "N/A",
                 assignmentType: "N/A",
@@ -2374,21 +2354,30 @@ export const get_process_activity_logs = async (req, res) => {
           const stepInfo = findStepForTime(pd.document.createdOn);
           const assignmentDetails = await getAssignmentDetails(
             stepInfo.stepInstanceId,
-            pd.processId
+            pd.processId,
           );
           const uploadedByDetails = await getUserDetails(
-            pd.document.createdById
+            pd.document.createdById,
           );
           return {
             actionType: "DOCUMENT_UPLOADED",
-            description: `${uploadedByDetails} uploaded the document "${documentDetails.name}""`,
+            description: `${uploadedByDetails} uploaded the document "${documentDetails.name}"`,
             createdAt: pd.document.createdOn.toISOString(),
             details: {
               documentId: pd.documentId,
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags: pd.tags?.length > 0 ? pd.tags : pd.document.tags || [],
+              description: pd.description || null,
+              partNumber: pd.partNumber || null,
+              issueNo: pd.issueNo || null,
+              SOPIssueNo: pd.SOPIssueNo || null,
+              reasonOfSupersed: pd.reasonOfSupersed || null,
+              preApproved: pd.preApproved || false,
+              isReplacement: pd.isReplacement || false,
+              superseding: pd.superseding || false,
+              reopenCycle: pd.reopenCycle || 0,
               uploadedBy: uploadedByDetails,
               stepInstanceId: stepInfo.stepInstanceId,
               stepName: stepInfo.stepName || "N/A",
@@ -2399,16 +2388,16 @@ export const get_process_activity_logs = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(await Promise.all(
         documentSignatures.map(async (sig) => {
           const documentDetails = await getDocumentDetails(
-            sig.processDocument.documentId
+            sig.processDocument.documentId,
           );
           const assignmentDetails = await getAssignmentDetails(
             sig.processStepInstanceId,
-            sig.processDocument.processId
+            sig.processDocument.processId,
           );
           const signedByDetails = await getUserDetails(sig.userId);
           return {
@@ -2424,7 +2413,19 @@ export const get_process_activity_logs = async (req, res) => {
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags:
+                sig.processDocument.tags?.length > 0
+                  ? sig.processDocument.tags
+                  : sig.processDocument.document.tags || [],
+              description: sig.processDocument.description || null,
+              partNumber: sig.processDocument.partNumber || null,
+              issueNo: sig.processDocument.issueNo || null,
+              SOPIssueNo: sig.processDocument.SOPIssueNo || null,
+              reasonOfSupersed: sig.processDocument.reasonOfSupersed || null,
+              preApproved: sig.processDocument.preApproved || false,
+              isReplacement: sig.processDocument.isReplacement || false,
+              superseding: sig.processDocument.superseding || false,
+              reopenCycle: sig.processDocument.reopenCycle || 0,
               signedBy: signedByDetails,
               signedAt: sig.signedAt.toISOString(),
               remarks: sig.reason || null,
@@ -2441,16 +2442,16 @@ export const get_process_activity_logs = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(await Promise.all(
         documentRejections.map(async (dr) => {
           const documentDetails = await getDocumentDetails(
-            dr.processDocument.documentId
+            dr.processDocument.documentId,
           );
           const assignmentDetails = await getAssignmentDetails(
             dr.processStepInstanceId,
-            dr.processDocument.processId
+            dr.processDocument.processId,
           );
           const rejectedByDetails = await getUserDetails(dr.userId);
           return {
@@ -2466,7 +2467,19 @@ export const get_process_activity_logs = async (req, res) => {
               name: documentDetails.name,
               type: documentDetails.type,
               path: make_path(documentDetails.path),
-              tags: documentDetails.tags,
+              tags:
+                dr.processDocument.tags?.length > 0
+                  ? dr.processDocument.tags
+                  : dr.processDocument.document.tags || [],
+              description: dr.processDocument.description || null,
+              partNumber: dr.processDocument.partNumber || null,
+              issueNo: dr.processDocument.issueNo || null,
+              SOPIssueNo: dr.processDocument.SOPIssueNo || null,
+              reasonOfSupersed: dr.processDocument.reasonOfSupersed || null,
+              preApproved: dr.processDocument.preApproved || false,
+              isReplacement: dr.processDocument.isReplacement || false,
+              superseding: dr.processDocument.superseding || false,
+              reopenCycle: dr.processDocument.reopenCycle || 0,
               rejectedBy: rejectedByDetails,
               rejectionReason: dr.reason || null,
               rejectedAt: dr.rejectedAt.toISOString(),
@@ -2482,14 +2495,14 @@ export const get_process_activity_logs = async (req, res) => {
               department: assignmentDetails.department || "N/A",
             },
           };
-        })
+        }),
       )),
       ...(
         await Promise.all(
           processQAs.map(async (qa) => {
             const assignmentDetails = await getAssignmentDetails(
               qa.stepInstanceId,
-              qa.processId
+              qa.processId,
             );
             const initiatorDetails = await getUserDetails(qa.initiatorId);
             const entityDetails = await getUserDetails(qa.entityId);
@@ -2546,7 +2559,7 @@ export const get_process_activity_logs = async (req, res) => {
               });
             }
             return actions;
-          })
+          }),
         )
       ).flat(),
       ...(
@@ -2554,14 +2567,14 @@ export const get_process_activity_logs = async (req, res) => {
           recommendations.map(async (rec) => {
             const assignmentDetails = await getAssignmentDetails(
               rec.stepInstanceId,
-              rec.processId
+              rec.processId,
             );
             const initiatorDetails = await getUserDetails(rec.initiatorId);
             const recommenderDetails = await getUserDetails(rec.recommenderId);
             const documentSummaries = rec.documentSummaries || [];
             const documentResponses = rec.details?.documentResponses || [];
             const documentIds = documentSummaries.map((ds) =>
-              parseInt(ds.documentId)
+              parseInt(ds.documentId),
             );
             const documents = documentIds.length
               ? await prisma.document.findMany({
@@ -2588,7 +2601,7 @@ export const get_process_activity_logs = async (req, res) => {
 
             const documentDetails = documentSummaries.map((ds) => {
               const response = documentResponses.find(
-                (dr) => dr.documentId === parseInt(ds.documentId)
+                (dr) => dr.documentId === parseInt(ds.documentId),
               );
               return {
                 documentId: ds.documentId,
@@ -2673,7 +2686,7 @@ export const get_process_activity_logs = async (req, res) => {
               });
             }
             return actions;
-          })
+          }),
         )
       ).flat(),
       ...(
@@ -2682,7 +2695,7 @@ export const get_process_activity_logs = async (req, res) => {
             if (step.decisionAt) {
               const assignmentDetails = await getAssignmentDetails(
                 step.id,
-                processId
+                processId,
               );
               const completedByDetails = await getUserDetails(step.assignedTo);
               return {
@@ -2706,9 +2719,9 @@ export const get_process_activity_logs = async (req, res) => {
               };
             }
             return null;
-          })
+          }),
         )
-      ).filter((action) => action !== null)
+      ).filter((action) => action !== null),
     );
 
     const sortedActivities = activities
@@ -2737,7 +2750,6 @@ export const get_process_activity_logs = async (req, res) => {
         processStoragePath: process.storagePath || "N/A",
         workflow: enrichedWorkflow,
         activities: sortedActivities,
-        // NEW PROPERTIES ADDED HERE
         documentVersioning,
         documents,
       },

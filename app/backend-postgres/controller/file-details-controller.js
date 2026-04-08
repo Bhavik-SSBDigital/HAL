@@ -143,40 +143,35 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
+    if (userData === "Unauthorized")
+      return res.status(401).json({ message: "Unauthorized request" });
 
     const user = await prisma.user.findUnique({
       where: { username: userData.username },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
+      include: { roles: { include: { role: true } } },
     });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
+    const userDepartments = await prisma.department.findMany({
+      where: { users: { some: { id: user.id } } },
+      select: { id: true },
+    });
+
+    // ✅ FIX 1: Ensure department matches are loaded
     const userDocumentAccesses = await prisma.documentAccess.findMany({
       where: {
         OR: [
           { userId: user.id },
           { roleId: { in: user.roles.map((r) => r.roleId) } },
+          { departmentId: { in: userDepartments.map((d) => d.id) } },
         ],
       },
     });
 
-    const isAdmin = user.username === "admin" || user.isAdmin;
-
-    let docPath = req.body.path;
-    docPath = docPath.substring(2);
+    const isAdmin =
+      user.username === "admin" || user.isAdmin || user.specialUser;
+    let docPath = req.body.path.substring(2);
 
     const foundDocument = await prisma.document.findUnique({
       where: { path: docPath },
@@ -184,18 +179,8 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         children: {
           include: {
             processDocuments: {
-              include: {
-                process: {
-                  include: {
-                    workflow: true,
-                  },
-                },
-              },
-              orderBy: {
-                process: {
-                  createdAt: "desc",
-                },
-              },
+              include: { process: { include: { workflow: true } } },
+              orderBy: { process: { createdAt: "desc" } },
               take: 1,
             },
           },
@@ -203,54 +188,39 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       },
     });
 
-    if (!foundDocument) {
-      return res.status(400).json({
-        message: "Document doesn't exist",
-      });
-    }
+    if (!foundDocument)
+      return res.status(400).json({ message: "Document doesn't exist" });
 
-    // =========================================================================
-    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
-    // =========================================================================
-    const activeWorkflowsWithParents = await prisma.workflow.findMany({
-      where: { parentWorkflowId: { not: null }, isActive: true },
-      select: { name: true },
+    const activeWorkflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, parentWorkflowId: true },
     });
+
     const hideLiteralWorkflowNames = new Set(
-      activeWorkflowsWithParents.map((w) => w.name),
+      activeWorkflows
+        .filter((w) => w.parentWorkflowId !== null)
+        .map((w) => w.name),
     );
 
-    foundDocument.children = foundDocument.children.filter((child) => {
-      // If it's a folder and belongs to a workflow that acts as a child, hide it from its literal parent
-      if (child.type === "folder" && hideLiteralWorkflowNames.has(child.name)) {
-        return false;
-      }
-      return true;
-    });
-    // =========================================================================
+    foundDocument.children = foundDocument.children.filter(
+      (child) =>
+        !(child.type === "folder" && hideLiteralWorkflowNames.has(child.name)),
+    );
 
-    // =========================================================================
-    // ✅ SYMBOLIC LOGIC: DYNAMICALLY INJECT CHILD WORKFLOW FOLDERS
-    // =========================================================================
     if (docPath === `/${foundDocument.name}`) {
-      const familyWorkflows = await prisma.workflow.findMany({
-        where: { name: foundDocument.name },
-        select: { id: true },
-      });
-
+      const familyWorkflows = activeWorkflows.filter(
+        (w) => w.name === foundDocument.name,
+      );
       if (familyWorkflows.length > 0) {
         const familyIds = familyWorkflows.map((w) => w.id);
-
-        const childWorkflows = await prisma.workflow.findMany({
-          where: { parentWorkflowId: { in: familyIds }, isActive: true },
-          select: { name: true },
-        });
+        const childWorkflows = activeWorkflows.filter((w) =>
+          familyIds.includes(w.parentWorkflowId),
+        );
 
         if (childWorkflows.length > 0) {
           const childWorkflowNames = [
             ...new Set(childWorkflows.map((w) => w.name)),
           ];
-
           const logicalFolders = await prisma.document.findMany({
             where: {
               name: { in: childWorkflowNames },
@@ -272,8 +242,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
           const newLogicalFolders = logicalFolders.filter(
             (f) => !existingChildIds.has(f.id),
           );
-
-          // Inject them into the children array dynamically
           foundDocument.children = [
             ...foundDocument.children,
             ...newLogicalFolders,
@@ -281,47 +249,14 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         }
       }
     }
-    // =========================================================================
 
     const parents = await getParents([foundDocument.id]);
-
-    const accessMap = new Map();
-    userDocumentAccesses.forEach((access) => {
-      if (!accessMap.has(access.documentId)) {
-        accessMap.set(access.documentId, {
-          readable: false,
-          writable: false,
-          uploadable: false,
-          downloadable: false,
-          isFullAccess: access.accessLevel === "FULL",
-        });
-      }
-
-      const docAccess = accessMap.get(access.documentId);
-
-      if (access.accessLevel === "FULL") {
-        docAccess.readable = true;
-        docAccess.writable = true;
-        docAccess.uploadable = true;
-        docAccess.downloadable = true;
-        docAccess.isFullAccess = true;
-      } else {
-        access.accessType.forEach((type) => {
-          if (type === "READ") docAccess.readable = true;
-          if (type === "EDIT") {
-            docAccess.writable = true;
-            docAccess.uploadable = true;
-          }
-          if (type === "DOWNLOAD") docAccess.downloadable = true;
-        });
-      }
-    });
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     let children;
 
-    if (isAdmin || user.specialUser) {
+    if (isAdmin) {
       children = await Promise.all(
         foundDocument.children.map(async (child) => {
           const fileAbsolutePath = path.join(
@@ -333,17 +268,14 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
             where: { id: child.createdById },
             select: { username: true },
           });
-
           try {
             const fileStats = !child.onlyMetaData
               ? await fs.stat(fileAbsolutePath)
               : null;
-
             const isDocumentBookmarked_ = await isDocumentBookmarked(
               userData.id,
               child.id,
             );
-
             const processDocument = child.processDocuments?.[0] || null;
 
             return {
@@ -365,13 +297,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               isRejected: child.isRejected ?? false,
               children: [],
               onlyMetaData: child.onlyMetaData,
-
               departmentId: child.departmentId,
               minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
               tags: child.tags || [],
               isRecord: child.isRecord ?? true,
               isProject: child.isProject ?? false,
-
               issueNo: processDocument?.issueNo || null,
               processIssueNo: processDocument?.process?.issueNo || null,
               partNumber: processDocument?.partNumber || null,
@@ -391,16 +321,44 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               workflowName: processDocument?.process?.workflow?.name || null,
             };
           } catch (error) {
-            console.log("error", error);
             return null;
           }
         }),
       );
     } else {
+      // ✅ FIX 2: Compute allowed prefixes
+      const accessibleDocIds = userDocumentAccesses.map((a) => a.documentId);
+      const accessibleDocs = await prisma.document.findMany({
+        where: { id: { in: accessibleDocIds } },
+        select: { path: true },
+      });
+      const accessiblePaths = accessibleDocs.map((d) => d.path);
+
+      const getFolderPrefixes = (docName, pth) => {
+        const prefixes = [pth + "/"];
+        const workflow = activeWorkflows.find((w) => w.name === docName);
+        if (workflow) {
+          const descendants = new Set();
+          let currentLevelIds = [workflow.id];
+          while (currentLevelIds.length > 0) {
+            const childrenWfs = activeWorkflows.filter((w) =>
+              currentLevelIds.includes(w.parentWorkflowId),
+            );
+            childrenWfs.forEach((c) => descendants.add(c.name));
+            currentLevelIds = childrenWfs.map((c) => c.id);
+          }
+          descendants.forEach((name) => {
+            const prefix = `/${name}/`;
+            if (!prefixes.includes(prefix)) prefixes.push(prefix);
+          });
+        }
+        return prefixes;
+      };
+
       children = await Promise.all(
         foundDocument.children
           .filter((child) => {
-            const hasAccess = userDocumentAccesses.some(
+            const hasDirectAccess = userDocumentAccesses.some(
               (userAccess) =>
                 (userAccess.documentId === child.id ||
                   (userAccess.accessLevel === "FULL" &&
@@ -409,7 +367,17 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   userAccess.accessType.includes("DOWNLOAD") ||
                   userAccess.accessType.includes("EDIT")),
             );
-            return hasAccess;
+            if (hasDirectAccess) return true;
+
+            if (child.type === "folder") {
+              const allowedPrefixes = getFolderPrefixes(child.name, child.path);
+              return accessiblePaths.some((p) =>
+                allowedPrefixes.some(
+                  (prefix) => p.startsWith(prefix) || p === prefix.slice(0, -1),
+                ),
+              );
+            }
+            return false;
           })
           .map(async (child) => {
             const fileAbsolutePath = path.join(
@@ -417,32 +385,26 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               process.env.STORAGE_PATH,
               child.path,
             );
-
             const createdBy = await prisma.user.findUnique({
               where: { id: child.createdById },
               select: { username: true },
             });
-
             try {
               const fileStats = !child.onlyMetaData
                 ? await fs.stat(fileAbsolutePath)
                 : null;
-
               const documentAccess = userDocumentAccesses.find(
                 (access) => access.documentId === child.id,
               );
-
               const hasFullAccess = userDocumentAccesses.some(
                 (access) =>
                   access.accessLevel === "FULL" &&
                   parents.includes(access.documentId),
               );
-
               const isDocumentBookmarked_ = await isDocumentBookmarked(
                 userData.id,
                 child.id,
               );
-
               const processDocument = child.processDocuments?.[0] || null;
 
               return {
@@ -466,13 +428,11 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   (hasFullAccess && child.type !== "folder"),
                 children: [],
                 onlyMetaData: child.onlyMetaData,
-
                 departmentId: child.departmentId,
                 minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
                 tags: child.tags || [],
                 isRecord: child.isRecord ?? true,
                 isProject: child.isProject ?? false,
-
                 issueNo: processDocument?.issueNo || null,
                 processIssueNo: processDocument?.process?.issueNo || null,
                 partNumber: processDocument?.partNumber || null,
@@ -492,7 +452,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 workflowName: processDocument?.process?.workflow?.name || null,
               };
             } catch (error) {
-              console.log("error", error);
               return null;
             }
           }),
@@ -503,11 +462,10 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
     result = result.filter((item) => item !== null);
 
     if (req.body.sectionType) {
-      result = result.filter((item) => {
-        return (
-          item[`${req.body.sectionType}`] === true || item.type === "folder"
-        );
-      });
+      result = result.filter(
+        (item) =>
+          item[`${req.body.sectionType}`] === true || item.type === "folder",
+      );
     } else {
       result = result.filter(
         (item) =>
@@ -528,15 +486,10 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               access.accessType.includes("EDIT"),
           );
 
-    res.status(200).json({
-      children: result,
-      isUploadable: canUpload,
-    });
+    res.status(200).json({ children: result, isUploadable: canUpload });
   } catch (error) {
     console.log("error", error);
-    res.status(500).json({
-      message: "Error accessing given document",
-    });
+    res.status(500).json({ message: "Error accessing given document" });
   }
 };
 
@@ -544,72 +497,53 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
+    if (userData === "Unauthorized")
+      return res.status(401).json({ message: "Unauthorized request" });
 
     const roleDocumentAccesses = await prisma.documentAccess.findMany({
       where: { roleId: parseInt(req.body.role) },
     });
 
-    let documentPath = req.body.path;
-    documentPath = documentPath.substring(2);
+    let documentPath = req.body.path.substring(2);
 
     const foundDocument = await prisma.document.findUnique({
       where: { path: documentPath },
-      include: {
-        children: true,
-      },
+      include: { children: true },
     });
 
-    if (!foundDocument) {
-      return res.status(400).json({
-        message: "Document doesn't exist",
-      });
-    }
+    if (!foundDocument)
+      return res.status(400).json({ message: "Document doesn't exist" });
 
-    // =========================================================================
-    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
-    // =========================================================================
-    const activeWorkflowsWithParents = await prisma.workflow.findMany({
-      where: { parentWorkflowId: { not: null }, isActive: true },
-      select: { name: true },
+    const activeWorkflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, parentWorkflowId: true },
     });
+
     const hideLiteralWorkflowNames = new Set(
-      activeWorkflowsWithParents.map((w) => w.name),
+      activeWorkflows
+        .filter((w) => w.parentWorkflowId !== null)
+        .map((w) => w.name),
     );
 
-    foundDocument.children = foundDocument.children.filter((child) => {
-      if (child.type === "folder" && hideLiteralWorkflowNames.has(child.name)) {
-        return false;
-      }
-      return true;
-    });
-    // =========================================================================
+    foundDocument.children = foundDocument.children.filter(
+      (child) =>
+        !(child.type === "folder" && hideLiteralWorkflowNames.has(child.name)),
+    );
 
-    // =========================================================================
-    // ✅ SYMBOLIC LOGIC INJECTION FOR EDIT
-    // =========================================================================
     if (documentPath === `/${foundDocument.name}`) {
-      const familyWorkflows = await prisma.workflow.findMany({
-        where: { name: foundDocument.name },
-        select: { id: true },
-      });
-
+      const familyWorkflows = activeWorkflows.filter(
+        (w) => w.name === foundDocument.name,
+      );
       if (familyWorkflows.length > 0) {
         const familyIds = familyWorkflows.map((w) => w.id);
-        const childWorkflows = await prisma.workflow.findMany({
-          where: { parentWorkflowId: { in: familyIds }, isActive: true },
-          select: { name: true },
-        });
+        const childWorkflows = activeWorkflows.filter((w) =>
+          familyIds.includes(w.parentWorkflowId),
+        );
 
         if (childWorkflows.length > 0) {
           const childWorkflowNames = [
             ...new Set(childWorkflows.map((w) => w.name)),
           ];
-
           const logicalFolders = await prisma.document.findMany({
             where: {
               name: { in: childWorkflowNames },
@@ -624,7 +558,6 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
           const newLogicalFolders = logicalFolders.filter(
             (f) => !existingChildIds.has(f.id),
           );
-
           foundDocument.children = [
             ...foundDocument.children,
             ...newLogicalFolders,
@@ -632,9 +565,56 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
         }
       }
     }
-    // =========================================================================
 
     const parents = await getParents([foundDocument.id]);
+
+    const accessibleDocIds = roleDocumentAccesses.map((a) => a.documentId);
+    const accessibleDocs = await prisma.document.findMany({
+      where: { id: { in: accessibleDocIds } },
+      select: { path: true },
+    });
+    const accessiblePaths = accessibleDocs.map((d) => d.path);
+
+    const getFolderPrefixes = (docName, pth) => {
+      const prefixes = [pth + "/"];
+      const workflow = activeWorkflows.find((w) => w.name === docName);
+      if (workflow) {
+        const descendants = new Set();
+        let currentLevelIds = [workflow.id];
+        while (currentLevelIds.length > 0) {
+          const childrenWfs = activeWorkflows.filter((w) =>
+            currentLevelIds.includes(w.parentWorkflowId),
+          );
+          childrenWfs.forEach((c) => descendants.add(c.name));
+          currentLevelIds = childrenWfs.map((c) => c.id);
+        }
+        descendants.forEach((name) => {
+          const prefix = `/${name}/`;
+          if (!prefixes.includes(prefix)) prefixes.push(prefix);
+        });
+      }
+      return prefixes;
+    };
+
+    foundDocument.children = foundDocument.children.filter((child) => {
+      const hasDirectAccess = roleDocumentAccesses.some(
+        (access) =>
+          access.documentId === child.id ||
+          (access.accessLevel === "FULL" &&
+            parents.includes(access.documentId)),
+      );
+      if (hasDirectAccess) return true;
+
+      if (child.type === "folder") {
+        const allowedPrefixes = getFolderPrefixes(child.name, child.path);
+        return accessiblePaths.some((p) =>
+          allowedPrefixes.some(
+            (prefix) => p.startsWith(prefix) || p === prefix.slice(0, -1),
+          ),
+        );
+      }
+      return false;
+    });
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
@@ -650,16 +630,13 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
           const fileAbsolutePath = path.join(__dirname, child.path);
           try {
             await fs.stat(fileAbsolutePath);
-
             let obj = {
               id: child.id,
               upload: false,
               download: false,
               view: false,
             };
-
             const childParents = await getParents([child.id]);
-
             const hasFullAccess = roleDocumentAccesses.some(
               (access) =>
                 access.accessLevel === "FULL" &&
@@ -682,32 +659,21 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
               const documentAccess = roleDocumentAccesses.find(
                 (access) => access.documentId === child.id,
               );
-
               if (documentAccess) {
                 if (documentAccess.accessType.includes("EDIT")) {
-                  if (child.type === "folder") {
-                    obj.upload = true;
-                  } else {
-                    selectedUpload.push(child.id);
-                  }
+                  if (child.type === "folder") obj.upload = true;
+                  else selectedUpload.push(child.id);
                 }
                 if (documentAccess.accessType.includes("DOWNLOAD")) {
-                  if (child.type === "folder") {
-                    obj.download = true;
-                  } else {
-                    selectedDownload.push(child.id);
-                  }
+                  if (child.type === "folder") obj.download = true;
+                  else selectedDownload.push(child.id);
                 }
                 if (documentAccess.accessType.includes("READ")) {
-                  if (child.type === "folder") {
-                    obj.view = true;
-                  } else {
-                    selectedView.push(child.id);
-                  }
+                  if (child.type === "folder") obj.view = true;
+                  else selectedView.push(child.id);
                 }
               }
             }
-
             return {
               id: child.id,
               name: child.name,
@@ -734,15 +700,11 @@ export const getDocumentDetailsOnTheBasisOfPathForEdit = async (req, res) => {
         ).map((str) => JSON.parse(str)),
       });
     } else {
-      res.status(400).json({
-        message: "Document doesn't exist",
-      });
+      res.status(400).json({ message: "Document doesn't exist" });
     }
   } catch (error) {
     console.log("error", error);
-    res.status(500).json({
-      message: "Error accessing given document",
-    });
+    res.status(500).json({ message: "Error accessing given document" });
   }
 };
 

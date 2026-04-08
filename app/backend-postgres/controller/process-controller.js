@@ -8,6 +8,7 @@ import { dirname, join, normalize, extname } from "path";
 import { file_delete } from "./file-controller.js";
 import { watermarkDocument } from "./watermark.js";
 import dotenv from "dotenv";
+import fs from "fs/promises";
 import {
   saveProcessDraft,
   editProcessDraft,
@@ -172,95 +173,49 @@ export async function generateUniqueDocumentName({
   extension,
 }) {
   try {
-    // Fetch workflow details
     const workflow = await prisma.workflow.findUnique({
       where: { id: workflowId },
       select: { name: true, version: true },
     });
 
-    if (!workflow) {
-      throw new Error(`Workflow with ID ${workflowId} not found`);
-    }
+    if (!workflow) throw new Error(`Workflow ${workflowId} not found`);
 
-    const { name: workflowName, version: workflowVersion } = workflow;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+    // Use a high-resolution timestamp to prevent identical names in loops
+    const timestamp = now.getTime();
 
-    // Format date as YYYYMMDD
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
-
-    // Base name for documents
-    const baseDocName = `${workflowName}_w${workflowVersion}_${dateStr}`;
+    const baseDocName = `${workflow.name}_w${workflow.version}_${dateStr}`;
 
     if (replacedDocId) {
-      // Handle document replacement
-      const existingDoc = await prisma.document.findFirst({
+      const existingDoc = await prisma.document.findUnique({
         where: { id: parseInt(replacedDocId) },
+        select: { name: true },
       });
+      if (!existingDoc) throw new Error(`Document ${replacedDocId} not found`);
 
-      if (!existingDoc) {
-        throw new Error(`Document with id ${replacedDocId} not found`);
-      }
-
-      // Extract version
       const parts = existingDoc.name.split("_");
       const versionPart = parts[parts.length - 1];
       const version = parseInt(versionPart.replace("v", ""), 10) || 1;
       const newVersion = version + 1;
 
-      // Construct new name by replacing version
-      const newDocName = `${parts
-        .slice(0, -1)
-        .join("_")}_v${newVersion}.${extension}`;
-
-      // // Verify uniqueness
-      // const existing = await prisma.document.findFirst({
-      //   where: { name: newDocName },
-      // });
-
-      // if (existing) {
-      //   throw new Error(`Document name ${newDocName} already exists`);
-      // }
-
-      return newDocName;
+      // Append timestamp to ensure uniqueness in rapid replacement calls
+      return `${parts.slice(0, -1).join("_")}_${timestamp}_v${newVersion}.${extension}`;
     } else {
-      // Handle new document
-      const existingDocs = await prisma.document.findMany({
-        where: {},
-        select: { name: true },
+      // NEW DOCUMENT LOGIC
+      // Use count only as a hint, but rely on timestamp for uniqueness
+      const count = await prisma.document.count({
+        where: { name: { startsWith: baseDocName } },
       });
 
-      // Extract serial numbers
-      const serialNumbers = existingDocs
-        .map((doc) => {
-          const parts = doc.name.split("_");
-          const serial = parseInt(parts[parts.length - 2], 10) || 0;
-          return serial;
-        })
-        .filter((num) => !isNaN(num));
+      const nextSerialNumber = (count + 1).toString().padStart(3, "0");
 
-      const nextSerialNumber =
-        serialNumbers.length > 0 ? Math.max(...serialNumbers) + 1 : 1;
-
-      const newDocName = `${baseDocName}_${nextSerialNumber
-        .toString()
-        .padStart(3, "0")}_v1`;
-
-      // Verify uniqueness
-      const existing = await prisma.document.findFirst({
-        where: { name: newDocName },
-      });
-
-      if (existing) {
-        throw new Error(`Document name ${newDocName} already exists`);
-      }
-
-      return `${newDocName}.${extension}`;
+      // Pattern: Workflow_Version_Date_Serial_Timestamp_v1.ext
+      return `${baseDocName}_${nextSerialNumber}_${timestamp}_v1.${extension}`;
     }
   } catch (error) {
-    console.error("Error generating unique document name:", error);
+    console.error("Error generating name:", error);
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -321,7 +276,7 @@ export const generate_unique_process_name = async (workflowId) => {
     console.error("Error generating unique process name:", error);
     throw error;
   } finally {
-    await prisma.$disconnect();
+    // await prisma.$disconnect();
   }
 };
 
@@ -2490,7 +2445,7 @@ export const view_process = async (req, res) => {
       },
     });
   } finally {
-    await prisma.$disconnect();
+    // await prisma.$disconnect();
   }
 };
 
@@ -5310,7 +5265,7 @@ export const get_completed_initiator_processes = async (req, res) => {
       },
     });
   } finally {
-    await prisma.$disconnect();
+    // await prisma.$disconnect();
   }
 };
 
@@ -5567,7 +5522,7 @@ export const get_drafted_processes_for_initiator = async (req, res) => {
       },
     });
   } finally {
-    await prisma.$disconnect();
+    // await prisma.$disconnect();
   }
 };
 
@@ -5653,7 +5608,7 @@ export const get_process_documents = async (req, res) => {
     console.error("Error fetching process documents:", error);
     return res.status(500).json({ error: "Internal server error" });
   } finally {
-    await prisma.$disconnect();
+    // await prisma.$disconnect();
   }
 };
 
@@ -6351,4 +6306,151 @@ const getProcessDocumentArrays = async (processId) => {
 // Helper to check user access to process
 const checkUserProcessAccess = async (initiatorId, userId) => {
   return initiatorId === userId;
+};
+
+export const get_all_processes_for_admin = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    // Assuming user context has isAdmin flag or you check against specific roles
+    if (userData === "Unauthorized" || !userData.isAdmin) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized request. Admin access required." });
+    }
+
+    // Using `select` restricts the payload size drastically, preventing memory crashes
+    const processes = await prisma.processInstance.findMany({
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        initiator: {
+          select: { username: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json(processes);
+  } catch (error) {
+    console.error("Error fetching processes for admin:", error);
+    return res.status(500).json({ message: "Failed to fetch processes." });
+  }
+};
+
+export const delete_process_cleanup = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized" || !userData.isAdmin) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized request. Admin access required." });
+    }
+
+    const { processId } = req.params;
+
+    const process = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      select: { storagePath: true },
+    });
+
+    if (!process) {
+      return res.status(404).json({ message: "Process not found." });
+    }
+
+    // IMPORTANT: storagePath is typically "../WorkflowName/ProcessName"
+    // createFolder saves it in DB as "/WorkflowName/ProcessName"
+    // We MUST format this correctly to find the ghost records in the DB.
+    const dbPath = process.storagePath
+      ? process.storagePath.replace(/^\.\./, "")
+      : null;
+
+    // Execute deletion within a transaction to ensure database consistency
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated ProcessDrafts
+      await tx.processDraft.deleteMany({
+        where: { processId: processId },
+      });
+
+      if (dbPath) {
+        // 2. Find all literal documents to delete (The process folder itself AND all files inside it)
+        const documentsToDelete = await tx.document.findMany({
+          where: {
+            OR: [
+              { path: dbPath }, // Matches the parent folder
+              { path: { startsWith: `${dbPath}/` } }, // Matches files inside the folder
+            ],
+          },
+          select: { id: true },
+        });
+
+        const docIds = documentsToDelete.map((d) => d.id);
+
+        if (docIds.length > 0) {
+          // 3. Remove Access / Permissions for these documents
+          await tx.documentAccess.deleteMany({
+            where: { documentId: { in: docIds } },
+          });
+
+          // 4. Remove Document Content / Search Indexes
+          await tx.documentContent.deleteMany({
+            where: { documentId: { in: docIds } },
+          });
+
+          // 5. Remove Bookmarks
+          await tx.bookmark.deleteMany({
+            where: { documentId: { in: docIds } },
+          });
+
+          // 6. Delete Document History for these files AND for this process
+          await tx.documentHistory.deleteMany({
+            where: {
+              OR: [{ processId: processId }, { documentId: { in: docIds } }],
+            },
+          });
+
+          // 7. FINALLY: Delete the actual Document records from the DB to prevent P2002 constraint errors
+          await tx.document.deleteMany({
+            where: { id: { in: docIds } },
+          });
+        }
+      }
+
+      // 8. Delete ProcessInstance (Prisma's Cascade handles StepInstances, ProcessDocuments, QA, etc.)
+      await tx.processInstance.delete({
+        where: { id: processId },
+      });
+    });
+
+    // 9. Clean up the physical file system folder
+    if (dbPath) {
+      // Safely join the absolute path using the normalized dbPath
+      const absoluteFolderPath = path.join(__dirname, STORAGE_PATH, dbPath);
+      try {
+        await fs.rm(absoluteFolderPath, { recursive: true, force: true });
+        console.log(
+          `Successfully deleted physical folder: ${absoluteFolderPath}`,
+        );
+      } catch (fsError) {
+        console.error(
+          `Failed to delete physical folder ${absoluteFolderPath}:`,
+          fsError,
+        );
+      }
+    }
+
+    return res.status(200).json({
+      message:
+        "Process, database records, and physical files were completely reversed and deleted.",
+    });
+  } catch (error) {
+    console.error("Error deleting process:", error);
+    return res
+      .status(500)
+      .json({ message: "Error deleting process.", error: error.message });
+  }
 };

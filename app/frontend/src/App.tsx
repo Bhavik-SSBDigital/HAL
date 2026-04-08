@@ -41,6 +41,7 @@ import DraftedProcesses from './pages/Processes/DraftedProcesses';
 import Bookmark from './pages/Bookmark';
 import AdminReportsPage from './pages/Reports';
 import ReOpenProcessPage from './pages/Processes/Actions/ReOpenProcessModal';
+import DeleteProcess from './pages/Processes/DeleteProcess';
 
 
 function App() {
@@ -325,6 +326,16 @@ function App() {
             <DefaultLayout>
               <PageTitle title="Drafted Processes" />
               <DraftedProcesses />
+            </DefaultLayout>
+          }
+        />
+
+         <Route
+          path="/processes/delete"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Delete Processes" />
+              <DeleteProcess />
             </DefaultLayout>
           }
         />

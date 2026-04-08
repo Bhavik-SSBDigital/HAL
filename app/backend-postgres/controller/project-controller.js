@@ -31,11 +31,7 @@ export const getRootDocumentsWithAccess = async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
+        roles: { include: { role: true } },
       },
     });
 
@@ -43,10 +39,15 @@ export const getRootDocumentsWithAccess = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get all role IDs for the user
-    const roleIds = user.roles.map((userRole) => userRole.roleId);
+    // Fetch departments the user is part of
+    const userDepartments = await prisma.department.findMany({
+      where: { users: { some: { id: userId } } },
+      select: { id: true },
+    });
 
-    // Fetch root documents (isProject: true)
+    const roleIds = user.roles.map((userRole) => userRole.roleId);
+    const deptIds = userDepartments.map((d) => d.id);
+
     let rootDocuments = await prisma.document.findMany({
       where: { isProject: true },
     });
@@ -55,44 +56,40 @@ export const getRootDocumentsWithAccess = async (req, res) => {
       return res.status(200).json({ children: [] });
     }
 
-    // =========================================================================
-    // ✅ FILTER OUT CHILD WORKFLOWS FROM ROOT VIEW
-    // =========================================================================
-    const activeWorkflowsWithParents = await prisma.workflow.findMany({
-      where: { parentWorkflowId: { not: null }, isActive: true },
-      select: { name: true },
+    // Fetch all active workflows to build the virtual map
+    const activeWorkflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, parentWorkflowId: true },
     });
 
-    // Create a Set of names that should be hidden from the root view
     const hideLiteralWorkflowNames = new Set(
-      activeWorkflowsWithParents.map((w) => w.name),
+      activeWorkflows
+        .filter((w) => w.parentWorkflowId !== null)
+        .map((w) => w.name),
     );
 
-    // Filter out any root document that corresponds to a child workflow
     rootDocuments = rootDocuments.filter((doc) => {
       if (doc.type === "folder" && hideLiteralWorkflowNames.has(doc.name)) {
         return false;
       }
       return true;
     });
-    // =========================================================================
 
-    // Get document access for user and their roles
-    const documentAccesses = await prisma.documentAccess.findMany({
+    // ✅ FIX 1: Fetch ALL document accesses including department matches
+    const allUserAccesses = await prisma.documentAccess.findMany({
       where: {
-        OR: [{ userId: userId }, { roleId: { in: roleIds } }],
-        documentId: { in: rootDocuments.map((doc) => doc.id) },
+        OR: [
+          { userId: userId },
+          { roleId: { in: roleIds } },
+          { departmentId: { in: deptIds } },
+        ],
       },
-      select: {
-        documentId: true,
-        accessType: true,
-        accessLevel: true,
-      },
+      select: { documentId: true, accessType: true, accessLevel: true },
     });
 
-    // Organize access by document
+    // Organize explicit access by document
     const documentAccessMap = new Map();
-    documentAccesses.forEach((access) => {
+    allUserAccesses.forEach((access) => {
       if (!documentAccessMap.has(access.documentId)) {
         documentAccessMap.set(access.documentId, {
           readable: false,
@@ -102,18 +99,15 @@ export const getRootDocumentsWithAccess = async (req, res) => {
           isFullAccess: access.accessLevel === "FULL",
         });
       }
-
       const docAccess = documentAccessMap.get(access.documentId);
-
-      // For FULL access level, grant all permissions
       if (access.accessLevel === "FULL") {
-        docAccess.readable = true;
-        docAccess.writable = true;
-        docAccess.uploadable = true;
-        docAccess.downloadable = true;
-        docAccess.isFullAccess = true;
+        docAccess.readable =
+          docAccess.writable =
+          docAccess.uploadable =
+          docAccess.downloadable =
+          docAccess.isFullAccess =
+            true;
       } else {
-        // For STANDARD access, only grant the specified permissions
         access.accessType.forEach((type) => {
           if (type === "READ") docAccess.readable = true;
           if (type === "EDIT") {
@@ -125,20 +119,59 @@ export const getRootDocumentsWithAccess = async (req, res) => {
       }
     });
 
-    // Filter documents based on user permissions
+    // ✅ FIX 2: Prepare explicit paths & workflow resolution helper
+    const accessibleDocIds = allUserAccesses.map((a) => a.documentId);
+    const accessibleDocs = await prisma.document.findMany({
+      where: { id: { in: accessibleDocIds } },
+      select: { path: true },
+    });
+    const accessiblePaths = accessibleDocs.map((d) => d.path);
+
+    const getFolderPrefixes = (docName, docPath) => {
+      const prefixes = [docPath + "/"];
+      const workflow = activeWorkflows.find((w) => w.name === docName);
+      if (workflow) {
+        const descendants = new Set();
+        let currentLevelIds = [workflow.id];
+        while (currentLevelIds.length > 0) {
+          const children = activeWorkflows.filter((w) =>
+            currentLevelIds.includes(w.parentWorkflowId),
+          );
+          children.forEach((c) => descendants.add(c.name));
+          currentLevelIds = children.map((c) => c.id);
+        }
+        descendants.forEach((name) => {
+          const prefix = `/${name}/`;
+          if (!prefixes.includes(prefix)) prefixes.push(prefix);
+        });
+      }
+      return prefixes;
+    };
+
+    // Filter documents based on direct OR deeply nested permissions
     const accessibleRootDocuments = rootDocuments.filter((doc) => {
-      // Admin has full access
       if (user.username === "admin" || user.isAdmin || user.specialUser)
         return true;
 
+      // Check direct access
       const access = documentAccessMap.get(doc.id);
-      return access && (access.readable || access.writable);
+      if (access && (access.readable || access.writable)) return true;
+
+      // Check logical nested access
+      if (doc.type === "folder") {
+        const allowedPrefixes = getFolderPrefixes(doc.name, doc.path);
+        return accessiblePaths.some((p) =>
+          allowedPrefixes.some(
+            (prefix) => p.startsWith(prefix) || p === prefix.slice(0, -1),
+          ),
+        );
+      }
+      return false;
     });
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
 
-    // Map documents to include metadata
     const mappedDocuments = await Promise.all(
       accessibleRootDocuments.map(async (doc) => {
         const fileAbsolutePath = path.join(
@@ -146,18 +179,16 @@ export const getRootDocumentsWithAccess = async (req, res) => {
           process.env.STORAGE_PATH,
           doc.path.substring(1),
         );
-
         try {
           const fileStats = await fs.stat(fileAbsolutePath);
           const access = documentAccessMap.get(doc.id) || {};
-
           return {
             id: doc.id,
             name: doc.name,
-            path: `..`, // As required by your frontend logic for root
+            path: `..`,
             type: doc.type,
             createdOn: doc.createdOn,
-            createdBy: doc.createdById, // Could map to username if needed, keeping as ID per original
+            createdBy: doc.createdById,
             lastUpdated: fileStats.mtime,
             lastAccessed: fileStats.atime,
             size: fileStats.size,
@@ -174,16 +205,14 @@ export const getRootDocumentsWithAccess = async (req, res) => {
             children: [],
           };
         } catch (err) {
-          console.error(`Failed to retrieve file stats for ${doc.path}:`, err);
           return null;
         }
       }),
     );
 
-    // Filter out null values
-    const result = mappedDocuments.filter((doc) => doc !== null);
-
-    return res.status(200).json({ children: result });
+    return res
+      .status(200)
+      .json({ children: mappedDocuments.filter((doc) => doc !== null) });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
@@ -194,23 +223,16 @@ export const getRootDocumentsForEdit = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
-    if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
-    }
+    if (userData === "Unauthorized")
+      return res.status(401).json({ message: "Unauthorized request" });
 
     const roleId = Number(req.body.role);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
 
-    if (!roleId) {
-      return res.status(400).json({
-        message: "Role ID is required",
-      });
-    }
+    if (!roleId)
+      return res.status(400).json({ message: "Role ID is required" });
 
-    // Fetch document accesses for the specific role
     const roleAccesses = await prisma.documentAccess.findMany({
       where: {
         roleId: roleId,
@@ -219,17 +241,9 @@ export const getRootDocumentsForEdit = async (req, res) => {
           { docAccessThrough: "SELF" },
         ],
       },
-      include: {
-        document: {
-          select: {
-            id: true,
-            parentId: true,
-          },
-        },
-      },
+      include: { document: { select: { id: true, parentId: true } } },
     });
 
-    // Organize access data with parent consideration
     const selectedUpload = [];
     const selectedDownload = [];
     const selectedView = [];
@@ -244,63 +258,84 @@ export const getRootDocumentsForEdit = async (req, res) => {
           view: true,
         });
       } else {
-        if (access.accessType.includes("EDIT")) {
+        if (access.accessType.includes("EDIT"))
           selectedUpload.push(access.documentId);
-        }
-        if (access.accessType.includes("DOWNLOAD")) {
+        if (access.accessType.includes("DOWNLOAD"))
           selectedDownload.push(access.documentId);
-        }
-        if (access.accessType.includes("READ")) {
+        if (access.accessType.includes("READ"))
           selectedView.push(access.documentId);
-        }
       }
     });
 
-    // Fetch root project documents with their children
     let rootDocuments = await prisma.document.findMany({
-      where: {
-        isProject: true,
-        parentId: null,
-      },
+      where: { isProject: true, parentId: null },
       include: {
-        children: {
-          select: {
-            id: true,
-            name: true,
-            path: true,
-            type: true,
-          },
-        },
+        children: { select: { id: true, name: true, path: true, type: true } },
       },
     });
 
-    if (!rootDocuments.length) {
-      return res.status(400).json({
-        message: "No root documents found",
-      });
-    }
+    if (!rootDocuments.length)
+      return res.status(400).json({ message: "No root documents found" });
 
-    // =========================================================================
-    // ✅ FILTER OUT CHILD WORKFLOWS FROM ROOT EDIT VIEW
-    // =========================================================================
-    const activeWorkflowsWithParents = await prisma.workflow.findMany({
-      where: { parentWorkflowId: { not: null }, isActive: true },
-      select: { name: true },
+    const activeWorkflows = await prisma.workflow.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, parentWorkflowId: true },
     });
 
     const hideLiteralWorkflowNames = new Set(
-      activeWorkflowsWithParents.map((w) => w.name),
+      activeWorkflows
+        .filter((w) => w.parentWorkflowId !== null)
+        .map((w) => w.name),
     );
 
-    rootDocuments = rootDocuments.filter((doc) => {
-      if (doc.type === "folder" && hideLiteralWorkflowNames.has(doc.name)) {
-        return false;
-      }
-      return true;
+    const accessibleDocIds = roleAccesses.map((a) => a.documentId);
+    const accessibleDocs = await prisma.document.findMany({
+      where: { id: { in: accessibleDocIds } },
+      select: { path: true },
     });
-    // =========================================================================
+    const accessiblePaths = accessibleDocs.map((d) => d.path);
 
-    // Process documents and include file stats
+    const getFolderPrefixes = (docName, docPath) => {
+      const prefixes = [docPath + "/"];
+      const workflow = activeWorkflows.find((w) => w.name === docName);
+      if (workflow) {
+        const descendants = new Set();
+        let currentLevelIds = [workflow.id];
+        while (currentLevelIds.length > 0) {
+          const childrenWfs = activeWorkflows.filter((w) =>
+            currentLevelIds.includes(w.parentWorkflowId),
+          );
+          childrenWfs.forEach((c) => descendants.add(c.name));
+          currentLevelIds = childrenWfs.map((c) => c.id);
+        }
+        descendants.forEach((name) => {
+          const prefix = `/${name}/`;
+          if (!prefixes.includes(prefix)) prefixes.push(prefix);
+        });
+      }
+      return prefixes;
+    };
+
+    rootDocuments = rootDocuments.filter((doc) => {
+      if (doc.type === "folder" && hideLiteralWorkflowNames.has(doc.name))
+        return false;
+
+      const hasDirectAccess = roleAccesses.some(
+        (access) => access.documentId === doc.id,
+      );
+      if (hasDirectAccess) return true;
+
+      if (doc.type === "folder") {
+        const allowedPrefixes = getFolderPrefixes(doc.name, doc.path);
+        return accessiblePaths.some((p) =>
+          allowedPrefixes.some(
+            (prefix) => p.startsWith(prefix) || p === prefix.slice(0, -1),
+          ),
+        );
+      }
+      return false;
+    });
+
     const childrenData = await Promise.all(
       rootDocuments.map(async (doc) => {
         const fileAbsolutePath = path.join(
@@ -310,14 +345,11 @@ export const getRootDocumentsForEdit = async (req, res) => {
         );
         try {
           const fileStats = await fs.stat(fileAbsolutePath);
-
-          // Check if this document has full access
           const hasFullAccess = roleAccesses.some(
             (access) =>
               access.documentId === doc.id && access.accessLevel === "FULL",
           );
 
-          // If full access, add all children to the respective arrays
           if (hasFullAccess) {
             doc.children.forEach((child) => {
               if (child.type === "folder") {
@@ -343,19 +375,17 @@ export const getRootDocumentsForEdit = async (req, res) => {
             children: doc.children.map((child) => ({
               id: child.id,
               name: child.name,
-              path: `..${child.path.substring(19)}`, // original path formatting
+              path: `..${child.path.substring(19)}`,
               type: child.type,
               children: [],
             })),
           };
         } catch (error) {
-          console.error(`Error accessing file at ${fileAbsolutePath}:`, error);
           return null;
         }
       }),
     );
 
-    // Filter out null results and prepare response
     const filteredChildren = childrenData.filter((doc) => doc !== null);
 
     return res.status(200).json({
@@ -369,8 +399,6 @@ export const getRootDocumentsForEdit = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getRootDocumentsForEdit:", error);
-    return res.status(500).json({
-      message: "Error accessing documents",
-    });
+    return res.status(500).json({ message: "Error accessing documents" });
   }
 };

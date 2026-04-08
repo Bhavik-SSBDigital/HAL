@@ -38,9 +38,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     sessionData();
   const location = useLocation();
   const { pathname } = location;
+  
   const username = sessionStorage.getItem('username');
-  const isPhysicalDocumentKeeper =
-    sessionStorage.getItem('isKeeperOfPhysicalDocs') === 'true';
+  const isPhysicalDocumentKeeper = sessionStorage.getItem('isKeeperOfPhysicalDocs') === 'true';
+  
+  // ✅ Admin Validation Check
+  const isAdmin = sessionStorage.getItem('isAdmin') === 'true'; 
 
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
@@ -86,7 +89,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  function truncateUsername(username: string, maxLength = 12) {
+  function truncateUsername(username: string | null, maxLength = 12) {
     if (!username || typeof username !== 'string') return '';
     return username.length <= maxLength
       ? username
@@ -131,24 +134,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       icon: <IconBookmark size={26} />,
       active: pathname == '/bookmark',
     },
-    // {
-    //   path: '/Search',
-    //   label: 'Search Document',
-    //   icon: <IconFolderSearch size={26} />,
-    //   active: pathname == '/Search',
-    // },
-    // {
-    //   path: '/meeting-manager',
-    //   label: 'Meeting Manager',
-    //   icon: <IconCalendarStats />,
-    //   active: pathname == '/meeting-manager',
-    // },
-    // {
-    //   path: '/monitor',
-    //   label: 'Monitor Processes',
-    //   icon: <IconChartHistogram size={26} />,
-    //   active: pathname == '/monitor',
-    // },
     {
       path: '/workflows',
       label: 'Workflows',
@@ -234,6 +219,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         { path: '/processes/completed', label: 'Initiated Processes' },
         { path: '/processes/drafted', label: 'Drafted Processes' },
         { path: '/processes/initiate', label: 'Initiate Process' },
+        // ✅ Admin Only: Delete Process Route
+        ...(isAdmin ? [{ path: '/processes/delete', label: 'Delete Process' }] : []),
       ],
       active: pathname.includes('process'),
     },
@@ -275,13 +262,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       ),
       active: pathname == '/physicalDocuments',
     },
-  ].filter(Boolean); // Filter out any false values
+  ].filter(Boolean);
 
   useEffect(() => {
     const getRecommendationLength = async () => {
       try {
         const response = await getRecommendations();
-        console.log(response);
         setRecommendationsLength(response?.data?.recommendations?.length);
       } catch (error) {
         console.log(error);
@@ -289,13 +275,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     };
     getRecommendationLength();
   }, []);
+
   return (
     <aside
       ref={sidebar}
-      style={{
-        width: '280px',
-        // background: 'linear-gradient(63deg, #08203e, #557c93)',
-      }}
+      style={{ width: '280px' }}
       className={`absolute bg-sidebar-gradient-9 left-0 top-0 z-99 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
@@ -309,7 +293,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       >
         <IconSquareLetterX color="white" />
       </button>
-      <Tooltip title={username}>
+      <Tooltip title={username || ''}>
         <Button
           onClick={() => navigate('/profile')}
           sx={{
@@ -330,7 +314,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         <nav className="py-1 px-1">
           <ul className="mb-6 flex flex-col gap-0.5 p-1">
             {routes.map((route, index) => {
-              if (route.dropdown) {
+              if (route && typeof route === 'object' && 'dropdown' in route && route.dropdown) {
                 return (
                   <SidebarLinkGroup key={index} activeCondition={route.active}>
                     {() => (
@@ -383,33 +367,35 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 );
               }
 
-              return (
-                <NavLink
-                  key={index}
-                  to={route.path}
-                  onClick={() => {
-                    if (route.path === '/physicalDocuments') {
-                      sessionStorage.setItem('path', '..');
-                      dispatch(defaultPath());
-                    }
-                  }}
-                  className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
-                    route.active ? 'bg-sidebar-active text-white' : ''
-                  }`}
-                >
-                  {route.icon}
-                  <span className="duration-300 ease-in-out transform group-hover:scale-105">
-                    {route.label}
-                  </span>
-                  {route.path === '/recommendations' &&
-                    recommendationsLength > 0 && (
-                      <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
-                        {recommendationsLength}
-                        {console.log(recommendationsLength)}
-                      </span>
-                    )}
-                </NavLink>
-              );
+              if (route && typeof route === 'object' && 'path' in route) {
+                return (
+                  <NavLink
+                    key={index}
+                    to={route.path}
+                    onClick={() => {
+                      if (route.path === '/physicalDocuments') {
+                        sessionStorage.setItem('path', '..');
+                        dispatch(defaultPath());
+                      }
+                    }}
+                    className={`group relative flex items-center gap-3 rounded-sm py-3 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-gray-700 dark:hover:bg-meta-4 hover:text-white ${
+                      route.active ? 'bg-sidebar-active text-white' : ''
+                    }`}
+                  >
+                    {route.icon}
+                    <span className="duration-300 ease-in-out transform group-hover:scale-105">
+                      {route.label}
+                    </span>
+                    {route.path === '/recommendations' &&
+                      recommendationsLength > 0 && (
+                        <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                          {recommendationsLength}
+                        </span>
+                      )}
+                  </NavLink>
+                );
+              }
+              return null;
             })}
           </ul>
         </nav>

@@ -162,6 +162,8 @@ import {
   get_process_documents,
   upload_documents_in_process,
   delete_document_in_process,
+  get_all_processes_for_admin,
+  delete_process_cleanup,
 } from "../controller/process-controller.js";
 import { pick_process_step } from "../controller/process-step-claim.js";
 
@@ -271,6 +273,9 @@ router.post("/workflows/:newWorkflowId/migrate-processes", migrateProcesses);
 router.post("/initiateProcess", initiate_process);
 
 router.get("/viewProcess/:processId", view_process);
+
+router.get("/process/admin/all", get_all_processes_for_admin);
+router.delete("/process/admin/cleanup/:processId", delete_process_cleanup);
 
 router.post("/process/restart", copy_and_restart_process);
 
