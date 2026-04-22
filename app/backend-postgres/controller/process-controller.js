@@ -382,69 +382,75 @@ export const initiate_process = async (req, res, next) => {
 
     const initiatorId = userData.id;
 
-    const process = await prisma.$transaction(async (tx) => {
-      const process_ = await tx.processInstance.create({
-        data: {
-          workflowId,
-          initiatorId,
-          name: processName,
-          status: "IN_PROGRESS",
-          description,
-          issueNo,
-          currentStepId: null,
-          reopenCycle: 0,
-          storagePath: `../${workflowName}/${processName}`,
-        },
-      });
+    const process = await prisma.$transaction(
+      async (tx) => {
+        const process_ = await tx.processInstance.create({
+          data: {
+            workflowId,
+            initiatorId,
+            name: processName,
+            status: "IN_PROGRESS",
+            description,
+            issueNo,
+            currentStepId: null,
+            reopenCycle: 0,
+            storagePath: `../${workflowName}/${processName}`,
+          },
+        });
 
-      const processDocumentData =
-        req.body.documents?.map((item, index) => ({
-          processId: process_.id,
-          documentId: documentIds[index],
-          reopenCycle: 0,
-          SOPIssueNo: issueNo || null,
-          preApproved: item.preApproved || false,
-          tags: item.tags || [],
-          partNumber: item.partNumber || null,
-          description: item.description || null,
-          issueNo: item.issueNo || null,
-        })) || [];
+        const processDocumentData =
+          req.body.documents?.map((item, index) => ({
+            processId: process_.id,
+            documentId: documentIds[index],
+            reopenCycle: 0,
+            SOPIssueNo: issueNo || null,
+            preApproved: item.preApproved || false,
+            tags: item.tags || [],
+            partNumber: item.partNumber || null,
+            description: item.description || null,
+            issueNo: item.issueNo || null,
+          })) || [];
 
-      await tx.processDocument.createMany({
-        data: processDocumentData,
-      });
+        await tx.processDocument.createMany({
+          data: processDocumentData,
+        });
 
-      const workflow = await tx.workflow.findUnique({
-        where: { id: workflowId },
-        include: { steps: { include: { assignments: true } } },
-      });
+        const workflow = await tx.workflow.findUnique({
+          where: { id: workflowId },
+          include: { steps: { include: { assignments: true } } },
+        });
 
-      if (!workflow || !workflow.steps.length) {
-        throw new Error("Workflow or steps not found");
-      }
+        if (!workflow || !workflow.steps.length) {
+          throw new Error("Workflow or steps not found");
+        }
 
-      const step = workflow.steps[0];
+        const step = workflow.steps[0];
 
-      for (const assignment of step.assignments) {
-        await processAssignment(
-          tx,
-          process_,
-          step,
-          assignment,
-          documentIds,
-          false,
-          true,
-          workflowId,
-        );
-      }
+        for (const assignment of step.assignments) {
+          await processAssignment(
+            tx,
+            process_,
+            step,
+            assignment,
+            documentIds,
+            false,
+            true,
+            workflowId,
+          );
+        }
 
-      await tx.processInstance.update({
-        where: { id: process_.id },
-        data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
-      });
+        await tx.processInstance.update({
+          where: { id: process_.id },
+          data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
+        });
 
-      return process_;
-    });
+        return process_;
+      },
+      {
+        maxWait: 10000, // can increase if needed
+        timeout: 480000, // 2 minutes
+      },
+    );
 
     return res.status(200).json({
       message: `Process with the name ${processName} initiated successfully`,
