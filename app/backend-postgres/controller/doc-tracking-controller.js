@@ -269,12 +269,37 @@ export const get_physical_request_messages = async (req, res) => {
     if (userData === "Unauthorized") {
       return res.status(401).json({ message: "Unauthorized request" });
     }
-
     const { id } = req.params;
 
+    // 1. UPDATED: Include requestingUser data so we can build the initial message
     const request = await prisma.physicalDocumentRequest.findUnique({
       where: { id: parseInt(id) },
-      include: { department: true },
+      include: {
+        department: true,
+        requestingUser: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            roles: {
+              include: {
+                role: {
+                  select: {
+                    id: true,
+                    role: true,
+                    isAdmin: true,
+                    isDepartmentHead: true,
+                    departmentId: true,
+                    branch: { select: { id: true, name: true, code: true } },
+                  },
+                },
+              },
+            },
+            branches: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
     });
 
     if (!request) {
@@ -284,10 +309,7 @@ export const get_physical_request_messages = async (req, res) => {
     // Get user info to check admin/authorized status
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userData.id) },
-      select: {
-        isAdmin: true,
-        isKeeperOfPhysicalDocs: true,
-      },
+      select: { isAdmin: true, isKeeperOfPhysicalDocs: true },
     });
 
     // Get user roles to check admin roles
@@ -296,7 +318,6 @@ export const get_physical_request_messages = async (req, res) => {
       select: { isAdmin: true, departmentId: true },
     });
 
-    // Check if user can act as admin (admin role, isAdmin flag, or isKeeperOfPhysicalDocs)
     const canActAsAdmin =
       roles.some((role) => role.isAdmin) ||
       user.isAdmin ||
@@ -327,31 +348,19 @@ export const get_physical_request_messages = async (req, res) => {
                     isAdmin: true,
                     isDepartmentHead: true,
                     departmentId: true,
-                    branch: {
-                      select: {
-                        id: true,
-                        name: true,
-                        code: true,
-                      },
-                    },
+                    branch: { select: { id: true, name: true, code: true } },
                   },
                 },
               },
             },
-            branches: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
+            branches: { select: { id: true, name: true, code: true } },
           },
         },
       },
       orderBy: { createdAt: "asc" },
     });
 
-    // Format messages to enhance user details while keeping the same structure
+    // Format messages
     const formattedMessages = messages.map((message) => ({
       id: message.id,
       requestId: message.requestId,
@@ -377,6 +386,36 @@ export const get_physical_request_messages = async (req, res) => {
         departments: message.user.branches,
       },
     }));
+
+    // 2. NEW: Construct the initial request message from the parent record
+    const initialMessage = {
+      id: `req-${request.id}`, // Fake ID so React keys don't clash
+      requestId: request.id,
+      userId: request.requestingUserId,
+      message: request.reason, // Pulling the initial reason here!
+      createdAt: request.createdAt,
+      previousStatus: null,
+      newStatus: "PENDING_ADMIN_APPROVAL", // The state it started in
+      changerRole: "REQUESTER",
+      user: {
+        id: request.requestingUser.id,
+        name: request.requestingUser.name,
+        username: request.requestingUser.username,
+        email: request.requestingUser.email,
+        roles: request.requestingUser.roles.map((userRole) => ({
+          id: userRole.role.id,
+          role: userRole.role.role,
+          isAdmin: userRole.role.isAdmin,
+          isDepartmentHead: userRole.role.isDepartmentHead,
+          departmentId: userRole.role.departmentId,
+          department: userRole.role.branch,
+        })),
+        departments: request.requestingUser.branches,
+      },
+    };
+
+    // 3. Prepend the initial request to the beginning of the log
+    formattedMessages.unshift(initialMessage);
 
     return res.status(200).json(formattedMessages);
   } catch (error) {

@@ -133,13 +133,9 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check if the user exists
     const user = await prisma.user.findUnique({
       where: { username },
-      include: {
-        tokens: true,
-        roles: true,
-      },
+      include: { tokens: true, roles: true },
     });
 
     if (!user) {
@@ -164,43 +160,36 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Password does not match" });
     }
 
-    // Check if the user already has a refresh token
     let refreshToken = user.tokens?.[0]?.token || "";
-
     if (!refreshToken) {
       refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_SECRET_KEY);
-
       await prisma.token.create({
-        data: {
-          token: refreshToken,
-          userId: user.id,
-        },
+        data: { token: refreshToken, userId: user.id },
       });
     }
 
-    // Generate an access token with all required user properties
-
-    let roles = await prisma.role.findMany({
-      where: { id: { in: user.roles.map((role) => role.roleId) } },
+    const roles = await prisma.role.findMany({
+      where: { id: { in: user.roles.map((r) => r.roleId) } },
     });
 
-    const isAdmin = roles.some((role) => role.isAdmin) || user.isAdmin;
-
-    const isDepartmentHead = roles.some((role) => role.isDepartmentHead);
+    // ✅ Multi-role: ANY matching role is sufficient
+    const isAdmin = roles.some((r) => r.isAdmin) || user.isAdmin === true;
+    const isDepartmentHead = roles.some((r) => r.isDepartmentHead);
+    const isRootLevel =
+      roles.some((r) => r.isRootLevel) || user.isRootLevel === true;
 
     const accessToken = jwt.sign(
       {
         id: user.id,
         username: user.username,
         email: user.email,
-        roles: user.roles.map((role) => role.roleId),
-        isAdmin: isAdmin,
-        isDepartmentHead: isDepartmentHead,
+        roles: user.roles.map((r) => r.roleId),
+        isAdmin,
+        isDepartmentHead,
+        isRootLevel,
       },
       process.env.SECRET_ACCESS_KEY,
-      {
-        expiresIn: "365d",
-      },
+      { expiresIn: "365d" },
     );
 
     await prisma.loginLog.create({
@@ -214,15 +203,17 @@ export const login = async (req, res) => {
         success: true,
       },
     });
+
     res.status(200).json({
       accessToken,
       refreshToken,
       email: user.email,
       userName: user.username,
       userId: user.id,
-      roles: roles.map((role) => role.role),
-      isAdmin: isAdmin,
-      isDepartmentHead: isDepartmentHead,
+      roles: roles.map((r) => r.role),
+      isAdmin,
+      isDepartmentHead,
+      isRootLevel,
       isKeeperOfPhysicalDocs: user.isKeeperOfPhysicalDocs,
     });
   } catch (error) {

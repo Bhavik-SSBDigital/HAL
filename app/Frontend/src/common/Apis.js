@@ -5,7 +5,10 @@ import {
 } from '../components/drop-file-input/FileUploadDownload';
 import { toast } from 'react-toastify';
 
+import CryptoJS from 'crypto-js';
+
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
+const PAYLOAD_SECRET = import.meta.env.VITE_PAYLOAD_SECRET;
 
 const getAccessToken = () => sessionStorage.getItem('accessToken');
 
@@ -136,6 +139,19 @@ export const deleteDepartment = async (id) => {
   return apiClient.delete(`/deleteDepartment/${id}`);
 };
 
+// Add these two to your common/Apis.ts
+
+export const fetchSidebarConfig = () => apiClient.get('/sidebar-config');
+
+export const saveSidebarConfig = (data) =>
+  apiClient.put('/sidebar-config', data);
+
+// In common/Apis.ts
+export const getSidebarConfig = () => apiClient.get('/sidebar-config');
+
+export const updateSidebarConfig = (data) =>
+  apiClient.put('/sidebar-config', data);
+
 // users endpoints
 export const getUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: false } });
@@ -145,6 +161,12 @@ export const getAllUsers = async (fromAdmin) => {
 };
 export const getRootLevelUsers = async () => {
   return apiClient.get('/getUsers', { params: { isRootLevel: true } });
+};
+export const GetWorkflowById = async (id) => {
+  const token = sessionStorage.getItem('accessToken');
+  return await axios.get(`${backendUrl}/workflows/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 };
 export const CreateUser = async (data) => {
   return apiClient.post('/signup', data);
@@ -195,9 +217,22 @@ export const getAllProcessesForAdmin = async () => {
   return apiClient.get('/process/admin/all');
 };
 
+// Add these to Apis.js
+
+export const FulfillMetadataDocument = (data) =>
+  apiClient.post('/processes/fulfill-metadata-document', data);
+
+export const GetProcessSubFolderContents = (data) =>
+  apiClient.post('/getProcessSubFolderContents', data);
+
 export const deleteProcessCleanup = async (processId) => {
   return apiClient.delete(`/process/admin/cleanup/${processId}`);
 };
+
+export const getDashboardEntityAnalytics = (startDate, endDate) =>
+  apiClient.get(
+    `/dashboard/getEntityAnalytics?startDate=${startDate}&endDate=${endDate}`,
+  );
 
 // workflow endpoints
 export const CreateWorkflow = async (data) => {
@@ -470,6 +505,21 @@ export const deleteBranch = async (id) => {
 export const signIn = async (data) => {
   return apiClient.post(`/login`, data);
 };
+
+function encryptValue(value) {
+  return encodeURIComponent(
+    CryptoJS.AES.encrypt(String(value), PAYLOAD_SECRET).toString(),
+  );
+}
+
+function encryptBody(data) {
+  return {
+    encrypted: CryptoJS.AES.encrypt(
+      JSON.stringify(data),
+      PAYLOAD_SECRET,
+    ).toString(),
+  };
+}
 
 // signUp endpoints
 export const changePassword = async (data) => {

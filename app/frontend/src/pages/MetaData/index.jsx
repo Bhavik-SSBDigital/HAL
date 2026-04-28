@@ -15,7 +15,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import styles from './MetaData.module.css';
-import Grid2 from '@mui/material/Grid2';
+import Grid from "@mui/material/Grid";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';

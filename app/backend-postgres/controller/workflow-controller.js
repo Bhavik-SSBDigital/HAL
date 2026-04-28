@@ -439,6 +439,167 @@ export const view_workflow = async (req, res) => {
   }
 };
 
+export const getWorkflowById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: id },
+      include: {
+        createdBy: { select: { id: true, username: true, email: true } },
+        previousVersion: { select: { id: true, name: true, version: true } },
+        steps: {
+          include: {
+            assignments: {
+              include: {
+                departmentRoles: {
+                  include: { department: true, role: true },
+                },
+              },
+            },
+          },
+          orderBy: { stepNumber: "asc" },
+        },
+      },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    // 1. Collect ALL IDs across all assignments to fetch names in bulk
+    const allUserIds = new Set();
+    const allRoleIds = new Set();
+    const allDeptIds = new Set();
+
+    workflow.steps.forEach((step) => {
+      step.assignments.forEach((assignment) => {
+        // Collect IDs for selectedRoles (Department logic)
+        assignment.departmentRoles.forEach((dr) => allRoleIds.add(dr.roleId));
+        if (
+          assignment.assigneeType !== "DEPARTMENT" &&
+          Array.isArray(assignment.selectedRoles)
+        ) {
+          assignment.selectedRoles.forEach((roleId) => allRoleIds.add(roleId));
+        }
+
+        // Collect IDs for assigneeIds
+        if (Array.isArray(assignment.assigneeIds)) {
+          if (assignment.assigneeType === "USER") {
+            assignment.assigneeIds.forEach((id) => allUserIds.add(id));
+          } else if (assignment.assigneeType === "ROLE") {
+            assignment.assigneeIds.forEach((id) => allRoleIds.add(id));
+          } else if (assignment.assigneeType === "DEPARTMENT") {
+            assignment.assigneeIds.forEach((id) => allDeptIds.add(id));
+          }
+        }
+      });
+    });
+
+    // 2. Fetch real names from DB
+    const [users, roles, depts] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: Array.from(allUserIds) } },
+        select: { id: true, username: true },
+      }),
+      prisma.role.findMany({
+        where: { id: { in: Array.from(allRoleIds) } },
+        select: { id: true, role: true },
+      }),
+      prisma.department.findMany({
+        where: { id: { in: Array.from(allDeptIds) } },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    // 3. Create lookup maps
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+    const deptMapList = new Map(depts.map((d) => [d.id, d.name]));
+
+    // 4. Format the final JSON
+    const formattedWorkflow = {
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description,
+      version: workflow.version,
+      status: workflow.status,
+      createdAt: workflow.createdAt,
+      parentWorkflowId: workflow.parentWorkflowId,
+      previousVersion: workflow.previousVersion,
+      createdBy: workflow.createdBy,
+      steps: workflow.steps.map((step) => ({
+        id: step.id,
+        stepNumber: step.stepNumber,
+        stepName: step.stepName,
+        allowParallel: step.allowParallel,
+        requiresDocument: step.requiresDocument,
+        assignments: step.assignments.map((assignee) => {
+          // Map raw assigneeIds to { id, name } objects
+          const mappedAssigneeIds = Array.isArray(assignee.assigneeIds)
+            ? assignee.assigneeIds.map((id) => {
+                let name = String(id);
+                if (assignee.assigneeType === "USER")
+                  name = userMap.get(id) || `User ${id}`;
+                if (assignee.assigneeType === "ROLE")
+                  name = roleMap.get(id) || `Role ${id}`;
+                if (assignee.assigneeType === "DEPARTMENT")
+                  name = deptMapList.get(id) || `Dept ${id}`;
+                return { id, name };
+              })
+            : [];
+
+          if (assignee.assigneeType === "DEPARTMENT") {
+            const deptMap = new Map();
+            assignee.departmentRoles.forEach((dr) => {
+              if (!deptMap.has(dr.departmentId)) {
+                deptMap.set(dr.departmentId, {
+                  department: dr.department.name,
+                  roles: [],
+                  direction: dr.direction,
+                  allowParallel: dr.allowParallel,
+                });
+              }
+              deptMap
+                .get(dr.departmentId)
+                .roles.push({ id: dr.role.id, name: dr.role.role });
+            });
+
+            return {
+              assigneeType: assignee.assigneeType,
+              assigneeIds: mappedAssigneeIds,
+              actionType: assignee.actionType,
+              accessTypes: assignee.accessTypes,
+              direction: assignee.direction,
+              allowParallel: assignee.allowParallel,
+              selectedRoles: Array.from(deptMap.values()),
+            };
+          } else {
+            return {
+              assigneeType: assignee.assigneeType,
+              assigneeIds: mappedAssigneeIds,
+              actionType: assignee.actionType,
+              accessTypes: assignee.accessTypes,
+              direction: assignee.direction,
+              allowParallel: assignee.allowParallel,
+              selectedRoles: Array.isArray(assignee.selectedRoles)
+                ? assignee.selectedRoles.map((roleId) => ({
+                    id: roleId,
+                    name: roleMap.get(roleId) || "Unknown Role",
+                  }))
+                : [],
+            };
+          }
+        }),
+      })),
+    };
+
+    return res.status(200).json({ workflow: formattedWorkflow });
+  } catch (error) {
+    console.error("Error fetching workflow by ID:", error);
+    return res.status(500).json({ error: "Failed to retrieve workflow" });
+  }
+};
 /*
 AS A URL PARAM: workflowId
 */
@@ -497,16 +658,13 @@ export const get_workflows = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    // Fetch user's roles for ROLE and DEPARTMENT checks
     const userRoles = await prisma.userRole.findMany({
       where: { userId: userData.id },
       select: { roleId: true },
     });
     const userRoleIds = userRoles.map((r) => r.roleId);
 
-    // Helper function to check if user has access to step 1 of a workflow
     const checkUserAccessToStep1 = async (workflowId) => {
-      // Get step 1 assignments for this workflow
       const step1Assignments = await prisma.workflowAssignment.findMany({
         where: {
           step: {
@@ -523,86 +681,59 @@ export const get_workflows = async (req, res) => {
         },
       });
 
-      // Check if user has access through any assignment
       for (const assignment of step1Assignments) {
         switch (assignment.assigneeType) {
           case "USER":
-            if (assignment.assigneeIds.includes(userData.id)) {
-              return true;
-            }
+            if (assignment.assigneeIds.includes(userData.id)) return true;
             break;
-
           case "ROLE":
-            // Check if user has any of the assigned roles
-            const userHasRole = assignment.assigneeIds.some((roleId) =>
-              userRoleIds.includes(roleId),
-            );
-            if (userHasRole) {
+            if (
+              assignment.assigneeIds.some((roleId) =>
+                userRoleIds.includes(roleId),
+              )
+            )
               return true;
-            }
             break;
-
           case "DEPARTMENT":
-            // Get user's departments
             const userDepartments = await prisma.department.findMany({
               where: { users: { some: { id: userData.id } } },
               select: { id: true },
             });
             const userDeptIds = userDepartments.map((d) => d.id);
-
-            // Check if user is in any of the assigned departments
-            const userInDept = assignment.assigneeIds.some((deptId) =>
-              userDeptIds.includes(deptId),
-            );
-
-            if (userInDept && assignment.selectedRoles.length > 0) {
-              // Check role hierarchy for department assignments
+            if (
+              assignment.assigneeIds.some((deptId) =>
+                userDeptIds.includes(deptId),
+              ) &&
+              assignment.selectedRoles.length > 0
+            ) {
               const hierarchy = await buildRoleHierarchyForAssignment(
                 assignment.direction,
                 assignment.allowParallel,
                 assignment.selectedRoles,
               );
-
-              // Get target roles based on direction
               const targetRoles =
                 assignment.direction === "UPWARDS"
                   ? hierarchy[0] || []
                   : hierarchy[hierarchy.length - 1] || [];
-
-              // Check if user has any of the target roles
-              const userHasTargetRole = targetRoles.some((roleId) =>
-                userRoleIds.includes(roleId),
-              );
-
-              if (userHasTargetRole) {
+              if (targetRoles.some((roleId) => userRoleIds.includes(roleId)))
                 return true;
-              }
             }
             break;
         }
       }
-
       return false;
     };
 
-    // Get ALL active workflows
     const allActiveWorkflows = await prisma.workflow.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        previousVersionId: true,
-      },
+      select: { id: true, name: true, previousVersionId: true },
     });
 
-    // For each active workflow, trace back to get all versions in lineage
-    const workflowGroups = new Map(); // Maps latest workflow name to array of workflow objects
-    const processedWorkflows = new Set(); // To avoid processing the same workflow multiple times
+    const workflowGroups = new Map();
+    const processedWorkflows = new Set();
 
     for (const workflow of allActiveWorkflows) {
       if (processedWorkflows.has(workflow.id)) continue;
 
-      // Get all versions in this lineage
       const lineageVersions = [];
       let currentId = workflow.id;
 
@@ -616,52 +747,31 @@ export const get_workflows = async (req, res) => {
             isActive: true,
           },
         });
-
         if (!currentWorkflow) break;
-
-        lineageVersions.push({
-          id: currentWorkflow.id,
-          name: currentWorkflow.name,
-          previousVersionId: currentWorkflow.previousVersionId,
-          isActive: currentWorkflow.isActive,
-        });
-
+        lineageVersions.push(currentWorkflow);
         processedWorkflows.add(currentWorkflow.id);
         currentId = currentWorkflow.previousVersionId;
       }
 
-      // Group by the latest workflow name
-      const latestWorkflow = lineageVersions[0]; // First one is the latest (active)
-      const groupName = latestWorkflow.name;
-
-      if (!workflowGroups.has(groupName)) {
-        workflowGroups.set(groupName, []);
-      }
-
-      // Add all lineage versions to this group
+      const groupName = lineageVersions[0].name;
+      if (!workflowGroups.has(groupName)) workflowGroups.set(groupName, []);
       workflowGroups.get(groupName).push(...lineageVersions);
     }
 
-    // Now filter each group to only include versions where user has access to step 1
     const filteredWorkflowGroups = new Map();
 
     for (const [groupName, workflowVersions] of workflowGroups.entries()) {
       const accessibleVersions = [];
-
-      // Check each version in the group
       for (const version of workflowVersions) {
-        const hasAccess = await checkUserAccessToStep1(version.id);
-        if (hasAccess || userData.isAdmin) {
+        if ((await checkUserAccessToStep1(version.id)) || userData.isAdmin) {
           accessibleVersions.push(version);
         }
       }
 
-      // Only include group if there's at least one accessible version
       if (accessibleVersions.length > 0) {
-        // Sort by version (newest first) - we'll need to get version numbers
         const versionsWithDetails = await Promise.all(
           accessibleVersions.map(async (version) => {
-            const fullWorkflow = await prisma.workflow.findUnique({
+            return await prisma.workflow.findUnique({
               where: { id: version.id },
               select: {
                 id: true,
@@ -670,10 +780,9 @@ export const get_workflows = async (req, res) => {
                 version: true,
                 createdAt: true,
                 parentWorkflowId: true,
+                parentWorkflow: { select: { name: true } }, // ✅ FETCH PARENT NAME HERE
                 isActive: true,
-                createdBy: {
-                  select: { id: true, name: true, email: true },
-                },
+                createdBy: { select: { id: true, name: true, email: true } },
                 steps: {
                   orderBy: { stepNumber: "asc" },
                   select: {
@@ -707,17 +816,13 @@ export const get_workflows = async (req, res) => {
                 },
               },
             });
-            return fullWorkflow;
           }),
         );
-
-        // Sort by version (descending)
         versionsWithDetails.sort((a, b) => b.version - a.version);
         filteredWorkflowGroups.set(groupName, versionsWithDetails);
       }
     }
 
-    // Collect all assignee IDs by type and role IDs for enrichment
     const departmentIds = new Set();
     const roleIds = new Set();
     const userIds = new Set();
@@ -728,36 +833,22 @@ export const get_workflows = async (req, res) => {
         workflow.steps.forEach((step) => {
           step.assignments.forEach((assignment) => {
             assignment.assigneeIds.forEach((id) => {
-              switch (assignment.assigneeType) {
-                case "DEPARTMENT":
-                  departmentIds.add(id);
-                  break;
-                case "ROLE":
-                  roleIds.add(id);
-                  break;
-                case "USER":
-                  userIds.add(id);
-                  break;
-              }
+              if (assignment.assigneeType === "DEPARTMENT")
+                departmentIds.add(id);
+              if (assignment.assigneeType === "ROLE") roleIds.add(id);
+              if (assignment.assigneeType === "USER") userIds.add(id);
             });
-            // Collect role IDs from selectedRoles (for non‑DEPARTMENT)
-            if (Array.isArray(assignment.selectedRoles)) {
-              assignment.selectedRoles.forEach((roleId) =>
-                selectedRoleIds.add(roleId),
+            if (Array.isArray(assignment.selectedRoles))
+              assignment.selectedRoles.forEach((id) => selectedRoleIds.add(id));
+            if (assignment.departmentRoles)
+              assignment.departmentRoles.forEach((dr) =>
+                selectedRoleIds.add(dr.roleId),
               );
-            }
-            // Collect role IDs from departmentRoles (for DEPARTMENT)
-            if (assignment.departmentRoles) {
-              assignment.departmentRoles.forEach((dr) => {
-                selectedRoleIds.add(dr.roleId);
-              });
-            }
           });
         });
       });
     }
 
-    // Fetch related entities in bulk
     const [departments, roles, users, selectedRoles] = await Promise.all([
       prisma.department.findMany({
         where: { id: { in: Array.from(departmentIds) } },
@@ -777,93 +868,79 @@ export const get_workflows = async (req, res) => {
       }),
     ]);
 
-    // Create lookup maps
     const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
     const roleMap = new Map(roles.map((r) => [r.id, r.role]));
     const userMap = new Map(users.map((u) => [u.id, u.username]));
     const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
 
-    // Build final response
     const workflowsResponse = Array.from(filteredWorkflowGroups.entries())
       .map(([groupName, workflows]) => {
-        const versions = workflows.map((workflow) => ({
-          id: workflow.id,
-          version: workflow.version,
-          description: workflow.description,
-          isActive: workflow.isActive,
-          createdBy: workflow.createdBy,
-          createdAt: workflow.createdAt,
-          parentWorkflowId: workflow.parentWorkflowId,
-          steps: workflow.steps.map((step) => ({
-            stepNumber: step.stepNumber,
-            stepName: step.stepName,
-            allowParallel: step.allowParallel,
-            requiresDocument: step.requiresDocument,
-            assignments: step.assignments.map((assignment) => {
-              // Format assigneeIds with names
-              const assigneeIds = assignment.assigneeIds.map((id) => {
-                let name = "Unknown";
-                switch (assignment.assigneeType) {
-                  case "DEPARTMENT":
-                    name = departmentMap.get(id) || "Unknown Department";
-                    break;
-                  case "ROLE":
-                    name = roleMap.get(id) || "Unknown Role";
-                    break;
-                  case "USER":
-                    name = userMap.get(id) || "Unknown User";
-                    break;
-                }
-                return { id, name };
-              });
-
-              // Build selectedRoles
-              let selectedRoles = [];
-
-              if (assignment.assigneeType === "DEPARTMENT") {
-                // Group departmentRoles by department
-                const deptMap = new Map();
-                assignment.departmentRoles?.forEach((dr) => {
-                  if (!deptMap.has(dr.departmentId)) {
-                    deptMap.set(dr.departmentId, {
-                      department: dr.departmentId,
-                      roles: [],
-                      direction: dr.direction,
-                      allowParallel: dr.allowParallel,
-                    });
-                  }
-                  deptMap.get(dr.departmentId).roles.push({
-                    id: dr.roleId,
-                    name: selectedRoleMap.get(dr.roleId) || "Unknown Role",
-                  });
-                });
-                selectedRoles = Array.from(deptMap.values());
-              } else {
-                // For non‑DEPARTMENT, use flat selectedRoles array
-                selectedRoles = (assignment.selectedRoles || []).map(
-                  (roleId) => ({
-                    id: roleId,
-                    name: selectedRoleMap.get(roleId) || "Unknown Role",
-                  }),
-                );
-              }
-
-              return {
-                assigneeType: assignment.assigneeType,
-                assigneeIds,
-                actionType: assignment.actionType,
-                accessTypes: assignment.accessTypes,
-                direction: assignment.direction,
-                allowParallel: assignment.allowParallel,
-                selectedRoles,
-              };
-            }),
-          })),
-        }));
-
         return {
           name: groupName,
-          versions: versions,
+          versions: workflows.map((workflow) => ({
+            id: workflow.id,
+            version: workflow.version,
+            description: workflow.description,
+            isActive: workflow.isActive,
+            createdBy: workflow.createdBy,
+            createdAt: workflow.createdAt,
+            parentWorkflowId: workflow.parentWorkflowId,
+            parentWorkflowName: workflow.parentWorkflow?.name || null, // ✅ MAP IT HERE
+            steps: workflow.steps.map((step) => ({
+              stepNumber: step.stepNumber,
+              stepName: step.stepName,
+              allowParallel: step.allowParallel,
+              requiresDocument: step.requiresDocument,
+              assignments: step.assignments.map((assignment) => {
+                const assigneeIds = assignment.assigneeIds.map((id) => {
+                  let name = "Unknown";
+                  if (assignment.assigneeType === "DEPARTMENT")
+                    name = departmentMap.get(id) || "Unknown Department";
+                  if (assignment.assigneeType === "ROLE")
+                    name = roleMap.get(id) || "Unknown Role";
+                  if (assignment.assigneeType === "USER")
+                    name = userMap.get(id) || "Unknown User";
+                  return { id, name };
+                });
+
+                let selectedRoles = [];
+                if (assignment.assigneeType === "DEPARTMENT") {
+                  const deptMap = new Map();
+                  assignment.departmentRoles?.forEach((dr) => {
+                    if (!deptMap.has(dr.departmentId))
+                      deptMap.set(dr.departmentId, {
+                        department: dr.departmentId,
+                        roles: [],
+                        direction: dr.direction,
+                        allowParallel: dr.allowParallel,
+                      });
+                    deptMap.get(dr.departmentId).roles.push({
+                      id: dr.roleId,
+                      name: selectedRoleMap.get(dr.roleId) || "Unknown Role",
+                    });
+                  });
+                  selectedRoles = Array.from(deptMap.values());
+                } else {
+                  selectedRoles = (assignment.selectedRoles || []).map(
+                    (roleId) => ({
+                      id: roleId,
+                      name: selectedRoleMap.get(roleId) || "Unknown Role",
+                    }),
+                  );
+                }
+
+                return {
+                  assigneeType: assignment.assigneeType,
+                  assigneeIds,
+                  actionType: assignment.actionType,
+                  accessTypes: assignment.accessTypes,
+                  direction: assignment.direction,
+                  allowParallel: assignment.allowParallel,
+                  selectedRoles,
+                };
+              }),
+            })),
+          })),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));

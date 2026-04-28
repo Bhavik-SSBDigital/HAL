@@ -24,6 +24,7 @@
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
     "docx": "^9.5.1",
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",

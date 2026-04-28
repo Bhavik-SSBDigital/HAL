@@ -35,23 +35,49 @@ export const getDocumentChildren = async (req, res, next) => {
     const accessToken = req.headers["authorization"].substring(7);
     const userData = await verifyUser(accessToken);
     if (userData === "Unauthorized") {
-      return res.status(401).json({
-        message: "Unauthorized request",
-      });
+      return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const parentPath = process.env.STORAGE_PATH + req.body.path.substring(2);
+    const requestedPath = req.body.path.substring(2);
+    const parentPath = process.env.STORAGE_PATH + requestedPath;
 
-    const parentDocument = await prisma.document.findUnique({
-      where: {
-        path: parentPath,
-      },
+    let parentDocument = await prisma.document.findUnique({
+      where: { path: parentPath },
     });
 
+    // =========================================================================
+    // ✅ VIRTUAL FOLDER INTERCEPTION (SIDEBAR)
+    // If exact path doesn't exist, check if it's a valid SOP/NON-SOP request.
+    // =========================================================================
     if (!parentDocument) {
-      return res.status(404).json({
-        message: "Parent document not found",
-      });
+      if (
+        requestedPath.endsWith("/SOP") ||
+        requestedPath.endsWith("/NON-SOP")
+      ) {
+        let parentOfVirtual = requestedPath.endsWith("/SOP")
+          ? requestedPath.substring(0, requestedPath.length - 4)
+          : requestedPath.substring(0, requestedPath.length - 8);
+
+        let actualParentPath = process.env.STORAGE_PATH + parentOfVirtual;
+        let actualParentDoc = await prisma.document.findUnique({
+          where: { path: actualParentPath },
+        });
+
+        const linkedProcess = actualParentDoc
+          ? await prisma.processInstance.findFirst({
+              where: { storagePath: { endsWith: actualParentDoc.path } },
+            })
+          : null;
+
+        // Virtual folders have no folder children inside them
+        if (
+          actualParentDoc &&
+          (actualParentDoc.isProcessFolder || !!linkedProcess)
+        ) {
+          return res.status(200).json({ children: [] });
+        }
+      }
+      return res.status(404).json({ message: "Parent document not found" });
     }
 
     let childDocuments = await prisma.document.findMany({
@@ -59,16 +85,9 @@ export const getDocumentChildren = async (req, res, next) => {
         parentId: parentDocument.id,
         type: "folder",
       },
-      select: {
-        path: true,
-        name: true,
-        type: true,
-      },
+      select: { path: true, name: true, type: true },
     });
 
-    // =========================================================================
-    // ✅ FILTER OUT CHILD WORKFLOWS FROM LITERAL FILE SYSTEM
-    // =========================================================================
     const activeWorkflowsWithParents = await prisma.workflow.findMany({
       where: { parentWorkflowId: { not: null }, isActive: true },
       select: { name: true },
@@ -78,16 +97,9 @@ export const getDocumentChildren = async (req, res, next) => {
     );
 
     childDocuments = childDocuments.filter((child) => {
-      if (hideLiteralWorkflowNames.has(child.name)) {
-        return false;
-      }
-      return true;
+      return !hideLiteralWorkflowNames.has(child.name);
     });
-    // =========================================================================
 
-    // =========================================================================
-    // ✅ SYMBOLIC LOGIC INJECTION
-    // =========================================================================
     const docPath = req.body.path.substring(2);
     if (docPath === `/${parentDocument.name}`) {
       const familyWorkflows = await prisma.workflow.findMany({
@@ -119,18 +131,26 @@ export const getDocumentChildren = async (req, res, next) => {
         }
       }
     }
-    // =========================================================================
 
     const formattedDocuments = childDocuments.map((doc) => {
-      let relativePath = `..${doc.path.substring(
-        process.env.STORAGE_PATH.length,
-      )}`;
+      let relativePath = `..${doc.path.substring(process.env.STORAGE_PATH?.length || 0)}`;
       return relativePath;
     });
 
-    return res.status(200).json({
-      children: formattedDocuments,
+    // =========================================================================
+    // ✅ INJECT VIRTUAL FOLDERS TO SIDEBAR
+    // =========================================================================
+    const linkedProcess = await prisma.processInstance.findFirst({
+      where: { storagePath: { endsWith: parentDocument.path } },
     });
+
+    if (parentDocument.isProcessFolder || !!linkedProcess) {
+      const basePath = `..${parentDocument.path.substring(process.env.STORAGE_PATH?.length || 0)}`;
+      formattedDocuments.push(`${basePath}/SOP`);
+      formattedDocuments.push(`${basePath}/NON-SOP`);
+    }
+
+    return res.status(200).json({ children: formattedDocuments });
   } catch (error) {
     console.error("Error fetching children documents:", error);
     return res.status(500).json({
@@ -142,7 +162,7 @@ export const getDocumentChildren = async (req, res, next) => {
 export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"].substring(7);
-    const userData = await verifyUser(accessToken);
+    const userData = await verifyUser(accessToken); // Ensure verifyUser is defined in your file scope
     if (userData === "Unauthorized")
       return res.status(401).json({ message: "Unauthorized request" });
 
@@ -158,7 +178,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       select: { id: true },
     });
 
-    // ✅ FIX 1: Ensure department matches are loaded
     const userDocumentAccesses = await prisma.documentAccess.findMany({
       where: {
         OR: [
@@ -171,10 +190,12 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
 
     const isAdmin =
       user.username === "admin" || user.isAdmin || user.specialUser;
-    let docPath = req.body.path.substring(2);
 
-    const foundDocument = await prisma.document.findUnique({
-      where: { path: docPath },
+    let originalRequestedPath = req.body.path.substring(2);
+
+    // Attempt 1: Try to find literal document first
+    let foundDocument = await prisma.document.findUnique({
+      where: { path: originalRequestedPath },
       include: {
         children: {
           include: {
@@ -188,8 +209,228 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
       },
     });
 
+    let isVirtualRequest = false;
+    let subFolderType = null;
+    let actualLookupPath = originalRequestedPath;
+
+    // Attempt 2: If literal path doesn't exist, try resolving it as a virtual subfolder
+    if (!foundDocument) {
+      if (originalRequestedPath.endsWith("/SOP")) {
+        isVirtualRequest = true;
+        subFolderType = "SOP";
+        actualLookupPath = originalRequestedPath.substring(
+          0,
+          originalRequestedPath.length - 4,
+        );
+      } else if (originalRequestedPath.endsWith("/NON-SOP")) {
+        isVirtualRequest = true;
+        subFolderType = "NON-SOP";
+        actualLookupPath = originalRequestedPath.substring(
+          0,
+          originalRequestedPath.length - 8,
+        );
+      }
+
+      if (isVirtualRequest) {
+        foundDocument = await prisma.document.findUnique({
+          where: { path: actualLookupPath },
+          include: {
+            children: {
+              include: {
+                processDocuments: {
+                  include: { process: { include: { workflow: true } } },
+                  orderBy: { process: { createdAt: "desc" } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        });
+      }
+    }
+
     if (!foundDocument)
       return res.status(400).json({ message: "Document doesn't exist" });
+
+    // Validate if the folder actually ties to a process instance
+    const linkedProcess = await prisma.processInstance.findFirst({
+      where: { storagePath: { endsWith: foundDocument.path } },
+      include: {
+        documents: {
+          include: {
+            document: {
+              include: {
+                processDocuments: {
+                  include: { process: { include: { workflow: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // =========================================================================
+    // ✅ HANDLE VIRTUAL FOLDER CONTENTS (E.g. navigating INSIDE /SOP)
+    // =========================================================================
+    if (isVirtualRequest && linkedProcess) {
+      const isSopTarget = subFolderType === "SOP";
+      const filteredProcessDocs = linkedProcess.documents.filter((pd) =>
+        isSopTarget ? pd.isSopDocument !== false : pd.isSopDocument === false,
+      );
+
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      const formattedDocs = await Promise.all(
+        filteredProcessDocs.map(async (pd) => {
+          const child = pd.document;
+          const fileAbsolutePath = path.join(
+            __dirname,
+            process.env.STORAGE_PATH,
+            child.path,
+          );
+
+          let fileStats = null;
+          try {
+            if (!pd.isMetadataOnly)
+              fileStats = await fs.stat(fileAbsolutePath).catch(() => null);
+          } catch (err) {}
+
+          const createdBy = await prisma.user.findUnique({
+            where: { id: child.createdById },
+            select: { username: true },
+          });
+          const isBookmarked = await isDocumentBookmarked(
+            userData.id,
+            child.id,
+          );
+
+          // Return strictly ALL properties derived from Document & ProcessDocument schemas
+          return {
+            id: child.id,
+            path: `${child.path.slice(0, -child.name.length - 1)}`,
+            name: child.name,
+            type: child.type,
+            isDocumentBookmarked: isBookmarked,
+            isProcessFolder: child.isProcessFolder ?? false,
+            isArchived: child.isArchived ?? false,
+            inBin: child.inBin ?? false,
+            createdOn: child.createdOn,
+            lastUpdatedOn: child.lastUpdatedOn,
+            isInvolvedInProcess: child.isInvolvedInProcess ?? false,
+            createdBy: createdBy?.username,
+            lastUpdated: fileStats ? fileStats.mtime : null,
+            lastAccessed: fileStats ? fileStats.atime : null,
+            size: fileStats ? fileStats.size : null,
+            isUploadable: true,
+            isDownloadable: true,
+            isRejected: child.isRejected ?? false,
+            children: [],
+            onlyMetaData: pd.isMetadataOnly ?? false,
+            isMetadataOnly: pd.isMetadataOnly ?? false,
+            departmentId: child.departmentId,
+            tags: child.tags || [],
+            minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
+            isRecord: child.isRecord ?? true,
+            isProject: child.isProject ?? false,
+
+            // Extensive ProcessDocument Details
+            description: pd.description || null,
+            reasonOfSupersed: pd.reasonOfSupersed || null,
+            issueNo: pd.issueNo || null,
+            partNumber: pd.partNumber || null,
+            preApproved: pd.preApproved ?? false,
+            processTags: pd.tags || [],
+            isReplacement: pd.isReplacement ?? false,
+            superseding: pd.superseding ?? false,
+            replacedDocumentId: pd.replacedDocumentId || null,
+            isReplaced: !!pd.replacedDocumentId,
+            SOPIssueNo: pd.SOPIssueNo || null,
+            isSopDocument: pd.isSopDocument ?? true,
+            metadataFulfilledAt: pd.metadataFulfilledAt || null,
+            metaFileName: pd.metaFileName || null,
+            metaFileExtension: pd.metaFileExtension || null,
+            editableDocumentId: pd.editableDocumentId || null,
+
+            // Linked Process Instance Details
+            processId: pd.processId || null,
+            processIssueNo: pd.process?.issueNo || null,
+            processName: pd.process?.name || null,
+            processStatus: pd.process?.status || null,
+            workflowName: pd.process?.workflow?.name || null,
+          };
+        }),
+      );
+
+      return res
+        .status(200)
+        .json({ children: formattedDocs, isUploadable: false });
+    }
+
+    // =========================================================================
+    // ✅ GENERATE VIRTUAL FOLDERS IN ROOT DIRECTORY
+    // =========================================================================
+    const isProcessFolder = foundDocument.isProcessFolder || !!linkedProcess;
+
+    if (isProcessFolder && linkedProcess) {
+      const sopDocs = linkedProcess.documents.filter(
+        (pd) => pd.isSopDocument !== false,
+      );
+      const nonSopDocs = linkedProcess.documents.filter(
+        (pd) => pd.isSopDocument === false,
+      );
+
+      const virtualFolders = [
+        {
+          id: `virtual_sop_${foundDocument.id}`,
+          name: "SOP",
+          type: "folder",
+          path: foundDocument.path, // ✅ EXACT PARENT PATH
+          isVirtual: true,
+          isProcessSubFolder: true,
+          subFolderType: "SOP",
+          documentCount: sopDocs.length,
+          processId: linkedProcess.id,
+          isUploadable: false,
+          isDownloadable: false,
+          children: [],
+          lastUpdated: null,
+          size: null,
+          tags: [],
+          createdBy: null,
+          isArchived: false,
+          inBin: false,
+        },
+        {
+          id: `virtual_nonsop_${foundDocument.id}`,
+          name: "NON-SOP",
+          type: "folder",
+          path: foundDocument.path, // ✅ EXACT PARENT PATH
+          isVirtual: true,
+          isProcessSubFolder: true,
+          subFolderType: "NON-SOP",
+          documentCount: nonSopDocs.length,
+          processId: linkedProcess.id,
+          isUploadable: false,
+          isDownloadable: false,
+          children: [],
+          lastUpdated: null,
+          size: null,
+          tags: [],
+          createdBy: null,
+          isArchived: false,
+          inBin: false,
+        },
+      ];
+
+      return res.status(200).json({
+        children: virtualFolders,
+        isUploadable: false,
+        isProcessFolder: true,
+        processId: linkedProcess.id,
+      });
+    }
 
     const activeWorkflows = await prisma.workflow.findMany({
       where: { isActive: true },
@@ -207,7 +448,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         !(child.type === "folder" && hideLiteralWorkflowNames.has(child.name)),
     );
 
-    if (docPath === `/${foundDocument.name}`) {
+    if (actualLookupPath === `/${foundDocument.name}`) {
       const familyWorkflows = activeWorkflows.filter(
         (w) => w.name === foundDocument.name,
       );
@@ -261,7 +502,7 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         foundDocument.children.map(async (child) => {
           const fileAbsolutePath = path.join(
             __dirname,
-            STORAGE_PATH,
+            process.env.STORAGE_PATH,
             child.path,
           );
           const createdBy = await prisma.user.findUnique({
@@ -269,24 +510,30 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
             select: { username: true },
           });
           try {
-            const fileStats = !child.onlyMetaData
-              ? await fs.stat(fileAbsolutePath)
+            const processDocument = child.processDocuments?.[0] || null;
+            const isMetaOnly =
+              processDocument?.isMetadataOnly || child.onlyMetaData || false;
+
+            const fileStats = !isMetaOnly
+              ? await fs.stat(fileAbsolutePath).catch(() => null)
               : null;
             const isDocumentBookmarked_ = await isDocumentBookmarked(
               userData.id,
               child.id,
             );
-            const processDocument = child.processDocuments?.[0] || null;
 
+            // Return ALL schema mapped details for Admins
             return {
               id: child.id,
-              isDocumentBookmarked: isDocumentBookmarked_,
               path: `${child.path.slice(0, -child.name.length - 1)}`,
               name: child.name,
               type: child.type,
+              isDocumentBookmarked: isDocumentBookmarked_,
+              isProcessFolder: child.isProcessFolder ?? false,
               isArchived: child.isArchived ?? false,
               inBin: child.inBin ?? false,
               createdOn: child.createdOn,
+              lastUpdatedOn: child.lastUpdatedOn,
               isInvolvedInProcess: child.isInvolvedInProcess ?? false,
               createdBy: createdBy?.username,
               lastUpdated: fileStats ? fileStats.mtime : null,
@@ -296,26 +543,35 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               isDownloadable: true,
               isRejected: child.isRejected ?? false,
               children: [],
-              onlyMetaData: child.onlyMetaData,
+              onlyMetaData: isMetaOnly,
+              isMetadataOnly: isMetaOnly,
               departmentId: child.departmentId,
               minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
               tags: child.tags || [],
               isRecord: child.isRecord ?? true,
               isProject: child.isProject ?? false,
-              issueNo: processDocument?.issueNo || null,
-              processIssueNo: processDocument?.process?.issueNo || null,
-              partNumber: processDocument?.partNumber || null,
-              preApproved: processDocument?.preApproved ?? false,
-              SOPIssueNo: processDocument?.SOPIssueNo || null,
+
+              // ProcessDocument Data Extensions
               description: processDocument?.description || null,
               reasonOfSupersed: processDocument?.reasonOfSupersed || null,
+              issueNo: processDocument?.issueNo || null,
+              partNumber: processDocument?.partNumber || null,
+              preApproved: processDocument?.preApproved ?? false,
+              processTags: processDocument?.tags || [],
               isReplacement: processDocument?.isReplacement ?? false,
               superseding: processDocument?.superseding ?? false,
-              processTags: processDocument?.tags || [],
-              isReplaced: processDocument
-                ? !!processDocument.replacedDocumentId
-                : false,
+              replacedDocumentId: processDocument?.replacedDocumentId || null,
+              isReplaced: !!processDocument?.replacedDocumentId,
+              SOPIssueNo: processDocument?.SOPIssueNo || null,
+              isSopDocument: processDocument?.isSopDocument ?? null,
+              metadataFulfilledAt: processDocument?.metadataFulfilledAt || null,
+              metaFileName: processDocument?.metaFileName || null,
+              metaFileExtension: processDocument?.metaFileExtension || null,
+              editableDocumentId: processDocument?.editableDocumentId || null,
+
+              // Process Reference Attachments
               processId: processDocument?.processId || null,
+              processIssueNo: processDocument?.process?.issueNo || null,
               processName: processDocument?.process?.name || null,
               processStatus: processDocument?.process?.status || null,
               workflowName: processDocument?.process?.workflow?.name || null,
@@ -326,7 +582,6 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
         }),
       );
     } else {
-      // ✅ FIX 2: Compute allowed prefixes
       const accessibleDocIds = userDocumentAccesses.map((a) => a.documentId);
       const accessibleDocs = await prisma.document.findMany({
         where: { id: { in: accessibleDocIds } },
@@ -390,8 +645,12 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
               select: { username: true },
             });
             try {
-              const fileStats = !child.onlyMetaData
-                ? await fs.stat(fileAbsolutePath)
+              const processDocument = child.processDocuments?.[0] || null;
+              const isMetaOnly =
+                processDocument?.isMetadataOnly || child.onlyMetaData || false;
+
+              const fileStats = !isMetaOnly
+                ? await fs.stat(fileAbsolutePath).catch(() => null)
                 : null;
               const documentAccess = userDocumentAccesses.find(
                 (access) => access.documentId === child.id,
@@ -405,17 +664,19 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                 userData.id,
                 child.id,
               );
-              const processDocument = child.processDocuments?.[0] || null;
 
+              // Return ALL schema mapped details for normal users
               return {
                 id: child.id,
                 path: `${child.path.slice(0, -child.name.length - 1)}`,
-                isDocumentBookmarked: isDocumentBookmarked_,
                 name: child.name,
+                type: child.type,
+                isDocumentBookmarked: isDocumentBookmarked_,
+                isProcessFolder: child.isProcessFolder ?? false,
                 isArchived: child.isArchived ?? false,
                 inBin: child.inBin ?? false,
-                type: child.type,
                 createdOn: child.createdOn,
+                lastUpdatedOn: child.lastUpdatedOn,
                 isInvolvedInProcess: child.isInvolvedInProcess ?? false,
                 createdBy: createdBy?.username,
                 lastUpdated: fileStats ? fileStats.mtime : null,
@@ -427,26 +688,36 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
                   (documentAccess?.accessType.includes("DOWNLOAD") ?? false) ||
                   (hasFullAccess && child.type !== "folder"),
                 children: [],
-                onlyMetaData: child.onlyMetaData,
+                onlyMetaData: isMetaOnly,
+                isMetadataOnly: isMetaOnly,
                 departmentId: child.departmentId,
                 minimumSignsOnFirstPage: child.minimumSignsOnFirstPage,
                 tags: child.tags || [],
                 isRecord: child.isRecord ?? true,
                 isProject: child.isProject ?? false,
-                issueNo: processDocument?.issueNo || null,
-                processIssueNo: processDocument?.process?.issueNo || null,
-                partNumber: processDocument?.partNumber || null,
-                preApproved: processDocument?.preApproved ?? false,
-                SOPIssueNo: processDocument?.SOPIssueNo || null,
+
+                // ProcessDocument Data Extensions
                 description: processDocument?.description || null,
                 reasonOfSupersed: processDocument?.reasonOfSupersed || null,
+                issueNo: processDocument?.issueNo || null,
+                partNumber: processDocument?.partNumber || null,
+                preApproved: processDocument?.preApproved ?? false,
+                processTags: processDocument?.tags || [],
                 isReplacement: processDocument?.isReplacement ?? false,
                 superseding: processDocument?.superseding ?? false,
-                processTags: processDocument?.tags || [],
-                isReplaced: processDocument
-                  ? !!processDocument.replacedDocumentId
-                  : false,
+                replacedDocumentId: processDocument?.replacedDocumentId || null,
+                isReplaced: !!processDocument?.replacedDocumentId,
+                SOPIssueNo: processDocument?.SOPIssueNo || null,
+                isSopDocument: processDocument?.isSopDocument ?? null,
+                metadataFulfilledAt:
+                  processDocument?.metadataFulfilledAt || null,
+                metaFileName: processDocument?.metaFileName || null,
+                metaFileExtension: processDocument?.metaFileExtension || null,
+                editableDocumentId: processDocument?.editableDocumentId || null,
+
+                // Process Reference Attachments
                 processId: processDocument?.processId || null,
+                processIssueNo: processDocument?.process?.issueNo || null,
                 processName: processDocument?.process?.name || null,
                 processStatus: processDocument?.process?.status || null,
                 workflowName: processDocument?.process?.workflow?.name || null,
@@ -490,6 +761,115 @@ export const getDocumentDetailsOnTheBasisOfPath = async (req, res) => {
   } catch (error) {
     console.log("error", error);
     res.status(500).json({ message: "Error accessing given document" });
+  }
+};
+
+// Add this to your file-controller.js or process-controller.js and hook it up in your router
+export const getProcessSubFolderContents = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"].substring(7);
+    const userData = await verifyUser(accessToken);
+    if (userData === "Unauthorized")
+      return res.status(401).json({ message: "Unauthorized request" });
+
+    const { processId, subFolderType } = req.body;
+
+    const processInstance = await prisma.processInstance.findUnique({
+      where: { id: processId },
+      include: {
+        documents: {
+          include: {
+            document: {
+              include: {
+                processDocuments: {
+                  include: { process: { include: { workflow: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!processInstance)
+      return res.status(404).json({ message: "Process not found" });
+
+    const isSopTarget = subFolderType === "SOP";
+
+    const filteredProcessDocs = processInstance.documents.filter((pd) =>
+      isSopTarget ? pd.isSopDocument !== false : pd.isSopDocument === false,
+    );
+
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+
+    const formattedDocs = await Promise.all(
+      filteredProcessDocs.map(async (pd) => {
+        const child = pd.document;
+        const fileAbsolutePath = path.join(
+          __dirname,
+          process.env.STORAGE_PATH,
+          child.path,
+        );
+
+        let fileStats = null;
+        try {
+          // FIXED: rely on ProcessDocument.isMetadataOnly
+          if (!pd.isMetadataOnly) {
+            fileStats = await fs.stat(fileAbsolutePath);
+          }
+        } catch (err) {
+          /* Safely ignore missing file stats */
+        }
+
+        const createdBy = await prisma.user.findUnique({
+          where: { id: child.createdById },
+          select: { username: true },
+        });
+
+        const isBookmarked = await isDocumentBookmarked(userData.id, child.id);
+
+        return {
+          id: child.id,
+          isDocumentBookmarked: isBookmarked,
+          path: `${child.path.slice(0, -child.name.length - 1)}`,
+          name: child.name,
+          type: child.type,
+          isArchived: child.isArchived ?? false,
+          inBin: child.inBin ?? false,
+          createdOn: child.createdOn,
+          isInvolvedInProcess: child.isInvolvedInProcess ?? false,
+          createdBy: createdBy?.username,
+          lastUpdated: fileStats ? fileStats.mtime : null,
+          lastAccessed: fileStats ? fileStats.atime : null,
+          size: fileStats ? fileStats.size : null,
+          isUploadable: true,
+          isDownloadable: true,
+          isRejected: child.isRejected ?? false,
+          children: [],
+          onlyMetaData: pd.isMetadataOnly,
+          isMetadataOnly: pd.isMetadataOnly,
+          departmentId: child.departmentId,
+          tags: child.tags || [],
+          issueNo: pd.issueNo || null,
+          processIssueNo: pd.process?.issueNo || null,
+          partNumber: pd.partNumber || null,
+          preApproved: pd.preApproved ?? false,
+          description: pd.description || null,
+          isReplacement: pd.isReplacement ?? false,
+          processId: pd.processId || null,
+        };
+      }),
+    );
+
+    return res
+      .status(200)
+      .json({ children: formattedDocs, isUploadable: false });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Error fetching process subfolder contents" });
   }
 };
 

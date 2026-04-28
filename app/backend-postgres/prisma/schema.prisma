@@ -33,38 +33,43 @@ model Department {
 }
 
 model Document {
-  id                    Int                      @id @default(autoincrement())
-  name                  String
-  type                  String
-  path                  String                   @unique
-  createdById           Int
-  createdBy             User?                    @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
-  createdOn             DateTime                 @default(now())
-  lastUpdatedOn         DateTime                 @updatedAt
-  draftDocuments ProcessDraftDocument[] @relation("DocumentDrafts")
-  oldDocumentInDrafts ProcessDraftDocument[] @relation("OldDocumentRelation")
-  isArchived            Boolean                  @default(false)
-  inBin                 Boolean                  @default(false)
-  parentId              Int?
-  departmentId          Int?
-  isProject             Boolean?
-  isInvolvedInProcess   Boolean                  @default(false)
-  minimumSignsOnFirstPage Int?
-  isRejected            Boolean                  @default(false)
-  tags                  String[]                 @default([])
-  isRecord              Boolean                  @default(true)
-  bookmarks Bookmark[]
-  children              Document[]               @relation("DocumentChildren")
-  documentContent DocumentContent?
-  parent                Document?                @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  department            Department?              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  processDocuments      ProcessDocument[]        @relation("ProcessDocumentRelation")
-  documentAccesses      DocumentAccess[]         @relation("DocumentAccesses")
-  documentHistory       DocumentHistory[]        @relation("DocumentHistory")
-  replacedByProcessDocuments ProcessDocument[]   @relation("ReplacedDocument")
-  replacedByDocumentHistory DocumentHistory[]    @relation("ReplacedDocumentHistory")
-  workflows             Workflow[]               @relation("WorkflowTemplates", name: "WorkflowTemplates")
-  physicalDocumentRequests PhysicalDocumentRequest[] @relation() // Added relation
+  id                         Int                       @id @default(autoincrement())
+  name                       String
+  type                       String
+  path                       String                    @unique
+  isProcessFolder            Boolean                   @default(false)
+  createdById                Int
+  createdBy                  User?                     @relation("DocumentCreatedByRelation", fields: [createdById], references: [id], onDelete: Cascade)
+  createdOn                  DateTime                  @default(now())
+  lastUpdatedOn              DateTime                  @updatedAt
+  draftDocuments             ProcessDraftDocument[]    @relation("DocumentDrafts")
+  oldDocumentInDrafts        ProcessDraftDocument[]    @relation("OldDocumentRelation")
+  isArchived                 Boolean                   @default(false)
+  inBin                      Boolean                   @default(false)
+  parentId                   Int?
+  departmentId               Int?
+  isProject                  Boolean?
+  isInvolvedInProcess        Boolean                   @default(false)
+  minimumSignsOnFirstPage    Int?
+  isRejected                 Boolean                   @default(false)
+  tags                       String[]                  @default([])
+  isRecord                   Boolean                   @default(true)
+  bookmarks                  Bookmark[]
+  children                   Document[]                @relation("DocumentChildren")
+  documentContent            DocumentContent?
+  parent                     Document?                 @relation("DocumentChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  department                 Department?               @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  processDocuments           ProcessDocument[]         @relation("ProcessDocumentRelation")
+  documentAccesses           DocumentAccess[]          @relation("DocumentAccesses")
+  documentHistory            DocumentHistory[]         @relation("DocumentHistory")
+  replacedByProcessDocuments ProcessDocument[]         @relation("ReplacedDocument")
+  replacedByDocumentHistory  DocumentHistory[]         @relation("ReplacedDocumentHistory")
+  workflows                  Workflow[]                @relation("WorkflowTemplates", name: "WorkflowTemplates")
+  physicalDocumentRequests   PhysicalDocumentRequest[] @relation() 
+  
+  // NEW: Reverse relations for editable documents
+  processEditableDocs        ProcessDocument[]         @relation("EditableReference")
+  draftEditableDocs          ProcessDraftDocument[]    @relation("DraftEditableReference")
 }
 
 model DocumentContent {
@@ -366,7 +371,7 @@ model ProcessDraftDocument {
   draftId          String
   documentId       Int
   isNewDocument    Boolean?  @default(false)
-  oldDocumentId    Int?      // For replacements
+  oldDocumentId    Int?
   preApproved      Boolean?  @default(false)
   tags             String[]
   partNumber       String?
@@ -374,10 +379,17 @@ model ProcessDraftDocument {
   issueNo          String?
   reasonOfSupersed String?
   sortOrder        Int       @default(0)
-  
-  draft ProcessDraft @relation("ProcessDraftDocuments", fields: [draftId], references: [id], onDelete: Cascade)
-  document Document @relation("DocumentDrafts", fields: [documentId], references: [id], onDelete: Cascade)
+  isSopDocument    Boolean?  @default(true)   
+  isMetadataOnly   Boolean?  @default(false)  
+  metaFileName     String?                    
+  metaFileExtension String?                   
+  editableDocumentId Int?
+  editableDocument Document? @relation("DraftEditableReference", fields: [editableDocumentId], references: [id])
+
+  draft    ProcessDraft @relation("ProcessDraftDocuments", fields: [draftId], references: [id], onDelete: Cascade)
+  document Document     @relation("DocumentDrafts", fields: [documentId], references: [id], onDelete: Cascade)
   oldDocument Document? @relation("OldDocumentRelation", fields: [oldDocumentId], references: [id])
+  
   @@unique([draftId, documentId])
 }
 
@@ -476,33 +488,58 @@ model ProcessTracking {
 }
 
 model ProcessDocument {
-  id               String    @id @default(uuid())
-  processId        String
-  description      String?
-  reasonOfSupersed String?
-  issueNo          String?
-  partNumber       String?
-  preApproved      Boolean   @default(false)
-  tags                  String[]  @default([])
-  documentId       Int
-  isReplacement    Boolean   @default(false)
-  superseding      Boolean   @default(false)
-  replacedDocumentId Int?
-  rejectedById     Int?
-  reopenCycle      Int       @default(0)
-  SOPIssueNo String?
+  id                  String    @id @default(uuid())
+  processId           String
+  description         String?
+  reasonOfSupersed    String?
+  issueNo             String?
+  partNumber          String?
+  preApproved         Boolean   @default(false)
+  tags                String[]  @default([])
+  documentId          Int
+  isReplacement       Boolean   @default(false)
+  superseding         Boolean   @default(false)
+  replacedDocumentId  Int?
+  rejectedById        Int?
+  reopenCycle         Int       @default(0)
+  SOPIssueNo          String?
+  isSopDocument       Boolean   @default(true)
+  isMetadataOnly      Boolean   @default(false)
+  metadataFulfilledAt DateTime?              
+  metaFileName        String?                
+  metaFileExtension   String?                
+  
+  // NEW: Direct relation for editable reference
+  editableDocumentId  Int?
+  editableDocument    Document? @relation("EditableReference", fields: [editableDocumentId], references: [id])
+  
   process          ProcessInstance @relation("ProcessDocumentRelation", fields: [processId], references: [id], onDelete: Cascade)
-  document         Document  @relation("ProcessDocumentRelation", fields: [documentId], references: [id], onDelete: Cascade)
-  replacedDocument Document? @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id], onDelete: Cascade)
-  rejectedBy       User?     @relation("RejectedByUser", fields: [rejectedById], references: [id], onDelete: Cascade)
+  document         Document        @relation("ProcessDocumentRelation", fields: [documentId], references: [id], onDelete: Cascade)
+  replacedDocument Document?       @relation("ReplacedDocument", fields: [replacedDocumentId], references: [id], onDelete: Cascade)
+  rejectedBy       User?           @relation("RejectedByUser", fields: [rejectedById], references: [id], onDelete: Cascade)
   signatures       DocumentSignature[]
   rejections       DocumentRejection[]
   signCoordinates  SignCoordinate[] @relation()
   documentHistory  DocumentHistory[] @relation("ProcessDocumentDocumentHistory")
+  
   @@unique([documentId, processId])
   @@index([processId])
   @@index([documentId])
   @@index([replacedDocumentId])
+}
+
+model SidebarConfig {
+  id          Int      @id @default(autoincrement())
+  routeKey    String   // e.g. "dashboard", "files", "users"
+  label       String
+  showToAdmin        Boolean @default(true)
+  showToDepartmentHead Boolean @default(true)
+  showToRootLevel    Boolean @default(true)
+  showToNormal       Boolean @default(true)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([routeKey])
 }
 
 model DocumentSignature {

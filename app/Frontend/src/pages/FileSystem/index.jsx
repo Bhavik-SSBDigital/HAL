@@ -5,19 +5,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import moment from 'moment';
 import { Controller, useForm } from 'react-hook-form';
-
-// APIs & Config
 import {
   ArchiveFile, BookmarkDocument, CopyPaste, CreateFolder,
   createPhysicalRequest, CutPaste, DeleteFile, DownloadFile,
   DownloadFileWithWaterMark, DownloadFolder, getDepartments,
-  GetFolderData, GetRootFolders, RemoveBookmark, ViewDocument,
+  GetFolderData, GetRootFolders, RemoveBookmark, ViewDocument
 } from '../../common/Apis';
 import { copy, cut } from '../../Slices/PathSlice';
 import { upload } from '../../components/drop-file-input/FileUploadDownload';
 import { ImageConfig } from '../../config/ImageConfig';
-
-// UI Components
 import ComponentLoader from '../../common/Loader/ComponentLoader';
 import TopLoader from '../../common/Loader/TopLoader';
 import PathBar from '../../components/path/PathBar';
@@ -25,34 +21,27 @@ import ViewFile from '../view/View';
 import CustomModal from '../../CustomComponents/CustomModal';
 import CustomButton from '../../CustomComponents/CustomButton';
 import CustomTextField from '../../CustomComponents/CustomTextField';
-import ModalWithField from '../../components/ModalWithField';
-
-// Icons
 import {
   IconDotsVertical, IconFilter, IconSquareLetterX, IconDownload,
   IconEye, IconCopy, IconArchive, IconTrash, IconScript,
   IconBookmark, IconBookmarkFilled, IconSettings, IconChevronRight,
-  IconFolder, IconFolderPlus, IconUpload, IconLayoutSidebar, IconFolderOpen
+  IconFolder, IconFolderPlus, IconUpload, IconLayoutSidebar, IconFolderOpen,
+  IconDatabaseImport
 } from '@tabler/icons-react';
 
 export default function FileSystem() {
   const dispatch = useDispatch();
   const username = sessionStorage.getItem('username');
-
-  // --- Core State ---
   const [treeData, setTreeData] = useState([]); 
   const [mainData, setMainData] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [currentPath, setCurrentPath] = useState(sessionStorage.getItem('path') || '..');
-
-  // --- UI & Drag State ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(288); 
   const [isDragging, setIsDragging] = useState(false);
   const dragInfo = useRef({ startX: 0, startWidth: 288 }); 
-
   const [selectedItem, setSelectedItem] = useState(null);
   const [fileView, setFileView] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -60,24 +49,15 @@ export default function FileSystem() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showUploadFileModal, setUploadFileModal] = useState(false);
   const [open, setOpen] = useState(null);
-
-  // --- Context Menu State ---
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
-
-  // --- Filter State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [sortType, setSortType] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [fileType, setFileType] = useState('all');
-
-  // --- Redux ---
   const { fileName, sourcePath, method } = useSelector((state) => state.path);
-
-  // --- Forms ---
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm();
   
-  // Updated File Form Destructuring to monitor selected file state
   const { 
     register: registerFile, 
     handleSubmit: handleSubmitFile, 
@@ -88,10 +68,9 @@ export default function FileSystem() {
   } = useForm();
   
   const selectedUploadFile = watchFile('file');
-
   const { register: registerDept, handleSubmit: handleSubmitDept, formState: { errors: deptErrors }, control: controlDept, reset: resetDept } = useForm({ defaultValues: { departmentId: '', reason: '' } });
+  const { register: registerWm, handleSubmit: handleSubmitWm, reset: resetWm } = useForm();
 
-  // --- Initialization ---
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -115,15 +94,11 @@ export default function FileSystem() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isContextMenuOpen]);
 
-  // --- Smooth Resize Logic ---
   useEffect(() => {
     let animationFrameId;
-
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
       animationFrameId = requestAnimationFrame(() => {
         const deltaX = e.clientX - dragInfo.current.startX;
         let newWidth = dragInfo.current.startWidth + deltaX;
@@ -131,21 +106,18 @@ export default function FileSystem() {
         setSidebarWidth(newWidth);
       });
     };
-
     const handleMouseUp = () => {
       setIsDragging(false);
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
     };
-
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     }
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -153,7 +125,6 @@ export default function FileSystem() {
     };
   }, [isDragging]);
 
-  // --- Data Fetching ---
   const fetchMainData = async (path) => {
     setLoading(true);
     try {
@@ -166,6 +137,12 @@ export default function FileSystem() {
     }
   };
 
+  const handlePathChange = (newPath) => {
+    setCurrentPath(newPath);
+    sessionStorage.setItem('path', newPath);
+    fetchMainData(newPath);
+  };
+
   const updateTreeNode = (nodes, targetId, updaterFn) => {
     return nodes.map(node => {
       if (node.id === targetId) return updaterFn(node);
@@ -174,7 +151,6 @@ export default function FileSystem() {
     });
   };
 
-  // --- Handlers ---
   const handleSidebarFolderClick = async (folder, toggleExpand = true) => {
     let fetchPath = folder.path.startsWith('..') ? folder.path : '..' + folder.path;
     fetchPath = `${fetchPath}/${folder.name}`;
@@ -198,8 +174,13 @@ export default function FileSystem() {
   };
 
   const handleMainItemClick = (item) => {
-    if (item.type === 'folder') handleSidebarFolderClick(item, false);
-    else handleViewFile(item.name, item.path, item.id, item.type);
+    if (item.type === 'folder') {
+      handleSidebarFolderClick(item, false);
+    } else if (item.isMetadataOnly) {
+      toast.info(`This is a metadata-only placeholder: ${item.name}. The actual file has not been uploaded yet.`);
+    } else {
+      handleViewFile(item.name, item.path, item.id, item.type);
+    }
   };
 
   const executeAction = async (actionFn, ...args) => {
@@ -209,9 +190,9 @@ export default function FileSystem() {
     finally { setActionsLoading(false); setIsMenuOpen(false); }
   };
 
-  // --- File Operations ---
   const handleViewFile = (name, path, id, type) => executeAction(async () => setFileView(await ViewDocument(name, path, type, id)));
   const handleDownloadFolder = (name, path) => executeAction(() => DownloadFolder(path, name));
+  
   const handleDownloadWithWatermark = async (data) => {
     try {
       const res = await DownloadFileWithWaterMark(selectedItem.id, data.fieldValue, data.watermark, false);
@@ -225,10 +206,12 @@ export default function FileSystem() {
     await ArchiveFile(item.id); toast.success('Archived');
     setMainData(prev => prev.filter(n => n.id !== item.id));
   });
+  
   const handleDelete = (item) => executeAction(async () => {
     await DeleteFile(item.id); toast.success('Deleted');
     setMainData(prev => prev.filter(n => n.id !== item.id));
   });
+  
   const toggleBookmark = async (id, isBookmarked) => {
     try {
       await (isBookmarked ? RemoveBookmark(id) : BookmarkDocument(id));
@@ -239,6 +222,7 @@ export default function FileSystem() {
 
   const handleCopy = (name, path) => { dispatch(copy({ name, pathValue: currentPath, method: 'copy' })); setIsMenuOpen(false); toast.success('Copied'); };
   const handleCut = (name, path) => { dispatch(cut({ name, pathValue: currentPath, method: 'cut' })); setIsMenuOpen(false); toast.success('Cut'); };
+  
   const handlePaste = async () => {
     if (!fileName || !sourcePath || !method) return toast.error('No file to paste');
     setIsContextMenuOpen(false);
@@ -270,7 +254,6 @@ export default function FileSystem() {
     fetchMainData(currentPath); setUploadFileModal(false); resetFile(); toast.success('Uploaded');
   });
 
-  // --- Processors ---
   const handleSearchChange = useCallback(debounce((value) => setSearchQuery(value), 300), []);
   const resetFilters = () => { setFileType('all'); setSortType('name'); setSortOrder('asc'); setSearchQuery(''); };
   
@@ -284,7 +267,6 @@ export default function FileSystem() {
       return sortOrder === 'asc' ? a[sortType]?.localeCompare(b[sortType]) : b[sortType]?.localeCompare(a[sortType]);
     });
 
-  // --- Highly Scalable Tree Sidebar Component ---
   const SidebarNode = ({ node, depth = 0 }) => {
     const isActive = currentPath.endsWith(node.name);
     const hasChildren = node.childrenData && node.childrenData.length > 0;
@@ -294,7 +276,6 @@ export default function FileSystem() {
 
     return (
       <div className="flex flex-col w-full">
-        {/* Node Row */}
         <div 
           className={`group flex items-center py-1.5 pr-4 w-full cursor-pointer transition-colors duration-200 select-none outline-none
             ${isActive 
@@ -304,7 +285,6 @@ export default function FileSystem() {
           style={{ paddingLeft: `${depth * PADDING_PER_LEVEL + BASE_PADDING}px` }}
           onClick={() => handleSidebarFolderClick(node)}
         >
-          {/* Chevron */}
           <div className="w-5 h-5 flex justify-center items-center flex-shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors">
             <IconChevronRight 
               size={14} stroke={2.5} 
@@ -312,7 +292,6 @@ export default function FileSystem() {
             />
           </div>
 
-          {/* Icon */}
           <div className="mr-2 flex-shrink-0">
             {node.isExpanded ? (
               <IconFolderOpen size={16} stroke={isActive ? 2 : 1.5} className={isActive ? 'text-indigo-600' : 'text-slate-500'} />
@@ -321,13 +300,11 @@ export default function FileSystem() {
             )}
           </div>
 
-          {/* Label */}
           <span className="text-sm tracking-tight whitespace-nowrap">
             {node.name}
           </span>
         </div>
 
-        {/* Nested Children */}
         {node.isExpanded && hasChildren && (
           <div className="flex flex-col w-full relative">
             <div 
@@ -349,7 +326,6 @@ export default function FileSystem() {
     <div className="flex h-[calc(100vh-60px)] bg-slate-50 font-sans antialiased text-slate-800 rounded-xl border border-slate-200/80 shadow-2xl overflow-hidden m-4">
       {actionsLoading && <TopLoader />}
 
-      {/* --- LEFT PANE (Elegant Directory Tree) --- */}
       {isSidebarOpen && (
         <aside 
           className="flex-shrink-0 bg-[#F8FAFC] flex flex-col overflow-hidden z-10 border-r border-slate-200/60 relative"
@@ -364,24 +340,21 @@ export default function FileSystem() {
           
           <div className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max flex flex-col pb-4">
-               {/* Root Directory Base Node */}
                <div 
                   className={`group flex items-center py-2 pr-4 w-full cursor-pointer transition-colors duration-200 select-none outline-none
                     ${currentPath === '..' ? 'bg-indigo-50 text-indigo-700 shadow-[inset_3px_0_0_0_rgba(79,70,229,1)] font-medium' : 'hover:bg-slate-200/50 text-slate-700'}`}
                   style={{ paddingLeft: '12px' }}
-                  onClick={() => { setCurrentPath('..'); sessionStorage.setItem('path', '..'); fetchMainData('..'); }}
+                  onClick={() => handlePathChange('..')}
                 >
                   <div className="w-5 flex-shrink-0" /> 
                   <IconFolderOpen size={18} className={`mr-2 flex-shrink-0 ${currentPath === '..' ? 'text-indigo-600' : 'text-slate-400'}`} />
                   <span className="text-sm tracking-tight whitespace-nowrap">Root Directory</span>
                 </div>
               
-              {/* Tree Rendering */}
               {treeData.filter(n => n.type === 'folder').map(node => <SidebarNode key={node.id} node={node} depth={0} />)}
             </div>
           </div>
 
-          {/* Resizer Handle */}
           <div
             className={`absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-indigo-400/50 transition-colors z-50 flex items-center justify-center ${isDragging ? 'bg-indigo-500/50' : 'bg-transparent'}`}
             onMouseDown={(e) => { 
@@ -395,10 +368,8 @@ export default function FileSystem() {
         </aside>
       )}
 
-      {/* --- RIGHT PANE (Working Directory) --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-white z-20" onContextMenu={(e) => { e.preventDefault(); setContextMenuPos({ x: e.clientX, y: e.clientY }); setIsContextMenuOpen(true); }}>
         
-        {/* Header / Path Bar */}
         <header className="px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/90 backdrop-blur-xl z-30 sticky top-0 border-b border-slate-100">
           <div className="flex items-center gap-4 w-full overflow-hidden">
             {!isSidebarOpen && (
@@ -406,7 +377,9 @@ export default function FileSystem() {
                 <IconLayoutSidebar size={20} stroke={1.5}/>
               </button>
             )}
-            <div className="flex-1 min-w-0"><PathBar pathValue={currentPath} setCurrentPath={setCurrentPath} state={'path'} reset={resetFilters} /></div>
+            <div className="flex-1 min-w-0">
+              <PathBar pathValue={currentPath} setCurrentPath={handlePathChange} state={'path'} reset={resetFilters} />
+            </div>
           </div>
           <div className="flex gap-3 flex-shrink-0">
             <button onClick={() => setShowFolderModal(true)} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm outline-none">
@@ -418,7 +391,6 @@ export default function FileSystem() {
           </div>
         </header>
 
-        {/* Filters Bar */}
         <div className="px-8 py-3 border-b border-slate-100 flex items-center gap-6 text-xs bg-[#FAFAFC]">
           <div className="flex items-center gap-2 flex-1 max-w-md group bg-white border border-slate-200 px-3 py-1.5 rounded-md focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all shadow-sm">
              <IconFilter size={14} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors"/>
@@ -442,7 +414,6 @@ export default function FileSystem() {
           </div>
         </div>
 
-        {/* File Table */}
         <div className="flex-1 overflow-y-auto px-2">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead className="bg-white/95 backdrop-blur-md sticky top-0 z-10 shadow-[0_1px_0_0_rgba(241,245,249,1)]">
@@ -456,17 +427,51 @@ export default function FileSystem() {
             <tbody className="divide-y divide-slate-100/80">
               {processedMainData.length > 0 ? processedMainData.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/80 group cursor-pointer transition-colors" onDoubleClick={() => handleMainItemClick(item)} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedItem(item); setContextMenuPos({ x: e.clientX, y: e.clientY }); setIsMenuOpen(true); }}>
+                  
                   <td className="px-6 py-3.5 flex items-center gap-4">
-                    <div className="w-8 h-8 flex justify-center items-center flex-shrink-0 bg-slate-100 rounded-lg group-hover:bg-white group-hover:shadow-sm transition-all">
-                      {item.type === 'folder' ? <IconFolder size={20} stroke={1.5} className="text-indigo-500 fill-indigo-100" /> : <img src={ImageConfig[item.type] || ImageConfig['default']} className="w-5 h-5 object-contain drop-shadow-sm" alt={item.type} />}
+                    <div 
+                      className="relative group/tooltip w-8 h-8 flex justify-center items-center flex-shrink-0 bg-slate-100 rounded-lg group-hover:bg-white group-hover:shadow-sm transition-all cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setShowProperties(true); }}
+                    >
+                      {item.type === 'folder' && item.isVirtual ? (
+                        item.subFolderType === 'SOP' 
+                          ? <IconFolder size={20} stroke={1.5} className="text-emerald-600 fill-emerald-100" />
+                          : <IconFolder size={20} stroke={1.5} className="text-slate-500 fill-slate-100" />
+                      ) : item.type === 'folder' ? (
+                        <IconFolder size={20} stroke={1.5} className="text-indigo-500 fill-indigo-100" />
+                      ) : item.isMetadataOnly ? (
+                        <IconDatabaseImport size={20} stroke={1.5} className="text-amber-600" />
+                      ) : (
+                        <img src={ImageConfig[item.type] || ImageConfig['default']} className="w-5 h-5 object-contain drop-shadow-sm" alt={item.type} />
+                      )}
+                      
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-800 text-white text-[10px] font-medium rounded-md opacity-0 group-hover/tooltip:opacity-100 pointer-events-none whitespace-nowrap transition-opacity shadow-lg z-50">
+                        See file details
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-slate-800 rotate-45"></div>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium text-slate-700 tracking-tight truncate select-none group-hover:text-indigo-700 transition-colors">{item.name}</span>
+                    
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium text-slate-700 tracking-tight truncate select-none group-hover:text-indigo-700 transition-colors">
+                        {item.name}
+                      </span>
+                      {item.isVirtual && (
+                        <span className={`text-[10px] font-bold uppercase ${item.subFolderType === 'SOP' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                          {item.documentCount} document{item.documentCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {item.isMetadataOnly && (
+                        <span className="text-[10px] font-bold uppercase text-amber-600">Metadata Only</span>
+                      )}
+                    </div>
+
                     {item.isDocumentBookmarked && <IconBookmarkFilled size={14} className="text-amber-400 drop-shadow-sm ml-1" />}
                   </td>
+
                   <td className="px-6 py-3.5 text-xs text-slate-500 hidden lg:table-cell tracking-tight">{item.lastUpdated ? moment(item.lastUpdated).format('DD MMM YYYY, HH:mm') : '—'}</td>
                   <td className="px-6 py-3.5 text-xs text-slate-500 font-mono text-right hidden md:table-cell">{item.type !== 'folder' && item.size ? `${(item.size / 1024).toFixed(1)} KB` : '—'}</td>
                   <td className="px-6 py-3.5 text-center">
-                     <button onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setIsMenuOpen(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none">
+                     <button onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setIsMenuOpen(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 bg-slate-50 lg:bg-transparent rounded-md transition-all outline-none border border-slate-200 lg:border-transparent lg:group-hover:border-indigo-100 shadow-sm lg:shadow-none">
                       <IconDotsVertical size={18} stroke={2} />
                     </button>
                   </td>
@@ -489,7 +494,6 @@ export default function FileSystem() {
         </div>
       </main>
 
-      {/* --- Context Menus & Modals (macOS blur style) --- */}
       {isContextMenuOpen && fileName && (
         <div className="fixed z-[100] bg-white/80 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] rounded-xl border border-slate-200/50 p-1.5 w-56 context-menu" style={{ top: contextMenuPos.y, left: contextMenuPos.x }}>
           <button className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-sm font-medium text-slate-700 hover:bg-slate-100/80 hover:text-indigo-600 rounded-lg outline-none transition-colors" onClick={handlePaste}><IconCopy size={16} stroke={1.5} /> Paste Item</button>
@@ -516,23 +520,50 @@ export default function FileSystem() {
         </div>
       </CustomModal>
 
-      {/* Modern Properties Modal */}
       <CustomModal isOpen={showProperties} onClose={() => setShowProperties(false)}>
         <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
             <h2 className="text-xl font-bold tracking-tight text-slate-800">Properties</h2>
             <button onClick={() => setShowProperties(false)} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors outline-none"><IconSquareLetterX size={20} stroke={1.5} /></button>
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 text-sm bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 text-sm bg-slate-50/50 p-6 rounded-xl border border-slate-100 h-[60vh] overflow-y-auto">
+          
           <Prop label="Name" value={selectedItem?.name} className="col-span-2" />
+          <Prop label="Description" value={selectedItem?.description} className="col-span-2" />
+          <Prop label="Issue No" value={selectedItem?.issueNo} />
+          <Prop label="Part Number" value={selectedItem?.partNumber} />
+          <Prop label="SOP Issue No" value={selectedItem?.SOPIssueNo} />
+          <Prop label="Process Name" value={selectedItem?.processName} />
+          <Prop label="Workflow Name" value={selectedItem?.workflowName} />
+          <Prop label="Process Status" value={selectedItem?.processStatus} />
+          <Prop label="Tags" value={selectedItem?.tags?.join(', ')} />
+          <Prop label="Process Tags" value={selectedItem?.processTags?.join(', ')} />
+          
+          <Prop label="Pre-Approved" value={selectedItem?.preApproved ? 'Yes' : 'No'} />
+          <Prop label="Is Record" value={selectedItem?.isRecord ? 'Yes' : 'No'} />
+          <Prop label="Is Project" value={selectedItem?.isProject ? 'Yes' : 'No'} />
+          <Prop label="Is SOP Document" value={selectedItem?.isSopDocument ? 'Yes' : 'No'} />
+          <Prop label="Superseding" value={selectedItem?.superseding ? 'Yes' : 'No'} />
+          <Prop label="Is Replacement" value={selectedItem?.isReplacement ? 'Yes' : 'No'} />
+          <Prop label="Is Replaced" value={selectedItem?.isReplaced ? 'Yes' : 'No'} />
+          <Prop label="Replaced Doc ID" value={selectedItem?.replacedDocumentId} />
+          <Prop label="Reason of Supersed" value={selectedItem?.reasonOfSupersed} className="col-span-2" />
+          
+          <div className="col-span-2 border-t border-slate-200 pt-4 mt-2">
+             <h4 className="text-sm font-bold text-slate-700 mb-4 tracking-tight">System & File Metadata</h4>
+          </div>
           <Prop label="Location Path" value={selectedItem?.path} className="col-span-2" />
           <Prop label="Format Type" value={selectedItem?.type?.toUpperCase()} />
           <Prop label="File Size" value={selectedItem?.size ? `${selectedItem.size} bytes` : '—'} />
           <Prop label="Created By" value={selectedItem?.createdBy} />
           <Prop label="Creation Date" value={selectedItem?.createdOn ? moment(selectedItem.createdOn).format('DD MMM YYYY, HH:mm') : '—'} />
+          <Prop label="Last Updated" value={selectedItem?.lastUpdated ? moment(selectedItem.lastUpdated).format('DD MMM YYYY, HH:mm') : '—'} />
+          <Prop label="Metadata Only" value={selectedItem?.isMetadataOnly ? 'Yes' : 'No'} />
+          <Prop label="In Bin" value={selectedItem?.inBin ? 'Yes' : 'No'} />
+          <Prop label="Archived" value={selectedItem?.isArchived ? 'Yes' : 'No'} />
+
         </div>
       </CustomModal>
 
-      {/* Forms */}
       <CustomModal isOpen={showFolderModal} onClose={() => setShowFolderModal(false)}>
         <h2 className="text-lg font-bold mb-5 tracking-tight text-slate-800">Create New Folder</h2>
         <form onSubmit={handleSubmit(handleCreateFolder)}>
@@ -595,7 +626,28 @@ export default function FileSystem() {
         </form>
       </CustomModal>
 
-      <ModalWithField open={open === 'password'} setOpen={setOpen} actionsLoading={actionsLoading} setActionsLoading={setActionsLoading} fieldName="password" onSubmit={handleDownloadWithWatermark} defaultWatermark={`Uncontrolled Copy For Reference P.B.No ${username}`} />
+      <CustomModal isOpen={open === 'password'} onClose={() => { setOpen(false); resetWm(); }}>
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-slate-800">Download with Watermark</h2>
+        <form onSubmit={handleSubmitWm((data) => {
+          handleDownloadWithWatermark({ fieldValue: data.password, watermark: `Uncontrolled Copy For Reference P.B.No ${username}` });
+          setOpen(false);
+          resetWm();
+        })} className="space-y-5">
+          <div className="flex flex-col gap-1">
+             <label className="text-sm font-semibold text-slate-700">Password</label>
+             <input type="password" {...registerWm('password', { required: 'Required' })} className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all shadow-sm" />
+          </div>
+          <div className="flex flex-col gap-1">
+             <label className="text-sm font-semibold text-slate-700">Watermark</label>
+             <input type="text" value={`Uncontrolled Copy For Reference P.B.No ${username}`} disabled className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm bg-slate-100 text-slate-500 cursor-not-allowed outline-none transition-all shadow-sm" />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={() => { setOpen(false); resetWm(); }} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+            <button type="submit" disabled={actionsLoading} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm">Download</button>
+          </div>
+        </form>
+      </CustomModal>
+
       {fileView && <ViewFile docu={fileView} setFileView={setFileView} handleViewClose={() => setFileView(null)} />}
     </div>
   );

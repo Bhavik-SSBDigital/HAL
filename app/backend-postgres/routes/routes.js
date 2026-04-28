@@ -33,6 +33,7 @@ import {
   get_workflow_steps_with_assignments,
   get_all_workflows_with_basics,
   get_active_workflow_families,
+  getWorkflowById,
 } from "../controller/workflow-controller.js";
 
 import {
@@ -75,6 +76,7 @@ import {
   search_documents,
   get_searches,
   delete_search,
+  getProcessSubFolderContents,
 } from "../controller/file-details-controller.js";
 
 import {
@@ -178,6 +180,7 @@ import {
   getNumbers,
   getDetails,
   getWorkflowAnalysis,
+  getEntityAnalytics,
 } from "../controller/dashboard-controller.js";
 import {
   add_request_message,
@@ -194,10 +197,22 @@ import {
   submitProcessDraft,
 } from "../controller/draft-controller.js";
 
+import { decryptPayload, decryptHeaders } from "../utility/decryptPayload.js";
+
 const router = express.Router();
 
+// In your router file
+import {
+  getSidebarConfig,
+  updateSidebarConfig,
+} from "../controller/sidebar-config-controller.js";
+
+router.get("/sidebar-config", getSidebarConfig);
+router.put("/sidebar-config", updateSidebarConfig);
+
 router.post("/signup", sign_up);
-router.post("/login", login);
+
+router.post("/login", decryptPayload, login);
 
 // backend/routes/auth.js
 
@@ -212,14 +227,16 @@ router.post("/getAllBranches", get_departments);
 
 // all file related routes
 
-router.post("/upload", file_upload);
-router.post("/download", file_download);
-router.post("/copyFile", file_copy);
-router.post("/cutFile", file_cut);
+router.post("/upload", decryptHeaders, file_upload);
+router.post("/download", decryptHeaders, file_download);
+router.post("/copyFile", decryptHeaders, file_copy);
+router.post("/cutFile", decryptHeaders, file_cut);
+router.get("/getFileData", decryptHeaders, get_file_data);
 router.post("/createFolder", create_folder);
 router.post("/downloadFolder", folder_download);
 router.get("/files/:filePath(*)", file_though_url);
-router.get("/getFileData", get_file_data);
+
+router.post("/getProcessSubFolderContents", getProcessSubFolderContents);
 
 // file details related routes
 
@@ -287,7 +304,7 @@ router.get("/getUsersWithDetails", get_users_with_details);
 
 router.get("/getUserProcesses", get_user_processes);
 
-router.post("/changePassword", change_password);
+router.post("/changePassword", decryptPayload, change_password);
 
 router.post("/signDocument", sign_document);
 
@@ -353,7 +370,10 @@ router.get("/getProcessActivityLogs/:processId", get_process_activity_logs);
 
 router.get("/getNumbers", getNumbers);
 router.get("/getDetails", getDetails);
+
 router.get("/workflowAnalysis/:workflowId", getWorkflowAnalysis);
+router.get("/dashboard/getEntityAnalytics", getEntityAnalytics);
+router.get("/workflows/:id", getWorkflowById);
 
 router.post("/deleteFile", delete_file);
 router.post("/recoverDeletedFile", recover_from_recycle_bin);

@@ -1,143 +1,55 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-
 import {
-  IconSearch,
-  IconChevronLeft,
-  IconChevronRight,
   IconZoomIn,
   IconZoomOut,
   IconRotate,
   IconRefresh,
+  IconX,
 } from '@tabler/icons-react';
-
 import { toast } from 'react-toastify';
 import CustomButton from '../../CustomComponents/CustomButton';
-import CustomTextField from '../../CustomComponents/CustomTextField';
 import CustomCard from '../../CustomComponents/CustomCard';
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/worker.js';
 
-export default function PdfContainer({ url, contentHigh, refPage }) {
+const PAGE_BATCH = 5; // 👈 controls lazy rendering
+
+export default function PdfContainer({ url, onClose }) {
   const [numPages, setNumPages] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [matches, setMatches] = useState([]);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [visiblePages, setVisiblePages] = useState(PAGE_BATCH);
 
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [username, setUsername] = useState('');
 
-  const pageRefs = useRef([]);
-  const renderedPages = useRef(new Set());
+  const containerRef = useRef(null);
 
-  const targetPage = refPage - 1 || 1;
+  /* ---------------- USER ---------------- */
+  useEffect(() => {
+    setUsername(sessionStorage.getItem('username') || 'UNKNOWN USER');
+  }, []);
 
-  /* ---------------- HELPERS ---------------- */
-
-  const escapeRegex = (text = '') =>
-    text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  /* ---------------- PDF LOAD ---------------- */
-
+  /* ---------------- LOAD ---------------- */
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
 
-  const handleRenderSuccess = (pageNumber) => {
-    renderedPages.current.add(pageNumber);
-    if (pageNumber === targetPage) {
-      pageRefs.current[pageNumber - 1]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
+  /* ---------------- LAZY LOAD ---------------- */
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+      setVisiblePages((prev) =>
+        Math.min(prev + PAGE_BATCH, numPages || prev)
+      );
     }
-  };
+  }, [numPages]);
 
-  /* ---------------- HIGHLIGHT LOGIC ---------------- */
-
-  const highlightMatches = (term) => {
-    const spans = document.querySelectorAll(
-      '.react-pdf__Page__textContent span',
-    );
-
-    if (!term && !contentHigh) {
-      spans.forEach((el) => {
-        el.innerHTML = el.textContent;
-      });
-      setMatches([]);
-      setCurrentMatchIndex(0);
-      return;
-    }
-
-    const found = [];
-    const safeTerm = escapeRegex(term);
-    const safeContent = escapeRegex(contentHigh);
-
-    spans.forEach((span) => {
-      const text = span.textContent || '';
-      span.innerHTML = text;
-
-      let html = text;
-
-      if (term) {
-        const regex = new RegExp(`(${safeTerm})`, 'gi');
-        if (regex.test(text)) {
-          html = html.replace(regex, `<mark class="pdf-term">$1</mark>`);
-          found.push(span);
-        }
-      }
-
-      if (contentHigh) {
-        const regex2 = new RegExp(`(${safeContent})`, 'gi');
-        if (regex2.test(text)) {
-          html = html.replace(regex2, `<mark class="pdf-content">$1</mark>`);
-          found.push(span);
-        }
-      }
-
-      span.innerHTML = html;
-    });
-
-    if (found.length) {
-      found[0].scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-
-    setMatches(found);
-    setCurrentMatchIndex(0);
-  };
-
-  /* ---------------- EFFECTS ---------------- */
-
-  useEffect(() => {
-    const t = setTimeout(() => highlightMatches(searchTerm), 300);
-    return () => clearTimeout(t);
-  }, [searchTerm, numPages, scale, rotation]);
-
-  /* ---------------- MATCH NAV ---------------- */
-
-  const goToMatch = (dir) => {
-    if (!matches.length) return;
-
-    let index = currentMatchIndex + dir;
-    if (index < 0) index = matches.length - 1;
-    if (index >= matches.length) index = 0;
-
-    setCurrentMatchIndex(index);
-    matches[index]?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    });
-  };
-
-  /* ---------------- ZOOM & ROTATE ---------------- */
-
+  /* ---------------- CONTROLS ---------------- */
   const zoomIn = () => setScale((s) => Math.min(s + 0.2, 3));
   const zoomOut = () => setScale((s) => Math.max(s - 0.2, 0.5));
   const resetZoom = () => setScale(1);
@@ -149,122 +61,110 @@ export default function PdfContainer({ url, contentHigh, refPage }) {
 
   return (
     <CustomCard className="p-0">
+
       {/* TOOLBAR */}
-      <div className="sticky top-0 z-50 flex flex-wrap items-center gap-2 bg-background px-4 py-3">
-        {/* <IconSearch size={18} className="text-muted-foreground" />
-        <CustomTextField
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search text..."
-          className="max-w-xs"
-        />
+      <div className="sticky top-0 z-50 flex items-center justify-end gap-2 bg-background px-4 py-3 shadow-sm">
 
-        <CustomButton
-          variant="icon"
-          size="icon"
-          click={() => goToMatch(-1)}
-          disabled={!matches.length}
-        >
-          <IconChevronLeft size={18} />
+        <CustomButton variant="icon" size="icon" click={zoomOut}>
+          <IconZoomOut size={18} />
         </CustomButton>
 
-        <CustomButton
-          variant="icon"
-          size="icon"
-          click={() => goToMatch(1)}
-          disabled={!matches.length}
-        >
-          <IconChevronRight size={18} />
+        <span className="min-w-[60px] text-center text-sm">
+          {Math.round(scale * 100)}%
+        </span>
+
+        <CustomButton variant="icon" size="icon" click={zoomIn}>
+          <IconZoomIn size={18} />
         </CustomButton>
 
-        <h3 size="sm" className="min-w-[80px] text-center">
-          {matches.length
-            ? `${currentMatchIndex + 1}/${matches.length}`
-            : '0 matches'}
-        </h3> */}
+        <CustomButton variant="icon" size="icon" click={resetZoom}>
+          <IconRefresh size={18} />
+        </CustomButton>
 
-        <div className="ml-auto flex items-center gap-1">
-          <CustomButton variant="icon" size="icon" click={zoomOut}>
-            <IconZoomOut size={18} />
-          </CustomButton>
+        <CustomButton variant="icon" size="icon" click={rotateRight}>
+          <IconRotate size={18} />
+        </CustomButton>
 
-          <h3 size="sm">{Math.round(scale * 100)}%</h3>
+        <CustomButton variant="icon" size="icon" click={resetRotation}>
+          <IconRefresh size={18} />
+        </CustomButton>
 
-          <CustomButton variant="icon" size="icon" click={zoomIn}>
-            <IconZoomIn size={18} />
-          </CustomButton>
-
-          <CustomButton
-            title={'Reset Zoom'}
-            variant="icon"
-            size="icon"
-            click={resetZoom}
-          >
-            <IconRefresh size={18} />
-          </CustomButton>
-
-          <CustomButton
-            title={'Rotate'}
-            variant="icon"
-            size="icon"
-            click={rotateRight}
-          >
-            <IconRotate size={18} />
-          </CustomButton>
-
-          <CustomButton
-            title={'Reset Rotate'}
-            variant="icon"
-            size="icon"
-            click={resetRotation}
-          >
-            <IconRefresh size={18} />
-          </CustomButton>
-        </div>
+        {/* CLOSE */}
+        {onClose && (
+          <>
+            <div className="mx-2 h-6 w-px bg-gray-300" />
+            <CustomButton
+              variant="icon"
+              size="icon"
+              click={onClose}
+              className="text-red-500 hover:bg-red-100"
+            >
+              <IconX size={18} />
+            </CustomButton>
+          </>
+        )}
       </div>
 
-      {/* PDF */}
-      <div>
+      {/* PDF CONTAINER */}
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="h-[80vh] overflow-auto flex flex-col items-center"
+      >
         <Document
           file={url}
           onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={(e) => {
-            console.error(e);
-            toast.error('Failed to load PDF');
-          }}
+          onLoadError={() => toast.error('Failed to load PDF')}
         >
-          {Array.from({ length: numPages || 0 }, (_, i) => (
-            <div
-              key={i}
-              ref={(el) => (pageRefs.current[i] = el)}
-              className="mb-6 flex justify-center"
-            >
-              <Page
-                pageNumber={i + 1}
-                scale={scale}
-                rotate={rotation}
-                renderTextLayer
-                renderAnnotationLayer={false}
-                onRenderSuccess={() => handleRenderSuccess(i + 1)}
-              />
+          {Array.from(new Array(visiblePages), (_, i) => (
+            <div key={i} className="mb-6">
+
+              {/* TRANSFORM WRAPPER (🔥 NO RE-RENDER) */}
+              <div
+                style={{
+                  transform: `scale(${scale}) rotate(${rotation}deg)`,
+                  transformOrigin: 'center',
+                }}
+                className="relative inline-block"
+              >
+                {/* PDF PAGE (FIXED SCALE = 1) */}
+                <Page
+                  pageNumber={i + 1}
+                  scale={1}
+                  renderTextLayer={false} // ⚡ BIG BOOST
+                  renderAnnotationLayer={false}
+                />
+
+                {/* WATERMARK */}
+                {username && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div
+                      style={{
+                        transform: 'rotate(-45deg)',
+                        fontSize: '1.5rem',
+                        opacity: 0.25,
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        width: '140%',
+                      }}
+                    >
+                      <p>UNCONTROLLED COPY</p>
+                      <p>{username}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </Document>
-      </div>
 
-      {/* HIGHLIGHT STYLES */}
-      <style>
-        {`
-          mark.pdf-term {
-            background: rgba(255, 230, 0, 0.75);
-            padding: 0;
-          }
-          mark.pdf-content {
-            background: rgba(0, 140, 255, 0.45);
-            padding: 0;
-          }
-        `}
-      </style>
+        {/* LOAD MORE INDICATOR */}
+        {visiblePages < (numPages || 0) && (
+          <div className="py-4 text-sm text-gray-500">
+            Loading more pages...
+          </div>
+        )}
+      </div>
     </CustomCard>
   );
 }

@@ -202,16 +202,17 @@ const PdfViewer = ({
             readOnly={!isEditing}
           />
         ) : currentDoc.type === 'pdf' ? (
-          <PdfContainer
-            url={currentDoc.url}
-            documentId={currentDoc.fileId}
-            workflow={workflow}
-            maxReceiverStepNumber={maxReceiverStepNumber}
-            processId={processId}
-            currentStep={currentDoc.step}
-            controls={controls}
-            signed={signedDocument}
-          />
+       <PdfContainer
+  url={currentDoc.url}
+  documentId={currentDoc.fileId}
+  workflow={workflow}
+  maxReceiverStepNumber={maxReceiverStepNumber}
+  processId={processId}
+  currentStep={currentDoc.step}
+  controls={controls}
+  signed={signedDocument}
+  onClose={handleViewClose}   // ✅ FIXED
+/>
         ) : (
           <DocViewer
             documents={[{ uri: currentDoc.url }]}

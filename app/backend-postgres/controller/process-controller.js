@@ -301,7 +301,6 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { description, workflowId, issueNo } = req.body;
-
     const processName = await generate_unique_process_name(workflowId);
 
     const workflowDetails = await prisma.workflow.findUnique({
@@ -313,11 +312,29 @@ export const initiate_process = async (req, res, next) => {
 
     await createFolder(false, `../${workflowName}/${processName}`, userData);
 
-    let documentIds = req.body.documents?.map((item) => item.documentId) || [];
+    const processFolderDoc = await prisma.document.findUnique({
+      where: { path: `${workflowName}/${processName}` },
+    });
 
+    if (processFolderDoc) {
+      await prisma.document.update({
+        where: { id: processFolderDoc.id },
+        data: { isProcessFolder: true },
+      });
+    }
+
+    const allDocItems = req.body.documents || [];
+    const realDocItems = allDocItems.filter((item) => !item.isMetadataOnly);
+    const metaOnlyItems = allDocItems.filter((item) => item.isMetadataOnly);
+
+    let documentIds = realDocItems.map((item) => item.documentId) || [];
     const copiedDocumentIds = [];
+    const editableDocMap = {};
 
-    for (const documentId of documentIds) {
+    for (let i = 0; i < realDocItems.length; i++) {
+      const item = realDocItems[i];
+      const documentId = item.documentId;
+
       const document = await prisma.document.findUnique({
         where: { id: documentId },
         select: { path: true },
@@ -347,8 +364,63 @@ export const initiate_process = async (req, res, next) => {
           );
         });
 
+        let newEditableId = null;
+
+        if (item.editableDocumentId) {
+          const editableDoc = await prisma.document.findUnique({
+            where: { id: item.editableDocumentId },
+            select: { path: true },
+          });
+
+          if (editableDoc) {
+            const editableSourcePath = `./${editableDoc.path}`;
+            const editableName = editableSourcePath.split("/").pop();
+
+            const editableCopyResult = await new Promise((resolve, reject) => {
+              file_copy(
+                {
+                  headers: { authorization: `Bearer ${accessToken}` },
+                  body: {
+                    sourcePath: editableSourcePath,
+                    destinationPath,
+                    name: editableName,
+                  },
+                },
+                {
+                  status: (code) => ({
+                    json: (data) => {
+                      if (code === 200) resolve(data);
+                      else reject(data);
+                    },
+                  }),
+                },
+              );
+            });
+
+            newEditableId = editableCopyResult.documentId;
+
+            await new Promise((resolve, reject) => {
+              delete_file(
+                {
+                  headers: { authorization: `Bearer ${accessToken}` },
+                  body: { documentId: item.editableDocumentId },
+                },
+                {
+                  status: (code) => ({
+                    json: (data) => {
+                      if (code === 200) resolve(data);
+                      else reject(data);
+                    },
+                  }),
+                },
+              );
+            });
+          }
+        }
+
         if (copyResult.documentId) {
           copiedDocumentIds.push(copyResult.documentId);
+          editableDocMap[copyResult.documentId] = newEditableId;
         }
 
         await new Promise((resolve, reject) => {
@@ -374,9 +446,10 @@ export const initiate_process = async (req, res, next) => {
 
     documentIds = copiedDocumentIds;
 
-    if (documentIds.length === 0) {
+    if (documentIds.length === 0 && metaOnlyItems.length === 0) {
       return res.status(400).json({
-        message: "Documents are required to initiate a process",
+        message:
+          "At least one document or metadata entry is required to initiate a process",
       });
     }
 
@@ -398,10 +471,18 @@ export const initiate_process = async (req, res, next) => {
           },
         });
 
-        const processDocumentData =
-          req.body.documents?.map((item, index) => ({
+        // FIX: Build an array to dynamically insert reference docs as independent non-SOP rows
+        const processDocumentsToInsert = [];
+
+        for (let i = 0; i < realDocItems.length; i++) {
+          const item = realDocItems[i];
+          const mainDocId = documentIds[i];
+          const refDocId = editableDocMap[mainDocId] || null;
+
+          // 1. Insert the main document
+          processDocumentsToInsert.push({
             processId: process_.id,
-            documentId: documentIds[index],
+            documentId: mainDocId,
             reopenCycle: 0,
             SOPIssueNo: issueNo || null,
             preApproved: item.preApproved || false,
@@ -409,11 +490,156 @@ export const initiate_process = async (req, res, next) => {
             partNumber: item.partNumber || null,
             description: item.description || null,
             issueNo: item.issueNo || null,
-          })) || [];
+            isSopDocument: item.isSopDocument !== false,
+            isMetadataOnly: false,
+            editableDocumentId: refDocId, // Keep relational link
+          });
 
-        await tx.processDocument.createMany({
-          data: processDocumentData,
+          // 2. Insert the reference document independently with isSopDocument: false
+          if (refDocId) {
+            processDocumentsToInsert.push({
+              processId: process_.id,
+              documentId: refDocId,
+              reopenCycle: 0,
+              SOPIssueNo: issueNo || null,
+              preApproved: item.preApproved || false,
+              tags: item.tags || [],
+              partNumber: item.partNumber || null,
+              description: item.description
+                ? `${item.description} (Editable Reference)`
+                : "Editable Reference",
+              issueNo: item.issueNo || null,
+              isSopDocument: false, // Ensures reference docs are treated as non-SOP
+              isMetadataOnly: false,
+              editableDocumentId: null,
+            });
+          }
+        }
+
+        if (processDocumentsToInsert.length > 0) {
+          await tx.processDocument.createMany({
+            data: processDocumentsToInsert,
+          });
+        }
+
+        for (const metaItem of metaOnlyItems) {
+          const placeholderDoc = await tx.document.create({
+            data: {
+              name:
+                metaItem.metaFileName || `metadata_placeholder_${Date.now()}`,
+              type: metaItem.metaFileExtension || "placeholder",
+              path: `${workflowName}/${processName}/meta_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+              createdById: userData.id,
+              isInvolvedInProcess: true,
+              tags: metaItem.tags || [],
+              isRecord: false,
+            },
+          });
+
+          let newEditableId = null;
+
+          if (metaItem.editableDocumentId) {
+            const editableDoc = await tx.document.findUnique({
+              where: { id: metaItem.editableDocumentId },
+              select: { path: true },
+            });
+
+            if (editableDoc) {
+              const editableSourcePath = `./${editableDoc.path}`;
+              const editableName = editableSourcePath.split("/").pop();
+
+              const editableCopyResult = await new Promise(
+                (resolve, reject) => {
+                  file_copy(
+                    {
+                      headers: { authorization: `Bearer ${accessToken}` },
+                      body: {
+                        sourcePath: editableSourcePath,
+                        destinationPath: `../${workflowName}/${processName}`,
+                        name: editableName,
+                      },
+                    },
+                    {
+                      status: (code) => ({
+                        json: (data) => {
+                          if (code === 200) resolve(data);
+                          else reject(data);
+                        },
+                      }),
+                    },
+                  );
+                },
+              );
+
+              newEditableId = editableCopyResult.documentId;
+
+              await new Promise((resolve, reject) => {
+                delete_file(
+                  {
+                    headers: { authorization: `Bearer ${accessToken}` },
+                    body: { documentId: metaItem.editableDocumentId },
+                  },
+                  {
+                    status: (code) => ({
+                      json: (data) => {
+                        if (code === 200) resolve(data);
+                        else reject(data);
+                      },
+                    }),
+                  },
+                );
+              });
+            }
+          }
+
+          // Insert main metadata placeholder
+          await tx.processDocument.create({
+            data: {
+              processId: process_.id,
+              documentId: placeholderDoc.id,
+              reopenCycle: 0,
+              SOPIssueNo: issueNo || null,
+              preApproved: metaItem.preApproved || false,
+              tags: metaItem.tags || [],
+              partNumber: metaItem.partNumber || null,
+              description: metaItem.description || null,
+              issueNo: metaItem.issueNo || null,
+              isSopDocument: metaItem.isSopDocument !== false,
+              isMetadataOnly: true,
+              editableDocumentId: newEditableId,
+            },
+          });
+
+          // FIX: Insert reference document for metadata entries with isSopDocument: false
+          if (newEditableId) {
+            await tx.processDocument.create({
+              data: {
+                processId: process_.id,
+                documentId: newEditableId,
+                reopenCycle: 0,
+                SOPIssueNo: issueNo || null,
+                preApproved: metaItem.preApproved || false,
+                tags: metaItem.tags || [],
+                partNumber: metaItem.partNumber || null,
+                description: metaItem.description
+                  ? `${metaItem.description} (Editable Reference)`
+                  : "Editable Reference",
+                issueNo: metaItem.issueNo || null,
+                isSopDocument: false, // Ensures reference docs are treated as non-SOP
+                isMetadataOnly: false,
+                editableDocumentId: null,
+              },
+            });
+          }
+        }
+
+        const allProcessDocs = await tx.processDocument.findMany({
+          where: { processId: process_.id },
+          select: { documentId: true },
         });
+
+        // allDocIds will now correctly include the reference documents because we formally inserted them above
+        const allDocIds = allProcessDocs.map((d) => d.documentId);
 
         const workflow = await tx.workflow.findUnique({
           where: { id: workflowId },
@@ -432,7 +658,7 @@ export const initiate_process = async (req, res, next) => {
             process_,
             step,
             assignment,
-            documentIds,
+            allDocIds,
             false,
             true,
             workflowId,
@@ -441,14 +667,17 @@ export const initiate_process = async (req, res, next) => {
 
         await tx.processInstance.update({
           where: { id: process_.id },
-          data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
+          data: {
+            currentStepId: workflow.steps[1]?.id,
+            status: "IN_PROGRESS",
+          },
         });
 
         return process_;
       },
       {
-        maxWait: 10000, // can increase if needed
-        timeout: 480000, // 2 minutes
+        maxWait: 10000,
+        timeout: 480000,
       },
     );
 
@@ -460,6 +689,162 @@ export const initiate_process = async (req, res, next) => {
     console.error("Error initiating the process", error);
     return res.status(500).json({
       message: "Error initiating the process",
+      error: error.message,
+    });
+  }
+};
+
+export const fulfill_metadata_document = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+
+    const {
+      processId,
+      metadataProcessDocumentId, // The ProcessDocument.id of the metadata-only entry
+      newDocumentId, // The newly uploaded document's ID
+      issueNo,
+      partNumber,
+      description,
+      tags,
+      isSopDocument,
+    } = req.body;
+
+    if (!processId || !metadataProcessDocumentId || !newDocumentId) {
+      return res.status(400).json({
+        message:
+          "processId, metadataProcessDocumentId, and newDocumentId are required",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Fetch the existing metadata-only process document
+      const metaProcessDoc = await tx.processDocument.findUnique({
+        where: { id: metadataProcessDocumentId },
+        include: {
+          document: true,
+          process: {
+            include: { workflow: { select: { name: true } } },
+          },
+        },
+      });
+
+      if (!metaProcessDoc || metaProcessDoc.processId !== processId) {
+        throw new Error("Metadata document not found in this process");
+      }
+
+      if (!metaProcessDoc.isMetadataOnly) {
+        throw new Error("This document is not a metadata-only entry");
+      }
+
+      // Get the process to find storage path
+      const process = await tx.processInstance.findUnique({
+        where: { id: processId },
+        select: { storagePath: true, reopenCycle: true },
+      });
+
+      // Verify new document exists
+      const newDoc = await tx.document.findUnique({
+        where: { id: parseInt(newDocumentId) },
+      });
+
+      if (!newDoc) {
+        throw new Error(`New document ${newDocumentId} not found`);
+      }
+
+      // Update the metadata process document:
+      // Mark the old placeholder as replaced by the new real document
+      const updatedMetaDoc = await tx.processDocument.update({
+        where: { id: metadataProcessDocumentId },
+        data: {
+          isMetadataOnly: false,
+          // Keep the documentId pointing to placeholder, create replacement chain
+        },
+      });
+
+      // Create a new ProcessDocument for the actual uploaded file
+      const newProcessDoc = await tx.processDocument.create({
+        data: {
+          processId,
+          documentId: parseInt(newDocumentId),
+          reopenCycle: process.reopenCycle,
+          SOPIssueNo: metaProcessDoc.SOPIssueNo,
+          preApproved: metaProcessDoc.preApproved,
+          tags: tags || metaProcessDoc.tags || [],
+          partNumber: partNumber || metaProcessDoc.partNumber,
+          description: description || metaProcessDoc.description,
+          issueNo: issueNo || metaProcessDoc.issueNo,
+          isSopDocument:
+            isSopDocument !== undefined
+              ? isSopDocument
+              : metaProcessDoc.isSopDocument,
+          isMetadataOnly: false,
+          isReplacement: true,
+          replacedDocumentId: metaProcessDoc.documentId, // points to placeholder doc
+          superseding: false,
+          reasonOfSupersed: "Metadata fulfilled with actual document upload",
+        },
+      });
+
+      // Document history entry
+      await tx.documentHistory.create({
+        data: {
+          documentId: parseInt(newDocumentId),
+          processId,
+          userId: userData.id,
+          actionType: "UPLOADED",
+          actionDetails: {
+            isMetadataFulfillment: true,
+            originalMetadataDocumentId: metaProcessDoc.documentId,
+            reopenCycle: process.reopenCycle,
+          },
+          isRecirculationTrigger: false,
+          processDocumentId: newProcessDoc.id,
+          replacedDocumentId: metaProcessDoc.documentId,
+        },
+      });
+
+      // Grant access to the new document for all current step instance users
+      const stepInstances = await tx.processStepInstance.findMany({
+        where: {
+          processId,
+          status: { in: ["IN_PROGRESS", "APPROVED", "MIGRATED"] },
+        },
+      });
+
+      for (const si of stepInstances) {
+        await ensureDocumentAccessWithParents(tx, {
+          documentId: parseInt(newDocumentId),
+          userId: si.assignedTo,
+          stepInstanceId: si.id,
+          processId,
+          assignmentId: si.assignmentId,
+          roleId: si.roleId,
+          departmentId: si.departmentId,
+        });
+      }
+
+      return { newProcessDoc, updatedMetaDoc };
+    });
+
+    // Return updated document arrays
+    const { documentVersioning, sededDocuments, transformedDocuments } =
+      await getProcessDocumentArrays(processId);
+
+    return res.status(200).json({
+      message: "Metadata document fulfilled with actual file successfully",
+      documentVersioning,
+      sededDocuments,
+      documents: transformedDocuments,
+    });
+  } catch (error) {
+    console.error("Error fulfilling metadata document:", error);
+    return res.status(500).json({
+      message: "Error fulfilling metadata document",
       error: error.message,
     });
   }
@@ -1210,7 +1595,6 @@ export const copy_and_restart_process = async (req, res) => {
       return res.status(400).json({ message: "processId is required" });
     }
 
-    // 1. Fetch original process and its documents
     const originalProcess = await prisma.processInstance.findUnique({
       where: { id: processId },
       include: {
@@ -1224,19 +1608,23 @@ export const copy_and_restart_process = async (req, res) => {
       return res.status(404).json({ message: "Original process not found" });
     }
 
-    // Allow overriding workflow, otherwise fallback to the original
     const workflowId = targetWorkflowId || originalProcess.workflowId;
 
-    // 2. Filter for active/terminal documents (not replaced by others)
-    const replacedDocumentIds = new Set(
+    const replacedIds = new Set(
       originalProcess.documents
         .filter((pd) => pd.replacedDocumentId)
         .map((pd) => pd.replacedDocumentId),
     );
 
-    const activeDocuments = originalProcess.documents.filter(
-      (pd) => !replacedDocumentIds.has(pd.documentId) && !pd.superseding,
-    );
+    const activeMap = new Map();
+
+    for (const pd of originalProcess.documents) {
+      if (!replacedIds.has(pd.documentId)) {
+        activeMap.set(pd.documentId, pd);
+      }
+    }
+
+    const activeDocuments = Array.from(activeMap.values());
 
     if (activeDocuments.length === 0) {
       return res.status(400).json({
@@ -1244,7 +1632,6 @@ export const copy_and_restart_process = async (req, res) => {
       });
     }
 
-    // 3. Setup new process details and folder
     const processName = await generate_unique_process_name(workflowId);
 
     const workflowDetails = await prisma.workflow.findUnique({
@@ -1260,7 +1647,6 @@ export const copy_and_restart_process = async (req, res) => {
 
     const newDocumentDetails = [];
 
-    // 4. Duplicate physical files using existing file_copy utility
     for (const pDoc of activeDocuments) {
       const sourcePath = `./${pDoc.document.path}`;
       const destinationPath = `../${workflowDetails.name}/${processName}`;
@@ -1284,9 +1670,47 @@ export const copy_and_restart_process = async (req, res) => {
           );
         });
 
+        let newEditableId = null;
+
+        if (pDoc.editableDocumentId) {
+          const editableDoc = await prisma.document.findUnique({
+            where: { id: pDoc.editableDocumentId },
+            select: { path: true },
+          });
+
+          if (editableDoc) {
+            const editableSourcePath = `./${editableDoc.path}`;
+            const editableName = editableSourcePath.split("/").pop();
+
+            const editableCopyResult = await new Promise((resolve, reject) => {
+              file_copy(
+                {
+                  headers: { authorization: `Bearer ${accessToken}` },
+                  body: {
+                    sourcePath: editableSourcePath,
+                    destinationPath,
+                    name: editableName,
+                  },
+                },
+                {
+                  status: (code) => ({
+                    json: (data) => {
+                      if (code === 200) resolve(data);
+                      else reject(data);
+                    },
+                  }),
+                },
+              );
+            });
+
+            newEditableId = editableCopyResult.documentId;
+          }
+        }
+
         if (copyResult.documentId) {
           newDocumentDetails.push({
             newId: copyResult.documentId,
+            editableId: newEditableId,
             oldDoc: pDoc,
           });
         }
@@ -1303,7 +1727,6 @@ export const copy_and_restart_process = async (req, res) => {
 
     const documentIds = newDocumentDetails.map((d) => d.newId);
 
-    // 5. Execute DB Transaction to start the new process instance
     const newProcess = await prisma.$transaction(async (tx) => {
       const process_ = await tx.processInstance.create({
         data: {
@@ -1319,7 +1742,6 @@ export const copy_and_restart_process = async (req, res) => {
         },
       });
 
-      // Map copied documents to the new process
       const processDocumentData = newDocumentDetails.map((item) => ({
         processId: process_.id,
         documentId: item.newId,
@@ -1330,13 +1752,17 @@ export const copy_and_restart_process = async (req, res) => {
         partNumber: item.oldDoc.partNumber || null,
         description: item.oldDoc.description || null,
         issueNo: item.oldDoc.issueNo || null,
+        isSopDocument: item.oldDoc.isSopDocument !== false,
+        isMetadataOnly: item.oldDoc.isMetadataOnly || false,
+        metaFileName: item.oldDoc.metaFileName || null,
+        metaFileExtension: item.oldDoc.metaFileExtension || null,
+        editableDocumentId: item.editableId || null,
       }));
 
       await tx.processDocument.createMany({
         data: processDocumentData,
       });
 
-      // Fetch target workflow and initialize assignments
       const workflow = await tx.workflow.findUnique({
         where: { id: workflowId },
         include: { steps: { include: { assignments: true } } },
@@ -1363,7 +1789,10 @@ export const copy_and_restart_process = async (req, res) => {
 
       await tx.processInstance.update({
         where: { id: process_.id },
-        data: { currentStepId: workflow.steps[1]?.id, status: "IN_PROGRESS" },
+        data: {
+          currentStepId: workflow.steps[1]?.id,
+          status: "IN_PROGRESS",
+        },
       });
 
       return process_;
@@ -1411,7 +1840,6 @@ export const view_process = async (req, res) => {
       }
     };
 
-    // Fetch ProcessInstance with minimal relations
     const process = await retry(() =>
       prisma.processInstance.findUnique({
         where: { id: processId },
@@ -1443,7 +1871,6 @@ export const view_process = async (req, res) => {
       });
     }
 
-    // Fetch documents separately
     const documents = await retry(() =>
       prisma.processDocument.findMany({
         where: { processId: process.id },
@@ -1469,7 +1896,6 @@ export const view_process = async (req, res) => {
       }),
     );
 
-    // Fetch stepInstances separately
     const stepInstances = await retry(() =>
       prisma.processStepInstance.findMany({
         where: {
@@ -1529,6 +1955,7 @@ export const view_process = async (req, res) => {
 
     process.documents = documents;
     process.stepInstances = stepInstances;
+
     const getAssigneeUserIds = async (process, prisma) => {
       const assigneeIds = (
         await Promise.all(
@@ -1541,11 +1968,8 @@ export const view_process = async (req, res) => {
               step.workflowAssignment;
 
             if (assigneeType === "USER") {
-              // For USER type, return assigneeIds directly
-
               return assigneeIds || [];
             } else if (assigneeType === "ROLE") {
-              // For ROLE type, find all users with these roles
               const userRoles = await prisma.userRole.findMany({
                 where: {
                   roleId: { in: assigneeIds.map((id) => parseInt(id)) },
@@ -1557,7 +1981,6 @@ export const view_process = async (req, res) => {
 
               return userRoles.map((ur) => ur.userId);
             } else if (assigneeType === "DEPARTMENT") {
-              // For DEPARTMENT type, find users with roles from selectedRoles
               const userRoles = await prisma.userRole.findMany({
                 where: {
                   roleId: { in: selectedRoles.map((id) => parseInt(id)) },
@@ -1573,9 +1996,9 @@ export const view_process = async (req, res) => {
             return [];
           }),
         )
-      ).flat(); // Flatten the array of arrays
+      ).flat();
 
-      return [...new Set(assigneeIds)]; // Remove duplicates
+      return [...new Set(assigneeIds)];
     };
 
     const assigneeIds = await getAssigneeUserIds(process, prisma);
@@ -1594,11 +2017,6 @@ export const view_process = async (req, res) => {
       map[user.id] = user;
       return map;
     }, {});
-
-    // Deduplicate steps and include username in stepName
-
-    // Deduplicate steps and include username in stepName
-    // Deduplicate steps and include only the latest step instance for stepNumber 1
 
     const firstStepInstances = await retry(() =>
       prisma.processStepInstance.findMany({
@@ -1652,8 +2070,8 @@ export const view_process = async (req, res) => {
         },
       }),
     );
+
     const steps = await (async () => {
-      // Filter step instances for stepNumber 1 and APPROVED status
       const stepNumberOneInstances = firstStepInstances.filter(
         (step) =>
           step.status === "APPROVED" &&
@@ -1661,16 +2079,14 @@ export const view_process = async (req, res) => {
             step.workflowStep?.stepNumber === 1),
       );
 
-      // If no step instances are found for stepNumber 1, return an empty array
       if (stepNumberOneInstances.length === 0) {
         return [];
       }
 
-      // Find the latest step instance based on updatedAt or createdAt
       const latestStep = stepNumberOneInstances.sort((a, b) => {
         const aTime = a.updatedAt || a.createdAt;
         const bTime = b.updatedAt || b.createdAt;
-        return bTime - aTime; // Sort descending to get the latest first
+        return bTime - aTime;
       })[0];
 
       const initiator = await prisma.user.findFirst({
@@ -1678,7 +2094,7 @@ export const view_process = async (req, res) => {
           id: latestStep.assignedTo,
         },
       });
-      // Get step data from workflowAssignment or workflowStep
+
       const stepData =
         latestStep.workflowAssignment?.step ?? latestStep.workflowStep;
 
@@ -1686,7 +2102,6 @@ export const view_process = async (req, res) => {
         ? initiator.username
         : "Unknown User";
 
-      // Return the single step in the required format
       return [
         {
           stepName: stepData
@@ -1722,10 +2137,16 @@ export const view_process = async (req, res) => {
             path: true,
           },
         },
+        editableDocument: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+        },
       },
     });
 
-    // Identify replaced and superseded document IDs
     const replacedDocumentIds = new Set(
       processDocuments
         .filter((pd) => pd.replacedDocumentId)
@@ -1738,22 +2159,18 @@ export const view_process = async (req, res) => {
         .map((pd) => pd.replacedDocumentId),
     );
 
-    // Find the latest document (neither replaced nor superseded)
     let latestDocument = processDocuments.find(
       (pd) =>
         !replacedDocumentIds.has(pd.documentId) &&
         !supersededDocumentIds.has(pd.documentId),
     );
 
-    // If no such document exists, take the latest non-replaced document
     if (!latestDocument) {
       latestDocument = processDocuments
         .filter((pd) => !replacedDocumentIds.has(pd.documentId))
         .sort((a, b) => b.document.id - a.document.id)[0];
     }
 
-    // Build documentVersioning
-    // Build documentVersioning
     const documentVersioning = [];
     const allProcessDocuments = await prisma.processDocument.findMany({
       where: { processId: process.id },
@@ -1774,32 +2191,39 @@ export const view_process = async (req, res) => {
             path: true,
           },
         },
+        editableDocument: {
+          select: {
+            id: true,
+            name: true,
+            path: true,
+          },
+        },
       },
     });
 
-    // Create maps for quick lookups
+    const sopProcessDocuments = allProcessDocuments.filter(
+      (doc) => doc.isSopDocument !== false,
+    );
+
     const docIdToProcessDoc = new Map(
-      allProcessDocuments.map((d) => [d.documentId, d]),
+      sopProcessDocuments.map((d) => [d.documentId, d]),
     );
     const replacedToReplacer = new Map(
-      allProcessDocuments
+      sopProcessDocuments
         .filter((d) => d.replacedDocumentId)
         .map((d) => [d.replacedDocumentId, d.documentId]),
     );
 
-    // Find all terminal documents (not replaced by any other)
-    const terminalDocumentIds = allProcessDocuments
+    const terminalDocumentIds = sopProcessDocuments
       .filter((d) => !replacedToReplacer.has(d.documentId))
       .map((d) => d.documentId);
 
-    // For each terminal document, build its complete chain
     for (const terminalDocId of terminalDocumentIds) {
       const versions = [];
       let currentDocId = terminalDocId;
-      const visitedDocIds = new Set(); // Track visited document IDs to detect cycles
+      const visitedDocIds = new Set();
 
       while (currentDocId) {
-        // Check for cycle
         if (visitedDocIds.has(currentDocId)) {
           console.warn(
             `Cycle detected at docId: ${currentDocId}. Breaking loop.`,
@@ -1832,6 +2256,9 @@ export const view_process = async (req, res) => {
           isReplacement: processDoc.isReplacement,
           superseding: processDoc.superseding,
           reopenCycle: processDoc.reopenCycle,
+          isMetadataOnly: processDoc.isMetadataOnly,
+          editableDocument: processDoc.editableDocument || null,
+          isSopDocument: processDoc.isSopDocument,
         });
 
         currentDocId = processDoc.replacedDocumentId;
@@ -1847,14 +2274,9 @@ export const view_process = async (req, res) => {
       }
     }
 
-    // NEW: Handle documents that appear in newer reopen cycles without being replacements
-    // These are documents that don't replace any existing document and aren't replaced by any document
-    const standaloneDocs = allProcessDocuments.filter((doc) => {
-      // Document doesn't replace any other document
+    const standaloneDocs = sopProcessDocuments.filter((doc) => {
       const isNotReplacement = !doc.replacedDocumentId;
-      // Document isn't replaced by any other document (already covered by terminalDocIds)
       const isNotReplaced = !replacedToReplacer.has(doc.documentId);
-      // Document isn't already included in any chain
       const isNotIncluded = !documentVersioning.some((chain) =>
         chain.versions.some((v) => v.id === doc.documentId),
       );
@@ -1862,7 +2284,6 @@ export const view_process = async (req, res) => {
       return isNotReplacement && isNotReplaced && isNotIncluded;
     });
 
-    // Add standalone documents as separate chains
     for (const standaloneDoc of standaloneDocs) {
       documentVersioning.push({
         latestDocumentId: standaloneDoc.documentId,
@@ -1884,16 +2305,16 @@ export const view_process = async (req, res) => {
             issueNo: standaloneDoc.issueNo || null,
             SOPIssueNo: standaloneDoc.SOPIssueNo || null,
             preApproved: standaloneDoc.preApproved,
-            description: standaloneDoc.description,
+            isMetadataOnly: standaloneDoc.isMetadataOnly,
+            editableDocument: standaloneDoc.editableDocument || null,
+            isSopDocument: standaloneDoc.isSopDocument,
           },
         ],
       });
     }
 
-    // Group document chains by reopenCycle
     const groupedDocumentVersioning = {};
     documentVersioning.forEach((chain) => {
-      // Get the reopenCycle from the latest version
       const latestVersion = chain.versions[chain.versions.length - 1];
       const reopenCycle = latestVersion.reopenCycle || 0;
 
@@ -1903,7 +2324,6 @@ export const view_process = async (req, res) => {
       groupedDocumentVersioning[reopenCycle].push(chain);
     });
 
-    // Transform to array format with reopenCycle info
     const finalDocumentVersioning = Object.entries(
       groupedDocumentVersioning,
     ).map(([reopenCycle, chains]) => ({
@@ -1911,26 +2331,20 @@ export const view_process = async (req, res) => {
       chains: chains,
     }));
 
-    // Sort by reopenCycle ascending
     finalDocumentVersioning.sort((a, b) => a.reopenCycle - b.reopenCycle);
 
-    // Build sededDocuments
     const sededDocuments = [];
 
     if (processDocuments.length > 0) {
-      // Sort all documents by ID to get chronological order
       const allDocsSorted = [...processDocuments].sort(
         (a, b) => a.document.id - b.document.id,
       );
 
-      // Find all documents with reopenCycle = 1
       const reopenCycle1Docs = allDocsSorted.filter(
         (doc) => doc.reopenCycle === 1,
       );
 
-      // Process each reopenCycle = 1 document
       reopenCycle1Docs.forEach((firstReopenCycle1Doc) => {
-        // Find the document that was replaced by this reopenCycle=1 document
         const documentWhichSuperseded = allDocsSorted.find(
           (doc) => doc.documentId === firstReopenCycle1Doc.replacedDocumentId,
         );
@@ -1939,14 +2353,12 @@ export const view_process = async (req, res) => {
         let currentDoc = firstReopenCycle1Doc;
         let currentReopenCycle = 1;
         let lastDocBeforeCycleChange = null;
-        const visitedDocIds = new Set(); // Track visited document IDs to prevent infinite loops
+        const visitedDocIds = new Set();
 
-        // Build versions by finding documents just before reopenCycle increments
         while (currentDoc && !visitedDocIds.has(currentDoc.documentId)) {
-          visitedDocIds.add(currentDoc.documentId); // Mark current document as visited
+          visitedDocIds.add(currentDoc.documentId);
 
           if (currentDoc.reopenCycle > currentReopenCycle) {
-            // Found a cycle change - add the last doc from previous cycle
             if (lastDocBeforeCycleChange) {
               versions.push({
                 id: lastDocBeforeCycleChange.document.id,
@@ -1973,21 +2385,23 @@ export const view_process = async (req, res) => {
                 superseding: lastDocBeforeCycleChange.superseding || false,
                 preApproved: lastDocBeforeCycleChange.preApproved || false,
                 reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
+                isMetadataOnly:
+                  lastDocBeforeCycleChange.isMetadataOnly || false,
+                editableDocument:
+                  lastDocBeforeCycleChange.editableDocument || null,
+                isSopDocument: lastDocBeforeCycleChange.isSopDocument,
               });
             }
             currentReopenCycle = currentDoc.reopenCycle;
           }
 
-          // Track the last document we see for each reopenCycle
           lastDocBeforeCycleChange = currentDoc;
 
-          // Move to next document in the chain
           currentDoc = allDocsSorted.find(
             (d) => d.replacedDocumentId === currentDoc.documentId,
           );
         }
 
-        // Add the last document if it wasn't added yet
         if (
           lastDocBeforeCycleChange &&
           !versions.some((v) => v.id === lastDocBeforeCycleChange.document.id)
@@ -2015,10 +2429,12 @@ export const view_process = async (req, res) => {
             reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed || null,
             description: lastDocBeforeCycleChange.description || null,
             partNumber: lastDocBeforeCycleChange.partNumber || null,
+            isMetadataOnly: lastDocBeforeCycleChange.isMetadataOnly || false,
+            editableDocument: lastDocBeforeCycleChange.editableDocument || null,
+            isSopDocument: lastDocBeforeCycleChange.isSopDocument,
           });
         }
 
-        // Add to sededDocuments if a superseded document was found
         if (documentWhichSuperseded) {
           sededDocuments.push({
             documentWhichSuperseded: {
@@ -2039,8 +2455,10 @@ export const view_process = async (req, res) => {
               SOPIssueNo: documentWhichSuperseded.SOPIssueNo || null,
               reasonOfSupersed:
                 documentWhichSuperseded.reasonOfSupersed || null,
-              description: documentWhichSuperseded.description || null,
               partNumber: documentWhichSuperseded.partNumber || null,
+              editableDocument:
+                documentWhichSuperseded.editableDocument || null,
+              isSopDocument: documentWhichSuperseded.isSopDocument,
             },
             latestDocumentId: latestDocument
               ? latestDocument.document.id
@@ -2051,7 +2469,6 @@ export const view_process = async (req, res) => {
       });
     }
 
-    // Transform documents for response
     const transformedDocuments = processDocuments
       .filter(
         (doc) =>
@@ -2110,13 +2527,25 @@ export const view_process = async (req, res) => {
           reopenCycle: doc.reopenCycle,
           description: doc.description,
           reasonOfSupersed: doc.reasonOfSupersed,
-          description: doc.description,
           partNumber: doc.partNumber,
           issueNo: doc.issueNo,
           SOPIssueNo: doc.SOPIssueNo,
           active: true,
+          isSopDocument: doc.isSopDocument,
+          isMetadataOnly: doc.isMetadataOnly,
+          metaFileName: doc.metaFileName,
+          metaFileExtension: doc.metaFileExtension,
+          metadataFulfilledAt: doc.metadataFulfilledAt,
+          editableDocument: doc.editableDocument || null,
         };
       });
+
+    const sopDocuments = transformedDocuments.filter(
+      (d) => d.isSopDocument !== false,
+    );
+    const nonSopDocuments = transformedDocuments.filter(
+      (d) => d.isSopDocument === false,
+    );
 
     const queryStepInstances = await retry(() =>
       prisma.processStepInstance.findMany({
@@ -2376,12 +2805,10 @@ export const view_process = async (req, res) => {
       distinct: ["reopenCycle"],
     });
 
-    // Map reopenCycle to version numbers (reopenCycle + 1) and ensure uniqueness
     const versions = [
       ...new Set(processDocs.map((doc) => doc.reopenCycle + 1)),
     ].sort((a, b) => a - b);
 
-    // Find the current step instance to get stepNumber and stepType
     const currentStepInstance = process.stepInstances.find(
       (item) =>
         item.id ===
@@ -2420,11 +2847,12 @@ export const view_process = async (req, res) => {
         updatedAt: process.updatedAt,
         toBePicked,
         isRecirculated: process.isRecirculated,
-        documents: transformedDocuments,
+        documents: sopDocuments,
+        nonSopDocuments: nonSopDocuments,
         steps,
         queryDetails,
         recommendationDetails,
-        documentVersioning,
+        documentVersioning: finalDocumentVersioning,
         sededDocuments,
         workflow,
         currentStepNumber:
@@ -2436,7 +2864,6 @@ export const view_process = async (req, res) => {
       },
     };
 
-    // Serialize BigInt values
     const serializedResponse = serializeBigInt(responseData);
 
     return res.status(200).json(serializedResponse);
@@ -2450,8 +2877,6 @@ export const view_process = async (req, res) => {
         code: "PROCESS_VIEW_ERROR",
       },
     });
-  } finally {
-    // await prisma.$disconnect();
   }
 };
 
@@ -4461,41 +4886,38 @@ export const reopen_process = async (req, res) => {
 
     const { saveAsDraft, draftId } = req.body;
 
-    // Handle saving as draft
     if (saveAsDraft) {
       req.body.type = "REOPEN";
       return await saveProcessDraft(req, res);
     }
 
-    // Handle submitting a draft
     if (draftId) {
       return await submitProcessDraft(req, res);
     }
 
-    const { processId, supersededDocuments } = req.body;
+    const {
+      processId,
+      supersededDocuments = [],
+      metadataFulfillments = [],
+    } = req.body;
     const SOPIssueNo = req.body.issueNo;
 
-    if (
-      !processId ||
-      !supersededDocuments ||
-      !Array.isArray(supersededDocuments)
-    ) {
+    if (!processId) {
+      return res.status(400).json({ message: "processId is required" });
+    }
+
+    if (supersededDocuments.length === 0 && metadataFulfillments.length === 0) {
       return res.status(400).json({
         message:
-          "Missing required fields: processId, supersededDocuments (array)",
+          "At least one superseded document or metadata fulfillment is required",
       });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Fetch process and workflow
       const process = await tx.processInstance.findUnique({
         where: { id: processId, initiatorId: userData.id },
         include: {
-          workflow: {
-            include: {
-              steps: { include: { assignments: true } },
-            },
-          },
+          workflow: { include: { steps: { include: { assignments: true } } } },
           documents: true,
         },
       });
@@ -4506,7 +4928,6 @@ export const reopen_process = async (req, res) => {
         );
       }
 
-      // Update process status and increment reopen cycle
       const updatedProcess = await tx.processInstance.update({
         where: { id: processId },
         data: {
@@ -4518,7 +4939,105 @@ export const reopen_process = async (req, res) => {
 
       const documentIds = [];
 
-      // Process superseded documents
+      for (const fulfillment of metadataFulfillments) {
+        const {
+          metadataProcessDocumentId,
+          newDocumentId,
+          editableDocumentId,
+          issueNo: fIssueNo,
+          tags: fTags,
+          partNumber: fPartNumber,
+          description: fDesc,
+        } = fulfillment;
+
+        if (!metadataProcessDocumentId || !newDocumentId)
+          throw new Error(
+            "metadataProcessDocumentId and newDocumentId are required for fulfillment",
+          );
+
+        const parsedId = parseInt(metadataProcessDocumentId);
+        const metaPD = await tx.processDocument.findFirst({
+          where: {
+            processId: processId,
+            OR: [
+              { id: String(metadataProcessDocumentId) },
+              ...(isNaN(parsedId) ? [] : [{ documentId: parsedId }]),
+            ],
+          },
+          include: { document: true },
+        });
+
+        if (!metaPD)
+          throw new Error(
+            `Metadata process document ${metadataProcessDocumentId} not found`,
+          );
+        if (!metaPD.isMetadataOnly)
+          throw new Error(
+            `Process document ${metadataProcessDocumentId} is not metadata-only`,
+          );
+
+        const newDoc = await tx.document.findUnique({
+          where: { id: parseInt(newDocumentId) },
+        });
+        if (!newDoc) throw new Error(`New document ${newDocumentId} not found`);
+
+        const oldPlaceholderDocId = metaPD.documentId;
+
+        // SAFE TO DELETE: It's just a placeholder, not history
+        await tx.processDocument.delete({ where: { id: metaPD.id } });
+
+        const fulfilledPD = await tx.processDocument.create({
+          data: {
+            processId,
+            documentId: parseInt(newDocumentId),
+            reopenCycle: updatedProcess.reopenCycle,
+            SOPIssueNo: SOPIssueNo || metaPD.SOPIssueNo,
+            preApproved: metaPD.preApproved,
+            tags: fTags || metaPD.tags || [],
+            partNumber: fPartNumber || metaPD.partNumber,
+            description: fDesc || metaPD.description,
+            issueNo: fIssueNo || metaPD.issueNo,
+            isSopDocument: metaPD.isSopDocument,
+            isMetadataOnly: false,
+            metadataFulfilledAt: new Date(),
+            metaFileName: metaPD.metaFileName,
+            metaFileExtension: metaPD.metaFileExtension,
+            isReplacement: false,
+            superseding: false,
+            replacedDocumentId: null,
+            editableDocumentId: editableDocumentId
+              ? parseInt(editableDocumentId)
+              : metaPD.editableDocumentId || null,
+          },
+        });
+
+        try {
+          await tx.documentAccess.deleteMany({
+            where: { documentId: oldPlaceholderDocId },
+          });
+          await tx.document.delete({ where: { id: oldPlaceholderDocId } });
+        } catch (cleanupErr) {
+          console.warn(`Cleanup fail:`, cleanupErr.message);
+        }
+
+        await tx.documentHistory.create({
+          data: {
+            documentId: parseInt(newDocumentId),
+            processId,
+            userId: userData.id,
+            actionType: "UPLOADED",
+            actionDetails: {
+              isMetadataFulfillment: true,
+              reopenCycle: updatedProcess.reopenCycle,
+            },
+            isRecirculationTrigger: true,
+            processDocumentId: fulfilledPD.id,
+          },
+        });
+
+        documentIds.push(parseInt(newDocumentId));
+      }
+
       for (const doc of supersededDocuments) {
         const {
           isNewDocument,
@@ -4530,156 +5049,142 @@ export const reopen_process = async (req, res) => {
           fileDescription,
           tags,
           partNumber,
+          isSopDocument,
+          isMetadataOnly,
+          metaFileName,
+          metaFileExtension,
+          editableDocumentId,
         } = doc;
 
-        // Validate and fetch new document
-        const newDoc = await tx.document.findUnique({
-          where: { id: parseInt(newDocumentId) },
-        });
-        if (!newDoc)
-          throw new Error(`New document not found: ${newDocumentId}`);
+        let finalDocumentId;
 
-        let oldDoc = null;
-        if (!isNewDocument) {
-          if (!oldDocumentId)
-            throw new Error(
-              "oldDocumentId is required when isNewDocument is false",
-            );
-          oldDoc = await tx.document.findUnique({
-            where: { id: parseInt(oldDocumentId) },
+        if (isMetadataOnly && !newDocumentId) {
+          const safeName = (metaFileName || `meta_${Date.now()}`).replace(
+            /[^a-zA-Z0-9_\-\.]/g,
+            "_",
+          );
+          const ext = metaFileExtension || "placeholder";
+          const placeholderPath = `${process.storagePath.replace("../", "")}/${safeName}_${Date.now()}.${ext}`;
+
+          const placeholderDoc = await tx.document.create({
+            data: {
+              name: `${safeName}.${ext}`,
+              type: ext,
+              path: placeholderPath,
+              createdById: userData.id,
+              isInvolvedInProcess: true,
+              tags: tags || [],
+              isRecord: false,
+            },
           });
-          if (!oldDoc)
-            throw new Error(`Old document not found: ${oldDocumentId}`);
+          finalDocumentId = placeholderDoc.id;
+        } else {
+          if (!newDocumentId)
+            throw new Error(
+              "newDocumentId is required for non-metadata documents",
+            );
+          finalDocumentId = parseInt(newDocumentId);
+
+          // DO NOT DELETE OLD DOCUMENT PROCESS RELATION!
+          // Removing the `tx.processDocument.deleteMany(...)` prevents cycle erasure.
         }
 
-        // Create processDocument
         const processDocument = await tx.processDocument.create({
           data: {
             processId,
-            documentId: parseInt(newDocumentId),
-            isReplacement: !isNewDocument,
-            superseding: !isNewDocument,
-            replacedDocumentId: !isNewDocument ? parseInt(oldDocumentId) : null,
+            documentId: finalDocumentId,
+            isReplacement: !isNewDocument && !isMetadataOnly,
+            superseding: !isNewDocument && !isMetadataOnly,
+            replacedDocumentId:
+              !isNewDocument && !isMetadataOnly && oldDocumentId
+                ? parseInt(oldDocumentId)
+                : null,
             preApproved: !!preApproved,
-            reasonOfSupersed: !isNewDocument
-              ? reasonOfSupersed || "No reason provided"
-              : null,
+            reasonOfSupersed:
+              !isNewDocument && !isMetadataOnly
+                ? reasonOfSupersed || "No reason provided"
+                : null,
             SOPIssueNo: SOPIssueNo || null,
             issueNo: issueNo || null,
             description: fileDescription || null,
             tags: tags || [],
             partNumber: partNumber || null,
             reopenCycle: updatedProcess.reopenCycle,
+            isSopDocument: isSopDocument !== false,
+            isMetadataOnly: isMetadataOnly || false,
+            metaFileName: isMetadataOnly ? metaFileName : null,
+            metaFileExtension: isMetadataOnly ? metaFileExtension : null,
+            editableDocumentId: editableDocumentId
+              ? parseInt(editableDocumentId)
+              : null,
           },
         });
 
-        // Record in document history
         await tx.documentHistory.create({
           data: {
-            documentId: parseInt(newDocumentId),
+            documentId: finalDocumentId,
             processId,
             userId: userData.id,
-            actionType: isNewDocument ? "UPLOADED" : "REPLACED",
+            actionType:
+              isNewDocument || isMetadataOnly ? "UPLOADED" : "REPLACED",
             actionDetails: {
               isNewDocument,
-              isReplacement: !isNewDocument,
-              originalDocumentId: oldDoc ? oldDoc.id : null,
+              isReplacement: !isNewDocument && !isMetadataOnly,
               reopenCycle: updatedProcess.reopenCycle,
             },
             isRecirculationTrigger: true,
             processDocumentId: processDocument.id,
-            replacedDocumentId: oldDoc ? oldDoc.id : null,
+            replacedDocumentId:
+              !isNewDocument && !isMetadataOnly && oldDocumentId
+                ? parseInt(oldDocumentId)
+                : null,
           },
         });
 
-        documentIds.push(parseInt(newDocumentId));
-
-        // Ensure access for new document
-        await ensureDocumentAccessWithParents(tx, {
-          documentId: parseInt(newDocumentId),
-          userId: userData.id,
-          processId,
-          assignmentId: null,
-          roleId: null,
-          departmentId: null,
-        });
-
-        // Ensure access for old document if present
-        if (oldDoc) {
-          await ensureDocumentAccessWithParents(tx, {
-            documentId: oldDoc.id,
-            userId: userData.id,
-            processId,
-            assignmentId: null,
-            roleId: null,
-            departmentId: null,
-          });
-        }
+        documentIds.push(finalDocumentId);
       }
 
-      // Handle recirculation of step instances
       const engagedStepInstances = await tx.processStepInstance.findMany({
         where: {
           processId,
           OR: [
             { status: "APPROVED" },
             { status: "IN_PROGRESS" },
-            { status: "MIGRATED" }, // Added MIGRATED
+            { status: "MIGRATED" },
             { pickedById: { not: null } },
           ],
         },
-        include: { workflowAssignment: true },
       });
 
-      for (const oldStepInstance of engagedStepInstances) {
+      for (const oldSI of engagedStepInstances) {
         const hasAccess = await checkUserProcessAssignment(
           processId,
-          parseInt(oldStepInstance.assignedTo),
+          parseInt(oldSI.assignedTo),
         );
-
         if (hasAccess) continue;
 
-        const newStepInstance = await tx.processStepInstance.create({
+        const newSI = await tx.processStepInstance.create({
           data: {
             processId,
-            stepId: oldStepInstance.stepId,
-            assignmentId: oldStepInstance.assignmentId,
-            progressId: oldStepInstance.progressId,
-            assignedTo: oldStepInstance.assignedTo,
-            roleId: oldStepInstance.roleId,
-            departmentId: oldStepInstance.departmentId,
+            stepId: oldSI.stepId,
+            assignmentId: oldSI.assignmentId,
+            progressId: oldSI.progressId,
+            assignedTo: oldSI.assignedTo,
+            roleId: oldSI.roleId,
+            departmentId: oldSI.departmentId,
             status: "IN_PROGRESS",
             isRecirculated: true,
             recirculationCycle: updatedProcess.reopenCycle,
-            recirculationReason: "Process reopened with superseded documents",
+            recirculationReason: "Process reopened",
             createdAt: new Date(),
             deadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
           },
         });
-
-        // Grant access to all superseded documents
-        for (const docId of documentIds) {
-          await ensureDocumentAccessWithParents(tx, {
-            documentId: docId,
-            userId: oldStepInstance.assignedTo,
-            stepInstanceId: newStepInstance.id,
-            processId,
-            assignmentId: oldStepInstance.assignmentId,
-            roleId: oldStepInstance.roleId,
-            departmentId: oldStepInstance.departmentId,
-          });
-        }
       }
 
-      // Update current step
       const firstRecirculatedStep = await tx.processStepInstance.findFirst({
-        where: {
-          processId,
-          isRecirculated: true,
-          status: "IN_PROGRESS",
-        },
+        where: { processId, isRecirculated: true, status: "IN_PROGRESS" },
         orderBy: { createdAt: "asc" },
-        select: { stepId: true },
       });
 
       if (firstRecirculatedStep) {
@@ -4693,16 +5198,15 @@ export const reopen_process = async (req, res) => {
     });
 
     return res.status(200).json({
-      message: "Process reopened successfully with superseded documents",
+      message: "Process reopened successfully",
       processId: result.process.id,
       reopenCycle: result.process.reopenCycle,
     });
   } catch (error) {
     console.error("Error reopening process:", error);
-    return res.status(500).json({
-      message: "Error reopening process",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "Error reopening process", error: error.message });
   }
 };
 
@@ -6003,21 +6507,8 @@ const getProcessDocumentArrays = async (processId) => {
   const processDocuments = await prisma.processDocument.findMany({
     where: { processId },
     include: {
-      document: {
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          path: true,
-        },
-      },
-      replacedDocument: {
-        select: {
-          id: true,
-          name: true,
-          path: true,
-        },
-      },
+      document: { select: { id: true, name: true, type: true, path: true } },
+      replacedDocument: { select: { id: true, name: true, path: true } },
       signatures: {
         include: { user: { select: { id: true, username: true } } },
       },
@@ -6027,118 +6518,150 @@ const getProcessDocumentArrays = async (processId) => {
       documentHistory: {
         include: {
           user: { select: { id: true, name: true, username: true } },
-          replacedDocument: {
-            select: { id: true, name: true, path: true },
-          },
+          replacedDocument: { select: { id: true, name: true, path: true } },
         },
       },
     },
   });
 
-  // Identify replaced and superseded document IDs
   const replacedDocumentIds = new Set(
     processDocuments
       .filter((pd) => pd.replacedDocumentId)
       .map((pd) => pd.replacedDocumentId),
   );
-
   const supersededDocumentIds = new Set(
     processDocuments
       .filter((pd) => pd.superseding)
       .map((pd) => pd.replacedDocumentId),
   );
 
-  // Find the latest document
   let latestDocument = processDocuments.find(
     (pd) =>
       !replacedDocumentIds.has(pd.documentId) &&
       !supersededDocumentIds.has(pd.documentId),
   );
-
   if (!latestDocument) {
     latestDocument = processDocuments
       .filter((pd) => !replacedDocumentIds.has(pd.documentId))
       .sort((a, b) => b.document.id - a.document.id)[0];
   }
 
-  // Build documentVersioning (same logic as view_process)
+  // ── Build documentVersioning (SOP only participates in version chains) ──────
   const documentVersioning = [];
-  const allProcessDocuments = processDocuments;
-
   const docIdToProcessDoc = new Map(
-    allProcessDocuments.map((d) => [d.documentId, d]),
+    processDocuments.map((d) => [d.documentId, d]),
   );
   const replacedToReplacer = new Map(
-    allProcessDocuments
+    processDocuments
       .filter((d) => d.replacedDocumentId)
       .map((d) => [d.replacedDocumentId, d.documentId]),
   );
 
-  const terminalDocumentIds = allProcessDocuments
+  const terminalDocumentIds = processDocuments
     .filter((d) => !replacedToReplacer.has(d.documentId))
     .map((d) => d.documentId);
 
   for (const terminalDocId of terminalDocumentIds) {
+    const processDoc = docIdToProcessDoc.get(terminalDocId);
+
+    // Non-SOP docs: single-entry chain, no multi-version tracking
+    if (processDoc && processDoc.isSopDocument === false) {
+      documentVersioning.push({
+        latestDocumentId: terminalDocId,
+        isSopDocument: false,
+        versions: [
+          {
+            id: processDoc.document.id,
+            name: processDoc.document.name,
+            path: processDoc.document.path.split("/").slice(0, -1).join("/"),
+            type: processDoc.document.type,
+            issueNo: processDoc.issueNo || null,
+            SOPIssueNo: processDoc.SOPIssueNo || null,
+            tags: processDoc.tags,
+            preApproved: processDoc.preApproved,
+            description: processDoc.description,
+            partNumber: processDoc.partNumber,
+            active: true,
+            isReplacement: processDoc.isReplacement,
+            superseding: processDoc.superseding,
+            reopenCycle: processDoc.reopenCycle,
+            isSopDocument: false,
+            isMetadataOnly: processDoc.isMetadataOnly || false,
+            metadataFulfilledAt: processDoc.metadataFulfilledAt || null,
+            metaFileName: processDoc.metaFileName || null,
+            processDocumentId: processDoc.id,
+          },
+        ],
+      });
+      continue;
+    }
+
+    // SOP docs: build full version chain
     const versions = [];
     let currentDocId = terminalDocId;
     const visitedDocIds = new Set();
 
     while (currentDocId) {
-      if (visitedDocIds.has(currentDocId)) {
-        console.warn(
-          `Cycle detected at docId: ${currentDocId}. Breaking loop.`,
-        );
-        break;
-      }
+      if (visitedDocIds.has(currentDocId)) break;
       visitedDocIds.add(currentDocId);
 
-      const processDoc = docIdToProcessDoc.get(currentDocId);
-      if (!processDoc) break;
+      const pd = docIdToProcessDoc.get(currentDocId);
+      if (!pd) break;
 
       versions.unshift({
-        id: processDoc.document.id,
-        name: processDoc.document.name,
-        path: processDoc.document.path.split("/").slice(0, -1).join("/"),
-        type: processDoc.document.type,
-        issueNo: processDoc.issueNo || null,
-        SOPIssueNo: processDoc.SOPIssueNo || null,
-        tags: processDoc.tags,
-        preApproved: processDoc.preApproved,
-        reasonOfSupersed: processDoc.reasonOfSupersed,
-        description: processDoc.description,
-        partNumber: processDoc.partNumber,
-        active: processDoc.document.id === latestDocument?.document?.id,
-        isReplacement: processDoc.isReplacement,
-        superseding: processDoc.superseding,
-        reopenCycle: processDoc.reopenCycle,
+        id: pd.document.id,
+        name: pd.document.name,
+        path: pd.document.path.split("/").slice(0, -1).join("/"),
+        type: pd.document.type,
+        issueNo: pd.issueNo || null,
+        SOPIssueNo: pd.SOPIssueNo || null,
+        tags: pd.tags,
+        preApproved: pd.preApproved,
+        reasonOfSupersed: pd.reasonOfSupersed,
+        description: pd.description,
+        partNumber: pd.partNumber,
+        active: pd.document.id === latestDocument?.document?.id,
+        isReplacement: pd.isReplacement,
+        superseding: pd.superseding,
+        reopenCycle: pd.reopenCycle,
+        isSopDocument: pd.isSopDocument !== false,
+        isMetadataOnly: pd.isMetadataOnly || false,
+        metadataFulfilledAt: pd.metadataFulfilledAt || null,
+        metaFileName: pd.metaFileName || null,
+        processDocumentId: pd.id,
       });
 
-      currentDocId = processDoc.replacedDocumentId;
+      currentDocId = pd.replacedDocumentId;
     }
 
     if (versions.length > 0) {
       documentVersioning.push({
         latestDocumentId: terminalDocId,
-        versions: versions,
+        isSopDocument: true,
+        versions,
       });
     }
   }
 
-  // Build sededDocuments (same logic as view_process)
+  // ── Build sededDocuments (SOP only) ─────────────────────────────────────────
   const sededDocuments = [];
   if (processDocuments.length > 0) {
     const allDocsSorted = [...processDocuments].sort(
       (a, b) => a.document.id - b.document.id,
     );
-
     const reopenCycle1Docs = allDocsSorted.filter(
-      (doc) => doc.reopenCycle === 1,
+      (doc) => doc.reopenCycle === 1 && doc.isSopDocument !== false,
     );
 
     reopenCycle1Docs.forEach((firstReopenCycle1Doc) => {
       const documentWhichSuperseded = allDocsSorted.find(
         (doc) => doc.documentId === firstReopenCycle1Doc.replacedDocumentId,
       );
+      if (
+        !documentWhichSuperseded ||
+        documentWhichSuperseded.isSopDocument === false
+      )
+        return;
 
       const versions = [];
       let currentDoc = firstReopenCycle1Doc;
@@ -6148,18 +6671,16 @@ const getProcessDocumentArrays = async (processId) => {
 
       while (currentDoc && !visitedDocIds.has(currentDoc.documentId)) {
         visitedDocIds.add(currentDoc.documentId);
-
         if (currentDoc.reopenCycle > currentReopenCycle) {
           if (lastDocBeforeCycleChange) {
             versions.push({
               id: lastDocBeforeCycleChange.document.id,
               name: lastDocBeforeCycleChange.document.name,
-              path: lastDocBeforeCycleChange.document.path
-                ? lastDocBeforeCycleChange.document.path
-                    .split("/")
-                    .slice(0, -1)
-                    .join("/")
-                : "",
+              path:
+                lastDocBeforeCycleChange.document.path
+                  ?.split("/")
+                  .slice(0, -1)
+                  .join("/") || "",
               issueNo: lastDocBeforeCycleChange.issueNo || null,
               SOPIssueNo: lastDocBeforeCycleChange.SOPIssueNo || null,
               type: lastDocBeforeCycleChange.document.type || "",
@@ -6175,11 +6696,15 @@ const getProcessDocumentArrays = async (processId) => {
               superseding: lastDocBeforeCycleChange.superseding || false,
               preApproved: lastDocBeforeCycleChange.preApproved || false,
               reopenCycle: lastDocBeforeCycleChange.reopenCycle || 0,
+              isSopDocument: lastDocBeforeCycleChange.isSopDocument !== false,
+              isMetadataOnly: lastDocBeforeCycleChange.isMetadataOnly || false,
+              metadataFulfilledAt:
+                lastDocBeforeCycleChange.metadataFulfilledAt || null,
+              processDocumentId: lastDocBeforeCycleChange.id,
             });
           }
           currentReopenCycle = currentDoc.reopenCycle;
         }
-
         lastDocBeforeCycleChange = currentDoc;
         currentDoc = allDocsSorted.find(
           (d) => d.replacedDocumentId === currentDoc.documentId,
@@ -6193,12 +6718,11 @@ const getProcessDocumentArrays = async (processId) => {
         versions.push({
           id: lastDocBeforeCycleChange.document.id,
           name: lastDocBeforeCycleChange.document.name,
-          path: lastDocBeforeCycleChange.document.path
-            ? lastDocBeforeCycleChange.document.path
-                .split("/")
-                .slice(0, -1)
-                .join("/")
-            : "",
+          path:
+            lastDocBeforeCycleChange.document.path
+              ?.split("/")
+              .slice(0, -1)
+              .join("/") || "",
           type: lastDocBeforeCycleChange.document.type || "",
           issueNo: lastDocBeforeCycleChange.document.issueNo || null,
           tags: lastDocBeforeCycleChange.tags || [],
@@ -6212,6 +6736,11 @@ const getProcessDocumentArrays = async (processId) => {
           reasonOfSupersed: lastDocBeforeCycleChange.reasonOfSupersed || null,
           description: lastDocBeforeCycleChange.description || null,
           partNumber: lastDocBeforeCycleChange.partNumber || null,
+          isSopDocument: lastDocBeforeCycleChange.isSopDocument !== false,
+          isMetadataOnly: lastDocBeforeCycleChange.isMetadataOnly || false,
+          metadataFulfilledAt:
+            lastDocBeforeCycleChange.metadataFulfilledAt || null,
+          processDocumentId: lastDocBeforeCycleChange.id,
         });
       }
 
@@ -6220,12 +6749,11 @@ const getProcessDocumentArrays = async (processId) => {
           documentWhichSuperseded: {
             id: documentWhichSuperseded.document.id,
             name: documentWhichSuperseded.document.name,
-            path: documentWhichSuperseded.document.path
-              ? documentWhichSuperseded.document.path
-                  .split("/")
-                  .slice(0, -1)
-                  .join("/")
-              : "",
+            path:
+              documentWhichSuperseded.document.path
+                ?.split("/")
+                .slice(0, -1)
+                .join("/") || "",
             type: documentWhichSuperseded.document.type || "",
             description: documentWhichSuperseded.description || "",
             preApproved: documentWhichSuperseded.preApproved || false,
@@ -6233,18 +6761,18 @@ const getProcessDocumentArrays = async (processId) => {
             issueNo: documentWhichSuperseded.issueNo || null,
             SOPIssueNo: documentWhichSuperseded.SOPIssueNo || null,
             reasonOfSupersed: documentWhichSuperseded.reasonOfSupersed || null,
-            description: documentWhichSuperseded.description || null,
             partNumber: documentWhichSuperseded.partNumber || null,
+            isSopDocument: documentWhichSuperseded.isSopDocument !== false,
           },
           latestDocumentId: latestDocument ? latestDocument.document.id : null,
-          versions: versions,
+          versions,
         });
       }
     });
   }
 
-  // Transform documents for response
-  const transformedDocuments = processDocuments
+  // ── Transform active documents ───────────────────────────────────────────────
+  const allActive = processDocuments
     .filter(
       (doc) =>
         (!replacedDocumentIds.has(doc.documentId) ||
@@ -6267,9 +6795,7 @@ const getProcessDocumentArrays = async (processId) => {
           ? {
               rejectedBy: doc.rejections[0].user.username,
               rejectionReason: doc.rejections[0].reason || null,
-              rejectedAt: doc.rejections[0].rejectedAt
-                ? doc.rejections[0].rejectedAt.toISOString()
-                : null,
+              rejectedAt: doc.rejections[0].rejectedAt?.toISOString() || null,
               byRecommender: doc.rejections[0].byRecommender,
               isAttachedWithRecommendation:
                 doc.rejections[0].isAttachedWithRecommendation,
@@ -6278,20 +6804,17 @@ const getProcessDocumentArrays = async (processId) => {
 
       const parts = doc.document.path.split("/");
       parts.pop();
-      const updatedPath = parts.join("/");
 
       return {
         id: doc.document.id,
         name: doc.document.name,
         type: doc.document.type,
-        path: updatedPath,
+        path: parts.join("/"),
         tags: doc.tags,
         signedBy,
         rejectionDetails,
         isRecirculationTrigger:
-          doc?.documentHistory.some(
-            (history) => history.isRecirculationTrigger,
-          ) || false,
+          doc?.documentHistory.some((h) => h.isRecirculationTrigger) || false,
         approvalCount: signedBy.length,
         isReplacement: doc.isReplacement,
         superseding: doc.superseding,
@@ -6303,10 +6826,23 @@ const getProcessDocumentArrays = async (processId) => {
         issueNo: doc.issueNo,
         SOPIssueNo: doc.SOPIssueNo,
         active: true,
+        isSopDocument: doc.isSopDocument !== false,
+        isMetadataOnly: doc.isMetadataOnly || false,
+        metadataFulfilledAt: doc.metadataFulfilledAt || null,
+        metaFileName: doc.metaFileName || null,
+        processDocumentId: doc.id,
       };
     });
 
-  return { documentVersioning, sededDocuments, transformedDocuments };
+  const transformedDocuments = allActive.filter((d) => d.isSopDocument);
+  const nonSopDocuments = allActive.filter((d) => !d.isSopDocument);
+
+  return {
+    documentVersioning,
+    sededDocuments,
+    transformedDocuments,
+    nonSopDocuments,
+  };
 };
 
 // Helper to check user access to process

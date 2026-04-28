@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import SidebarSettings from './pages/SidebarSettings';
 import Loader from './common/Loader';
 import PageTitle from './components/PageTitle';
 import Profile from './pages/Profile';
@@ -20,6 +21,7 @@ import ProcessInitForm from './pages/Processes/InitiateProcess';
 import { useDispatch } from 'react-redux';
 import { onReload } from './Slices/PathSlice';
 import NotFoundPage from './pages/404/NotFoundPage';
+import PhysicalDemandHistory from './pages/PhysicalDocuments/PhysicalDemandHistory';
 import DefaultLayout from './layout/DefaultLayout';
 import ForgotPass from './pages/Authentication/ForgotPass';
 import PhysicalDocuments from './pages/PhysicalDocuments/PhysicalDocuments';
@@ -27,6 +29,7 @@ import SearchDocument from './pages/SearchDocuments/SearchDocument';
 import MeetingManager from './pages/Meeting';
 import MetaData from './pages/MetaData';
 import Workflows from './pages/workflows';
+import WorkflowDetails from './pages/workflows/WorkflowDetails'; // <-- Adjust this path to where you saved the file
 import RecycleBin from './pages/RecycleBin';
 import Recommendations from './pages/Recommendations';
 import ViewRecommendation from './pages/Recommendations/ViewRecommendation';
@@ -42,6 +45,7 @@ import Bookmark from './pages/Bookmark';
 import AdminReportsPage from './pages/Reports';
 import ReOpenProcessPage from './pages/Processes/Actions/ReOpenProcessModal';
 import DeleteProcess from './pages/Processes/DeleteProcess';
+
 
 
 function App() {
@@ -273,6 +277,18 @@ function App() {
             </DefaultLayout>
           }
         />
+
+          <Route
+          path="/sidebar-settings"
+          element={
+            <DefaultLayout>
+              <PageTitle title="Sidebar Settings" />
+              <SidebarSettings />
+            </DefaultLayout>
+          }
+        />
+
+
         <Route
           path="/departments/list"
           element={
@@ -388,6 +404,13 @@ function App() {
           }
         />
 
+<Route path="/physical-documents/history/:id" 
+  element={
+            <DefaultLayout>
+              <PageTitle title="Initiate Process" />
+              <PhysicalDemandHistory />
+            </DefaultLayout>
+          } />
 
         <Route
           path="/processes/initiate/:draftId?"
@@ -462,6 +485,18 @@ function App() {
             </DefaultLayout>
           }
         />
+
+
+<Route
+  path="/workflows/details/:id"
+  element={
+    <DefaultLayout>
+      <PageTitle title="Workflows" />
+      {/* Pass null/dummy props to satisfy TypeScript */}
+      <WorkflowDetails modalId={null} closeModal={() => {}} /> 
+    </DefaultLayout>
+  }
+/>
         <Route
           path="/templates/:id"
           element={
