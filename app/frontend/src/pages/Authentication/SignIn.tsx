@@ -1,3 +1,9 @@
+/**
+ * SignIn.tsx
+ * CryptoJS replaced with encryptBody() from cryptoUtils.js (Web Crypto API).
+ * handleSubmit is already async, so awaiting encryptBody fits naturally.
+ */
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../../images/logo/logo.svg';
@@ -6,19 +12,20 @@ import {
   Stack, TextField, Typography,
 } from '@mui/material';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import CryptoJS from 'crypto-js';
 import sessionData from '../../Store';
 import { signIn } from '../../common/Apis';
+import { encryptBody } from '../../utility/cryptoUtils'; // ← zero-install helper
 
 const PAYLOAD_SECRET = import.meta.env.VITE_PAYLOAD_SECRET;
 
 const SignIn: React.FC = () => {
   const { setShow } = sessionData();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const navigate    = useNavigate();
+
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [data, setData] = useState({ password: '', username: '' });
+  const [data,     setData]     = useState({ password: '', username: '' });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setData({ ...data, [e.target.name]: e.target.value });
@@ -28,23 +35,24 @@ const SignIn: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      const encrypted = CryptoJS.AES.encrypt(
-        JSON.stringify(data),
-        PAYLOAD_SECRET
-      ).toString();
-      const res = await signIn({ encrypted });
+      // encryptBody is now async (Web Crypto API)
+      const payload = await encryptBody(data, PAYLOAD_SECRET);
+
+      const res = await signIn(payload);
+
       if (res.status === 200) {
         setShow(res.data.userName === 'admin');
-        sessionStorage.setItem('email', res.data.email);
-        sessionStorage.setItem('username', res.data.userName);
+        sessionStorage.setItem('email',                  res.data.email);
+        sessionStorage.setItem('username',               res.data.userName);
         sessionStorage.setItem('isKeeperOfPhysicalDocs', res.data.isKeeperOfPhysicalDocs);
-        sessionStorage.setItem('accessToken', res.data.accessToken);
-        sessionStorage.setItem('refreshToken', res.data.refreshToken);
-        sessionStorage.setItem('specialUser', res.data.specialUser);
-        sessionStorage.setItem('isAdmin', String(res.data.isAdmin));
-        sessionStorage.setItem('isDepartmentHead', String(res.data.isDepartmentHead));
-        sessionStorage.setItem('isRootLevel', String(res.data.isRootLevel));
+        sessionStorage.setItem('accessToken',            res.data.accessToken);
+        sessionStorage.setItem('refreshToken',           res.data.refreshToken);
+        sessionStorage.setItem('specialUser',            res.data.specialUser);
+        sessionStorage.setItem('isAdmin',                String(res.data.isAdmin));
+        sessionStorage.setItem('isDepartmentHead',       String(res.data.isDepartmentHead));
+        sessionStorage.setItem('isRootLevel',            String(res.data.isRootLevel));
         navigate('/');
       }
     } catch (err: any) {
@@ -59,7 +67,7 @@ const SignIn: React.FC = () => {
       <div style={{ width: '80%' }} className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
         <div className="flex flex-wrap items-center">
 
-          {/* ✅ Left panel — logo + SVG illustration restored */}
+          {/* Left panel */}
           <div className="hidden w-full xl:block xl:w-1/2">
             <div className="py-17.5 px-26 text-center">
               <Link className="mb-5.5 inline-block" to="/">
@@ -86,18 +94,8 @@ const SignIn: React.FC = () => {
                   <path d="M116.263 203.477C118.05 203.477 119.499 202.029 119.499 200.243C119.499 198.457 118.05 197.01 116.263 197.01C114.476 197.01 113.027 198.457 113.027 200.243C113.027 202.029 114.476 203.477 116.263 203.477Z" fill="#3056D3"/>
                   <path d="M126.818 203.477C128.605 203.477 130.054 202.029 130.054 200.243C130.054 198.457 128.605 197.01 126.818 197.01C125.031 197.01 123.582 198.457 123.582 200.243C123.582 202.029 125.031 203.477 126.818 203.477Z" fill="#3056D3"/>
                   <path d="M116.263 235.811C118.05 235.811 119.499 234.363 119.499 232.577C119.499 230.791 118.05 229.344 116.263 229.344C114.476 229.344 113.027 230.791 113.027 232.577C113.027 234.363 114.476 235.811 116.263 235.811Z" fill="#3056D3"/>
-                  <path d="M126.818 235.811C128.605 235.811 130.054 234.363 130.054 232.577C130.054 230.791 128.605 229.344 126.818 229.344C125.031 229.344 123.582 230.791 123.582 232.577C123.582 234.363 125.031 235.811 126.818 235.811Z" fill="#3056D3"/>
+                  <path d="M126.818 235.811C128.605 235.811 130.054 234.363 130.054 232.577C130.054 230.791 128.605 229.344 126.818 229.344C125.031 229.344 123.582 230.791 113.027 232.577C113.027 234.363 125.031 235.811 126.818 235.811Z" fill="#3056D3"/>
                   <path d="M264.742 229.309C264.972 229.414 265.193 229.537 265.404 229.678L286.432 220.709L287.183 215.174L295.585 215.123L295.089 227.818L267.334 235.153C267.275 235.345 267.205 235.535 267.124 235.719C266.722 236.574 266.077 237.292 265.269 237.783C264.46 238.273 263.525 238.514 262.58 238.475C261.636 238.436 260.723 238.119 259.958 237.563C259.193 237.008 258.61 236.239 258.28 235.353C257.951 234.467 257.892 233.504 258.108 232.584C258.325 231.664 258.809 230.829 259.5 230.183C260.19 229.538 261.056 229.11 261.989 228.955C262.922 228.799 263.879 228.922 264.742 229.309Z" fill="#FFB8B8"/>
-                  <path d="M298.642 344.352H292.894L290.16 322.198L298.643 322.198L298.642 344.352Z" fill="#FFB8B8"/>
-                  <path d="M288.788 342.711H299.873V349.685H281.809C281.809 347.835 282.544 346.062 283.853 344.754C285.162 343.446 286.937 342.711 288.788 342.711Z" fill="#1C2434"/>
-                  <path d="M320.995 342.729L315.274 343.292L310.379 321.513L318.822 320.682L320.995 342.729Z" fill="#FFB8B8"/>
-                  <path d="M311.028 342.061L322.059 340.975L322.744 347.916L304.766 349.685C304.676 348.774 304.767 347.854 305.033 346.977C305.299 346.101 305.735 345.285 306.317 344.577C306.898 343.869 307.614 343.283 308.422 342.851C309.23 342.419 310.116 342.151 311.028 342.061Z" fill="#1C2434"/>
-                  <path d="M300.242 191.677C306.601 191.677 311.757 186.525 311.757 180.17C311.757 173.815 306.601 168.663 300.242 168.663C293.882 168.663 288.727 173.815 288.727 180.17C288.727 186.525 293.882 191.677 300.242 191.677Z" fill="#FFB8B8"/>
-                  <path d="M291.607 339.872C291.113 339.873 290.635 339.7 290.256 339.383C289.877 339.066 289.623 338.626 289.537 338.139C286.562 321.636 276.838 267.676 276.605 266.181C276.6 266.147 276.597 266.112 276.598 266.077V262.054C276.597 261.907 276.643 261.764 276.729 261.645L278.013 259.847C278.074 259.761 278.154 259.689 278.247 259.639C278.34 259.588 278.444 259.559 278.549 259.554C285.874 259.211 309.86 258.206 311.019 259.652C312.183 261.106 311.772 265.512 311.678 266.38L311.682 266.471L322.459 335.337C322.543 335.886 322.408 336.446 322.082 336.896C321.756 337.347 321.265 337.65 320.717 337.742L313.986 338.85C313.485 338.931 312.971 338.829 312.539 338.563C312.107 338.297 311.784 337.885 311.63 337.401C309.548 330.754 302.568 308.393 300.149 299.741C300.133 299.686 300.099 299.639 300.051 299.607C300.004 299.576 299.946 299.563 299.89 299.571C299.834 299.579 299.782 299.608 299.745 299.651C299.708 299.694 299.688 299.749 299.689 299.806C299.81 308.054 300.102 329.098 300.203 336.366L300.214 337.148C300.218 337.678 300.023 338.191 299.668 338.584C299.313 338.978 298.823 339.224 298.295 339.274L291.804 339.863C291.738 339.869 291.672 339.872 291.607 339.872Z" fill="#1C2434"/>
-                  <path d="M292.933 196.201C290.924 197.395 289.721 199.588 289.031 201.821C287.754 205.953 286.985 210.226 286.741 214.545L286.012 227.475L276.984 261.755C284.809 268.37 289.322 266.867 299.855 261.455C310.387 256.044 311.591 263.26 311.591 263.26L313.697 234.092L316.706 202.219C316.031 201.407 315.266 200.672 314.427 200.03C311.645 197.868 308.409 196.366 304.962 195.636C301.516 194.906 297.948 194.967 294.528 195.815L292.933 196.201Z" fill="#3056D3"/>
-                  <path d="M290.001 236.232C290.244 236.324 290.479 236.434 290.704 236.562L311.497 226.163L311.842 220.529L320.419 219.938L320.878 232.781L293.092 241.963C292.865 242.935 292.347 243.816 291.608 244.487C290.868 245.158 289.941 245.588 288.951 245.72C287.96 245.852 286.953 245.68 286.063 245.226C285.173 244.772 284.442 244.058 283.968 243.179C283.494 242.301 283.299 241.298 283.409 240.306C283.519 239.313 283.928 238.378 284.583 237.624C285.238 236.869 286.107 236.332 287.075 236.084C288.043 235.835 289.063 235.887 290.001 236.232Z" fill="#FFB8B8"/>
-                  <path d="M316.556 202.365C321.672 204.17 322.573 223.716 322.573 223.716C316.554 220.409 309.332 225.821 309.332 225.821C309.332 225.821 307.827 220.709 306.022 214.094C305.477 212.233 305.412 210.265 305.832 208.372C306.253 206.479 307.147 204.724 308.429 203.269C308.429 203.269 311.44 200.56 316.556 202.365Z" fill="#3056D3"/>
-                  <path d="M310.566 183.213C309.132 182.066 307.174 184.151 307.174 184.151L306.026 173.828C306.026 173.828 298.853 174.687 294.261 173.542C289.67 172.396 288.953 177.7 288.953 177.7C288.716 175.557 288.668 173.399 288.81 171.248C289.096 168.667 292.827 166.087 299.427 164.366C306.026 162.646 309.47 170.101 309.47 170.101C314.061 172.395 312.001 184.36 310.566 183.213Z" fill="#1C2434"/>
                 </svg>
               </span>
             </div>
@@ -109,6 +107,7 @@ const SignIn: React.FC = () => {
               <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
                 Sign in to Continue
               </h2>
+
               <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                   <label className="mb-2.5 block font-medium text-black dark:text-white">Username</label>
@@ -122,6 +121,7 @@ const SignIn: React.FC = () => {
                     placeholder="Enter your username"
                   />
                 </div>
+
                 <div className="mb-6">
                   <label className="mb-2.5 block font-medium text-black dark:text-white">Password</label>
                   <div className="relative">
@@ -141,11 +141,13 @@ const SignIn: React.FC = () => {
                     </span>
                   </div>
                 </div>
+
                 {error && (
                   <Typography variant="body1" color="error" sx={{ mb: 2 }}>
                     {error}
                   </Typography>
                 )}
+
                 <div className="mb-5">
                   <Button type="submit" variant="contained" color="primary" fullWidth>
                     {loading ? (
@@ -155,18 +157,15 @@ const SignIn: React.FC = () => {
                     )}
                   </Button>
                 </div>
+
                 <div className="mt-6 text-center">
                   <p>
                     Do you want to change password?{' '}
-                    <Link to="/auth/signup" className="text-primary">
-                      Change Password
-                    </Link>
+                    <Link to="/auth/signup" className="text-primary">Change Password</Link>
                   </p>
                   <p>
                     Forgot password?{' '}
-                    <Link to="/auth/forgot" className="text-primary">
-                      Forgot
-                    </Link>
+                    <Link to="/auth/forgot" className="text-primary">Forgot</Link>
                   </p>
                 </div>
               </form>

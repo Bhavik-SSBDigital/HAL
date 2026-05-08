@@ -5,7 +5,7 @@ import {
 } from '../components/drop-file-input/FileUploadDownload';
 import { toast } from 'react-toastify';
 
-import CryptoJS from 'crypto-js';
+// import CryptoJS from 'crypto-js';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const PAYLOAD_SECRET = import.meta.env.VITE_PAYLOAD_SECRET;
@@ -506,20 +506,20 @@ export const signIn = async (data) => {
   return apiClient.post(`/login`, data);
 };
 
-function encryptValue(value) {
-  return encodeURIComponent(
-    CryptoJS.AES.encrypt(String(value), PAYLOAD_SECRET).toString(),
-  );
-}
+// function encryptValue(value) {
+//   return encodeURIComponent(
+//     CryptoJS.AES.encrypt(String(value), PAYLOAD_SECRET).toString(),
+//   );
+// }
 
-function encryptBody(data) {
-  return {
-    encrypted: CryptoJS.AES.encrypt(
-      JSON.stringify(data),
-      PAYLOAD_SECRET,
-    ).toString(),
-  };
-}
+// function encryptBody(data) {
+//   return {
+//     encrypted: CryptoJS.AES.encrypt(
+//       JSON.stringify(data),
+//       PAYLOAD_SECRET,
+//     ).toString(),
+//   };
+// }
 
 // signUp endpoints
 export const changePassword = async (data) => {

@@ -1,38 +1,45 @@
-import CryptoJS from "crypto-js";
+import { aesDecrypt } from "./serverCrypto.js"; // ← zero-install helper
 
-const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET; // 32-char secret, set in .env
+const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET; // set in .env
+
+// ─── decryptPayload ───────────────────────────────────────────────────────────
+// Decrypts req.body.encrypted (set by SignIn.tsx → encryptBody)
 
 export const decryptPayload = (req, res, next) => {
   if (req.body?.encrypted) {
     try {
-      const bytes = CryptoJS.AES.decrypt(req.body.encrypted, PAYLOAD_SECRET);
-      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      const decrypted = aesDecrypt(req.body.encrypted, PAYLOAD_SECRET);
       req.body = JSON.parse(decrypted);
-    } catch {
+    } catch (error) {
+      console.error("Payload Decryption Error:", error.message);
       return res.status(400).json({ message: "Invalid encrypted payload" });
     }
   }
   next();
 };
 
+// ─── decryptHeaders ───────────────────────────────────────────────────────────
+// Decrypts x-file-name and x-file-path headers (set by FileUploadDownload.js → encryptHeader)
+
 export const decryptHeaders = (req, res, next) => {
   try {
     if (req.headers["x-file-name"]) {
-      const bytes = CryptoJS.AES.decrypt(
+      req.headers["x-file-name"] = aesDecrypt(
         decodeURIComponent(req.headers["x-file-name"]),
         PAYLOAD_SECRET,
       );
-      req.headers["x-file-name"] = bytes.toString(CryptoJS.enc.Utf8);
     }
+
     if (req.headers["x-file-path"]) {
-      const bytes = CryptoJS.AES.decrypt(
+      req.headers["x-file-path"] = aesDecrypt(
         decodeURIComponent(req.headers["x-file-path"]),
         PAYLOAD_SECRET,
       );
-      req.headers["x-file-path"] = bytes.toString(CryptoJS.enc.Utf8);
     }
-  } catch {
+  } catch (error) {
+    console.error("Header Decryption Error:", error.message);
     return res.status(400).json({ message: "Invalid encrypted headers" });
   }
+
   next();
 };
