@@ -55,23 +55,32 @@ export default function NewUser() {
     }
   };
 
-  useEffect(() => {
-    const GetUserDetails = async () => {
-      setActionsLoading(true);
-      try {
-        const response = await GetUser(id);
-        reset(response?.data?.data);
-      } catch (error) {
-        console.log(error?.response?.data?.message || error?.message);
-        navigate('/users/list');
-      } finally {
-        setActionsLoading(false);
-      }
-    };
-    if (id) {
-      GetUserDetails();
+useEffect(() => {
+  const GetUserDetails = async () => {
+    setActionsLoading(true);
+
+    try {
+      const response = await GetUser(id);
+
+      const userData = response?.data?.data;
+
+      reset({
+        ...userData,
+        password: '',
+        confirmPassword: '',
+      });
+    } catch (error) {
+      console.log(error?.response?.data?.message || error?.message);
+      navigate('/users/list');
+    } finally {
+      setActionsLoading(false);
     }
-  }, [id]);
+  };
+
+  if (id) {
+    GetUserDetails();
+  }
+}, [id]);
 
   return (
     <>

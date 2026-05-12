@@ -51,6 +51,9 @@ import Title from '../../CustomComponents/Title';
 const InputClass = "w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 text-sm";
 const LabelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
 
+// Regex to intercept illegal Windows file characters
+const sanitizeWindowsInput = (val) => val.replace(/[<>:"\/\\|?*]/g, '');
+
 const Section = ({ title, children }) => (
   <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm mb-6">
     <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-5">{title}</h3>
@@ -84,7 +87,7 @@ const MetadataOnlyModal = ({ isOpen, onClose, onSave, workflowId }) => {
         </div>
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800"><strong>Note:</strong> This creates a document placeholder with metadata only. Actual files can be uploaded later.</div>
-          <div><label className={LabelClass}>Intended File Name *</label><input type="text" className={InputClass} value={metaDoc.metaFileName} onChange={(e) => setMetaDoc(prev => ({ ...prev, metaFileName: e.target.value }))} placeholder="e.g. Quality_Procedure_v1" /></div>
+          <div><label className={LabelClass}>Intended File Name *</label><input type="text" className={InputClass} value={metaDoc.metaFileName} onChange={(e) => setMetaDoc(prev => ({ ...prev, metaFileName: sanitizeWindowsInput(e.target.value) }))} placeholder="e.g. Quality_Procedure_v1" /></div>
           <div>
             <label className={LabelClass}>Expected File Extension</label>
             <select className={InputClass} value={metaDoc.metaFileExtension} onChange={(e) => setMetaDoc(prev => ({ ...prev, metaFileExtension: e.target.value }))}>
@@ -92,14 +95,14 @@ const MetadataOnlyModal = ({ isOpen, onClose, onSave, workflowId }) => {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={LabelClass}>Document Number</label><input type="text" className={InputClass} value={metaDoc.partNumber} onChange={(e) => setMetaDoc(prev => ({ ...prev, partNumber: e.target.value }))} placeholder="e.g. DOC-123" /></div>
+            <div><label className={LabelClass}>Document Number</label><input type="text" className={InputClass} value={metaDoc.partNumber} onChange={(e) => setMetaDoc(prev => ({ ...prev, partNumber: sanitizeWindowsInput(e.target.value) }))} placeholder="e.g. DOC-123" /></div>
             <div><label className={LabelClass}>Issue / Revision No</label><input type="text" className={InputClass} value={metaDoc.issueNo} onChange={(e) => setMetaDoc(prev => ({ ...prev, issueNo: e.target.value }))} placeholder="e.g. Rev 1.0" /></div>
           </div>
           <div><label className={LabelClass}>Description</label><input type="text" className={InputClass} value={metaDoc.description} onChange={(e) => setMetaDoc(prev => ({ ...prev, description: e.target.value }))} placeholder="Brief description" /></div>
           <div>
             <label className={LabelClass}>Tags</label>
             <div className="flex gap-2">
-              <input type="text" className={InputClass} value={tagInput} onChange={(e) => setTagInput(e.target.value.replace(/[^a-zA-Z0-9 ]/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (tagInput.trim()) { setMetaDoc(prev => ({ ...prev, tags: [...prev.tags, tagInput.trim()] })); setTagInput(''); } } }} placeholder="Add tag and press Enter" />
+              <input type="text" className={InputClass} value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (tagInput.trim()) { setMetaDoc(prev => ({ ...prev, tags: [...prev.tags, tagInput.trim()] })); setTagInput(''); } } }} placeholder="Add tag and press Enter" />
               <button type="button" onClick={() => { if (tagInput.trim()) { setMetaDoc(prev => ({ ...prev, tags: [...prev.tags, tagInput.trim()] })); setTagInput(''); } }} className="bg-gray-100 px-4 py-2 rounded-lg border">Add</button>
             </div>
             {metaDoc.tags.length > 0 && ( <div className="flex flex-wrap gap-2 mt-2"> {metaDoc.tags.map((tag, i) => ( <span key={i} className="bg-blue-100 text-blue-800 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5">{tag} <IconX size={14} className="cursor-pointer" onClick={() => setMetaDoc(prev => ({ ...prev, tags: prev.tags.filter((_, ti) => ti !== i) }))} /></span> ))} </div> )}
@@ -378,7 +381,9 @@ export default function InitiateProcess() {
     setActionsLoading(true);
     try {
       const ext = selectedFile.name.split('.').pop();
-      let mainFileName = fileDetails.name;
+      // Added safety for custom document names specifically on Windows
+      let mainFileName = sanitizeWindowsInput(fileDetails.name);
+      
       if (!fileDetails.preApproved) {
         const nameRes = await GenerateDocumentName(workflowId, null, ext);
         mainFileName = nameRes?.data?.documentName;
@@ -431,7 +436,8 @@ export default function InitiateProcess() {
     try {
       for (let pending of pendingFiles) {
         const ext = pending.file.name.split('.').pop();
-        let mainFileName = pending.name;
+        let mainFileName = sanitizeWindowsInput(pending.name);
+        
         if (!pending.preApproved) {
           const nameRes = await GenerateDocumentName(workflowId, null, ext);
           mainFileName = nameRes?.data?.documentName;
@@ -694,16 +700,16 @@ export default function InitiateProcess() {
 
               <div className="w-full md:w-2/3 space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div><label className={LabelClass}>Document Number</label><input value={fileDetails.partNumber} onChange={(e) => setFileDetails(prev => ({ ...prev, partNumber: e.target.value }))} className={InputClass} placeholder="e.g. DOC-123" /></div>
+                  <div><label className={LabelClass}>Document Number</label><input value={fileDetails.partNumber} onChange={(e) => setFileDetails(prev => ({ ...prev, partNumber: sanitizeWindowsInput(e.target.value) }))} className={InputClass} placeholder="e.g. DOC-123" /></div>
                   <div><label className={LabelClass}>Issue / Revision Number</label><input value={fileDetails.issueNo} onChange={(e) => setFileDetails(prev => ({ ...prev, issueNo: e.target.value }))} className={InputClass} placeholder="e.g. Rev 1.0" /></div>
                   <div className="sm:col-span-2"><label className={LabelClass}>Document Description</label><input value={fileDetails.fileDescription} onChange={(e) => setFileDetails(prev => ({ ...prev, fileDescription: e.target.value }))} className={InputClass} placeholder="Brief description of this document" /></div>
-                  {fileDetails.preApproved && ( <div className="sm:col-span-2"><label className={LabelClass}>Custom Document Name</label><input value={fileDetails.name} onChange={(e) => setFileDetails(prev => ({ ...prev, name: e.target.value }))} className={InputClass} placeholder="Enter preferred name" /></div> )}
+                  {fileDetails.preApproved && ( <div className="sm:col-span-2"><label className={LabelClass}>Custom Document Name</label><input value={fileDetails.name} onChange={(e) => setFileDetails(prev => ({ ...prev, name: sanitizeWindowsInput(e.target.value) }))} className={InputClass} placeholder="Enter preferred name" /></div> )}
                 </div>
 
                 <div>
                   <label className={LabelClass}>Tags</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value.replace(/[^a-zA-Z0-9 ]/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (newTag.trim()) { setFileDetails(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] })); setNewTag(''); } } }} className={InputClass} placeholder="Type a tag and press Enter or Add" />
+                    <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (newTag.trim()) { setFileDetails(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] })); setNewTag(''); } } }} className={InputClass} placeholder="Type a tag and press Enter or Add" />
                     <button type="button" onClick={() => { if (newTag.trim()) { setFileDetails(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] })); setNewTag(''); } }} className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg border border-gray-300 transition-colors">Add</button>
                   </div>
                   {fileDetails.tags.length > 0 && ( <div className="flex flex-wrap gap-2 mt-3"> {fileDetails.tags.map((tag, index) => ( <span key={index} className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5"> {tag} <IconX size={14} className="cursor-pointer hover:text-red-500" onClick={() => setFileDetails(prev => ({ ...prev, tags: prev.tags.filter((_, i) => i !== index) }))} /> </span> ))} </div> )}
@@ -776,7 +782,7 @@ export default function InitiateProcess() {
                           )}
                         </div>
                         <div className="md:col-span-9 grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div><label className={LabelClass}>Part No</label><input className={InputClass} value={pf.partNumber} onChange={e => updatePendingFile(pf.id, 'partNumber', e.target.value)} placeholder="DOC-01"/></div>
+                          <div><label className={LabelClass}>Part No</label><input className={InputClass} value={pf.partNumber} onChange={e => updatePendingFile(pf.id, 'partNumber', sanitizeWindowsInput(e.target.value))} placeholder="DOC-01"/></div>
                           <div><label className={LabelClass}>Issue No</label><input className={InputClass} value={pf.issueNo} onChange={e => updatePendingFile(pf.id, 'issueNo', e.target.value)} placeholder="Rev 1"/></div>
                           <div className="col-span-2"><label className={LabelClass}>Description</label><input className={InputClass} value={pf.description} onChange={e => updatePendingFile(pf.id, 'description', e.target.value)} placeholder="Details..."/></div>
                           <div className="col-span-2 md:col-span-4 flex gap-2">
@@ -868,14 +874,14 @@ export default function InitiateProcess() {
               <button type="button" onClick={closeEditModal} className="text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full"><IconX size={20} /></button>
             </div>
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
-              {editingDocument.isMetadataOnly && ( <div> <label className={LabelClass}>File Name</label> <input type="text" className={InputClass} value={editingDocument.metaFileName} onChange={(e) => setEditingDocument({ ...editingDocument, metaFileName: e.target.value })} /> </div> )}
-              <div><label className={LabelClass}>Part Number</label><input type="text" className={InputClass} value={editingDocument.partNumber} onChange={(e) => setEditingDocument({ ...editingDocument, partNumber: e.target.value })} /></div>
+              {editingDocument.isMetadataOnly && ( <div> <label className={LabelClass}>File Name</label> <input type="text" className={InputClass} value={editingDocument.metaFileName} onChange={(e) => setEditingDocument({ ...editingDocument, metaFileName: sanitizeWindowsInput(e.target.value) })} /> </div> )}
+              <div><label className={LabelClass}>Part Number</label><input type="text" className={InputClass} value={editingDocument.partNumber} onChange={(e) => setEditingDocument({ ...editingDocument, partNumber: sanitizeWindowsInput(e.target.value) })} /></div>
               <div><label className={LabelClass}>Issue / Revision Number</label><input type="text" className={InputClass} value={editingDocument.issueNo} onChange={(e) => setEditingDocument({ ...editingDocument, issueNo: e.target.value })} /></div>
               <div><label className={LabelClass}>Description</label><input type="text" className={InputClass} value={editingDocument.description} onChange={(e) => setEditingDocument({ ...editingDocument, description: e.target.value })} /></div>
               <div className="flex items-center gap-6"> <label className="flex items-center gap-2 cursor-pointer"> <input type="checkbox" className="w-4 h-4 accent-green-600" checked={editingDocument.isSopDocument} onChange={(e) => setEditingDocument({ ...editingDocument, isSopDocument: e.target.checked })} /> <span className="text-sm font-semibold text-gray-700">SOP Document</span> </label> </div>
               <div>
                 <label className={LabelClass}>Tags</label>
-                <div className="flex gap-2"> <input type="text" className={InputClass} value={editTagInput} onChange={(e) => setEditTagInput(e.target.value.replace(/[^a-zA-Z0-9 ]/g, ''))} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTagToEditing())} /> <button type="button" onClick={addTagToEditing} className="bg-gray-100 px-4 py-2 rounded-lg border">Add</button> </div>
+                <div className="flex gap-2"> <input type="text" className={InputClass} value={editTagInput} onChange={(e) => setEditTagInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTagToEditing())} /> <button type="button" onClick={addTagToEditing} className="bg-gray-100 px-4 py-2 rounded-lg border">Add</button> </div>
                 <div className="flex flex-wrap gap-2 mt-3"> {editingDocument.tags.map((tag, idx) => ( <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5"> {tag} <IconX size={14} className="cursor-pointer" onClick={() => removeTagFromEditing(idx)} /> </span> ))} </div>
               </div>
             </div>

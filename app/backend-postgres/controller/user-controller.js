@@ -235,9 +235,8 @@ export const get_user_profile_data = async (req, res) => {
 
 export const get_user = async (req, res) => {
   try {
-    const { userId } = req.params; // Assuming userId is passed as a URL parameter
+    const { userId } = req.params;
 
-    // Fetch the user with related data
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
       include: {
@@ -278,10 +277,11 @@ export const get_user = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
-    // Format the response
     const formattedUser = {
       id: user.id,
       username: user.username,
@@ -293,56 +293,67 @@ export const get_user = async (req, res) => {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       status: user.status,
+      isKeeperOfPhysicalDocs: user.isKeeperOfPhysicalDocs ? "Yes" : "No",
+
       permissions: {
         writable: user.writable,
         readable: user.readable,
         downloadable: user.downloadable,
         uploadable: user.uploadable,
       },
-      roles: user.roles.map(
-        (userRole) =>
-          // {
-          userRole.role.id,
-        // name: userRole.role.role,
-        // departmentId: userRole.role.departmentId,
-        // isActive: userRole.role.isActive,
-        // }
-      ),
+
+      roles: user.roles.map((userRole) => userRole.role.id),
+
       departments: {
         member: user.branches.map((dept) => ({
           id: dept.id,
           name: dept.name,
           code: dept.code,
         })),
+
         head: user.headOfDepartments.map((dept) => ({
           id: dept.id,
           name: dept.name,
           code: dept.code,
         })),
+
         admin: user.adminOfDepartments.map((dept) => ({
           id: dept.id,
           name: dept.name,
           code: dept.code,
         })),
       },
+
+      // IMPORTANT
+      password: "",
+      confirmPassword: "",
     };
 
-    res
-      .status(200)
-      .json({ message: "User retrieved successfully", data: formattedUser });
+    return res.status(200).json({
+      message: "User retrieved successfully",
+      data: formattedUser,
+    });
   } catch (error) {
     console.error("Error retrieving user", error);
-    return res.status(500).json({ message: "Error retrieving user" });
+
+    return res.status(500).json({
+      message: "Error retrieving user",
+    });
   }
 };
 
+import bcrypt from "bcryptjs";
+
 export const edit_user = async (req, res) => {
   try {
-    const { userId } = req.params; // Assuming userId is passed as a URL parameter
+    const { userId } = req.params;
+
     const {
       username,
       email,
       name,
+      password,
+      confirmPassword,
       specialUser,
       isRootLevel,
       isAdmin,
@@ -357,29 +368,38 @@ export const edit_user = async (req, res) => {
     });
 
     if (!existingUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
-    // Check for username/email uniqueness if provided
+    // Username uniqueness
     if (username && username !== existingUser.username) {
       const usernameExists = await prisma.user.findFirst({
         where: { username },
       });
+
       if (usernameExists) {
-        return res.status(400).json({ message: "Username already taken" });
+        return res.status(400).json({
+          message: "Username already taken",
+        });
       }
     }
 
+    // Email uniqueness
     if (email && email !== existingUser.email) {
       const emailExists = await prisma.user.findFirst({
         where: { email },
       });
+
       if (emailExists) {
-        return res.status(400).json({ message: "Email already taken" });
+        return res.status(400).json({
+          message: "Email already taken",
+        });
       }
     }
 
-    // Validate roles if provided
+    // Validate roles
     if (roles) {
       const validRoles = await prisma.role.findMany({
         where: {
@@ -395,39 +415,80 @@ export const edit_user = async (req, res) => {
       }
     }
 
+    // Password update only if explicitly entered
+    let hashedPassword;
+
+    if (password && password.trim() !== "") {
+      if (password.length < 6) {
+        return res.status(400).json({
+          message: "Password must be at least 6 characters",
+        });
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).json({
+          message: "Passwords do not match",
+        });
+      }
+
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     // Prepare update data
     const updateData = {
       ...(username && { username }),
       ...(email && { email }),
       ...(name && { name }),
       ...(status && { status }),
-      ...(typeof specialUser === "boolean" && { specialUser }),
-      ...(typeof isRootLevel === "boolean" && { isRootLevel }),
-      ...(typeof isAdmin === "boolean" && { isAdmin }),
-      ...(permissions?.writable && { writable: permissions.writable }),
-      ...(permissions?.readable && { readable: permissions.readable }),
+
+      ...(typeof specialUser === "boolean" && {
+        specialUser,
+      }),
+
+      ...(typeof isRootLevel === "boolean" && {
+        isRootLevel,
+      }),
+
+      ...(typeof isAdmin === "boolean" && {
+        isAdmin,
+      }),
+
+      ...(hashedPassword && {
+        password: hashedPassword,
+      }),
+
+      ...(permissions?.writable && {
+        writable: permissions.writable,
+      }),
+
+      ...(permissions?.readable && {
+        readable: permissions.readable,
+      }),
+
       ...(permissions?.downloadable && {
         downloadable: permissions.downloadable,
       }),
-      ...(permissions?.uploadable && { uploadable: permissions.uploadable }),
+
+      ...(permissions?.uploadable && {
+        uploadable: permissions.uploadable,
+      }),
     };
 
-    // Start a transaction to update user and roles
+    // Transaction
     const updatedUser = await prisma.$transaction(async (tx) => {
-      // Update user details
       const user = await tx.user.update({
         where: { id: parseInt(userId) },
         data: updateData,
       });
 
-      // Update roles if provided
+      // Update roles
       if (roles) {
-        // Delete existing UserRole entries
         await tx.userRole.deleteMany({
-          where: { userId: parseInt(userId) },
+          where: {
+            userId: parseInt(userId),
+          },
         });
 
-        // Create new UserRole entries
         await tx.userRole.createMany({
           data: roles.map((roleId) => ({
             userId: user.id,
@@ -439,12 +500,19 @@ export const edit_user = async (req, res) => {
       return user;
     });
 
-    res
-      .status(200)
-      .json({ message: "User updated successfully", data: updatedUser });
+    // NEVER return password
+    delete updatedUser.password;
+
+    return res.status(200).json({
+      message: "User updated successfully",
+      data: updatedUser,
+    });
   } catch (error) {
     console.error("Error updating user", error);
-    return res.status(500).json({ message: "Error updating user" });
+
+    return res.status(500).json({
+      message: "Error updating user",
+    });
   }
 };
 

@@ -33,7 +33,6 @@ const {
 const prisma = new PrismaClient();
 
 const createDraftFolder = async (draftName, userData) => {
-  // Create a temporary folder for draft documents
   const draftPath = `../drafts/${draftName}`;
   await createFolder(false, draftPath, userData);
   return draftPath;
@@ -45,7 +44,6 @@ const copyToDraftFolder = async (
   accessToken,
   docName,
 ) => {
-  // Copy document to draft folder
   return new Promise((resolve, reject) => {
     file_copy(
       {
@@ -68,58 +66,14 @@ const copyToDraftFolder = async (
   });
 };
 
-const prepareDocumentsForDraft = async (documents, draftPath, accessToken) => {
-  const preparedDocs = [];
-
-  for (const doc of documents) {
-    const document = await prisma.document.findUnique({
-      where: { id: parseInt(doc.documentId) },
-      select: { path: true, id: true, name: true },
-    });
-
-    if (document) {
-      // Copy to draft folder
-      const copyResult = await copyToDraftFolder(
-        `./${document.path}`,
-        draftPath,
-        accessToken,
-        docName,
-      );
-
-      preparedDocs.push({
-        documentId: copyResult.documentId,
-        originalDocumentId: doc.documentId,
-        isNewDocument: doc.isNewDocument || false,
-        oldDocumentId: doc.oldDocumentId,
-        preApproved: doc.preApproved || false,
-        tags: doc.tags || [],
-        partNumber: doc.partNumber,
-        description: doc.description,
-        issueNo: doc.issueNo,
-        reasonOfSupersed: doc.reasonOfSupersed,
-      });
-    }
-  }
-
-  return preparedDocs;
-};
-
 const ensureDraftFolder = async (draftPath, userData) => {
   try {
-    // Remove "../" prefix if present for checking
     const normalizedPath = draftPath.replace("../", "");
-
-    // Check if folder exists
     if (fs.existsSync(draftPath)) {
-      // Folder exists, create a unique backup folder name
       const backupPath = `${draftPath}_backup_${Date.now()}`;
-
-      // Move existing folder to backup
       await fs.promises.rename(draftPath, backupPath);
       console.log(`Existing draft folder moved to: ${backupPath}`);
     }
-
-    // Create new folder
     await createFolder(false, draftPath, userData);
     console.log(`Created new draft folder: ${draftPath}`);
   } catch (error) {
@@ -148,11 +102,7 @@ export const saveProcessDraft = async (req, res) => {
       supersededDocuments = [],
     } = req.body;
 
-    console.log("Saving REOPEN draft with data:", {
-      type,
-      processId,
-      supersededDocumentsCount: supersededDocuments?.length || 0,
-    });
+    console.log("Saving draft with data:", { type, processId });
 
     if (!type) {
       return res.status(400).json({ message: "Draft type is required" });
@@ -170,16 +120,13 @@ export const saveProcessDraft = async (req, res) => {
         .json({ message: "Process ID is required for REOPEN drafts" });
     }
 
-    const draftName = `draft_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    const draftName = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const draftPath = `../drafts/${draftName}`;
 
     await ensureDraftFolder(draftPath, userData);
 
     let existingDraft = null;
 
-    console.log("req.body.draftId", req.body.draftId);
     if (req.body.draftId) {
       existingDraft = await prisma.processDraft.findUnique({
         where: {
@@ -189,8 +136,6 @@ export const saveProcessDraft = async (req, res) => {
         },
         include: { draftDocuments: true },
       });
-
-      console.log("existing draft", existingDraft);
     }
 
     const draft = await prisma.$transaction(async (tx) => {
@@ -198,42 +143,42 @@ export const saveProcessDraft = async (req, res) => {
       const preparedDocuments = [];
 
       if (type === "REOPEN" && supersededDocuments?.length > 0) {
-        console.log(
-          "Processing REOPEN supersededDocuments:",
-          supersededDocuments,
-        );
-
-        // For REOPEN drafts, we need to handle document upload differently
-        // The documents are already uploaded to the process folder via frontend upload
-        // We just need to reference them, not copy them
-
         for (const [index, doc] of supersededDocuments.entries()) {
           try {
-            if (!doc.newDocumentId) {
+            if (!doc.newDocumentId && !doc.isMetadataOnly) {
               console.warn(
                 `Document at index ${index} has no newDocumentId, skipping`,
               );
               continue;
             }
 
-            // Check if document already exists in the database
-            let document = await tx.document.findUnique({
-              where: { id: parseInt(doc.newDocumentId) },
-            });
+            let finalDocId = doc.newDocumentId;
 
-            if (!document) {
-              console.error(
-                `Document not found in database: ${doc.newDocumentId}`,
-              );
-              continue;
+            // Handle metadata only placeholders that don't have new files yet
+            if (doc.isMetadataOnly && !doc.newDocumentId) {
+              const placeholderDoc = await tx.document.create({
+                data: {
+                  name:
+                    doc.metaFileName || `metadata_placeholder_${Date.now()}`,
+                  type: doc.metaFileExtension || "placeholder",
+                  path: `${draftPath.replace("../", "")}/meta_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                  createdById: userData.id,
+                  isInvolvedInProcess: true,
+                  tags: doc.tags || [],
+                  isRecord: false,
+                },
+              });
+              finalDocId = placeholderDoc.id;
+            } else {
+              let document = await tx.document.findUnique({
+                where: { id: parseInt(doc.newDocumentId) },
+              });
+              if (!document) continue;
             }
 
-            // For REOPEN drafts, we don't copy files to draft folder
-            // We just store references to the already-uploaded documents
             preparedDocuments.push({
-              documentId: document.id,
-              newDocumentId: document.id,
-              originalDocumentId: document.id, // Same as newDocumentId since already uploaded
+              documentId: finalDocId,
+              originalDocumentId: finalDocId,
               isNewDocument: doc.isNewDocument || false,
               oldDocumentId: doc.oldDocumentId || null,
               preApproved: doc.preApproved || false,
@@ -242,7 +187,12 @@ export const saveProcessDraft = async (req, res) => {
               description: doc.fileDescription || "",
               issueNo: doc.issueNo || "",
               reasonOfSupersed: doc.reasonOfSupersed || "",
-              uploadedFileName: doc.uploadedFileName || document.name,
+              uploadedFileName: doc.uploadedFileName || "",
+              isSopDocument: doc.isSopDocument !== false,
+              isMetadataOnly: doc.isMetadataOnly || false,
+              metaFileName: doc.metaFileName || null,
+              metaFileExtension: doc.metaFileExtension || null,
+              editableDocumentId: doc.editableDocumentId || null,
             });
           } catch (error) {
             console.error(
@@ -253,8 +203,42 @@ export const saveProcessDraft = async (req, res) => {
           }
         }
       } else if (type === "INITIATE") {
-        // Handle INITIATE draft documents (original logic)
         for (const doc of documents) {
+          // Handle Metadata only
+          if (doc.isMetadataOnly) {
+            const placeholderDoc = await tx.document.create({
+              data: {
+                name: doc.metaFileName || `metadata_placeholder_${Date.now()}`,
+                type: doc.metaFileExtension || "placeholder",
+                path: `${draftPath.replace("../", "")}/meta_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                createdById: userData.id,
+                isInvolvedInProcess: true,
+                tags: doc.tags || [],
+                isRecord: false,
+              },
+            });
+
+            preparedDocuments.push({
+              documentId: placeholderDoc.id,
+              originalDocumentId: null,
+              isNewDocument: true,
+              oldDocumentId: null,
+              preApproved: doc.preApproved || false,
+              tags: doc.tags || [],
+              partNumber: doc.partNumber,
+              description: doc.description,
+              issueNo: doc.issueNo,
+              reasonOfSupersed: doc.reasonOfSupersed,
+              isSopDocument: doc.isSopDocument !== false,
+              isMetadataOnly: true,
+              metaFileName: doc.metaFileName,
+              metaFileExtension: doc.metaFileExtension,
+              editableDocumentId: null,
+            });
+            continue;
+          }
+
+          // Handle real document
           const document = await tx.document.findUnique({
             where: { id: parseInt(doc.documentId) },
             select: { path: true, id: true, name: true },
@@ -283,6 +267,34 @@ export const saveProcessDraft = async (req, res) => {
             );
           });
 
+          let draftEditableId = null;
+          if (doc.editableDocumentId) {
+            const editDoc = await tx.document.findUnique({
+              where: { id: parseInt(doc.editableDocumentId) },
+              select: { path: true, id: true, name: true },
+            });
+            if (editDoc) {
+              const editCopyResult = await new Promise((resolve, reject) => {
+                file_copy(
+                  {
+                    headers: { authorization: `Bearer ${accessToken}` },
+                    body: {
+                      sourcePath: `./${editDoc.path}`,
+                      destinationPath: draftPath,
+                      name: editDoc.name,
+                    },
+                  },
+                  {
+                    status: (c) => ({
+                      json: (d) => (c === 200 ? resolve(d) : reject(d)),
+                    }),
+                  },
+                );
+              });
+              draftEditableId = editCopyResult.documentId;
+            }
+          }
+
           preparedDocuments.push({
             documentId: copyResult.documentId,
             originalDocumentId: doc.documentId,
@@ -294,6 +306,11 @@ export const saveProcessDraft = async (req, res) => {
             description: doc.description,
             issueNo: doc.issueNo,
             reasonOfSupersed: doc.reasonOfSupersed,
+            isSopDocument: doc.isSopDocument !== false,
+            isMetadataOnly: false,
+            metaFileName: null,
+            metaFileExtension: null,
+            editableDocumentId: draftEditableId,
           });
         }
       }
@@ -304,23 +321,17 @@ export const saveProcessDraft = async (req, res) => {
           data: {
             description: description || existingDraft.description,
             issueNo: issueNo || existingDraft.issueNo,
-            documentData: {
-              documents: preparedDocuments,
-            },
+            documentData: { documents: preparedDocuments },
             supersededDocuments: type === "REOPEN" ? supersededDocuments : null,
             updatedAt: new Date(),
           },
         });
 
-        // Delete old draft documents
         await tx.processDraftDocument.deleteMany({
           where: { draftId: req.body.draftId },
         });
 
-        // For REOPEN drafts, we don't delete the actual documents
-        // because they're stored in the process folder, not draft folder
         if (type === "INITIATE") {
-          // Delete old files from draft folder only for INITIATE
           for (const oldDoc of existingDraft.draftDocuments) {
             try {
               await new Promise((resolve, reject) => {
@@ -365,14 +376,15 @@ export const saveProcessDraft = async (req, res) => {
         });
       }
 
-      // Create draft document records
       for (const [index, doc] of preparedDocuments.entries()) {
         await tx.processDraftDocument.create({
           data: {
             draftId: savedDraft.id,
             documentId: doc.documentId,
             isNewDocument: doc.isNewDocument,
-            oldDocumentId: parseInt(doc.oldDocumentId),
+            oldDocumentId: doc.oldDocumentId
+              ? parseInt(doc.oldDocumentId)
+              : null,
             preApproved: doc.preApproved,
             tags: doc.tags,
             partNumber: doc.partNumber,
@@ -380,6 +392,11 @@ export const saveProcessDraft = async (req, res) => {
             issueNo: doc.issueNo,
             reasonOfSupersed: doc.reasonOfSupersed,
             sortOrder: index,
+            isSopDocument: doc.isSopDocument,
+            isMetadataOnly: doc.isMetadataOnly,
+            metaFileName: doc.metaFileName,
+            metaFileExtension: doc.metaFileExtension,
+            editableDocumentId: doc.editableDocumentId,
           },
         });
       }
@@ -457,6 +474,11 @@ export const editProcessDraft = async (req, res) => {
         isNewDocument: doc.isNewDocument,
         oldDocumentId: doc.oldDocumentId,
         reasonOfSupersed: doc.reasonOfSupersed,
+        isSopDocument: doc.isSopDocument !== false,
+        isMetadataOnly: doc.isMetadataOnly || false,
+        metaFileName: doc.metaFileName || "",
+        metaFileExtension: doc.metaFileExtension || "",
+        editableDocumentId: doc.editableDocumentId || null,
       })),
       supersededDocuments: existingDraft.supersededDocuments || [],
     };
@@ -562,50 +584,144 @@ const submitInitiationDraft = async (draft, userData, accessToken) => {
     await createFolder(false, finalStoragePath, userData);
 
     const finalDocumentIds = [];
+    const processDocumentsToInsert = [];
 
     console.log("draft docs", draft.draftDocuments);
+
+    // Copy the documents carefully mapping all flags
     for (const draftDoc of draft.draftDocuments) {
-      const sourcePath = `./${draftDoc.document.path}`;
+      if (draftDoc.isMetadataOnly) {
+        const placeholderDoc = await tx.document.create({
+          data: {
+            name: draftDoc.metaFileName || `metadata_placeholder_${Date.now()}`,
+            type: draftDoc.metaFileExtension || "placeholder",
+            path: `${workflowName}/${processName}/meta_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            createdById: userData.id,
+            isInvolvedInProcess: true,
+            tags: draftDoc.tags || [],
+            isRecord: false,
+          },
+        });
 
-      const copyResult = await new Promise((resolve, reject) => {
-        file_copy(
-          {
-            headers: { authorization: `Bearer ${accessToken}` },
-            body: {
-              sourcePath,
-              destinationPath: finalStoragePath,
-              name: draftDoc.document.name,
+        processDocumentsToInsert.push({
+          processId: null, // Will replace below
+          documentId: placeholderDoc.id,
+          reopenCycle: 0,
+          SOPIssueNo: draft.issueNo || null,
+          preApproved: draftDoc.preApproved || false,
+          tags: draftDoc.tags || [],
+          partNumber: draftDoc.partNumber || null,
+          description: draftDoc.description || null,
+          issueNo: draftDoc.issueNo || null,
+          isSopDocument: draftDoc.isSopDocument !== false,
+          isMetadataOnly: true,
+          editableDocumentId: null,
+        });
+        finalDocumentIds.push(placeholderDoc.id);
+      } else {
+        const sourcePath = `./${draftDoc.document.path}`;
+        const copyResult = await new Promise((resolve, reject) => {
+          file_copy(
+            {
+              headers: { authorization: `Bearer ${accessToken}` },
+              body: {
+                sourcePath,
+                destinationPath: finalStoragePath,
+                name: draftDoc.document.name,
+              },
             },
-          },
-          {
-            status: (code) => ({
-              json: (data) => {
-                if (code === 200) resolve(data);
-                else reject(data);
-              },
-            }),
-          },
-        );
-      });
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
+                },
+              }),
+            },
+          );
+        });
 
-      finalDocumentIds.push(copyResult.documentId);
+        let finalEditableId = null;
+        if (draftDoc.editableDocumentId) {
+          const editDoc = await tx.document.findUnique({
+            where: { id: draftDoc.editableDocumentId },
+            select: { path: true, name: true },
+          });
+          if (editDoc) {
+            const editCopyResult = await new Promise((resolve, reject) => {
+              file_copy(
+                {
+                  headers: { authorization: `Bearer ${accessToken}` },
+                  body: {
+                    sourcePath: `./${editDoc.path}`,
+                    destinationPath: finalStoragePath,
+                    name: editDoc.name,
+                  },
+                },
+                {
+                  status: (c) => ({
+                    json: (d) => (c === 200 ? resolve(d) : reject(d)),
+                  }),
+                },
+              );
+            });
+            finalEditableId = editCopyResult.documentId;
+          }
+        }
 
-      await new Promise((resolve, reject) => {
-        delete_file(
-          {
-            headers: { authorization: `Bearer ${accessToken}` },
-            body: { documentId: draftDoc.documentId },
-          },
-          {
-            status: (code) => ({
-              json: (data) => {
-                if (code === 200) resolve(data);
-                else reject(data);
-              },
-            }),
-          },
-        );
-      });
+        processDocumentsToInsert.push({
+          processId: null,
+          documentId: copyResult.documentId,
+          reopenCycle: 0,
+          SOPIssueNo: draft.issueNo || null,
+          preApproved: draftDoc.preApproved || false,
+          tags: draftDoc.tags || [],
+          partNumber: draftDoc.partNumber || null,
+          description: draftDoc.description || null,
+          issueNo: draftDoc.issueNo || null,
+          isSopDocument: draftDoc.isSopDocument !== false,
+          isMetadataOnly: false,
+          editableDocumentId: finalEditableId,
+        });
+        finalDocumentIds.push(copyResult.documentId);
+
+        if (finalEditableId) {
+          processDocumentsToInsert.push({
+            processId: null,
+            documentId: finalEditableId,
+            reopenCycle: 0,
+            SOPIssueNo: draft.issueNo || null,
+            preApproved: draftDoc.preApproved || false,
+            tags: draftDoc.tags || [],
+            partNumber: draftDoc.partNumber || null,
+            description: draftDoc.description
+              ? `${draftDoc.description} (Editable Reference)`
+              : "Editable Reference",
+            issueNo: draftDoc.issueNo || null,
+            isSopDocument: false, // Independent reference non-SOP
+            isMetadataOnly: false,
+            editableDocumentId: null,
+          });
+          finalDocumentIds.push(finalEditableId);
+        }
+
+        await new Promise((resolve, reject) => {
+          delete_file(
+            {
+              headers: { authorization: `Bearer ${accessToken}` },
+              body: { documentId: draftDoc.documentId },
+            },
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
+                },
+              }),
+            },
+          );
+        });
+      }
     }
 
     const process = await tx.processInstance.create({
@@ -622,20 +738,14 @@ const submitInitiationDraft = async (draft, userData, accessToken) => {
       },
     });
 
-    const processDocumentData = draft.draftDocuments.map((item, index) => ({
+    // Populate process ID dynamically
+    const mappedProcessDocs = processDocumentsToInsert.map((d) => ({
+      ...d,
       processId: process.id,
-      documentId: finalDocumentIds[index],
-      reopenCycle: 0,
-      SOPIssueNo: draft.issueNo || null,
-      preApproved: item.preApproved || false,
-      tags: item.tags || [],
-      partNumber: item.partNumber || null,
-      description: item.description || null,
-      issueNo: item.issueNo || null,
     }));
 
     await tx.processDocument.createMany({
-      data: processDocumentData,
+      data: mappedProcessDocs,
     });
 
     const workflow = await tx.workflow.findUnique({
@@ -719,6 +829,9 @@ const submitReopenDraft = async (draft, userData, accessToken) => {
               // Merge with draft document data if available
               documentId: draftDoc.document?.id || doc.newDocumentId,
               documentName: draftDoc.document?.name || doc.uploadedFileName,
+              isSopDocument: draftDoc.isSopDocument !== false,
+              isMetadataOnly: draftDoc.isMetadataOnly || false,
+              editableDocumentId: draftDoc.editableDocumentId || null,
             };
           })
         : draft.draftDocuments.map((draftDoc) => ({
@@ -734,6 +847,9 @@ const submitReopenDraft = async (draft, userData, accessToken) => {
             tags: draftDoc.tags,
             documentId: draftDoc.document?.id,
             documentName: draftDoc.document?.name,
+            isSopDocument: draftDoc.isSopDocument !== false,
+            isMetadataOnly: draftDoc.isMetadataOnly || false,
+            editableDocumentId: draftDoc.editableDocumentId || null,
           }));
 
     for (const draftDoc of draftDocsToProcess) {
@@ -771,21 +887,26 @@ const submitReopenDraft = async (draft, userData, accessToken) => {
         data: {
           processId: draft.processId,
           documentId: finalDocumentId,
-          isReplacement: !draftDoc.isNewDocument,
-          superseding: !draftDoc.isNewDocument,
-          replacedDocumentId: !draftDoc.isNewDocument
-            ? parseInt(draftDoc.oldDocumentId)
-            : null,
+          isReplacement: !draftDoc.isNewDocument && !draftDoc.isMetadataOnly,
+          superseding: !draftDoc.isNewDocument && !draftDoc.isMetadataOnly,
+          replacedDocumentId:
+            !draftDoc.isNewDocument && !draftDoc.isMetadataOnly
+              ? parseInt(draftDoc.oldDocumentId)
+              : null,
           preApproved: !!draftDoc.preApproved,
-          reasonOfSupersed: !draftDoc.isNewDocument
-            ? draftDoc.reasonOfSupersed || "No reason provided"
-            : null,
+          reasonOfSupersed:
+            !draftDoc.isNewDocument && !draftDoc.isMetadataOnly
+              ? draftDoc.reasonOfSupersed || "No reason provided"
+              : null,
           SOPIssueNo: SOPIssueNo || null,
           issueNo: draftDoc.issueNo || null,
           description: draftDoc.fileDescription || null,
           tags: draftDoc.tags || [],
           partNumber: draftDoc.partNumber || null,
           reopenCycle: updatedProcess.reopenCycle,
+          isSopDocument: draftDoc.isSopDocument !== false,
+          isMetadataOnly: draftDoc.isMetadataOnly || false,
+          editableDocumentId: draftDoc.editableDocumentId || null,
         },
       });
 
@@ -795,10 +916,13 @@ const submitReopenDraft = async (draft, userData, accessToken) => {
           documentId: finalDocumentId,
           processId: draft.processId,
           userId: userData.id,
-          actionType: draftDoc.isNewDocument ? "UPLOADED" : "REPLACED",
+          actionType:
+            draftDoc.isNewDocument || draftDoc.isMetadataOnly
+              ? "UPLOADED"
+              : "REPLACED",
           actionDetails: {
             isNewDocument: draftDoc.isNewDocument,
-            isReplacement: !draftDoc.isNewDocument,
+            isReplacement: !draftDoc.isNewDocument && !draftDoc.isMetadataOnly,
             originalDocumentId: draftDoc.oldDocumentId || null,
             reopenCycle: updatedProcess.reopenCycle,
           },
@@ -1052,7 +1176,6 @@ const cleanupDraftFolder = async (storagePath, accessToken) => {
   }
 };
 
-// Add this to your draft controller
 export const getDraftForEditing = async (req, res) => {
   // Helper function to remove filename from path
   const getDirectoryPath = (path) => {
@@ -1076,8 +1199,6 @@ export const getDraftForEditing = async (req, res) => {
     const draft = await prisma.processDraft.findUnique({
       where: {
         id: draftId,
-        // initiatorId: userData.id,
-        // status: "DRAFT",
       },
       include: {
         workflow: {
@@ -1159,8 +1280,12 @@ export const getDraftForEditing = async (req, res) => {
             description: doc.description,
             issueNo: doc.issueNo,
             preApproved: doc.preApproved,
-            // For display in the form - remove filename from path
             documentPath: getDirectoryPath(doc.document.path),
+            isSopDocument: doc.isSopDocument !== false,
+            isMetadataOnly: doc.isMetadataOnly || false,
+            metaFileName: doc.metaFileName || "",
+            metaFileExtension: doc.metaFileExtension || "",
+            editableDocumentId: doc.editableDocumentId || null,
           })),
         },
       };
@@ -1177,12 +1302,6 @@ export const getDraftForEditing = async (req, res) => {
 
       // Get superseded documents from draft data
       const supersededDocumentsFromDraft = draft.supersededDocuments || [];
-
-      console.log(
-        "Superseded documents from draft JSON:",
-        supersededDocumentsFromDraft,
-      );
-      console.log("Draft documents from relation:", draft.draftDocuments);
 
       // Combine draft documents with superseded documents data
       const enhancedSupersededDocuments = supersededDocumentsFromDraft.map(
@@ -1210,8 +1329,13 @@ export const getDraftForEditing = async (req, res) => {
             // Additional information for display
             oldDocumentName: draftDoc.oldDocument?.name || "",
             newDocumentName: draftDoc.document?.name || "",
-            documentPath: getDirectoryPath(draftDoc.document?.path) || "", // Remove filename from path
+            documentPath: getDirectoryPath(draftDoc.document?.path) || "",
             hasDocumentUploaded: !!draftDoc.document?.id,
+            isSopDocument: draftDoc.isSopDocument !== false,
+            isMetadataOnly: draftDoc.isMetadataOnly || false,
+            metaFileName: draftDoc.metaFileName || "",
+            metaFileExtension: draftDoc.metaFileExtension || "",
+            editableDocumentId: draftDoc.editableDocumentId || null,
           };
         },
       );
@@ -1235,8 +1359,13 @@ export const getDraftForEditing = async (req, res) => {
             tags: draftDoc.tags || [],
             oldDocumentName: draftDoc.oldDocument?.name || "",
             newDocumentName: draftDoc.document?.name || "",
-            documentPath: getDirectoryPath(draftDoc.document?.path) || "", // Remove filename from path
+            documentPath: getDirectoryPath(draftDoc.document?.path) || "",
             hasDocumentUploaded: !!draftDoc.document?.id,
+            isSopDocument: draftDoc.isSopDocument !== false,
+            isMetadataOnly: draftDoc.isMetadataOnly || false,
+            metaFileName: draftDoc.metaFileName || "",
+            metaFileExtension: draftDoc.metaFileExtension || "",
+            editableDocumentId: draftDoc.editableDocumentId || null,
           });
         });
       }
@@ -1256,10 +1385,6 @@ export const getDraftForEditing = async (req, res) => {
         },
       };
 
-      console.log(
-        "Returning REOPEN draft response:",
-        JSON.stringify(response, null, 2),
-      );
       return res.status(200).json(response);
     } else {
       return res.status(400).json({ message: "Invalid draft type" });

@@ -3444,8 +3444,12 @@ export const get_user_processes = async (req, res, next) => {
       where: {
         assignedTo: userId,
         status: {
-          in: ["IN_PROGRESS", "MIGRATED"], // 👈 include MIGRATED
+          in: ["IN_PROGRESS", "MIGRATED"],
         },
+      },
+      // ADDED: Sort to ensure newest assignments appear first
+      orderBy: {
+        createdAt: "desc",
       },
       include: {
         process: {
@@ -3494,7 +3498,7 @@ export const get_user_processes = async (req, res, next) => {
         assignmentId: step.assignmentId,
         deadline: step.deadline,
         stepInstanceId: step.id,
-        isObserver: step.status === "MIGRATED", // 👈 new flag
+        isObserver: step.status === "MIGRATED",
       };
     });
 
@@ -5229,7 +5233,10 @@ export const get_completed_initiator_processes = async (req, res) => {
     const processes = await prisma.processInstance.findMany({
       where: {
         initiatorId: userData.id,
-        // status: ProcessStatus.COMPLETED,
+      },
+      // ADDED: Sort to ensure newest processes appear first
+      orderBy: {
+        createdAt: "desc",
       },
       include: {
         initiator: {
@@ -5774,8 +5781,6 @@ export const get_completed_initiator_processes = async (req, res) => {
         code: "PROCESS_RETRIEVAL_ERROR",
       },
     });
-  } finally {
-    // await prisma.$disconnect();
   }
 };
 
