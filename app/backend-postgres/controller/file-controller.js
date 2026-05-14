@@ -356,6 +356,7 @@ export const file_upload = async (req, res) => {
     });
 
     writableStream.on("error", (err) => {
+      console.log("error writing file", err);
       logger.error({
         action: "FILE_UPLOAD_WRITE_ERROR",
         userId: userData.id,
