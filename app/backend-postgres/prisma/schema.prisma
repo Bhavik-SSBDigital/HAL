@@ -367,28 +367,28 @@ model ProcessDraft {
 }
 
 model ProcessDraftDocument {
-  id               Int       @id @default(autoincrement())
-  draftId          String
-  documentId       Int
-  isNewDocument    Boolean?  @default(false)
-  oldDocumentId    Int?
-  preApproved      Boolean?  @default(false)
-  tags             String[]
-  partNumber       String?
-  description      String?
-  issueNo          String?
-  reasonOfSupersed String?
-  sortOrder        Int       @default(0)
-  isSopDocument    Boolean?  @default(true)   
-  isMetadataOnly   Boolean?  @default(false)  
-  metaFileName     String?                    
-  metaFileExtension String?                   
+  id                 Int       @id @default(autoincrement())
+  draftId            String
+  documentId         Int
+  isNewDocument      Boolean?  @default(false)
+  oldDocumentId      Int?
+  preApproved        Boolean?  @default(false)
+  tags               String[]
+  partNumber         String?
+  description        String?
+  issueNo            String?
+  reasonOfSupersed   String?
+  sortOrder          Int       @default(0)
+  isSopDocument      Boolean?  @default(true)   
+  isMetadataOnly     Boolean?  @default(false)  
+  metaFileName       String?                    
+  metaFileExtension  String?                   
   editableDocumentId Int?
-  editableDocument Document? @relation("DraftEditableReference", fields: [editableDocumentId], references: [id])
+  editableDocument   Document? @relation("DraftEditableReference", fields: [editableDocumentId], references: [id])
 
-  draft    ProcessDraft @relation("ProcessDraftDocuments", fields: [draftId], references: [id], onDelete: Cascade)
-  document Document     @relation("DocumentDrafts", fields: [documentId], references: [id], onDelete: Cascade)
-  oldDocument Document? @relation("OldDocumentRelation", fields: [oldDocumentId], references: [id])
+  draft       ProcessDraft @relation("ProcessDraftDocuments", fields: [draftId], references: [id], onDelete: Cascade)
+  document    Document     @relation("DocumentDrafts", fields: [documentId], references: [id], onDelete: Cascade)
+  oldDocument Document?    @relation("OldDocumentRelation", fields: [oldDocumentId], references: [id])
   
   @@unique([draftId, documentId])
 }
@@ -508,8 +508,6 @@ model ProcessDocument {
   metadataFulfilledAt DateTime?              
   metaFileName        String?                
   metaFileExtension   String?                
-  
-  // NEW: Direct relation for editable reference
   editableDocumentId  Int?
   editableDocument    Document? @relation("EditableReference", fields: [editableDocumentId], references: [id])
   
