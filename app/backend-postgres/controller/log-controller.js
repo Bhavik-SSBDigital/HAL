@@ -171,6 +171,7 @@ export const get_user_activity_log = async (req, res) => {
 
     const { processId, stepInstanceId } = req.params;
 
+    // ── CHANGE: added status, completedAt, initiator to select ──
     const process = await prisma.processInstance.findUnique({
       where: { id: processId },
       select: {
@@ -178,10 +179,13 @@ export const get_user_activity_log = async (req, res) => {
         name: true,
         initiatorId: true,
         workflowId: true,
+        status: true,
+        updatedAt: true,
+        initiator: {
+          select: { id: true, username: true, name: true },
+        },
         workflow: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
       },
     });
@@ -1174,6 +1178,17 @@ export const get_user_activity_log = async (req, res) => {
       process: {
         processId,
         processName: process.name,
+        // ── CHANGE: new fields added to response ──
+        processStatus: process.status || "UNKNOWN",
+        processCompletedAt: process.completedAt
+          ? process.completedAt.toISOString()
+          : null,
+        initiatorName: process.initiator
+          ? process.initiator.name || process.initiator.username
+          : "Unknown",
+        initiatorUsername: process.initiator?.username || null,
+        processCreatedAt: null, // not fetched in user log variant; kept for symmetry
+        // ────────────────────────────────────────
         processStepInstanceId: stepInstanceId || null,
         stepName: stepInstance?.workflowStep?.stepName || null,
         recirculationCycle: stepInstance?.recirculationCycle || 0,
@@ -1531,11 +1546,12 @@ export const get_process_activity_logs = async (req, res) => {
 
     const { processId, stepInstanceId } = req.params;
 
+    // ── CHANGE: added status, completedAt, initiator to include ──
     const process = await prisma.processInstance.findUnique({
       where: { id: processId },
       include: {
         workflow: { select: { name: true } },
-        initiator: true,
+        initiator: { select: { id: true, username: true, name: true } },
       },
     });
 
@@ -2744,6 +2760,19 @@ export const get_process_activity_logs = async (req, res) => {
       process: {
         processId,
         processName: process.name,
+        // ── CHANGE: new fields added to response ──
+        processStatus: process.status || "UNKNOWN",
+        processCompletedAt: process.completedAt
+          ? process.completedAt.toISOString()
+          : null,
+        processCreatedAt: process.createdAt
+          ? process.createdAt.toISOString()
+          : null,
+        initiatorName: process.initiator
+          ? process.initiator.name || process.initiator.username
+          : "Unknown",
+        initiatorUsername: process.initiator?.username || null,
+        // ────────────────────────────────────────
         processStepInstanceId: stepInstanceId || null,
         stepName: stepInstance?.workflowStep?.stepName || "All Steps",
         recirculationCycle: stepInstance?.recirculationCycle || 0,

@@ -375,6 +375,123 @@ export const file_upload = async (req, res) => {
   }
 };
 
+// ============================================================================
+// NATIVE FILE UTILITIES (Prevents Timeouts & Fixes Unique Name Constraints)
+// ============================================================================
+export const safeNativeFileCopyAndDbUpsert = async (
+  sourcePath,
+  destinationPathParent,
+  name,
+  userData,
+) => {
+  const safeSourcePath = sourcePath.replace(/^\.\//, "");
+  const destinationPath = `${destinationPathParent}/${name}`.replace(
+    /^\.\//,
+    "",
+  );
+
+  const absoluteSourcePath = path.join(
+    __dirname,
+    process.env.STORAGE_PATH,
+    safeSourcePath,
+  );
+  const absoluteDestinationPath = path.join(
+    __dirname,
+    process.env.STORAGE_PATH,
+    destinationPath,
+  );
+
+  // 1. Native OS File Copy (Blazing fast, handles 150MB files instantly without buffers)
+  await fs.mkdir(path.dirname(absoluteDestinationPath), {
+    recursive: true,
+  });
+  await fs.copyFile(absoluteSourcePath, absoluteDestinationPath);
+
+  // 2. Safe Database Upsert (Prevents Unique Constraint Errors from previous failed drafts)
+  let document = await prisma.document.findUnique({
+    where: { path: destinationPath },
+  });
+
+  if (document) {
+    // If the file already exists in DB because of a failed attempt, just update it!
+    document = await prisma.document.update({
+      where: { id: document.id },
+      data: {
+        createdById: userData.id,
+        lastUpdatedOn: new Date(),
+        isRejected: false,
+      },
+    });
+  } else {
+    // If it's a fresh file, create the record normally
+    document = await prisma.document.create({
+      data: {
+        name: name,
+        type: name.includes(".") ? name.split(".").pop() : "unknown",
+        path: destinationPath,
+        createdById: userData.id,
+        isInvolvedInProcess: false,
+        isRejected: false,
+      },
+    });
+
+    // Mirroring your original permissions logic exactly
+    await prisma.documentAccess.create({
+      data: {
+        document: { connect: { id: document.id } },
+        user: { connect: { id: userData.id } },
+        accessType: ["READ", "EDIT"],
+        accessLevel: "STANDARD",
+        docAccessThrough: "SELF",
+        grantedAt: new Date(),
+        grantedBy: { connect: { id: userData.id } },
+      },
+    });
+
+    if (destinationPathParent) {
+      const parentDocument = await prisma.document.findUnique({
+        where: { path: destinationPathParent.replace(/^\.\//, "") },
+      });
+      if (parentDocument) {
+        await prisma.document.update({
+          where: { id: parentDocument.id },
+          data: { children: { connect: { id: document.id } } },
+        });
+      }
+    }
+  }
+
+  return document;
+};
+
+export const safeNativeFileDelete = async (documentId) => {
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+  });
+  if (!document) return;
+
+  const absolutePath = path.join(
+    __dirname,
+    process.env.STORAGE_PATH,
+    document.path,
+  );
+
+  try {
+    await fs.access(absolutePath);
+    await fs.unlink(absolutePath);
+  } catch (error) {
+    console.warn(
+      `[CLEANUP] Physical file already deleted or missing: ${absolutePath}`,
+    );
+  }
+
+  try {
+    await prisma.document.delete({ where: { id: document.id } });
+  } catch (e) {
+    console.error(`[CLEANUP] Error deleting document record ${document.id}`, e);
+  }
+};
+
 export const create_folder = async (req, res) => {
   try {
     const accessToken = req.headers["authorization"]?.substring(7);
@@ -974,21 +1091,21 @@ export const documentIdCleanUpFromDocument = async (idToRemove) => {
 // };
 
 export const cleanUpDocumentDetail = async (idToRemove) => {
-  // Delete all DocumentAccess records for this document
+  // Delete all DocumentAccess records
   await prisma.documentAccess.deleteMany({
     where: {
       documentId: idToRemove,
     },
   });
 
-  // Clean up any process documents referencing this document
+  // Delete process document references
   await prisma.processDocument.deleteMany({
     where: {
       documentId: idToRemove,
     },
   });
 
-  // Clean up any document signatures for this document
+  // Delete document signatures
   await prisma.documentSignature.deleteMany({
     where: {
       processDocument: {
@@ -997,7 +1114,7 @@ export const cleanUpDocumentDetail = async (idToRemove) => {
     },
   });
 
-  // Clean up any sign coordinates for this document
+  // Delete sign coordinates
   await prisma.signCoordinate.deleteMany({
     where: {
       processDocument: {
@@ -1235,6 +1352,7 @@ export const file_delete = async (req, res) => {
     await documentIdCleanUpFromDocument(idToRemove);
     await cleanUpDocumentDetail(idToRemove);
 
+    console.log("deleted with", absolutePath);
     // Delete file from storage
     await fs.unlink(absolutePath);
 

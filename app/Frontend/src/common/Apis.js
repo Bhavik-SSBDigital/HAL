@@ -247,6 +247,16 @@ export const GetWorkflows = async (fromAdmin) => {
   });
 };
 
+export const GetWorkflowsByAccess = async () => {
+  const accessToken = sessionStorage.getItem('accessToken');
+
+  return axios.get(`${backendUrl}/workflows/getWorkflowsByAccess`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+};
+
 export const GetActiveWorkflowFamilies = async () => {
   // Map this to the route you assign for `get_active_workflow_families`
   return await apiClient.get('/workflows/active-families');

@@ -53,7 +53,7 @@ import Title from '../../CustomComponents/Title';
 const InputClass =
   'w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 text-sm';
 const LabelClass = 'block text-sm font-semibold text-gray-700 mb-1.5';
-const sanitizeWindowsInput = (val) => val.replace(/[<>:"\/\\|?*]/g, '');
+const sanitizeWindowsInput = (val) => (val ? val.replace(/[<>:"\/\\|?*]/g, '') : '');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const Section = ({ title, children, badge }) => (
@@ -561,9 +561,20 @@ const EditDocumentModal = ({ editingDocument, setEditingDocument, onSave, onClos
               />
             </div>
           ) : (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">File Name</p>
-              <p className="text-sm font-semibold text-gray-800 break-all">{editingDocument.name}</p>
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Main Document File</p>
+              <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                 <div className="flex items-center gap-2 truncate">
+                   <IconFileText size={20} className="text-blue-500 shrink-0" />
+                   <span className="text-sm font-semibold text-gray-800 truncate" title={editingDocument.newFile ? editingDocument.newFile.name : editingDocument.name}>
+                     {editingDocument.newFile ? editingDocument.newFile.name : editingDocument.name}
+                   </span>
+                 </div>
+                 <label className="shrink-0 cursor-pointer flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded transition-colors">
+                   <IconCloudUpload size={14} /> Replace
+                   <input type="file" className="hidden" onChange={(e) => setEditingDocument(p => ({ ...p, newFile: e.target.files[0] }))} />
+                 </label>
+              </div>
             </div>
           )}
 
@@ -649,26 +660,36 @@ const EditDocumentModal = ({ editingDocument, setEditingDocument, onSave, onClos
             )}
           </div>
 
-          {editingDocument.editableDocumentId && (
+          {editingDocument.isSopDocument !== false && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <IconLink size={18} className="text-blue-600 flex-shrink-0" />
+                  <IconLink size={20} className="text-blue-600 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-blue-900">Editable Reference Attached</p>
-                    <p className="text-xs text-blue-700 font-medium break-all">
-                      {editingDocument.editableDocumentName || `Doc ID: ${editingDocument.editableDocumentId}`}
+                    <p className="text-sm font-bold text-blue-900">Editable Reference</p>
+                    <p className="text-xs text-blue-700 font-medium break-all" title={editingDocument.newEditableRefFile ? editingDocument.newEditableRefFile.name : (editingDocument.editableDocumentName || '')}>
+                      {editingDocument.newEditableRefFile 
+                         ? editingDocument.newEditableRefFile.name 
+                         : (editingDocument.editableDocumentName || (editingDocument.editableDocumentId ? `Attached (ID: ${editingDocument.editableDocumentId})` : 'No reference attached'))}
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  disabled={actionsLoading}
-                  onClick={() => onViewEditable(editingDocument)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-white hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors"
-                >
-                  <IconEye size={15} /> View Reference
-                </button>
+                <div className="flex items-center gap-2">
+                  {editingDocument.editableDocumentId && !editingDocument.newEditableRefFile && (
+                    <button
+                      type="button"
+                      disabled={actionsLoading}
+                      onClick={() => onViewEditable(editingDocument)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors"
+                    >
+                      <IconEye size={14} /> View
+                    </button>
+                  )}
+                  <label className="shrink-0 cursor-pointer flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-300 rounded-lg transition-colors">
+                    <IconCloudUpload size={14} /> {editingDocument.editableDocumentId || editingDocument.newEditableRefFile ? 'Replace' : 'Attach'}
+                    <input type="file" className="hidden" onChange={(e) => setEditingDocument(p => ({ ...p, newEditableRefFile: e.target.files[0] }))} />
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -681,7 +702,8 @@ const EditDocumentModal = ({ editingDocument, setEditingDocument, onSave, onClos
           <button
             type="button"
             onClick={onSave}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            disabled={actionsLoading}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-70"
           >
             <IconCheck size={18} /> Save Changes
           </button>
@@ -734,6 +756,25 @@ export default function InitiateProcess() {
   const [workflowId] = watch(['workflowId']);
   const { fields: documentFields, append: addDocument, remove: removeDocument, update: updateDocument } = useFieldArray({ control, name: 'documents' });
   const watchedDocuments = watch('documents');
+
+  // NEW: Robust Duplicate Name Checker
+  const checkDuplicateName = (nameToCheck) => {
+    if (!nameToCheck) return false;
+    const cleanName = nameToCheck.toLowerCase().trim();
+    
+    // Check against Finalized (already added) docs
+    const inFinal = watchedDocuments.some((d) => d.name?.toLowerCase().trim() === cleanName);
+    
+    // Check against Staging (pendingFiles) docs
+    const inStaging = pendingFiles.some((p) => {
+       const ext = p.originalExt || (p.file ? p.file.name.split('.').pop() : '');
+       let pName = sanitizeWindowsInput(p.name);
+       pName = pName.includes('.') ? pName : (ext ? `${pName}.${ext}` : pName);
+       return pName.toLowerCase().trim() === cleanName;
+    });
+    
+    return inFinal || inStaging;
+  };
 
   useEffect(() => {
     const locked = showCopyModal || !!editingDocument || copyingDocs || !!fileView || showMetadataModal || !!localPreviewFile;
@@ -816,9 +857,6 @@ export default function InitiateProcess() {
     getWorkflowsData();
   }, []);
 
-  const isNameDuplicate = (name) =>
-    watchedDocuments.some((d) => d.name === name) || pendingFiles.some((d) => d.name === name);
-
   const handleDeleteDocument = async (index, id, isMetadataOnly) => {
     setActionsLoading(true);
     try {
@@ -850,8 +888,9 @@ export default function InitiateProcess() {
         mainFileName = mainFileName.includes('.') ? mainFileName : `${mainFileName}.${ext}`;
       }
 
-      if (isNameDuplicate(mainFileName)) {
-        toast.error(`Document with name "${mainFileName}" already exists. Names must be unique.`);
+      if (checkDuplicateName(mainFileName)) {
+        toast.error(`The document "${mainFileName}" is already added or exists in staging area. Please change the name.`);
+        setActionsLoading(false);
         return;
       }
 
@@ -903,6 +942,7 @@ export default function InitiateProcess() {
       file,
       name: file.name.substring(0, file.name.lastIndexOf('.')) || file.name,
       partNumber: '',
+      path: '/check',
       issueNo: '',
       description: '',
       tags: [],
@@ -924,25 +964,48 @@ export default function InitiateProcess() {
   const handleUploadAllPending = async () => {
     if (!workflowId) return toast.warning('Please select a workflow first.');
     if (pendingFiles.length === 0) return;
+
+    // 1. PRE-FLIGHT DUPLICATE CHECK FOR BATCH UPLOAD
+    const namesToUpload = pendingFiles.map(p => {
+      const ext = p.originalExt || (p.file ? p.file.name.split('.').pop() : '');
+      let name = sanitizeWindowsInput(p.name);
+      return name.includes('.') ? name : (ext ? `${name}.${ext}` : name);
+    });
+
+    // Check for duplicates INSIDE the staging array itself (only for preApproved/custom names)
+    const userDefinedNames = pendingFiles
+      .map((p, idx) => (p.preApproved || p.isCopyPending) ? namesToUpload[idx].toLowerCase().trim() : null)
+      .filter(Boolean);
+      
+    const uniqueUserDefinedNames = new Set(userDefinedNames);
+    if (uniqueUserDefinedNames.size !== userDefinedNames.length) {
+      toast.error("Duplicate custom file names found in your staging area. Please ensure all names are unique before uploading.");
+      return;
+    }
+
+    // Check against the finalized array (already added documents below)
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const p = pendingFiles[i];
+      if (p.preApproved || p.isCopyPending) {
+         const cleanName = namesToUpload[i].toLowerCase().trim();
+         if (watchedDocuments.some(d => d.name?.toLowerCase().trim() === cleanName)) {
+            toast.error(`File "${namesToUpload[i]}" is already added in the document list below. Please rename it in staging.`);
+            return;
+         }
+      }
+    }
+
     setActionsLoading(true);
     let successCount = 0;
-    let failedIds = [];
     try {
       for (let pending of pendingFiles) {
+        let mainDocId, mainDocName, editableDocId = null, editableDocName = null;
+
         if (pending.isCopyPending) {
           let mainFileName = sanitizeWindowsInput(pending.name);
-          if (!mainFileName) {
-            toast.error('Custom name is required for pre-approved copied document.');
-            failedIds.push(pending.id);
-            continue;
-          }
           const ext = pending.originalExt || '';
           mainFileName = mainFileName.includes('.') ? mainFileName : ext ? `${mainFileName}.${ext}` : mainFileName;
-          if (isNameDuplicate(mainFileName)) {
-            toast.error(`Name "${mainFileName}" already exists. Change the name to proceed.`);
-            failedIds.push(pending.id);
-            continue;
-          }
+
           const res = await DuplicateDocumentForCopy({
             sourceProcessId: pending.sourceProcessId,
             sourceDocumentId: pending.sourceDocumentId,
@@ -950,73 +1013,43 @@ export default function InitiateProcess() {
             customName: mainFileName,
             sourceEditableDocumentId: pending.sourceEditableDocumentId || null,
           });
-          addDocument({
-            documentId: res.data.documentId,
-            name: res.data.name,
-            tags: pending.tags,
-            description: pending.description,
-            partNumber: pending.partNumber,
-            preApproved: pending.preApproved,
-            issueNo: pending.issueNo,
-            isSopDocument: pending.isSopDocument,
-            isMetadataOnly: false,
-            editableDocumentId: res.data.editableDocumentId || null,
-            editableDocumentName: pending.sourceEditableDocumentName || null,
-          });
-          successCount++;
+          mainDocId = res.data.documentId;
+          mainDocName = res.data.name;
+          editableDocId = res.data.editableDocumentId || pending.sourceEditableDocumentId || null;
+          editableDocName = res.data.editableDocumentName || pending.sourceEditableDocumentName || null;
         } else {
           const ext = pending.file.name.split('.').pop();
-          let mainFileName = sanitizeWindowsInput(pending.name);
-
-          if (!pending.preApproved) {
-            const nameRes = await GenerateDocumentName(workflowId, null, ext);
-            mainFileName = nameRes?.data?.documentName;
-          } else {
-            mainFileName = mainFileName.includes('.') ? mainFileName : `${mainFileName}.${ext}`;
-          }
-
-          if (isNameDuplicate(mainFileName)) {
-            toast.error(`Name "${mainFileName}" already exists. Name must be unique.`);
-            failedIds.push(pending.id);
-            continue;
-          }
-
-          const uploadRes = await uploadDocumentInProcess([pending.file], mainFileName, pending.tags);
-          const mainDocId = uploadRes[0];
-          let editableDocId = null;
-          let editableDocName = null;
-          if (pending.isSopDocument && pending.editableRefFile) {
-            const refExt = pending.editableRefFile.name.split('.').pop();
-            const baseName = mainFileName.substring(0, mainFileName.lastIndexOf('.'));
-            const refName = `${baseName}_reference.${refExt}`;
-            const refUploadRes = await uploadDocumentInProcess([pending.editableRefFile], refName, []);
-            editableDocId = refUploadRes[0];
-            editableDocName = refName;
-          }
-
-          addDocument({
-            documentId: mainDocId,
-            name: mainFileName,
-            tags: pending.tags,
-            description: pending.description,
-            partNumber: pending.partNumber,
-            preApproved: pending.preApproved,
-            issueNo: pending.issueNo,
-            isSopDocument: pending.isSopDocument,
-            isMetadataOnly: false,
-            editableDocumentId: editableDocId,
-            editableDocumentName: editableDocName,
-          });
-          successCount++;
+          mainDocName = pending.preApproved ? sanitizeWindowsInput(pending.name) : (await GenerateDocumentName(workflowId, null, ext))?.data?.documentName;
+          mainDocName = mainDocName.includes('.') ? mainDocName : `${mainDocName}.${ext}`;
+          const uploadRes = await uploadDocumentInProcess([pending.file], mainDocName, pending.tags);
+          mainDocId = uploadRes[0];
         }
-      }
 
-      toast.success(`${successCount} file(s) processed successfully.`);
-      if (failedIds.length > 0) {
-        setPendingFiles((prev) => prev.filter((p) => failedIds.includes(p.id)));
-      } else {
-        setPendingFiles([]);
+        if (pending.isSopDocument && pending.editableRefFile) {
+          const refExt = pending.editableRefFile.name.split('.').pop();
+          const refName = `${mainDocName.substring(0, mainDocName.lastIndexOf('.'))}_reference.${refExt}`;
+          const refUploadRes = await uploadDocumentInProcess([pending.editableRefFile], refName, []);
+          editableDocId = refUploadRes[0];
+          editableDocName = refName;
+        }
+
+        addDocument({
+          documentId: mainDocId,
+          name: mainDocName,
+          tags: pending.tags,
+          description: pending.description,
+          partNumber: pending.partNumber,
+          preApproved: pending.preApproved,
+          issueNo: pending.issueNo,
+          isSopDocument: pending.isSopDocument,
+          isMetadataOnly: false,
+          editableDocumentId: editableDocId,
+          editableDocumentName: editableDocName,
+        });
+        successCount++;
       }
+      toast.success(`${successCount} file(s) processed successfully.`);
+      setPendingFiles([]);
     } catch (err) {
       toast.error(err?.response?.data?.message || err.message);
     } finally {
@@ -1065,15 +1098,15 @@ export default function InitiateProcess() {
       if (!currentDesc && description) setValue('description', description);
       if (!currentIssueNo && issueNo) setValue('issueNo', issueNo || '');
 
-      let hasPreApproved = false;
-
       for (let i = 0; i < documents.length; i++) {
         const doc = documents[i];
         setCopyProgress((prev) => ({ ...prev, current: i + 1 }));
 
+        const getDir = (p) => (p !== '/check' && p.includes('/') ? p.replace(/\/[^/]+$/, '') : p);
+        const directoryPath = getDir(doc.documentPath || doc.path || '/check');
+        const editableDirectoryPath = getDir(doc.editableDocumentPath || '/check');
+
         if (doc.preApproved) {
-          hasPreApproved = true;
-          const originalExt = doc.name?.split('.').pop() || '';
           setPendingFiles((prev) => [
             ...prev,
             {
@@ -1083,8 +1116,10 @@ export default function InitiateProcess() {
               sourceDocumentId: doc.documentId,
               sourceEditableDocumentId: doc.editableDocumentId || null,
               sourceEditableDocumentName: doc.editableDocumentName || null,
+              path: directoryPath,
+              editablePath: editableDirectoryPath,
               name: doc.name?.substring(0, doc.name.lastIndexOf('.')) || doc.name,
-              originalExt,
+              originalExt: doc.name?.split('.').pop() || '',
               partNumber: doc.partNumber || '',
               issueNo: doc.issueNo || '',
               description: doc.description || '',
@@ -1115,18 +1150,14 @@ export default function InitiateProcess() {
               isMetadataOnly: doc.isMetadataOnly || false,
               metaFileName: doc.metaFileName || null,
               metaFileExtension: doc.metaFileExtension || null,
-              editableDocumentId: res.data.editableDocumentId || null,
-              editableDocumentName: doc.editableDocumentName || null,
+              editableDocumentId: res.data.editableDocumentId || doc.editableDocumentId || null,
+              editableDocumentName: res.data.editableDocumentName || doc.editableDocumentName || null,
             }, { shouldFocus: false });
           } catch (err) {
-            console.error(`Failed to duplicate ${doc.name}`, err);
             toast.error(`Failed to copy ${doc.name}`);
           }
         }
       }
-      toast.success(
-        `Documents processed.${hasPreApproved ? ' Pre-Approved docs staged — please set custom names then click "Upload & Add All".' : ''}`
-      );
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
     } finally {
@@ -1223,30 +1254,86 @@ export default function InitiateProcess() {
       metaFileExtension: doc.metaFileExtension || '',
       editableDocumentId: doc.editableDocumentId || null,
       editableDocumentName: doc.editableDocumentName || null,
+      newFile: null,
+      newEditableRefFile: null,
     });
   };
 
   const closeEditModal = () => setEditingDocument(null);
 
-  const handleSaveDocumentEdit = () => {
+  const handleSaveDocumentEdit = async () => {
     if (!editingDocument) return;
-    const { index, partNumber, issueNo, description, tags, isSopDocument, preApproved, isMetadataOnly, metaFileName, metaFileExtension, editableDocumentId, editableDocumentName } = editingDocument;
-    updateDocument(index, {
-      ...documentFields[index],
-      partNumber,
-      issueNo,
-      description,
-      tags,
-      isSopDocument,
-      preApproved,
-      isMetadataOnly,
-      metaFileName,
-      metaFileExtension,
-      editableDocumentId,
-      editableDocumentName,
-    });
-    closeEditModal();
-    toast.success('Document details updated');
+    setActionsLoading(true);
+    try {
+      let finalDocId = editingDocument.documentId;
+      let finalDocName = editingDocument.name;
+      let finalRefId = editingDocument.editableDocumentId;
+      let finalRefName = editingDocument.editableDocumentName;
+
+      // 1. Replace Main Document File if a new one was selected
+      if (editingDocument.newFile) {
+        const ext = editingDocument.newFile.name.split('.').pop();
+        let baseName = finalDocName;
+        if (baseName.includes('.')) {
+          baseName = baseName.substring(0, baseName.lastIndexOf('.'));
+        }
+        finalDocName = `${baseName}.${ext}`;
+
+        const res = await uploadDocumentInProcess([editingDocument.newFile], finalDocName, editingDocument.tags);
+        finalDocId = res[0];
+
+        // Try to clean up the old file to save space
+        if (!editingDocument.isMetadataOnly && editingDocument.documentId) {
+          await DeleteFile(editingDocument.documentId).catch(e => console.warn("Failed to delete old file", e));
+        }
+      }
+
+      // 2. Handle Editable Reference replacements or removals
+      if (editingDocument.isSopDocument === false) {
+        // If changed from SOP to NON-SOP, we drop the reference
+        finalRefId = null;
+        finalRefName = null;
+      } else if (editingDocument.newEditableRefFile) {
+        const refExt = editingDocument.newEditableRefFile.name.split('.').pop();
+        let baseName = finalDocName;
+        if (baseName.includes('.')) {
+          baseName = baseName.substring(0, baseName.lastIndexOf('.'));
+        }
+        finalRefName = `${baseName}_reference.${refExt}`;
+
+        const refRes = await uploadDocumentInProcess([editingDocument.newEditableRefFile], finalRefName, []);
+        finalRefId = refRes[0];
+
+        if (editingDocument.editableDocumentId) {
+          await DeleteFile(editingDocument.editableDocumentId).catch(e => console.warn("Failed to delete old ref", e));
+        }
+      }
+
+      // 3. Update the form state with all changes
+      updateDocument(editingDocument.index, {
+        ...documentFields[editingDocument.index],
+        documentId: finalDocId,
+        name: finalDocName,
+        partNumber: sanitizeWindowsInput(editingDocument.partNumber),
+        issueNo: editingDocument.issueNo,
+        description: editingDocument.description,
+        tags: editingDocument.tags,
+        isSopDocument: editingDocument.isSopDocument,
+        preApproved: editingDocument.preApproved,
+        isMetadataOnly: editingDocument.isMetadataOnly,
+        metaFileName: sanitizeWindowsInput(editingDocument.metaFileName),
+        metaFileExtension: editingDocument.metaFileExtension,
+        editableDocumentId: finalRefId,
+        editableDocumentName: finalRefName,
+      });
+
+      closeEditModal();
+      toast.success('Document details updated successfully');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+    } finally {
+      setActionsLoading(false);
+    }
   };
 
   const sopDocs = documentFields.filter((_, i) => watchedDocuments[i]?.isSopDocument !== false);
@@ -1316,50 +1403,44 @@ export default function InitiateProcess() {
             )}
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100 flex-wrap">
-          <button
-            type="button"
-            disabled={actionsLoading}
-            onClick={() => openEditModal(currentDocState, index)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-          >
-            <IconEdit size={16} /> Edit
-          </button>
-          {!currentDocState.isMetadataOnly && (
-            <button
-              type="button"
-              disabled={actionsLoading}
-              onClick={() => handleViewFile(doc.name, doc.documentPath || '/check', doc.documentId, doc.name?.split('.').pop(), true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              <IconEye size={16} /> View
-            </button>
-          )}
-          {!currentDocState.isMetadataOnly && currentDocState.editableDocumentId && (
-            <button
-              type="button"
-              disabled={actionsLoading}
-              onClick={() => handleViewFile(
-                currentDocState.editableDocumentName || 'Reference',
-                '/check',
-                currentDocState.editableDocumentId,
-                (currentDocState.editableDocumentName || '').split('.').pop(),
-                false
-              )}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
-            >
-              <IconLink size={16} /> Ref
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={actionsLoading}
-            onClick={() => handleDeleteDocument(index, doc.documentId, doc.isMetadataOnly)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-          >
-            <IconTrash size={16} /> Remove
-          </button>
-        </div>
+<div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100 flex-wrap">
+  <button
+    type="button"
+    disabled={actionsLoading}
+    onClick={() => openEditModal(currentDocState, index)}
+    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+  >
+    <IconEdit size={16} /> Edit
+  </button>
+  {!currentDocState.isMetadataOnly && (
+    <button
+      type="button"
+      disabled={actionsLoading}
+      onClick={() => handleViewFile(doc.name, doc.documentPath || '/check', doc.documentId, doc.name?.split('.').pop(), true)}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+    >
+      <IconEye size={16} /> View
+    </button>
+  )}
+  {currentDocState.editableDocumentId && (
+    <button
+      type="button"
+      disabled={actionsLoading}
+      onClick={() => handleViewEditableReference(currentDocState)}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+    >
+      <IconLink size={16} /> View Ref
+    </button>
+  )}
+  <button
+    type="button"
+    disabled={actionsLoading}
+    onClick={() => handleDeleteDocument(index, doc.documentId, doc.isMetadataOnly)}
+    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+  >
+    <IconTrash size={16} /> Remove
+  </button>
+</div>
       </div>
     </li>
   );
@@ -1518,8 +1599,7 @@ export default function InitiateProcess() {
                       <div className="mx-auto w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3">
                         <IconCloudUpload className="text-blue-500" size={24} />
                       </div>
-                      <p className="text-sm font-medium text-gray-700">Click to browse</p>
-                    </div>
+                      <p className="text-sm font-medium text-gray-700">Click to browse</p>                    </div>
                   ) : (
                     <div className="text-center w-full min-w-0">
                       <IconFileText className="mx-auto text-blue-600 mb-2" size={32} />
@@ -1638,37 +1718,8 @@ export default function InitiateProcess() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-6 flex-wrap mt-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={fileDetails.isSopDocument}
-                      onChange={(e) => setFileDetails((p) => ({ ...p, isSopDocument: e.target.checked }))}
-                      className="w-5 h-5 accent-green-600 cursor-pointer"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">SOP Document</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={fileDetails.preApproved}
-                      onChange={(e) => setFileDetails((p) => ({ ...p, preApproved: e.target.checked }))}
-                      className="w-5 h-5 accent-blue-600 cursor-pointer"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">Mark as Pre-Approved</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleUpload}
-                    disabled={!selectedFile || actionsLoading}
-                    className="ml-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2"
-                  >
-                    <IconCloudUpload size={18} /> Upload
-                  </button>
-                </div>
-
                 {fileDetails.isSopDocument && (
-                  <div className="mt-4 p-4 border border-blue-100 bg-blue-50 rounded-lg">
+                  <div className="mt-4 mb-4 p-4 border border-blue-100 bg-blue-50 rounded-lg">
                     <label className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                       <IconPaperclip size={16} /> Attach Editable Reference (Optional)
                     </label>
@@ -1698,11 +1749,40 @@ export default function InitiateProcess() {
                     )}
                   </div>
                 )}
+
+                <div className="flex items-center gap-6 flex-wrap mt-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fileDetails.isSopDocument}
+                      onChange={(e) => setFileDetails((p) => ({ ...p, isSopDocument: e.target.checked }))}
+                      className="w-5 h-5 accent-green-600 cursor-pointer"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">SOP Document</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fileDetails.preApproved}
+                      onChange={(e) => setFileDetails((p) => ({ ...p, preApproved: e.target.checked }))}
+                      className="w-5 h-5 accent-blue-600 cursor-pointer"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Mark as Pre-Approved</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={!selectedFile || actionsLoading}
+                    className="ml-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+                  >
+                    <IconCloudUpload size={18} /> Upload
+                  </button>
+                </div>
               </div>
             </div>
           </Section>
 
-          <Section title="Staging Area" badge={pendingFiles.length > 0 ? `${pendingFiles.length} file(s) staged` : undefined}>
+<Section title="Staging Area" badge={pendingFiles.length > 0 ? `${pendingFiles.length} file(s) staged` : undefined}>
             <div className="flex flex-col gap-4">
               <div className="flex justify-center border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50 hover:bg-gray-100 transition-colors">
                 <input type="file" multiple id="multi-upload" className="hidden" onChange={handleMultipleFileChange} />
@@ -1763,10 +1843,17 @@ export default function InitiateProcess() {
                                 <IconEye size={14} /> Preview File
                               </button>
                             )}
+
                             {pf.isCopyPending && (
                               <button
                                 type="button"
-                                onClick={async () => await handleViewFile(pf.name, '/check', pf.sourceDocumentId, pf.originalExt, false)}
+                                onClick={async () => await handleViewFile(
+                                  pf.name + '.' + pf.originalExt,
+                                  pf.path,
+                                  pf.sourceDocumentId,
+                                  pf.originalExt,
+                                  false
+                                )}
                                 className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors w-full justify-center"
                               >
                                 <IconEye size={14} /> View Original
@@ -1774,27 +1861,45 @@ export default function InitiateProcess() {
                             )}
                           </div>
 
-                          {(pf.editableRefFile || (pf.isCopyPending && pf.sourceEditableDocumentId)) && (
-                            <div className="mt-1 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                              <span className="text-[10px] uppercase font-bold text-blue-800 mb-1 block flex items-center gap-1">
-                                <IconPaperclip size={10} /> Editable Ref
+                          {pf.isSopDocument && (
+                            <div className="mt-1 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                              <span className="text-[10px] uppercase font-bold text-blue-800 mb-1.5 block flex items-center gap-1">
+                                <IconPaperclip size={12} /> Editable Ref
                               </span>
-                              {pf.editableRefFile ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setLocalPreviewFile(pf.editableRefFile)}
-                                  className="w-full text-[10px] text-blue-700 hover:text-blue-900 underline flex items-center justify-center gap-1"
-                                >
-                                  <IconEye size={10} /> Preview Local Ref
-                                </button>
+                              {pf.editableRefFile || pf.sourceEditableDocumentId ? (
+                                <div className="flex items-center justify-between bg-white border border-blue-200 p-1.5 rounded">
+                                  <span className="text-[10px] text-blue-700 font-medium truncate mr-2" title={pf.editableRefFile ? pf.editableRefFile.name : (pf.sourceEditableDocumentName || 'Reference')}>
+                                    {pf.editableRefFile ? pf.editableRefFile.name : (pf.sourceEditableDocumentName || 'Reference')}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button 
+                                      type="button" 
+                                      onClick={async () => {
+                                        if (pf.editableRefFile) setLocalPreviewFile(pf.editableRefFile);
+                                        else await handleViewFile(pf.sourceEditableDocumentName, pf.editablePath || '/check', pf.sourceEditableDocumentId, (pf.sourceEditableDocumentName || '').split('.').pop(), false);
+                                      }} 
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <IconEye size={14} />
+                                    </button>
+                                    {pf.editableRefFile && (
+                                      <button type="button" onClick={() => updatePendingFile(pf.id, 'editableRefFile', null)} className="text-red-500 hover:text-red-700">
+                                        <IconX size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                               ) : (
-                                <button
-                                  type="button"
-                                  onClick={async () => await handleViewFile(pf.sourceEditableDocumentName || 'Ref', '/check', pf.sourceEditableDocumentId, (pf.sourceEditableDocumentName || '').split('.').pop(), false)}
-                                  className="w-full text-[10px] text-blue-700 hover:text-blue-900 underline flex items-center justify-center gap-1"
-                                >
-                                  <IconEye size={10} /> View Ref
-                                </button>
+                                <input
+                                  type="file"
+                                  className="text-[10px] w-full text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white file:border file:border-blue-200 file:text-blue-700 hover:file:bg-blue-50 cursor-pointer"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      updatePendingFile(pf.id, 'editableRefFile', e.target.files[0]);
+                                      e.target.value = null;
+                                    }
+                                  }}
+                                />
                               )}
                             </div>
                           )}

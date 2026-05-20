@@ -34,6 +34,8 @@ import {
   get_all_workflows_with_basics,
   get_active_workflow_families,
   getWorkflowById,
+  delete_workflow_permanent,
+  get_workflows_by_access,
 } from "../controller/workflow-controller.js";
 
 import {
@@ -282,8 +284,10 @@ router.post("/workflows/addWorkflow", add_workflow); // Create a new workflow
 router.get("/workflows/active-families", get_active_workflow_families); // Get active workflow families for dropdowns
 router.put("/workflows/editWorkflow/:workflowId", edit_workflow); // Edit workflow (new version)
 router.get("/workflows/viewWorkflow/:workflowId", view_workflow); // View workflow details
+router.delete("/workflows/:workflowId/permanent", delete_workflow_permanent); // Delete workflow
 router.delete("/workflows/deleteWorkflow/:workflowId", delete_workflow); // Delete workflow
 router.get("/workflows/getWorkflows", get_workflows); // Get all workflows
+router.get("/workflows/getWorkflowsByAccess", get_workflows_by_access);
 router.get("/workflows/getWorkflowsList", get_all_workflows_with_basics);
 router.post("/workflows/:newWorkflowId/migration-preview", previewMigration);
 router.post("/workflows/:newWorkflowId/migrate-processes", migrateProcesses);

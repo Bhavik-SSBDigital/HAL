@@ -607,8 +607,20 @@ export const delete_workflow = async (req, res) => {
   const { workflowId } = req.params;
 
   try {
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    // FIX: Scan active processes across ALL family versions sharing the lineage name
     const activeProcesses = await prisma.processInstance.count({
-      where: { workflowId, status: { in: ["PENDING", "IN_PROGRESS"] } },
+      where: {
+        workflow: { name: workflow.name },
+        status: { in: ["PENDING", "IN_PROGRESS"] },
+      },
     });
 
     if (activeProcesses > 0) {
@@ -617,8 +629,9 @@ export const delete_workflow = async (req, res) => {
       });
     }
 
-    await prisma.workflow.update({
-      where: { id: workflowId },
+    // FIX: Turn off isActive for ALL version mutations sharing the name
+    await prisma.workflow.updateMany({
+      where: { name: workflow.name },
       data: { isActive: false },
     });
 
@@ -754,13 +767,21 @@ export const get_workflows = async (req, res) => {
       }
 
       const groupName = lineageVersions[0].name;
-      if (!workflowGroups.has(groupName)) workflowGroups.set(groupName, []);
-      workflowGroups.get(groupName).push(...lineageVersions);
+
+      // FIX: Deduping version lineage array using a nested Map keyed by workflow ID
+      if (!workflowGroups.has(groupName)) {
+        workflowGroups.set(groupName, new Map());
+      }
+      for (const v of lineageVersions) {
+        workflowGroups.get(groupName).set(v.id, v);
+      }
     }
 
     const filteredWorkflowGroups = new Map();
 
-    for (const [groupName, workflowVersions] of workflowGroups.entries()) {
+    for (const [groupName, versionsMap] of workflowGroups.entries()) {
+      // FIX: Extract uniquely deduplicated values from the Map
+      const workflowVersions = Array.from(versionsMap.values());
       const accessibleVersions = [];
       for (const version of workflowVersions) {
         if ((await checkUserAccessToStep1(version.id)) || userData.isAdmin) {
@@ -780,7 +801,7 @@ export const get_workflows = async (req, res) => {
                 version: true,
                 createdAt: true,
                 parentWorkflowId: true,
-                parentWorkflow: { select: { name: true } }, // ✅ FETCH PARENT NAME HERE
+                parentWorkflow: { select: { name: true } },
                 isActive: true,
                 createdBy: { select: { id: true, name: true, email: true } },
                 steps: {
@@ -885,7 +906,7 @@ export const get_workflows = async (req, res) => {
             createdBy: workflow.createdBy,
             createdAt: workflow.createdAt,
             parentWorkflowId: workflow.parentWorkflowId,
-            parentWorkflowName: workflow.parentWorkflow?.name || null, // ✅ MAP IT HERE
+            parentWorkflowName: workflow.parentWorkflow?.name || null,
             steps: workflow.steps.map((step) => ({
               stepNumber: step.stepNumber,
               stepName: step.stepName,
@@ -952,6 +973,514 @@ export const get_workflows = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Failed to retrieve workflows" });
+  }
+};
+
+export const get_workflows_by_access = async (req, res) => {
+  try {
+    const accessToken = req.headers["authorization"]?.substring(7);
+
+    if (!accessToken) {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    const userData = await verifyUser(accessToken);
+
+    if (userData === "Unauthorized") {
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
+    }
+
+    // =========================
+    // USER ROLES & DEPARTMENTS
+    // =========================
+
+    const [userRoles, userDepartments] = await Promise.all([
+      prisma.userRole.findMany({
+        where: { userId: userData.id },
+        select: { roleId: true },
+      }),
+
+      prisma.department.findMany({
+        where: {
+          users: {
+            some: {
+              id: userData.id,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      }),
+    ]);
+
+    const userRoleIds = userRoles.map((r) => r.roleId);
+    const userDepartmentIds = userDepartments.map((d) => d.id);
+
+    // ==========================================
+    // FETCH WORKFLOWS BASED ON USER ACCESS
+    // ==========================================
+
+    let accessibleWorkflowIds = [];
+
+    // ADMIN => GET EVERYTHING
+    if (userData.isAdmin) {
+      const allWorkflows = await prisma.workflow.findMany({
+        select: {
+          id: true,
+        },
+      });
+
+      accessibleWorkflowIds = allWorkflows.map((w) => w.id);
+    } else {
+      // NON ADMIN => ONLY ASSIGNED WORKFLOWS
+
+      const assignments = await prisma.workflowAssignment.findMany({
+        where: {
+          OR: [
+            // USER ASSIGNMENT
+            {
+              assigneeType: "USER",
+              assigneeIds: {
+                has: userData.id,
+              },
+            },
+
+            // ROLE ASSIGNMENT
+            {
+              assigneeType: "ROLE",
+              assigneeIds: {
+                hasSome: userRoleIds,
+              },
+            },
+
+            // DEPARTMENT ASSIGNMENT
+            {
+              assigneeType: "DEPARTMENT",
+              assigneeIds: {
+                hasSome: userDepartmentIds,
+              },
+            },
+          ],
+        },
+
+        select: {
+          step: {
+            select: {
+              workflowId: true,
+            },
+          },
+        },
+      });
+
+      accessibleWorkflowIds = [
+        ...new Set(assignments.map((a) => a.step?.workflowId).filter(Boolean)),
+      ];
+    }
+
+    // ==========================
+    // NO ACCESSIBLE WORKFLOWS
+    // ==========================
+
+    if (accessibleWorkflowIds.length === 0) {
+      return res.status(200).json({
+        message: "Workflows retrieved successfully",
+        workflows: [],
+      });
+    }
+
+    // ==========================
+    // FETCH FULL WORKFLOW DATA
+    // ==========================
+
+    const workflows = await prisma.workflow.findMany({
+      where: {
+        id: {
+          in: accessibleWorkflowIds,
+        },
+      },
+
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        version: true,
+        createdAt: true,
+        previousVersionId: true,
+        parentWorkflowId: true,
+        isActive: true,
+
+        parentWorkflow: {
+          select: {
+            name: true,
+          },
+        },
+
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        steps: {
+          orderBy: {
+            stepNumber: "asc",
+          },
+
+          select: {
+            stepNumber: true,
+            stepName: true,
+            allowParallel: true,
+            requiresDocument: true,
+
+            assignments: {
+              select: {
+                id: true,
+                assigneeType: true,
+                assigneeIds: true,
+                actionType: true,
+                accessTypes: true,
+                direction: true,
+                allowParallel: true,
+                selectedRoles: true,
+
+                departmentRoles: {
+                  select: {
+                    departmentId: true,
+                    roleId: true,
+                    direction: true,
+                    allowParallel: true,
+
+                    department: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+
+                    role: {
+                      select: {
+                        id: true,
+                        role: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // ==========================
+    // GROUP WORKFLOW VERSIONS
+    // ==========================
+
+    const grouped = new Map();
+
+    workflows.forEach((workflow) => {
+      if (!grouped.has(workflow.name)) {
+        grouped.set(workflow.name, []);
+      }
+
+      grouped.get(workflow.name).push(workflow);
+    });
+
+    // ==========================
+    // COLLECT IDS
+    // ==========================
+
+    const departmentIds = new Set();
+    const roleIds = new Set();
+    const userIds = new Set();
+    const selectedRoleIds = new Set();
+
+    for (const versions of grouped.values()) {
+      versions.forEach((workflow) => {
+        workflow.steps.forEach((step) => {
+          step.assignments.forEach((assignment) => {
+            assignment.assigneeIds.forEach((id) => {
+              if (assignment.assigneeType === "DEPARTMENT") {
+                departmentIds.add(id);
+              }
+
+              if (assignment.assigneeType === "ROLE") {
+                roleIds.add(id);
+              }
+
+              if (assignment.assigneeType === "USER") {
+                userIds.add(id);
+              }
+            });
+
+            if (Array.isArray(assignment.selectedRoles)) {
+              assignment.selectedRoles.forEach((id) => {
+                selectedRoleIds.add(id);
+              });
+            }
+
+            assignment.departmentRoles?.forEach((dr) => {
+              selectedRoleIds.add(dr.roleId);
+            });
+          });
+        });
+      });
+    }
+
+    // ==========================
+    // FETCH LABEL DATA
+    // ==========================
+
+    const [departments, roles, users, selectedRoles] = await Promise.all([
+      prisma.department.findMany({
+        where: {
+          id: {
+            in: Array.from(departmentIds),
+          },
+        },
+
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+
+      prisma.role.findMany({
+        where: {
+          id: {
+            in: Array.from(roleIds),
+          },
+        },
+
+        select: {
+          id: true,
+          role: true,
+        },
+      }),
+
+      prisma.user.findMany({
+        where: {
+          id: {
+            in: Array.from(userIds),
+          },
+        },
+
+        select: {
+          id: true,
+          username: true,
+        },
+      }),
+
+      prisma.role.findMany({
+        where: {
+          id: {
+            in: Array.from(selectedRoleIds),
+          },
+        },
+
+        select: {
+          id: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
+
+    const roleMap = new Map(roles.map((r) => [r.id, r.role]));
+
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+
+    const selectedRoleMap = new Map(selectedRoles.map((r) => [r.id, r.role]));
+
+    // ==========================
+    // FINAL RESPONSE
+    // ==========================
+
+    const workflowsResponse = Array.from(grouped.entries())
+      .map(([groupName, versions]) => ({
+        name: groupName,
+
+        versions: versions
+          .sort((a, b) => b.version - a.version)
+          .map((workflow) => ({
+            id: workflow.id,
+            version: workflow.version,
+            description: workflow.description,
+            isActive: workflow.isActive,
+            createdBy: workflow.createdBy,
+            createdAt: workflow.createdAt,
+            parentWorkflowId: workflow.parentWorkflowId,
+            parentWorkflowName: workflow.parentWorkflow?.name || null,
+
+            steps: workflow.steps.map((step) => ({
+              stepNumber: step.stepNumber,
+              stepName: step.stepName,
+              allowParallel: step.allowParallel,
+              requiresDocument: step.requiresDocument,
+
+              assignments: step.assignments.map((assignment) => {
+                const assigneeIds = assignment.assigneeIds.map((id) => {
+                  let name = "Unknown";
+
+                  if (assignment.assigneeType === "DEPARTMENT") {
+                    name = departmentMap.get(id) || "Unknown Department";
+                  }
+
+                  if (assignment.assigneeType === "ROLE") {
+                    name = roleMap.get(id) || "Unknown Role";
+                  }
+
+                  if (assignment.assigneeType === "USER") {
+                    name = userMap.get(id) || "Unknown User";
+                  }
+
+                  return {
+                    id,
+                    name,
+                  };
+                });
+
+                let selectedRoles = [];
+
+                if (assignment.assigneeType === "DEPARTMENT") {
+                  const deptMap = new Map();
+
+                  assignment.departmentRoles?.forEach((dr) => {
+                    if (!deptMap.has(dr.departmentId)) {
+                      deptMap.set(dr.departmentId, {
+                        department: dr.departmentId,
+                        roles: [],
+                        direction: dr.direction,
+                        allowParallel: dr.allowParallel,
+                      });
+                    }
+
+                    deptMap.get(dr.departmentId).roles.push({
+                      id: dr.roleId,
+                      name: selectedRoleMap.get(dr.roleId) || "Unknown Role",
+                    });
+                  });
+
+                  selectedRoles = Array.from(deptMap.values());
+                } else {
+                  selectedRoles = (assignment.selectedRoles || []).map(
+                    (roleId) => ({
+                      id: roleId,
+                      name: selectedRoleMap.get(roleId) || "Unknown Role",
+                    }),
+                  );
+                }
+
+                return {
+                  assigneeType: assignment.assigneeType,
+                  assigneeIds,
+                  actionType: assignment.actionType,
+                  accessTypes: assignment.accessTypes,
+                  direction: assignment.direction,
+                  allowParallel: assignment.allowParallel,
+                  selectedRoles,
+                };
+              }),
+            })),
+          })),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      message: "Workflows retrieved successfully",
+      workflows: workflowsResponse,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      error: "Failed to retrieve workflows",
+    });
+  }
+};
+
+export const delete_workflow_permanent = async (req, res) => {
+  try {
+    const id = req.params.workflowId;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "Workflow ID is required",
+      });
+    }
+
+    const workflow = await prisma.workflow.findUnique({
+      where: { id },
+      include: {
+        processes: true,
+      },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({
+        message: "Workflow not found",
+      });
+    }
+
+    // FIX: Fetch all versions tracking this name string to execute systemic cascade wipe
+    const workflowsToDelete = await prisma.workflow.findMany({
+      where: { name: workflow.name },
+      include: { processes: true },
+    });
+
+    const workflowIds = workflowsToDelete.map((w) => w.id);
+
+    const processFolders = workflowsToDelete.flatMap((w) =>
+      w.processes.map((p) => ({
+        id: p.id,
+        storagePath: p.storagePath,
+      })),
+    );
+
+    // Wipe out all versions sequentially matching target identity
+    await prisma.workflow.deleteMany({
+      where: {
+        id: { in: workflowIds },
+      },
+    });
+
+    // Clean physical server storage folders completely
+    for (const process of processFolders) {
+      try {
+        if (process.storagePath) {
+          const absolutePath = path.resolve(process.storagePath);
+
+          if (fsCB.existsSync(absolutePath)) {
+            fsCB.rmSync(absolutePath, {
+              recursive: true,
+              force: true,
+            });
+            console.log(`Deleted folder: ${absolutePath}`);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed deleting folder for process ${process.id}`, err);
+      }
+    }
+
+    return res.status(200).json({
+      message:
+        "Workflow, all versions, processes and files deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Error permanently deleting workflow:", error);
+    return res.status(500).json({
+      message: "Failed to permanently delete workflow",
+      error: error.message,
+    });
   }
 };
 

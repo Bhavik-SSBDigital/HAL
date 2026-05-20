@@ -301,6 +301,7 @@ export const initiate_process = async (req, res, next) => {
     }
 
     const { description, workflowId, issueNo } = req.body;
+
     const processName = await generate_unique_process_name(workflowId);
 
     const workflowDetails = await prisma.workflow.findUnique({
@@ -308,9 +309,18 @@ export const initiate_process = async (req, res, next) => {
       select: { name: true },
     });
 
-    const workflowName = workflowDetails.name;
+    if (!workflowDetails) {
+      return res.status(404).json({ message: "Workflow not found" });
+    }
 
-    await createFolder(false, `../${workflowName}/${processName}`, userData);
+    const workflowName = workflowDetails.name;
+    const processStoragePath = `../${workflowName}/${processName}`;
+
+    // =========================================================
+    // CREATE PROCESS FOLDER
+    // =========================================================
+
+    await createFolder(false, processStoragePath, userData);
 
     const processFolderDoc = await prisma.document.findUnique({
       where: { path: `${workflowName}/${processName}` },
@@ -323,35 +333,61 @@ export const initiate_process = async (req, res, next) => {
       });
     }
 
+    // =========================================================
+    // SPLIT DOCUMENTS
+    // =========================================================
+
     const allDocItems = req.body.documents || [];
+
     const realDocItems = allDocItems.filter((item) => !item.isMetadataOnly);
+
     const metaOnlyItems = allDocItems.filter((item) => item.isMetadataOnly);
 
-    let documentIds = realDocItems.map((item) => item.documentId) || [];
-    const copiedDocumentIds = [];
-    const editableDocMap = {};
+    // =========================================================
+    // FILE OPERATIONS OUTSIDE TRANSACTION
+    // =========================================================
 
-    for (let i = 0; i < realDocItems.length; i++) {
-      const item = realDocItems[i];
-      const documentId = item.documentId;
+    const processedRealDocs = [];
+    const processedMetaDocs = [];
 
-      const document = await prisma.document.findUnique({
-        where: { id: documentId },
-        select: { path: true },
-      });
+    // ---------------------------------------------------------
+    // PROCESS REAL DOCUMENTS
+    // ---------------------------------------------------------
 
-      if (!document) continue;
-
-      const sourcePath = `./${document.path}`;
-      const destinationPath = `../${workflowName}/${processName}`;
-      const name = sourcePath.split("/").pop();
-
+    for (const item of realDocItems) {
       try {
+        const originalDoc = await prisma.document.findUnique({
+          where: { id: item.documentId },
+          select: {
+            id: true,
+            path: true,
+          },
+        });
+
+        if (!originalDoc) {
+          console.warn(
+            `[PROCESS INITIATE] Original document not found: ${item.documentId}`,
+          );
+          continue;
+        }
+
+        const sourcePath = `./${originalDoc.path}`;
+        const destinationPath = processStoragePath;
+        const fileName = sourcePath.split("/").pop();
+
+        console.log(`[PROCESS INITIATE] Copying main document ${sourcePath}`);
+
         const copyResult = await new Promise((resolve, reject) => {
           file_copy(
             {
-              headers: { authorization: `Bearer ${accessToken}` },
-              body: { sourcePath, destinationPath, name },
+              headers: {
+                authorization: `Bearer ${accessToken}`,
+              },
+              body: {
+                sourcePath,
+                destinationPath,
+                name: fileName,
+              },
             },
             {
               status: (code) => ({
@@ -364,22 +400,35 @@ export const initiate_process = async (req, res, next) => {
           );
         });
 
-        let newEditableId = null;
+        let copiedEditableDocumentId = null;
+
+        // -----------------------------------------------------
+        // COPY EDITABLE REFERENCE DOCUMENT
+        // -----------------------------------------------------
 
         if (item.editableDocumentId) {
           const editableDoc = await prisma.document.findUnique({
             where: { id: item.editableDocumentId },
-            select: { path: true },
+            select: {
+              id: true,
+              path: true,
+            },
           });
 
           if (editableDoc) {
             const editableSourcePath = `./${editableDoc.path}`;
             const editableName = editableSourcePath.split("/").pop();
 
+            console.log(
+              `[PROCESS INITIATE] Copying editable reference ${editableSourcePath}`,
+            );
+
             const editableCopyResult = await new Promise((resolve, reject) => {
               file_copy(
                 {
-                  headers: { authorization: `Bearer ${accessToken}` },
+                  headers: {
+                    authorization: `Bearer ${accessToken}`,
+                  },
                   body: {
                     sourcePath: editableSourcePath,
                     destinationPath,
@@ -397,13 +446,133 @@ export const initiate_process = async (req, res, next) => {
               );
             });
 
-            newEditableId = editableCopyResult.documentId;
+            copiedEditableDocumentId = editableCopyResult.documentId;
+
+            // DELETE TEMP EDITABLE SOURCE
+            await new Promise((resolve, reject) => {
+              file_delete(
+                {
+                  headers: {
+                    authorization: `Bearer ${accessToken}`,
+                  },
+                  body: {
+                    documentId: item.editableDocumentId,
+                  },
+                },
+                {
+                  status: (code) => ({
+                    json: (data) => {
+                      if (code === 200) resolve(data);
+                      else reject(data);
+                    },
+                  }),
+                },
+              );
+            });
+
+            console.log(
+              `[PROCESS INITIATE] Deleted editable temp document ${item.editableDocumentId}`,
+            );
+          }
+        }
+
+        // DELETE ORIGINAL TEMP SOURCE
+        await new Promise((resolve, reject) => {
+          file_delete(
+            {
+              headers: {
+                authorization: `Bearer ${accessToken}`,
+              },
+              body: {
+                documentId: item.documentId,
+              },
+            },
+            {
+              status: (code) => ({
+                json: (data) => {
+                  if (code === 200) resolve(data);
+                  else reject(data);
+                },
+              }),
+            },
+          );
+        });
+
+        console.log(
+          `[PROCESS INITIATE] Deleted original temp document ${item.documentId}`,
+        );
+
+        processedRealDocs.push({
+          originalItem: item,
+          copiedMainDocumentId: copyResult.documentId,
+          copiedEditableDocumentId,
+        });
+      } catch (error) {
+        console.error(
+          `[PROCESS INITIATE] Error processing document ${item.documentId}`,
+          error,
+        );
+
+        throw error;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // PROCESS METADATA DOCUMENTS
+    // ---------------------------------------------------------
+
+    for (const metaItem of metaOnlyItems) {
+      let copiedEditableDocumentId = null;
+
+      try {
+        if (metaItem.editableDocumentId) {
+          const editableDoc = await prisma.document.findUnique({
+            where: {
+              id: metaItem.editableDocumentId,
+            },
+            select: {
+              path: true,
+            },
+          });
+
+          if (editableDoc) {
+            const editableSourcePath = `./${editableDoc.path}`;
+            const editableName = editableSourcePath.split("/").pop();
+
+            const editableCopyResult = await new Promise((resolve, reject) => {
+              file_copy(
+                {
+                  headers: {
+                    authorization: `Bearer ${accessToken}`,
+                  },
+                  body: {
+                    sourcePath: editableSourcePath,
+                    destinationPath: processStoragePath,
+                    name: editableName,
+                  },
+                },
+                {
+                  status: (code) => ({
+                    json: (data) => {
+                      if (code === 200) resolve(data);
+                      else reject(data);
+                    },
+                  }),
+                },
+              );
+            });
+
+            copiedEditableDocumentId = editableCopyResult.documentId;
 
             await new Promise((resolve, reject) => {
-              delete_file(
+              file_delete(
                 {
-                  headers: { authorization: `Bearer ${accessToken}` },
-                  body: { documentId: item.editableDocumentId },
+                  headers: {
+                    authorization: `Bearer ${accessToken}`,
+                  },
+                  body: {
+                    documentId: metaItem.editableDocumentId,
+                  },
                 },
                 {
                   status: (code) => ({
@@ -418,45 +587,43 @@ export const initiate_process = async (req, res, next) => {
           }
         }
 
-        if (copyResult.documentId) {
-          copiedDocumentIds.push(copyResult.documentId);
-          editableDocMap[copyResult.documentId] = newEditableId;
-        }
-
-        await new Promise((resolve, reject) => {
-          delete_file(
-            {
-              headers: { authorization: `Bearer ${accessToken}` },
-              body: { documentId },
-            },
-            {
-              status: (code) => ({
-                json: (data) => {
-                  if (code === 200) resolve(data);
-                  else reject(data);
-                },
-              }),
-            },
-          );
+        processedMetaDocs.push({
+          originalItem: metaItem,
+          copiedEditableDocumentId,
         });
       } catch (error) {
-        console.error(`Error processing document ${documentId}:`, error);
+        console.error(
+          `[PROCESS INITIATE] Error processing metadata item`,
+          error,
+        );
+
+        throw error;
       }
     }
 
-    documentIds = copiedDocumentIds;
+    // =========================================================
+    // VALIDATION
+    // =========================================================
 
-    if (documentIds.length === 0 && metaOnlyItems.length === 0) {
+    if (processedRealDocs.length === 0 && processedMetaDocs.length === 0) {
       return res.status(400).json({
         message:
           "At least one document or metadata entry is required to initiate a process",
       });
     }
 
+    // =========================================================
+    // DATABASE TRANSACTION ONLY
+    // =========================================================
+
     const initiatorId = userData.id;
 
     const process = await prisma.$transaction(
       async (tx) => {
+        // -----------------------------------------------------
+        // CREATE PROCESS INSTANCE
+        // -----------------------------------------------------
+
         const process_ = await tx.processInstance.create({
           data: {
             workflowId,
@@ -467,22 +634,22 @@ export const initiate_process = async (req, res, next) => {
             issueNo,
             currentStepId: null,
             reopenCycle: 0,
-            storagePath: `../${workflowName}/${processName}`,
+            storagePath: processStoragePath,
           },
         });
 
-        // FIX: Build an array to dynamically insert reference docs as independent non-SOP rows
+        // -----------------------------------------------------
+        // INSERT REAL DOCUMENTS
+        // -----------------------------------------------------
+
         const processDocumentsToInsert = [];
 
-        for (let i = 0; i < realDocItems.length; i++) {
-          const item = realDocItems[i];
-          const mainDocId = documentIds[i];
-          const refDocId = editableDocMap[mainDocId] || null;
+        for (const processedDoc of processedRealDocs) {
+          const item = processedDoc.originalItem;
 
-          // 1. Insert the main document
           processDocumentsToInsert.push({
             processId: process_.id,
-            documentId: mainDocId,
+            documentId: processedDoc.copiedMainDocumentId,
             reopenCycle: 0,
             SOPIssueNo: issueNo || null,
             preApproved: item.preApproved || false,
@@ -492,14 +659,13 @@ export const initiate_process = async (req, res, next) => {
             issueNo: item.issueNo || null,
             isSopDocument: item.isSopDocument !== false,
             isMetadataOnly: false,
-            editableDocumentId: refDocId, // Keep relational link
+            editableDocumentId: processedDoc.copiedEditableDocumentId,
           });
 
-          // 2. Insert the reference document independently with isSopDocument: false
-          if (refDocId) {
+          if (processedDoc.copiedEditableDocumentId) {
             processDocumentsToInsert.push({
               processId: process_.id,
-              documentId: refDocId,
+              documentId: processedDoc.copiedEditableDocumentId,
               reopenCycle: 0,
               SOPIssueNo: issueNo || null,
               preApproved: item.preApproved || false,
@@ -509,7 +675,7 @@ export const initiate_process = async (req, res, next) => {
                 ? `${item.description} (Editable Reference)`
                 : "Editable Reference",
               issueNo: item.issueNo || null,
-              isSopDocument: false, // Ensures reference docs are treated as non-SOP
+              isSopDocument: false,
               isMetadataOnly: false,
               editableDocumentId: null,
             });
@@ -522,13 +688,21 @@ export const initiate_process = async (req, res, next) => {
           });
         }
 
-        for (const metaItem of metaOnlyItems) {
+        // -----------------------------------------------------
+        // INSERT METADATA DOCUMENTS
+        // -----------------------------------------------------
+
+        for (const processedMeta of processedMetaDocs) {
+          const metaItem = processedMeta.originalItem;
+
           const placeholderDoc = await tx.document.create({
             data: {
               name:
                 metaItem.metaFileName || `metadata_placeholder_${Date.now()}`,
               type: metaItem.metaFileExtension || "placeholder",
-              path: `${workflowName}/${processName}/meta_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+              path: `${workflowName}/${processName}/meta_${Date.now()}_${Math.random()
+                .toString(36)
+                .substr(2, 6)}`,
               createdById: userData.id,
               isInvolvedInProcess: true,
               tags: metaItem.tags || [],
@@ -536,63 +710,6 @@ export const initiate_process = async (req, res, next) => {
             },
           });
 
-          let newEditableId = null;
-
-          if (metaItem.editableDocumentId) {
-            const editableDoc = await tx.document.findUnique({
-              where: { id: metaItem.editableDocumentId },
-              select: { path: true },
-            });
-
-            if (editableDoc) {
-              const editableSourcePath = `./${editableDoc.path}`;
-              const editableName = editableSourcePath.split("/").pop();
-
-              const editableCopyResult = await new Promise(
-                (resolve, reject) => {
-                  file_copy(
-                    {
-                      headers: { authorization: `Bearer ${accessToken}` },
-                      body: {
-                        sourcePath: editableSourcePath,
-                        destinationPath: `../${workflowName}/${processName}`,
-                        name: editableName,
-                      },
-                    },
-                    {
-                      status: (code) => ({
-                        json: (data) => {
-                          if (code === 200) resolve(data);
-                          else reject(data);
-                        },
-                      }),
-                    },
-                  );
-                },
-              );
-
-              newEditableId = editableCopyResult.documentId;
-
-              await new Promise((resolve, reject) => {
-                delete_file(
-                  {
-                    headers: { authorization: `Bearer ${accessToken}` },
-                    body: { documentId: metaItem.editableDocumentId },
-                  },
-                  {
-                    status: (code) => ({
-                      json: (data) => {
-                        if (code === 200) resolve(data);
-                        else reject(data);
-                      },
-                    }),
-                  },
-                );
-              });
-            }
-          }
-
-          // Insert main metadata placeholder
           await tx.processDocument.create({
             data: {
               processId: process_.id,
@@ -606,16 +723,15 @@ export const initiate_process = async (req, res, next) => {
               issueNo: metaItem.issueNo || null,
               isSopDocument: metaItem.isSopDocument !== false,
               isMetadataOnly: true,
-              editableDocumentId: newEditableId,
+              editableDocumentId: processedMeta.copiedEditableDocumentId,
             },
           });
 
-          // FIX: Insert reference document for metadata entries with isSopDocument: false
-          if (newEditableId) {
+          if (processedMeta.copiedEditableDocumentId) {
             await tx.processDocument.create({
               data: {
                 processId: process_.id,
-                documentId: newEditableId,
+                documentId: processedMeta.copiedEditableDocumentId,
                 reopenCycle: 0,
                 SOPIssueNo: issueNo || null,
                 preApproved: metaItem.preApproved || false,
@@ -625,7 +741,7 @@ export const initiate_process = async (req, res, next) => {
                   ? `${metaItem.description} (Editable Reference)`
                   : "Editable Reference",
                 issueNo: metaItem.issueNo || null,
-                isSopDocument: false, // Ensures reference docs are treated as non-SOP
+                isSopDocument: false,
                 isMetadataOnly: false,
                 editableDocumentId: null,
               },
@@ -633,22 +749,45 @@ export const initiate_process = async (req, res, next) => {
           }
         }
 
+        // -----------------------------------------------------
+        // FETCH DOCUMENT IDS
+        // -----------------------------------------------------
+
         const allProcessDocs = await tx.processDocument.findMany({
-          where: { processId: process_.id },
-          select: { documentId: true },
+          where: {
+            processId: process_.id,
+          },
+          select: {
+            documentId: true,
+          },
         });
 
-        // allDocIds will now correctly include the reference documents because we formally inserted them above
         const allDocIds = allProcessDocs.map((d) => d.documentId);
 
+        // -----------------------------------------------------
+        // FETCH WORKFLOW
+        // -----------------------------------------------------
+
         const workflow = await tx.workflow.findUnique({
-          where: { id: workflowId },
-          include: { steps: { include: { assignments: true } } },
+          where: {
+            id: workflowId,
+          },
+          include: {
+            steps: {
+              include: {
+                assignments: true,
+              },
+            },
+          },
         });
 
         if (!workflow || !workflow.steps.length) {
           throw new Error("Workflow or steps not found");
         }
+
+        // -----------------------------------------------------
+        // ASSIGN FIRST STEP
+        // -----------------------------------------------------
 
         const step = workflow.steps[0];
 
@@ -665,8 +804,14 @@ export const initiate_process = async (req, res, next) => {
           );
         }
 
+        // -----------------------------------------------------
+        // UPDATE PROCESS
+        // -----------------------------------------------------
+
         await tx.processInstance.update({
-          where: { id: process_.id },
+          where: {
+            id: process_.id,
+          },
           data: {
             currentStepId: workflow.steps[1]?.id,
             status: "IN_PROGRESS",
@@ -676,8 +821,8 @@ export const initiate_process = async (req, res, next) => {
         return process_;
       },
       {
-        maxWait: 10000,
-        timeout: 480000,
+        maxWait: 3000000,
+        timeout: 6000000,
       },
     );
 
@@ -687,6 +832,7 @@ export const initiate_process = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error initiating the process", error);
+
     return res.status(500).json({
       message: "Error initiating the process",
       error: error.message,
@@ -951,7 +1097,7 @@ export async function processAssignment(
     },
   });
 
-  console.log("assignment from process assignment", assignment);
+  // console.log("assignment from process assignment", assignment);
 
   const progress = foundProgress
     ? foundProgress
@@ -1448,7 +1594,12 @@ export const get_process_copy_details = async (req, res) => {
       where: { id: processId },
       include: {
         documents: {
-          include: { document: true },
+          include: {
+            document: true,
+            editableDocument: {
+              select: { id: true, name: true, path: true },
+            },
+          },
         },
       },
     });
@@ -1457,27 +1608,48 @@ export const get_process_copy_details = async (req, res) => {
       return res.status(404).json({ error: "Process not found" });
     }
 
-    // Determine active documents (latest in chain)
+    // Build a set of documentIds that are referenced as editableDocumentId
+    // so we can exclude them from the main document list
+    const editableDocumentIds = new Set(
+      process.documents
+        .filter((pd) => pd.editableDocumentId != null)
+        .map((pd) => pd.editableDocumentId),
+    );
+
+    // Determine active (non-replaced, non-superseded) documents
     const replacedDocumentIds = new Set(
       process.documents
         .filter((pd) => pd.replacedDocumentId)
         .map((pd) => pd.replacedDocumentId),
     );
+
     const activeDocuments = process.documents.filter(
-      (pd) => !replacedDocumentIds.has(pd.documentId) && !pd.superseding,
+      (pd) =>
+        !replacedDocumentIds.has(pd.documentId) &&
+        !pd.superseding &&
+        // Exclude docs that are purely editable-reference companions
+        !editableDocumentIds.has(pd.documentId),
     );
 
     const documents = activeDocuments.map((pd) => ({
       documentId: pd.documentId,
       name: pd.document.name,
       path: pd.document.path,
-      tags: pd.tags,
-      partNumber: pd.partNumber,
-      description: pd.description,
-      preApproved: pd.preApproved,
-      issueNo: pd.issueNo,
-      SOPIssueNo: pd.SOPIssueNo,
+      tags: pd.tags || [],
+      partNumber: pd.partNumber || null,
+      description: pd.description || null,
+      preApproved: pd.preApproved || false,
+      issueNo: pd.issueNo || null,
+      SOPIssueNo: pd.SOPIssueNo || null,
+      isSopDocument: pd.isSopDocument !== false,
+      isMetadataOnly: pd.isMetadataOnly || false,
+      metaFileName: pd.metaFileName || null,
+      metaFileExtension: pd.metaFileExtension || null,
       extension: pd.document.name.split(".").pop(),
+      // ── Editable reference ──────────────────────────────────
+      editableDocumentId: pd.editableDocumentId || null,
+      editableDocumentName: pd.editableDocument?.name || null,
+      editableDocumentPath: pd.editableDocument?.path || null,
     }));
 
     return res.status(200).json({
@@ -1500,12 +1672,18 @@ export const duplicate_document_for_copy = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized request" });
     }
 
-    const { sourceProcessId, sourceDocumentId, targetWorkflowId } = req.body;
+    const {
+      sourceProcessId,
+      sourceDocumentId,
+      targetWorkflowId,
+      customName,
+      sourceEditableDocumentId, // NEW optional param
+    } = req.body;
+
     if (!sourceProcessId || !sourceDocumentId || !targetWorkflowId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Fetch the source document to get its path and metadata
     const sourceDocument = await prisma.document.findUnique({
       where: { id: parseInt(sourceDocumentId) },
       select: { path: true, name: true },
@@ -1514,31 +1692,36 @@ export const duplicate_document_for_copy = async (req, res) => {
       return res.status(404).json({ error: "Source document not found" });
     }
 
-    // Get the source process to ensure we have the correct path (maybe not needed)
-    const sourceProcess = await prisma.processInstance.findUnique({
-      where: { id: sourceProcessId },
-      select: { storagePath: true },
-    });
-    if (!sourceProcess) {
-      return res.status(404).json({ error: "Source process not found" });
+    const extension = sourceDocument.name.split(".").pop();
+    let newName;
+
+    if (customName) {
+      newName = customName.includes(".")
+        ? customName
+        : `${customName}.${extension}`;
+    } else {
+      const workflow = await prisma.workflow.findUnique({
+        where: { id: targetWorkflowId },
+        select: { name: true, version: true },
+      });
+      if (!workflow) throw new Error(`Workflow ${targetWorkflowId} not found`);
+
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const timestamp = now.getTime();
+      const baseDocName = `${workflow.name}_w${workflow.version}_${dateStr}`;
+
+      const count = await prisma.document.count({
+        where: { name: { startsWith: baseDocName } },
+      });
+      const nextSerialNumber = (count + 1).toString().padStart(3, "0");
+      newName = `${baseDocName}_${nextSerialNumber}_${timestamp}_v1.${extension}`;
     }
 
-    // Generate new document name using the target workflow's naming rules
-    const extension = sourceDocument.name.split(".").pop();
-    const newName = await generateUniqueDocumentName({
-      workflowId: targetWorkflowId,
-      replacedDocId: null,
-      extension,
-    });
+    const destinationPath = `../check`;
+    const sourcePath = `./${sourceDocument.path}`;
 
-    // Destination: user's workspace folder
-    // Assuming workspace is at STORAGE_PATH/username
-    const destinationPath = `../check`; // relative path as used in file_copy
-
-    // Source path is relative to STORAGE_ROOT? file_copy expects relative path starting with ./
-    const sourcePath = `./${sourceDocument.path}`; // e.g., "./WorkflowName/ProcessName/document.pdf"
-
-    // Use file_copy to duplicate the file to workspace
+    // Copy main document
     const copyResult = await new Promise((resolve, reject) => {
       file_copy(
         {
@@ -1560,11 +1743,56 @@ export const duplicate_document_for_copy = async (req, res) => {
       throw new Error("File copy did not return a document ID");
     }
 
-    // Return the new document details
+    // ── Copy editable reference document if provided ──────────────────────
+    let newEditableDocumentId = null;
+    if (sourceEditableDocumentId) {
+      const editableDoc = await prisma.document.findUnique({
+        where: { id: parseInt(sourceEditableDocumentId) },
+        select: { path: true, name: true },
+      });
+
+      if (editableDoc) {
+        const editableSourcePath = `./${editableDoc.path}`;
+        const editableName = editableDoc.name; // keep original name
+
+        try {
+          const editableCopyResult = await new Promise((resolve, reject) => {
+            file_copy(
+              {
+                headers: { authorization: `Bearer ${accessToken}` },
+                body: {
+                  sourcePath: editableSourcePath,
+                  destinationPath,
+                  name: editableName,
+                },
+              },
+              {
+                status: (code) => ({
+                  json: (data) => {
+                    if (code === 200) resolve(data);
+                    else reject(data);
+                  },
+                }),
+              },
+            );
+          });
+          newEditableDocumentId = editableCopyResult.documentId || null;
+        } catch (editableErr) {
+          console.warn(
+            `Failed to copy editable reference document ${sourceEditableDocumentId}:`,
+            editableErr.message,
+          );
+          // Non-fatal: proceed without editable reference
+        }
+      }
+    }
+
     return res.status(200).json({
       documentId: copyResult.documentId,
       name: newName,
-      path: copyResult.path || destinationPath, // optional
+      path: copyResult.path || destinationPath,
+      // ── NEW: return editable doc ID so frontend can wire it ──
+      editableDocumentId: newEditableDocumentId,
     });
   } catch (error) {
     console.error("Error duplicating document for copy:", error);
@@ -3209,6 +3437,8 @@ async function advanceToNextStep(tx, processId, currentStepId) {
     include: { assignments: true },
   });
 
+  console.log("next step", nextStep);
+
   const openQueries = await tx.processQA.findMany({
     where: {
       processId,
@@ -3552,18 +3782,25 @@ async function checkAllAssignmentsCompleted(tx, processId, stepId) {
 export const complete_process_step = async (req, res) => {
   try {
     const { stepInstanceId } = req.body;
+
     const accessToken = req.headers["authorization"]?.substring(7);
+
     const userData = await verifyUser(accessToken);
+
     if (userData === "Unauthorized") {
-      return res.status(401).json({ message: "Unauthorized request" });
+      return res.status(401).json({
+        message: "Unauthorized request",
+      });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const stepInstance = await tx.processStepInstance.findUnique({
+      const stepInstance = await tx.processStepInstance.findFirst({
         where: {
           id: stepInstanceId,
           assignedTo: userData.id,
-          status: { in: ["IN_PROGRESS", "MIGRATED"] },
+          status: {
+            in: ["IN_PROGRESS", "MIGRATED"],
+          },
         },
         include: {
           process: {
@@ -3575,13 +3812,19 @@ export const complete_process_step = async (req, res) => {
               reopenCycle: true,
             },
           },
+
           workflowAssignment: {
             include: {
               step: {
-                select: { id: true, workflowId: true, stepNumber: true },
+                select: {
+                  id: true,
+                  workflowId: true,
+                  stepNumber: true,
+                },
               },
             },
           },
+
           assignmentProgress: true,
         },
       });
@@ -3590,10 +3833,14 @@ export const complete_process_step = async (req, res) => {
         throw new Error("Invalid step instance or user not assigned");
       }
 
-      // --- NO DISTURBANCE POLICY: migrated steps are archived without affecting the process ---
+      // -----------------------------
+      // MIGRATED STEP
+      // -----------------------------
       if (stepInstance.isMigrated) {
         return await tx.processStepInstance.update({
-          where: { id: stepInstanceId },
+          where: {
+            id: stepInstanceId,
+          },
           data: {
             status: "APPROVED",
             decisionAt: new Date(),
@@ -3603,16 +3850,23 @@ export const complete_process_step = async (req, res) => {
         });
       }
 
+      // -----------------------------
+      // RECIRCULATION BLOCK
+      // -----------------------------
       if (stepInstance.status === "FOR_RECIRCULATION") {
         throw new Error("Cannot complete step until recirculation is resolved");
       }
 
       const workflowId = stepInstance.process.workflowId;
 
-      // Handle recirculated step instances (those created after a query)
+      // -----------------------------
+      // RECIRCULATED INSTANCE
+      // -----------------------------
       if (stepInstance.isRecirculated) {
         await tx.processStepInstance.update({
-          where: { id: stepInstanceId },
+          where: {
+            id: stepInstanceId,
+          },
           data: {
             status: "APPROVED",
             decisionAt: new Date(),
@@ -3632,8 +3886,13 @@ export const complete_process_step = async (req, res) => {
 
         if (pendingRecirculatedInstances.length === 0) {
           await tx.assignmentProgress.update({
-            where: { id: stepInstance.assignmentProgress.id },
-            data: { completed: true, completedAt: new Date() },
+            where: {
+              id: stepInstance.assignmentProgress.id,
+            },
+            data: {
+              completed: true,
+              completedAt: new Date(),
+            },
           });
         }
 
@@ -3643,24 +3902,35 @@ export const complete_process_step = async (req, res) => {
           stepInstance.stepId,
         );
 
+        console.log("all assignment completed", allAssignmentsCompleted);
+
         if (allAssignmentsCompleted) {
           const advanceResult = await advanceToNextStep(
             tx,
             stepInstance.processId,
             stepInstance.stepId,
           );
+
           return {
             message: "Recirculated step completed and advanced",
             advanceStatus: advanceResult.status,
             recirculated: true,
           };
         }
-        return { message: "Recirculated step completed", recirculated: true };
+
+        return {
+          message: "Recirculated step completed",
+          recirculated: true,
+        };
       }
 
-      // --- Normal (non‑recirculated) step completion ---
+      // -----------------------------
+      // NORMAL STEP COMPLETION
+      // -----------------------------
       await tx.processStepInstance.update({
-        where: { id: stepInstanceId },
+        where: {
+          id: stepInstanceId,
+        },
         data: {
           status: "APPROVED",
           decisionAt: new Date(),
@@ -3669,29 +3939,57 @@ export const complete_process_step = async (req, res) => {
         },
       });
 
-      // For DEPARTMENT assignments, update department progress
+      // IMPORTANT FIX:
+      // USER assignments must mark assignmentProgress completed
+      if (stepInstance.workflowAssignment?.assigneeType === "USER") {
+        await tx.assignmentProgress.update({
+          where: {
+            id: stepInstance.assignmentProgress.id,
+          },
+          data: {
+            completed: true,
+            completedAt: new Date(),
+          },
+        });
+      }
+
+      // -----------------------------
+      // DEPARTMENT ASSIGNMENT
+      // -----------------------------
       if (stepInstance.workflowAssignment?.assigneeType === "DEPARTMENT") {
         await updateDepartmentProgress(tx, stepInstance, workflowId);
       }
 
-      // For ROLE assignments, delete other pending instances for this role
+      // -----------------------------
+      // ROLE ASSIGNMENT
+      // -----------------------------
       if (stepInstance.workflowAssignment?.assigneeType === "ROLE") {
         await tx.processStepInstance.deleteMany({
           where: {
             processId: stepInstance.processId,
             stepId: stepInstance.stepId,
             assignmentId: stepInstance.assignmentId,
-            id: { not: stepInstanceId },
+            id: {
+              not: stepInstanceId,
+            },
             status: "IN_PROGRESS",
           },
         });
+
         await tx.assignmentProgress.update({
-          where: { id: stepInstance.assignmentProgress.id },
-          data: { completed: true, completedAt: new Date() },
+          where: {
+            id: stepInstance.assignmentProgress.id,
+          },
+          data: {
+            completed: true,
+            completedAt: new Date(),
+          },
         });
       }
 
-      // Check if this specific assignment is now fully completed
+      // -----------------------------
+      // CHECK ASSIGNMENT COMPLETION
+      // -----------------------------
       const assignmentCompleted =
         stepInstance.workflowAssignment?.assigneeType !== "USER"
           ? await checkAssignmentCompletion(
@@ -3699,9 +3997,11 @@ export const complete_process_step = async (req, res) => {
               stepInstance.assignmentProgress.id,
               stepInstance.id,
             )
-          : true; // USER assignments are always completed when the single instance is approved
+          : true;
 
-      // If there are open queries, we cannot advance yet
+      // -----------------------------
+      // OPEN QUERIES CHECK
+      // -----------------------------
       const openQueries = await tx.processQA.findMany({
         where: {
           processId: stepInstance.processId,
@@ -3717,7 +4017,9 @@ export const complete_process_step = async (req, res) => {
         };
       }
 
-      // If this assignment is completed, check if all assignments for the step are done
+      // -----------------------------
+      // STEP ADVANCEMENT
+      // -----------------------------
       if (assignmentCompleted) {
         const allAssignmentsCompleted = await checkAllAssignmentsCompleted(
           tx,
@@ -3725,11 +4027,18 @@ export const complete_process_step = async (req, res) => {
           stepInstance.stepId,
         );
 
+        console.log("all assignment completed", allAssignmentsCompleted);
+
         if (allAssignmentsCompleted) {
-          // All assignments for this step are done → try to advance to next step
           const currentStep = await tx.workflowStep.findUnique({
-            where: { id: stepInstance.stepId },
-            select: { id: true, stepNumber: true, workflowId: true },
+            where: {
+              id: stepInstance.stepId,
+            },
+            select: {
+              id: true,
+              stepNumber: true,
+              workflowId: true,
+            },
           });
 
           const nextStep = await tx.workflowStep.findFirst({
@@ -3737,9 +4046,15 @@ export const complete_process_step = async (req, res) => {
               workflowId: currentStep.workflowId,
               stepNumber: currentStep.stepNumber + 1,
             },
-            orderBy: { stepNumber: "asc" },
-            include: { assignments: true },
+            orderBy: {
+              stepNumber: "asc",
+            },
+            include: {
+              assignments: true,
+            },
           });
+
+          console.log("next step", nextStep);
 
           if (nextStep) {
             const advanceResult = await advanceToNextStep(
@@ -3747,37 +4062,46 @@ export const complete_process_step = async (req, res) => {
               stepInstance.processId,
               stepInstance.stepId,
             );
+
             return {
               message: "Step completed and process advanced",
               advanceStatus: advanceResult.status,
             };
           } else {
-            // No next step → process is completed
             await tx.processInstance.update({
-              where: { id: stepInstance.processId },
-              data: { status: "COMPLETED" },
+              where: {
+                id: stepInstance.processId,
+              },
+              data: {
+                status: "COMPLETED",
+              },
             });
-            return { message: "Process completed successfully" };
+
+            return {
+              message: "Process completed successfully",
+            };
           }
         } else {
-          // Not all assignments are done yet; just confirm step completion
           return {
             message:
               "Step completed successfully (waiting for other assignments)",
           };
         }
       } else {
-        // This assignment is not yet fully completed (e.g., a department still has more levels)
-        return { message: "Step completed successfully (more levels pending)" };
+        return {
+          message: "Step completed successfully (more levels pending)",
+        };
       }
     });
 
     return res.status(200).json(result);
   } catch (error) {
     console.error("Error completing step:", error);
-    return res
-      .status(500)
-      .json({ message: "Error completing step", error: error.message });
+
+    return res.status(500).json({
+      message: "Error completing step",
+      error: error.message,
+    });
   }
 };
 
@@ -5861,7 +6185,7 @@ export const get_drafted_processes_for_initiator = async (req, res) => {
       },
     });
 
-    console.log("drafts found:", drafts.length);
+    // console.log("drafts found:", drafts.length);
 
     // Transform drafts to match expected response format
     const transformedDrafts = drafts.map((draft) => {
@@ -6211,7 +6535,7 @@ export const upload_documents_in_process = async (req, res) => {
 
           // Delete original document from workspace
           await new Promise((resolve, reject) => {
-            delete_file(
+            file_delete(
               {
                 headers: { authorization: `Bearer ${accessToken}` },
                 body: { documentId },
@@ -6306,7 +6630,7 @@ export const upload_documents_in_process = async (req, res) => {
       },
     });
 
-    console.log("eligible users", eligibleUsers);
+    // console.log("eligible users", eligibleUsers);
 
     if (eligibleUsers.length > 0) {
       await prisma.processStepInstance.createMany({
@@ -6860,14 +7184,12 @@ export const get_all_processes_for_admin = async (req, res) => {
     const accessToken = req.headers["authorization"]?.substring(7);
     const userData = await verifyUser(accessToken);
 
-    // Assuming user context has isAdmin flag or you check against specific roles
     if (userData === "Unauthorized" || !userData.isAdmin) {
       return res
         .status(401)
         .json({ message: "Unauthorized request. Admin access required." });
     }
 
-    // Using `select` restricts the payload size drastically, preventing memory crashes
     const processes = await prisma.processInstance.findMany({
       select: {
         id: true,
@@ -6909,28 +7231,19 @@ export const delete_process_cleanup = async (req, res) => {
       return res.status(404).json({ message: "Process not found." });
     }
 
-    // IMPORTANT: storagePath is typically "../WorkflowName/ProcessName"
-    // createFolder saves it in DB as "/WorkflowName/ProcessName"
-    // We MUST format this correctly to find the ghost records in the DB.
     const dbPath = process.storagePath
       ? process.storagePath.replace(/^\.\./, "")
       : null;
 
-    // Execute deletion within a transaction to ensure database consistency
     await prisma.$transaction(async (tx) => {
-      // 1. Delete associated ProcessDrafts
       await tx.processDraft.deleteMany({
         where: { processId: processId },
       });
 
       if (dbPath) {
-        // 2. Find all literal documents to delete (The process folder itself AND all files inside it)
         const documentsToDelete = await tx.document.findMany({
           where: {
-            OR: [
-              { path: dbPath }, // Matches the parent folder
-              { path: { startsWith: `${dbPath}/` } }, // Matches files inside the folder
-            ],
+            OR: [{ path: dbPath }, { path: { startsWith: `${dbPath}/` } }],
           },
           select: { id: true },
         });
@@ -6938,44 +7251,30 @@ export const delete_process_cleanup = async (req, res) => {
         const docIds = documentsToDelete.map((d) => d.id);
 
         if (docIds.length > 0) {
-          // 3. Remove Access / Permissions for these documents
           await tx.documentAccess.deleteMany({
             where: { documentId: { in: docIds } },
           });
-
-          // 4. Remove Document Content / Search Indexes
           await tx.documentContent.deleteMany({
             where: { documentId: { in: docIds } },
           });
-
-          // 5. Remove Bookmarks
           await tx.bookmark.deleteMany({
             where: { documentId: { in: docIds } },
           });
-
-          // 6. Delete Document History for these files AND for this process
           await tx.documentHistory.deleteMany({
             where: {
               OR: [{ processId: processId }, { documentId: { in: docIds } }],
             },
           });
-
-          // 7. FINALLY: Delete the actual Document records from the DB to prevent P2002 constraint errors
-          await tx.document.deleteMany({
-            where: { id: { in: docIds } },
-          });
+          await tx.document.deleteMany({ where: { id: { in: docIds } } });
         }
       }
 
-      // 8. Delete ProcessInstance (Prisma's Cascade handles StepInstances, ProcessDocuments, QA, etc.)
       await tx.processInstance.delete({
         where: { id: processId },
       });
     });
 
-    // 9. Clean up the physical file system folder
     if (dbPath) {
-      // Safely join the absolute path using the normalized dbPath
       const absoluteFolderPath = path.join(__dirname, STORAGE_PATH, dbPath);
       try {
         await fs.rm(absoluteFolderPath, { recursive: true, force: true });
